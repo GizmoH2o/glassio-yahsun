@@ -141,7 +141,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
 
     private companion object {
         const val PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Glass Launcher</title><style>
+<title>Glassio</title><style>
 body{margin:0;background:#0b0d16;color:#eef1fb;font:16px/1.5 -apple-system,Roboto,Segoe UI,sans-serif}
 main{max-width:620px;margin:0 auto;padding:22px 16px 60px}h1{font-size:26px;margin:6px 0 0}h2{font-size:13px;letter-spacing:.12em;color:#9d8cff;margin:30px 0 8px;text-transform:uppercase}
 p{color:#98a2bd;margin:4px 0 12px}input[type=text],textarea{width:100%;box-sizing:border-box;background:#141827;color:#eef1fb;border:1px solid #232a40;border-radius:12px;padding:12px;font:15px monospace}
@@ -151,7 +151,7 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 .card{background:#141827;border-radius:14px;padding:12px 14px;margin-bottom:8px}.card b{display:block}.card small{color:#6b7794;word-break:break-all}
 .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tag{font-size:11px;background:#2a2150;color:#c8bdff;border-radius:6px;padding:1px 6px;margin-left:6px}
 </style></head><body><main>
-<h1>Glass Launcher</h1><p>Manage your TV from here &middot; &#1573;&#1583;&#1575;&#1585;&#1577; &#1575;&#1604;&#1578;&#1604;&#1601;&#1586;&#1610;&#1608;&#1606; &#1605;&#1606; &#1607;&#1606;&#1575;</p>
+<h1>Glassio</h1><p>Manage your TV from here &middot; &#1573;&#1583;&#1575;&#1585;&#1577; &#1575;&#1604;&#1578;&#1604;&#1601;&#1586;&#1610;&#1608;&#1606; &#1605;&#1606; &#1607;&#1606;&#1575;</p>
 <div id="msg"></div>
 <h2>Add-ons</h2><div id="addons"></div>
 <input type="text" id="au" placeholder="https://.../manifest.json  or  stremio://..."><button onclick="addAddon()">Add add-on</button>

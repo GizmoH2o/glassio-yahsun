@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Glass Launcher</string>
-    <string name="accessibility_description">Brings Glass Launcher to the front when the Home button opens the stock launcher.</string>
+    <string name="app_name">Glassio</string>
+    <string name="accessibility_description">Brings Glassio to the front when the Home button opens the stock launcher.</string>
 </resources>

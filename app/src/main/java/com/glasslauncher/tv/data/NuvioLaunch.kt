@@ -49,6 +49,6 @@ object NuvioLaunch {
 
     fun testWebhook(s: Settings, http: Http): String = try {
         if (!s.haWebhook.startsWith("http")) "Set the webhook URL first"
-        else "Home Assistant answered HTTP " + http.post(s.haWebhook, JSONObject().put("event", "test").put("source", "glass-launcher"))
+        else "Home Assistant answered HTTP " + http.post(s.haWebhook, JSONObject().put("event", "test").put("source", "glassio"))
     } catch (e: Exception) { "Failed: ${e.message}" }
 }

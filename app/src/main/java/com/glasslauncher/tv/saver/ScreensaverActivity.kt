@@ -85,7 +85,7 @@ class ScreensaverActivity : ComponentActivity() {
                             SystemDream.awaitAndRestore(applicationContext) { runOnUiThread { if (!isFinishing) finish() } }
                         else runOnUiThread {
                             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                            android.widget.Toast.makeText(this, "Allow USB debugging for Glass Launcher to use the TV screensaver", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(this, "Allow USB debugging for Glassio to use the TV screensaver", android.widget.Toast.LENGTH_LONG).show()
                         }
                     }.apply { isDaemon = true }.start()
                 }

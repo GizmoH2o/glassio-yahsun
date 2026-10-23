@@ -44,7 +44,7 @@ class ContinueWatching(
     @Volatile private var access = sp.getBoolean("access", false)
     private val wake = Object()
 
-    /** True once the local adb shell has answered (USB debugging allowed for Glass Launcher). */
+    /** True once the local adb shell has answered (USB debugging allowed for Glassio). */
     fun hasLogAccess(): Boolean = access
 
     fun start() {

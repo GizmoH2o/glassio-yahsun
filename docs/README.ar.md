@@ -1,6 +1,6 @@
 <div dir="rtl">
 
-# Glass Launcher — دليل الاستخدام
+# Glassio — دليل الاستخدام
 
 لانشر لـ Google TV / Android TV بشكل Apple TV: زجاج سائل حقيقي، كروسيل من كتلوكات نوفيو، "متابعة المشاهدة" من
 Nuvio Legacy، أيقونات بأسلوب tvOS، طقس، سكرين سيفر، وربط ويه Home Assistant.
@@ -8,14 +8,14 @@ Nuvio Legacy، أيقونات بأسلوب tvOS، طقس، سكرين سيفر،
 [English](../README.md)
 
 ## التثبيت
-1. نزّل `GlassLauncher-x.y.z.apk` من صفحة [Releases](https://github.com/mohammadmrh12/glass-launcher/releases).
+1. نزّل `GlassLauncher-x.y.z.apk` من صفحة [Releases](https://github.com/mohammadmrh12/glassio/releases).
 2. ثبّته على التلفزيون عن طريق تطبيق Downloader، أو فلاشة، أو من الكمبيوتر:
    `adb connect <ip>:5555` ثم `adb install -r GlassLauncher-x.y.z.apk`
-3. افتح Glass Launcher من التطبيقات.
+3. افتح Glassio من التطبيقات.
 
 ## خليه اللانشر الأساسي (زر الهوم)
 كوكل تي في دائماً يوجّه زر الهوم للانشر مالته، فاللانشر يستخدم خدمة إمكانية الوصول:
-1. الإعدادات ← **System** ← *Turn on the accessibility service* ← Glass Launcher ← تشغيل.
+1. الإعدادات ← **System** ← *Turn on the accessibility service* ← Glassio ← تشغيل.
 2. مُستحسن (حتى تبقى الخدمة شغالة بعد التحديثات): من الكمبيوتر مرة وحدة
    `adb shell pm grant com.glasslauncher.tv android.permission.WRITE_SECURE_SETTINGS`
 3. أول مرة يستخدم اللانشر adb مال التلفزيون (سكرين سيفر التلفزيون، متابعة المشاهدة، التحديث الصامت) تطلع رسالة
@@ -64,7 +64,7 @@ Nuvio Legacy، أيقونات بأسلوب tvOS، طقس، سكرين سيفر،
 </div>
 
 ```yaml
-alias: Glass Launcher – title opened
+alias: Glassio – title opened
 mode: queued
 triggers:
   - trigger: webhook
@@ -94,7 +94,7 @@ actions:
 ## التحديثات
 اللانشر يفحص آخر إصدار على GitHub عند التشغيل وكل 12 ساعة. يطلع إشعار بالأعلى وعلامة **Update** يم الساعة.
 الإعدادات ← **About** ← **Install update**: ينزّل التحديث ويثبته — بصمت ويرجع يفتح لحاله إذا وافقت على USB debugging،
-وإلا يطلب منك تأكيد (فعّل *Install unknown apps* لـ Glass Launcher).
+وإلا يطلب منك تأكيد (فعّل *Install unknown apps* لـ Glassio).
 
 ## الخصوصية
 بدون حسابات أو تتبع أو إعلانات. الإعدادات تبقى بالتلفزيون. صفحة الموبايل تشتغل بس وهي مفتوحة وكل طلب يحتاج الرمز اللي

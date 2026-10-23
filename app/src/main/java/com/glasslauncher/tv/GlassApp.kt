@@ -44,6 +44,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     val requestFolder = androidx.compose.runtime.mutableStateOf(false)
     /** Set by `am start ... --ei open_settings <tab>`: opens Settings on that tab. */
     val requestSettings = androidx.compose.runtime.mutableIntStateOf(-1)
+    /** Bumped with every request, so asking for the same tab twice (or while the screen was asleep) still works. */
+    val requestSettingsRev = androidx.compose.runtime.mutableIntStateOf(0)
     fun touch() {
         val n = System.currentTimeMillis()
         if (n - interaction.longValue > 400) interaction.longValue = n

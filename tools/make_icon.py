@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Renders the Glass Launcher icon (square) and TV banner (16:9): a frosted glass pane over soft colour."""
+"""Renders the Glassio icon (square) and TV banner (16:9): a frosted glass pane over soft colour."""
 import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter

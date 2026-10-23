@@ -260,7 +260,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Toggle("Open on what I just watched", "Back from Nuvio, the carousel shows that title first", { st.continueJump }, { st.continueJump = it }))
                 add(Toggle("Progress bar", "Shows Continue · S1 · E3 · 42% under the title", { st.cwProgress }, { st.cwProgress = it }))
                 add(Note("Apps"))
-                add(Toggle("Nuvio Legacy", if (app.cw.hasLogAccess()) "Reading what you watch in Nuvio Legacy" else "Allow USB debugging for Glass Launcher when the TV asks", { st.cwLegacy }, { st.cwLegacy = it }))
+                add(Toggle("Nuvio Legacy", if (app.cw.hasLogAccess()) "Reading what you watch in Nuvio Legacy" else "Allow USB debugging for Glassio when the TV asks", { st.cwLegacy }, { st.cwLegacy = it }))
                 add(Note("Other apps (YouTube, Netflix, Apple TV…) keep their Continue Watching private on Google TV; only the system launcher may read it."))
                 add(Act("Clear the list", "${cwList.size} titles", "") { app.cw.clear() })
                 cwList.forEach { e ->
@@ -301,7 +301,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         else -> "Posters with logos"
                     }
                 }, { st.saverMode = cycle(listOf("aerial", "slideshow", "system"), st.saverMode, it) }))
-                if (st.saverMode == "system") add(Note("Starts the screensaver chosen in Google TV settings (Aerial Views). The first time, the TV asks to allow USB debugging for Glass Launcher: choose Always allow."))
+                if (st.saverMode == "system") add(Note("Starts the screensaver chosen in Google TV settings (Aerial Views). The first time, the TV asks to allow USB debugging for Glassio: choose Always allow."))
                 add(Toggle("Apple aerial videos", "Streams Apple's public aerial feed", { st.useAppleAerials }, { st.useAppleAerials = it }))
                 add(Toggle("Show clock", "", { st.saverClock }, { st.saverClock = it }))
                 add(Toggle("Back on the home screen starts it", "Like Apple TV: press Back on the home screen", { st.backSaver }, { st.backSaver = it }))
@@ -314,14 +314,14 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     add(Act("Video link", hostOf(u), "Remove") { st.aerialUrls = st.aerialUrls - u })
                 }
                 add(Act("Preview now", "") { ctx.startActivity(Intent(ctx, ScreensaverActivity::class.java)) })
-                add(Act("Use as system screensaver", "Pick Glass Launcher in the list", "") { openSystem(ctx, AndroidSettings.ACTION_DREAM_SETTINGS) })
+                add(Act("Use as system screensaver", "Pick Glassio in the list", "") { openSystem(ctx, AndroidSettings.ACTION_DREAM_SETTINGS) })
             }
         },
         Category("Manage from phone", Kind.Phone),
         Category("System") {
             listOf(
-                Toggle("Home button opens Glass Launcher", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
-                Act("Turn on the accessibility service", "Find Glass Launcher and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
+                Toggle("Home button opens Glassio", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
+                Act("Turn on the accessibility service", "Find Glassio and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
                 Act("Choose default home app", "", "") { openSystem(ctx, AndroidSettings.ACTION_HOME_SETTINGS) },
             )
         },
@@ -518,7 +518,7 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
             Text("Scan with your phone", color = Color.White.copy(alpha = 0.5f), fontSize = (9 * s).sp)
         }
         val rows = buildList<SRow> {
-            add(Note("Glass Launcher ${app.updater.current}"))
+            add(Note("Glassio ${app.updater.current}"))
             if (rel != null) {
                 add(Act("Install update ${rel!!.version}", if (status.isNotBlank()) status else "Downloads from GitHub and restarts Glass", "Install") { app.updater.install() })
                 rel!!.notes.lineSequence().map { it.trim().removePrefix("-").removePrefix("*").trim() }.filter { it.isNotBlank() && !it.startsWith("#") }

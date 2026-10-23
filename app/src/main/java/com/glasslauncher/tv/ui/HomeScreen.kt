@@ -208,7 +208,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     LaunchedEffect(app.homeRev.intValue) {
         folderOpen = false; folderMoving = null; pickerFor = null; dialog = null; movingPkg = null; expanded = false
     }
-    LaunchedEffect(app.requestSettings.intValue) {
+    LaunchedEffect(app.requestSettingsRev.intValue) {
         val c = app.requestSettings.intValue
         if (c >= 0) { settingsCat = c; onScreen(Screen.Settings); app.requestSettings.intValue = -1 }
     }
@@ -555,7 +555,7 @@ private fun HeroSection(
 @Composable
 private fun EmptyHint(status: String, s: Float, modifier: Modifier) {
     Column(modifier.padding(start = (56 * s).dp, top = (130 * s).dp).widthIn(max = (480 * s).dp)) {
-        Text("Glass Launcher", color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
+        Text("Glassio", color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
         Spacer(Modifier.height((10 * s).dp))
         Text(if (status.isBlank()) "Loading…" else status, color = Color.White.copy(alpha = 0.7f), fontSize = (14 * s).sp)
         Spacer(Modifier.height((6 * s).dp))
@@ -842,7 +842,7 @@ fun UpdateBanner(app: GlassApp, s: Float, modifier: Modifier) {
     AnimatedVisibility(visible, modifier, enter = fadeIn(tween(300)), exit = fadeOut(tween(400))) {
         GlassPanel(Modifier.padding(top = (16 * s).dp), (16 * s).dp, style = app.settings.panelStyle, darken = 0.55f) {
             Column(Modifier.padding(horizontal = (16 * s).dp, vertical = (10 * s).dp)) {
-                Text("Glass Launcher ${r?.version} is available", color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold)
+                Text("Glassio ${r?.version} is available", color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold)
                 Text("Settings → About → Install update", color = AppleSecondary, fontSize = (10 * s).sp, fontWeight = FontWeight.Medium)
             }
         }

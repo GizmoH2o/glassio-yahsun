@@ -6,7 +6,7 @@ import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 
 /**
- * Home button → Glass Launcher.
+ * Home button → Glassio.
  *
  * Google TV sends Home to its own launcher no matter which app is the default home. This service
  * (switched on by the user under Settings > Accessibility) receives the Home key *before* the system

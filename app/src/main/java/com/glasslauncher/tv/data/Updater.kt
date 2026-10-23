@@ -20,7 +20,7 @@ import java.net.URL
 data class Release(val version: String, val notes: String, val apkUrl: String, val pageUrl: String, val size: Long)
 
 /**
- * Updates from GitHub Releases (github.com/mohammadmrh12/glass-launcher).
+ * Updates from GitHub Releases (github.com/mohammadmrh12/glassio).
  *
  * Checks the latest release a few seconds after start and then every 12 hours. Installing downloads the
  * APK and hands it to the TV's own adb shell (the same one used for the TV screensaver), which updates
@@ -29,7 +29,7 @@ data class Release(val version: String, val notes: String, val apkUrl: String, v
  */
 class Updater(private val ctx: Context, private val scope: CoroutineScope) {
     companion object {
-        const val REPO = "mohammadmrh12/glass-launcher"
+        const val REPO = "mohammadmrh12/glassio"
         const val REPO_URL = "https://github.com/$REPO"
         private const val API = "https://api.github.com/repos/$REPO/releases/latest"
     }
@@ -69,7 +69,7 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
             if (apk.isNotBlank() && newer(tag, current)) {
                 available.value = Release(tag, j.optString("body"), apk, j.optString("html_url"), size)
                 "Version $tag is available"
-            } else { available.value = null; "Glass Launcher is up to date ($current)" }
+            } else { available.value = null; "Glassio is up to date ($current)" }
         }
     } catch (e: Exception) { "Could not check: ${e.message}" }
 

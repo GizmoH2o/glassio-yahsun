@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/brand/icon_512.png" width="140" alt="Glass Launcher icon"></p>
+<p align="center"><img src="docs/brand/icon_512.png" width="140" alt="Glassio icon"></p>
 
-# Glass Launcher
+# Glassio
 
 **An Apple TV–style home screen for Google TV / Android TV**, with real liquid glass, a carousel fed by your
 Nuvio add-on catalogs, Continue Watching from Nuvio Legacy, tvOS-style icons, weather, screensavers and
@@ -68,26 +68,26 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 ## Install
 
-1. Download `GlassLauncher-x.y.z.apk` from [Releases](https://github.com/mohammadmrh12/glass-launcher/releases).
+1. Download `GlassLauncher-x.y.z.apk` from [Releases](https://github.com/mohammadmrh12/glassio/releases).
 2. Install it on the TV: with the **Downloader** app (enter the release link), a USB stick, or from a computer:
    ```sh
    adb connect <tv-ip>:5555
    adb install -r GlassLauncher-x.y.z.apk
    ```
-3. Open **Glass Launcher** from the TV's apps.
+3. Open **Glassio** from the TV's apps.
 
 ### Make it your home screen (Home button)
 
 Google TV always sends the Home button to its own launcher, so Glass uses an accessibility service to catch it.
 
-1. Settings → **System** → *Turn on the accessibility service* → choose **Glass Launcher** → On.
+1. Settings → **System** → *Turn on the accessibility service* → choose **Glassio** → On.
 2. Recommended — so Android keeps the service on after updates, and so Glass can start the TV screensaver and read Nuvio's
    progress, run once from a computer:
    ```sh
    adb shell pm grant com.glasslauncher.tv android.permission.WRITE_SECURE_SETTINGS
    ```
 3. The first time Glass uses the TV's own adb (TV screensaver, Continue Watching, silent updates) the TV asks
-   **"Allow USB debugging?"** for Glass Launcher: tick **Always allow** and choose **Allow**. *Network debugging* must be
+   **"Allow USB debugging?"** for Glassio: tick **Always allow** and choose **Allow**. *Network debugging* must be
    on (Settings → System → Developer options).
 
 ---
@@ -141,7 +141,7 @@ Glass posts JSON to a Home Assistant **webhook** every time you open a title fro
 **1. Create the automation** (Settings → Automations → Create → Edit in YAML):
 
 ```yaml
-alias: Glass Launcher – title opened
+alias: Glassio – title opened
 mode: queued
 triggers:
   - trigger: webhook
@@ -174,7 +174,7 @@ on your home network.
 ## Updates
 Glass checks this repository's latest release at start and every 12 hours. A banner and an **Update x.y.z** pill appear;
 Settings → **About → Install update** downloads the APK and installs it. With "Allow USB debugging" accepted, the update is
-silent and Glass reopens by itself; otherwise Android asks you to confirm (allow *Install unknown apps* for Glass Launcher).
+silent and Glass reopens by itself; otherwise Android asks you to confirm (allow *Install unknown apps* for Glassio).
 
 Releases are signed with the same key, so they install over each other.
 

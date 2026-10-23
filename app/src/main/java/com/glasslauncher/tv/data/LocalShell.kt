@@ -7,7 +7,7 @@ import java.io.File
 
 /**
  * Runs a shell command through the TV's own adb over localhost (like Nuvio TV Relay does).
- * The first time, the TV asks "Allow USB debugging?" for Glass Launcher's key: choose "Always allow".
+ * The first time, the TV asks "Allow USB debugging?" for Glassio's key: choose "Always allow".
  * Used for things only the shell may do, such as starting the TV's screensaver on demand.
  */
 object LocalShell {

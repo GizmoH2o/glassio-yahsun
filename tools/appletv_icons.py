@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Builds an Apple TV icon library for Glass Launcher.
+Builds an Apple TV icon library for Glassio.
 
 For each app name it asks the public iTunes Search API for the tvOS version of the app and downloads its
 Apple TV home-screen icon (the flattened .lsr image stack, 1280x768 - the largest size Apple serves).

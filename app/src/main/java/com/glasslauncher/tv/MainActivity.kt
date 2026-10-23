@@ -66,7 +66,7 @@ class MainActivity : ComponentActivity() {
         val app = application as GlassApp
         i?.getStringExtra("reset_icon")?.let { app.icons.reset(it) }
         if (i?.getBooleanExtra("open_folder", false) == true) app.requestFolder.value = true
-        i?.getIntExtra("open_settings", -1)?.takeIf { it >= 0 }?.let { app.requestSettings.intValue = it }
+        i?.getIntExtra("open_settings", -1)?.takeIf { it >= 0 }?.let { app.requestSettings.intValue = it; app.requestSettingsRev.intValue++ }
         if (i?.hasExtra("focus_color") == true) app.settings.focusColor = i.getBooleanExtra("focus_color", false)
         i?.getStringExtra("ha_webhook")?.let { app.settings.haWebhook = it; app.settings.haOnLaunch = it.startsWith("http") }
         i?.getStringExtra("saver_mode")?.let { if (it in setOf("aerial", "slideshow", "system")) app.settings.saverMode = it }
