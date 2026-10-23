@@ -63,7 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.graphics.asComposeRenderEffect
+import coil3.request.transformations
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -121,8 +121,43 @@ const val CATALOGS_CATEGORY = 4
 /** Pseudo package used by move mode for the Apps folder tile. */
 private const val FOLDER = "__apps_folder__"
 
+/** Backdrop sharpening level (Settings → Performance → Sharpness), applied while the picture is decoded. */
+@Volatile var backdropSharpness = 0
+
 private fun imgReq(ctx: android.content.Context, data: Any?, w: Int = 1920, h: Int = 1080) =
-    ImageRequest.Builder(ctx).data(data).size(w, h).build()
+    ImageRequest.Builder(ctx).data(data).size(w, h).apply {
+        // Backdrops only (logos are requested at another size). Done once on the CPU and cached with the picture:
+        // a GPU effect on the full-screen backdrop made some TVs blank the screen for a second at every slide.
+        val lvl = backdropSharpness
+        if (lvl > 0 && w == 1920) transformations(SharpenTransformation(lvl))
+    }.build()
+
+/** Light unsharp mask (3×3), run in Coil's decoder thread; the result is cached under its own key. */
+private class SharpenTransformation(private val level: Int) : coil3.transform.Transformation() {
+    override val cacheKey: String = "sharpen-$level"
+    override suspend fun transform(input: android.graphics.Bitmap, size: coil3.size.Size): android.graphics.Bitmap {
+        val amount = floatArrayOf(0f, 0.18f, 0.32f, 0.5f)[level.coerceIn(0, 3)]
+        val src = if (input.config == android.graphics.Bitmap.Config.ARGB_8888) input else input.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+        val w = src.width; val h = src.height
+        val px = IntArray(w * h); src.getPixels(px, 0, w, 0, 0, w, h)
+        val out = px.copyOf()
+        val k = (amount * 256).toInt()
+        for (y in 1 until h - 1) {
+            val row = y * w
+            for (x in 1 until w - 1) {
+                val i = row + x
+                val c = px[i]; val u = px[i - w]; val d = px[i + w]; val l = px[i - 1]; val r = px[i + 1]
+                fun ch(sh: Int): Int {
+                    val cv = (c shr sh) and 255
+                    val lap = cv * 4 - ((u shr sh) and 255) - ((d shr sh) and 255) - ((l shr sh) and 255) - ((r shr sh) and 255)
+                    return (cv + ((lap * k) shr 8)).coerceIn(0, 255)
+                }
+                out[i] = (c and -0x1000000) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
+            }
+        }
+        return android.graphics.Bitmap.createBitmap(out, w, h, android.graphics.Bitmap.Config.ARGB_8888)
+    }
+}
 
 private fun Modifier.clipR(r: Dp): Modifier = this.clip(RoundedCornerShape(r))
 
@@ -168,7 +203,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     var shownBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var fadeMs by remember { mutableIntStateOf(settings.transitionMs) }
     val mix = remember { androidx.compose.animation.core.Animatable(1f) }
-    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes) {
+    backdropSharpness = settings.sharpness
+    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes, settings.sharpness) {
         GlassCache.res = settings.glassRes
         val u = backdrop ?: return@LaunchedEffect
         // Wait for both the full picture and its glass copy, then switch them in the same frame.
@@ -275,7 +311,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             // Backdrop and scrims are flattened into one cached GPU layer: moving focus in the dock then
             // composites a single texture instead of redrawing the photo and both gradients every frame.
             if (!folderOpen) Box(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }) {
-                Backdrop(shownBackdrop, fadeMs, settings.sharpness)
+                Backdrop(shownBackdrop, fadeMs)
                 Box(Modifier.fillMaxHeight().fillMaxWidth(0.62f).background(Brush.horizontalGradient(
                     0f to Color.Black.copy(alpha = 0.88f), 1f to Color.Transparent)))
                 Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().fillMaxHeight(0.42f).background(Brush.verticalGradient(
@@ -376,26 +412,6 @@ private fun withArtwork(i: HeroItem, choice: String, pick: String?): HeroItem {
 private fun artOptions(i: HeroItem): List<String> =
     (listOf(i.background) + i.gallery + listOf(i.bestArt, i.addonArt)).filter { it.isNotBlank() }.distinct()
 
-private const val SHARPEN_SKSL = """
-uniform shader content;
-uniform float amount;
-half4 main(float2 p) {
-    half4 c = content.eval(p);
-    half4 n = content.eval(p + float2(0.0, -1.0)) + content.eval(p + float2(0.0, 1.0))
-            + content.eval(p + float2(-1.0, 0.0)) + content.eval(p + float2(1.0, 0.0));
-    half3 o = c.rgb + (c.rgb * 4.0 - n.rgb) * half(amount);
-    return half4(clamp(o, 0.0, 1.0), c.a);
-}
-"""
-
-/** Unsharp mask on the GPU (Android 13+); null when off or not supported. */
-private fun sharpenEffect(level: Int): androidx.compose.ui.graphics.RenderEffect? {
-    if (level <= 0 || android.os.Build.VERSION.SDK_INT < 33) return null
-    val sh = android.graphics.RuntimeShader(SHARPEN_SKSL)
-    sh.setFloatUniform("amount", floatArrayOf(0f, 0.12f, 0.22f, 0.34f)[level.coerceIn(0, 3)])
-    return android.graphics.RenderEffect.createRuntimeShaderEffect(sh, "content").asComposeRenderEffect()
-}
-
 /** Play triangle drawn as a path: crisp at any size, optically centred. */
 @Composable
 private fun PlayGlyph(modifier: Modifier, color: Color) {
@@ -411,13 +427,11 @@ private fun PlayGlyph(modifier: Modifier, color: Color) {
 }
 
 @Composable
-private fun Backdrop(bmp: ImageBitmap?, ms: Int, sharpness: Int = 0) {
-    val sharpen = remember(sharpness) { sharpenEffect(sharpness) }
+private fun Backdrop(bmp: ImageBitmap?, ms: Int) {
     // Same bitmap, same frame, same fade as the glass: the two can never drift apart.
     Crossfade(targetState = bmp, animationSpec = tween(ms, easing = androidx.compose.animation.core.LinearEasing), label = "backdrop") { b ->
         if (b != null) {
-            Image(b, null, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
-                modifier = Modifier.fillMaxSize().then(if (sharpen != null) Modifier.graphicsLayer { renderEffect = sharpen } else Modifier))
+            Image(b, null, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.High, modifier = Modifier.fillMaxSize())
         } else {
             Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
         }

@@ -151,7 +151,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Glass detail", "Resolution of the picture the glass bends (higher = crisper glass, more memory)", {
                     when (st.glassRes) { 480 -> "Light (480 px)"; 960 -> "Sharp (960 px)"; else -> "Standard (720 px)" }
                 }, { st.glassRes = cycle(listOf(480, 720, 960), st.glassRes, it); custom() }),
-                Adjust("Sharpness", if (android.os.Build.VERSION.SDK_INT >= 33) "Sharpens the backdrop on the graphics chip" else "Needs Android 13 or newer on this TV", {
+                Adjust("Sharpness", "Sharpens the backdrop once, when it loads", {
                     listOf("Off", "Low", "Medium", "High")[st.sharpness]
                 }, { st.sharpness = cycle(listOf(0, 1, 2, 3), st.sharpness, it); custom() }),
                 Adjust("Picture quality", "Carousel backdrops", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
