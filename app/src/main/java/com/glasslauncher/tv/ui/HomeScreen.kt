@@ -964,6 +964,13 @@ private fun Dock(
         apps.toMutableList<AppEntry?>().apply { add(p, null) }
     }
     val rows = remember(items) { items.chunked(DOCK_COLUMNS) }
+    // Move mode: a moved tile is laid out again in its new slot and loses focus, which then fell to the
+    // carousel. Keep focus on the app being moved after every step.
+    LaunchedEffect(items, movingPkg) {
+        val p = movingPkg ?: return@LaunchedEffect
+        delay(30)
+        runCatching { (if (p == FOLDER) folderFocus else tileFocus[p])?.requestFocus() }
+    }
     val fullH = metrics.padTop + rows.size * metrics.cellH + (rows.size - 1).coerceAtLeast(0) * metrics.gap + metrics.padBottom + 8 * s
     val expandedH = minOf(fullH, screenH * 0.72f).coerceAtLeast(metrics.collapsedH)
     val targetH = if (expanded) expandedH else metrics.collapsedH
@@ -1144,8 +1151,13 @@ private fun TileFrame(
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val nudge = remember { androidx.compose.animation.core.Animatable(androidx.compose.ui.geometry.Offset.Zero, androidx.compose.ui.geometry.Offset.VectorConverter) }
     val tileScope = rememberCoroutineScope()
+    val backOwner = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current
     val keys: (KeyEvent) -> Boolean = keys@{ ev ->
         if (onMoveKey(ev)) return@keys true
+        if (ev.key == Key.Back) {
+            if (ev.type == KeyEventType.KeyUp) backOwner?.onBackPressedDispatcher?.onBackPressed()
+            return@keys true
+        }
         if (!bounce) return@keys false
         val dir = when (ev.key) {
             Key.DirectionLeft -> androidx.compose.ui.focus.FocusDirection.Left

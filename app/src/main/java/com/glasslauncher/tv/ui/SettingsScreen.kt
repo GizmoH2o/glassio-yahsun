@@ -84,6 +84,18 @@ private fun hostOf(u: String) = runCatching { java.net.URI(u).host }.getOrNull()
 private fun pct(f: Float) = "${(f * 100).roundToInt()}%"
 private fun tenth(f: Float, d: Int) = ((f * 10).roundToInt() + d) / 10f
 
+/** Google Play page of [pkg], or a Play search for [query]; falls back to the web page. */
+private fun openPlay(ctx: Context, pkg: String?, query: String?) {
+    val q = android.net.Uri.encode(query.orEmpty())
+    val market = if (pkg != null) "market://details?id=$pkg" else "market://search?q=$q&c=apps"
+    val web = if (pkg != null) "https://play.google.com/store/apps/details?id=$pkg" else "https://play.google.com/store/search?q=$q&c=apps"
+    for (u in listOf(market, web)) {
+        try { ctx.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(u)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); return }
+        catch (_: Exception) {}
+    }
+    toast(ctx, "Google Play is not available on this device")
+}
+
 private fun openSystem(ctx: Context, action: String) {
     try { ctx.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     catch (_: Exception) { toast(ctx, "This screen is not available on this device") }
@@ -210,6 +222,10 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Adjust("Icon style", "How the plate behind every icon looks", {
                     styleName(st.tileStyle)
                 }, { st.tileStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.tileStyle, it) }))
+                add(Note("Change one icon: on the home screen hold OK on the app → Change icon. Pick from an icon pack, the Apple TV icons, a photo on the TV, a link to a PNG, or send one from your phone (Manage from phone)."))
+                add(Note("Icon packs: install any Android TV / Projectivy icon pack from Google Play, then choose it above. Every app takes the pack's icon; you can still change single apps."))
+                add(Act("Find icon packs on Google Play", "Projectivy / Android TV icon packs", "") { openPlay(ctx, null, "projectivy icon pack") })
+                add(Note("Many icons at once: copy <package>.png files (e.g. com.netflix.ninja.png) into the icon folder below, then Import."))
                 add(Note("On the home screen, hold OK on an app for App info, Move, Change icon and Hide."))
                 add(Note("Here: ◀ ▶ reorders an app, OK opens its options."))
                 add(Act("Import icons from the icon folder", "", "") {
@@ -291,6 +307,24 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 if (system.isNotBlank() && !system.contains(ctx.packageName)) {
                     add(Note("Your system screensaver is already ${system.substringBefore('/')}. Leave \"Start after\" on Off and it will keep working on this launcher."))
                 }
+                val aerialViews = "com.neilturner.aerialviews"
+                val avInstalled = remember { runCatching { ctx.packageManager.getPackageInfo(aerialViews, 0) }.isSuccess }
+                val avComponent = "$aerialViews/.ui.screensaver.DreamActivity"
+                add(Note("Recommended: Aerial Views. The best screensaver with Glassio: Apple, Amazon and your own 4K videos, clock and info, free on Google Play."))
+                if (!avInstalled) add(Act("Install Aerial Views", "Opens it on Google Play", "Google Play") { openPlay(ctx, aerialViews, null) })
+                else {
+                    add(Act("Make Aerial Views the TV screensaver", if (system.startsWith(aerialViews)) "Already set" else "Sets it in the TV and sets Type below to TV screensaver", "") {
+                        io {
+                            val r = com.glasslauncher.tv.data.LocalShell.run(ctx, "settings put secure screensaver_components $avComponent && settings put secure screensaver_enabled 1")
+                            if (r.isSuccess) { st.saverMode = "system"; "Aerial Views is now the TV screensaver" }
+                            else "Allow USB debugging for Glassio when the TV asks (Always allow), then try again"
+                        }
+                    })
+                    add(Act("Open Aerial Views settings", "Choose videos, clock, overlays", "") {
+                        ctx.packageManager.getLaunchIntentForPackage(aerialViews)?.let { runCatching { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
+                    })
+                }
+                add(Note("Steps: 1. Install Aerial Views. 2. Make Aerial Views the TV screensaver (the TV asks once to allow USB debugging for Glassio: Always allow). 3. Type: TV screensaver. 4. Start after / Back starts it."))
                 add(Adjust("Start after", "Idle time on the launcher", { if (st.idleMinutes == 0) "Off" else "${st.idleMinutes} min" }, {
                     st.idleMinutes = cycle(listOf(0, 1, 2, 3, 5, 10, 15, 30), st.idleMinutes, it)
                 }))

@@ -111,18 +111,38 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 - A title leaves the list when you finish it (past 92 %) or remove it.
 
 ### Icons
-- Hold **OK** on an app → **Change icon** → Suggested, Apple TV icons (default / dark / white / clear), any installed
-  icon pack, photos on the TV, a link, your phone, or back to the original.
-- Settings → Dock & icons: icon pack, dock size, dock and settings background, icon style.
-- Settings → Clock & glass: colour on focus, plate light/dark, bounce, lift.
+**One app**
+- On the home screen, hold **OK** on the app → **Change icon**, then pick from:
+  Suggested, the Apple TV icons (default / dark / white / clear), any installed icon pack,
+  a photo saved on the TV, a link to a PNG, your phone (Settings → Manage from phone), or back to the original.
+
+**Icon packs (all apps at once)**
+1. Install an Android TV / Projectivy icon pack from Google Play
+   (Settings → Dock & icons → *Find icon packs on Google Play* opens the search). ADW / Nova / Blueprint packs work too.
+2. Settings → Dock & icons → **Icon pack** → choose it. Every app takes the pack's icon; single apps can still be changed.
+
+**Many icons from files**
+- Copy `<package>.png` files (for example `com.netflix.ninja.png`) into the icon folder shown in
+  Settings → Dock & icons, then press **Import icons from the icon folder**.
+
+Look: Settings → Dock & icons (dock size, dock and settings background, icon style) and
+Settings → Clock & glass (colour on focus, plate light/dark, bounce, lift).
 
 ### Weather
 Settings → Clock & glass → **Weather** (everything / temperature + sky / temperature + city / temperature / off),
 **Weather city** (English or Arabic name; the place found is shown next to it), Fahrenheit.
 
 ### Screensaver
-Settings → **Screensaver** → *Type*: TV screensaver (whatever is chosen in Google TV settings, e.g. Aerial Views),
-Apple aerial videos, or posters with logos. *Start after* (idle time on the launcher), clock, Back starts it.
+**Recommended: [Aerial Views](https://play.google.com/store/apps/details?id=com.neilturner.aerialviews)**, the best
+screensaver with Glassio: Apple, Amazon and your own 4K videos, clock and info overlays, free.
+
+1. Settings → **Screensaver** → **Install Aerial Views** (opens Google Play).
+2. Back in Glassio: **Make Aerial Views the TV screensaver**. The first time the TV asks to allow USB debugging
+   for Glassio: choose *Always allow*. (By hand: `adb shell settings put secure screensaver_components com.neilturner.aerialviews/.ui.screensaver.DreamActivity`.)
+3. *Type* is set to **TV screensaver**. *Open Aerial Views settings* picks videos, clock and overlays.
+4. *Start after* (idle time on the launcher) and **Back on the home screen starts it**.
+
+Without Aerial Views: *Type* → Apple aerial videos (streamed by Glassio) or posters with logos, and *Add video link* for your own .mp4 / .mov.
 
 ### Performance
 Settings → **Performance**: *Performance* (1280 px pictures, quick fades, flat glass, no gallery), *Balanced*, *Quality*
