@@ -149,11 +149,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     if (st.perfMode == "auto") "Auto (${n(st.autoTier)})" else n(st.perfMode)
                 }, { st.applyMode(cycle(listOf("auto", "performance", "balanced", "quality"), st.perfMode.takeIf { m -> m != "custom" } ?: "auto", it)) }),
                 Adjust("Glass detail", "Resolution of the picture the glass bends (higher = crisper glass, more memory)", {
-                    when (st.glassRes) { 480 -> "Light (480 px)"; 960 -> "Sharp (960 px)"; else -> "Standard (720 px)" }
-                }, { st.glassRes = cycle(listOf(480, 720, 960), st.glassRes, it); custom() }),
-                Adjust("Sharpness", "Sharpens the backdrop once, when it loads", {
-                    listOf("Off", "Low", "Medium", "High")[st.sharpness]
-                }, { st.sharpness = cycle(listOf(0, 1, 2, 3), st.sharpness, it); custom() }),
+                    when (st.glassRes) { 720 -> "Sharp (720 px)"; else -> "Standard (480 px)" }
+                }, { st.glassRes = cycle(listOf(480, 720), st.glassRes, it); custom() }),
                 Adjust("Picture quality", "Carousel backdrops", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
                     { st.imageQuality = cycle(listOf("high", "max"), st.imageQuality, it); custom() }),
                 Adjust("Prepare ahead", "Slides loaded before you get to them", { "${st.prefetchDepth}" }, { st.prefetchDepth += it; custom() }),

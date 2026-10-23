@@ -31,8 +31,12 @@ fun sized(url: String, size: String) = url.replace("/t/p/original/", "/t/p/$size
  */
 object GlassCache {
     /** Width of the glass copies (Settings → Performance → Glass detail). */
-    @Volatile var res: Int = 720
-    private val cache = LruCache<String, GlassImages>(24)
+    @Volatile var res: Int = 480
+    // Limited by memory (about 36 MB), not by count: bigger glass copies keep fewer slides instead of more memory.
+    private val cache = object : LruCache<String, GlassImages>(36 * 1024 * 1024) {
+        override fun sizeOf(key: String, v: GlassImages): Int =
+            v.blurred.width * v.blurred.height * 4 + v.sharp.width * v.sharp.height * 4 + v.heavy.width * v.heavy.height * 4
+    }
     private val pending = HashMap<String, Deferred<GlassImages?>>()
     // One low-priority worker: blurring never competes with drawing the screen.
     private val worker = java.util.concurrent.Executors.newSingleThreadExecutor { r ->
@@ -69,7 +73,7 @@ object GlassCache {
             pending.getOrPut(key) {
                 scope.async {
                     try {
-                        val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, if (r > 720) "w1280" else "w780"))
+                        val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, "w780"))
                             .size(r, r * 9 / 16).allowHardware(false).build()
                         val src = (SingletonImageLoader.get(ctx.applicationContext).execute(req) as? SuccessResult)?.image?.toBitmap()
                         src?.let { GlassImages(blurredBackdrop(it, blur), it.asImageBitmap(), blurredBackdrop(it, 80)) }

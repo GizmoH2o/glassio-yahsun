@@ -63,7 +63,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
-import coil3.request.transformations
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -121,43 +120,8 @@ const val CATALOGS_CATEGORY = 4
 /** Pseudo package used by move mode for the Apps folder tile. */
 private const val FOLDER = "__apps_folder__"
 
-/** Backdrop sharpening level (Settings → Performance → Sharpness), applied while the picture is decoded. */
-@Volatile var backdropSharpness = 0
-
 private fun imgReq(ctx: android.content.Context, data: Any?, w: Int = 1920, h: Int = 1080) =
-    ImageRequest.Builder(ctx).data(data).size(w, h).apply {
-        // Backdrops only (logos are requested at another size). Done once on the CPU and cached with the picture:
-        // a GPU effect on the full-screen backdrop made some TVs blank the screen for a second at every slide.
-        val lvl = backdropSharpness
-        if (lvl > 0 && w == 1920) transformations(SharpenTransformation(lvl))
-    }.build()
-
-/** Light unsharp mask (3×3), run in Coil's decoder thread; the result is cached under its own key. */
-private class SharpenTransformation(private val level: Int) : coil3.transform.Transformation() {
-    override val cacheKey: String = "sharpen-$level"
-    override suspend fun transform(input: android.graphics.Bitmap, size: coil3.size.Size): android.graphics.Bitmap {
-        val amount = floatArrayOf(0f, 0.18f, 0.32f, 0.5f)[level.coerceIn(0, 3)]
-        val src = if (input.config == android.graphics.Bitmap.Config.ARGB_8888) input else input.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-        val w = src.width; val h = src.height
-        val px = IntArray(w * h); src.getPixels(px, 0, w, 0, 0, w, h)
-        val out = px.copyOf()
-        val k = (amount * 256).toInt()
-        for (y in 1 until h - 1) {
-            val row = y * w
-            for (x in 1 until w - 1) {
-                val i = row + x
-                val c = px[i]; val u = px[i - w]; val d = px[i + w]; val l = px[i - 1]; val r = px[i + 1]
-                fun ch(sh: Int): Int {
-                    val cv = (c shr sh) and 255
-                    val lap = cv * 4 - ((u shr sh) and 255) - ((d shr sh) and 255) - ((l shr sh) and 255) - ((r shr sh) and 255)
-                    return (cv + ((lap * k) shr 8)).coerceIn(0, 255)
-                }
-                out[i] = (c and -0x1000000) or (ch(16) shl 16) or (ch(8) shl 8) or ch(0)
-            }
-        }
-        return android.graphics.Bitmap.createBitmap(out, w, h, android.graphics.Bitmap.Config.ARGB_8888)
-    }
-}
+    ImageRequest.Builder(ctx).data(data).size(w, h).build()
 
 private fun Modifier.clipR(r: Dp): Modifier = this.clip(RoundedCornerShape(r))
 
@@ -203,8 +167,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     var shownBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var fadeMs by remember { mutableIntStateOf(settings.transitionMs) }
     val mix = remember { androidx.compose.animation.core.Animatable(1f) }
-    backdropSharpness = settings.sharpness
-    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes, settings.sharpness) {
+    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes) {
         GlassCache.res = settings.glassRes
         val u = backdrop ?: return@LaunchedEffect
         // Wait for both the full picture and its glass copy, then switch them in the same frame.

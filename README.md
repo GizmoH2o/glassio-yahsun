@@ -148,8 +148,7 @@ Without Aerial Views: *Type* → Apple aerial videos (streamed by Glassio) or po
 Settings → **Performance** → *Mode*: **Auto** (default: picked for the TV from its memory and graphics chip,
 e.g. a 2 GB TCL gets Performance, a Google TV Streamer gets Balanced), *Performance*, *Balanced*, *Quality*.
 Each setting can be changed on its own (the mode then shows *Custom*):
-- **Glass detail**: resolution of the picture the glass bends (480 / 720 / 960 px).
-- **Sharpness**: sharpens the backdrop on the GPU (Android 13+).
+- **Glass detail**: resolution of the picture the glass bends (480 px, or 720 px for crisper glass).
 - Picture quality, prepare ahead, slide transition, glass refraction, backdrop gallery.
 
 ### Artwork

@@ -11,8 +11,8 @@ android {
         applicationId = "com.glasslauncher.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 23
-        versionName = "1.9.1"
+        versionCode = 24
+        versionName = "1.9.2"
     }
     buildTypes {
         release {

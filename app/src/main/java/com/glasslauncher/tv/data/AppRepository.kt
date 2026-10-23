@@ -153,7 +153,7 @@ class AppRepository(private val ctx: Context, private val settings: Settings, pr
         val banner = if (ai.banner != 0) ai.banner else ai.applicationInfo.banner
         val icon = if (ai.icon != 0) ai.icon else ai.applicationInfo.icon
         val id = if (banner != 0) banner else icon
-        if (id == 0) null else res.getDrawableForDensity(id, android.util.DisplayMetrics.DENSITY_XXXHIGH, null)
+        if (id == 0) null else res.getDrawableForDensity(id, android.util.DisplayMetrics.DENSITY_XXHIGH, null)
     }.getOrNull()
 
     /** White / light-grey parts (lettering) turn near-black; coloured parts keep their colour. */

@@ -48,10 +48,8 @@ class Settings(private val ctx: Context) {
     /** The tier Auto picked, for display. */
     val autoTier: String by lazy { deviceTier() }
 
-    /** Glass copies of the backdrop: 480 px (light), 720 px, 960 px (sharpest glass). */
-    var glassRes: Int get() = i("glassRes", 720); set(v) = putI("glassRes", v.coerceIn(480, 960))
-    /** Backdrop sharpening on the GPU (Android 13+): 0 off … 3 strong. */
-    var sharpness: Int get() = i("sharpness", 1); set(v) = putI("sharpness", v.coerceIn(0, 3))
+    /** Glass copies of the backdrop: 480 px (light, default) or 720 px (crisper glass, more memory). */
+    var glassRes: Int get() = i("glassRes", 480); set(v) = putI("glassRes", if (v >= 720) 720 else 480)
 
     /** Which picture a title uses: main | second | best (highest resolution) | addon (the add-on's own). */
     var artChoice: String get() = s("artChoice", "main"); set(v) = putS("artChoice", v)
@@ -69,9 +67,9 @@ class Settings(private val ctx: Context) {
 
     fun applyMode(m: String) {
         when (if (m == "auto") deviceTier() else m) {
-            "performance" -> { imageQuality = "high"; prefetchDepth = 2; transitionMs = 250; refraction = 0; heroGallery = false; glassRes = 480; sharpness = 0 }
-            "balanced" -> { imageQuality = "max"; prefetchDepth = 4; transitionMs = 450; refraction = 6; heroGallery = true; galleryShots = 2; glassRes = 720; sharpness = 1 }
-            "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3; glassRes = 960; sharpness = 2 }
+            "performance" -> { imageQuality = "high"; prefetchDepth = 2; transitionMs = 250; refraction = 0; heroGallery = false; glassRes = 480 }
+            "balanced" -> { imageQuality = "max"; prefetchDepth = 4; transitionMs = 450; refraction = 6; heroGallery = true; galleryShots = 2; glassRes = 480 }
+            "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3; glassRes = 720 }
         }
         perfMode = m
     }
