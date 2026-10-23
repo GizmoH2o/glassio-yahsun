@@ -6,7 +6,7 @@
 Nuvio add-on catalogs, Continue Watching from Nuvio Legacy, tvOS-style icons, weather, screensavers and
 Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Google TV Streamer (4K).
 
-[العربية — دليل الاستخدام الكامل](docs/README.ar.md)
+[العربية — دليل الاستخدام الكامل](docs/README.ar.md) · [Discussions](https://github.com/mohammadmrh12/glassio/discussions) · [Report a bug](https://github.com/mohammadmrh12/glassio/issues/new/choose)
 
 ![Home](docs/screenshots/01-home.jpg)
 
