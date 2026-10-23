@@ -115,6 +115,8 @@ enum class Screen { Home, Settings }
 const val DOCK_COLUMNS = 6
 /** Index of the "Manage from phone" category in the settings list. */
 const val PHONE_CATEGORY = 8
+/** Index of the "Catalogs" category in the settings list. */
+const val CATALOGS_CATEGORY = 4
 /** Pseudo package used by move mode for the Apps folder tile. */
 private const val FOLDER = "__apps_folder__"
 
@@ -539,7 +541,9 @@ private fun HeroSection(
                 modifier = Modifier.align(Alignment.TopStart),
             )
         } else {
-            EmptyHint(status, s, Modifier.align(Alignment.TopStart))
+            EmptyHint(status, s, heroFocus, firstTile, Modifier.align(Alignment.TopStart)) {
+                app.requestSettings.intValue = CATALOGS_CATEGORY; app.requestSettingsRev.intValue++
+            }
         }
         if (items.size > 1 && settings.dotsMode != "hidden") {
             Dots(
@@ -552,14 +556,38 @@ private fun HeroSection(
     }
 }
 
+/**
+ * Shown while the carousel has nothing. It must hold [heroFocus]: the dock's first row points Up at it,
+ * and without a focus target there Up did nothing, so Settings could not be reached from the dock.
+ */
 @Composable
-private fun EmptyHint(status: String, s: Float, modifier: Modifier) {
+private fun EmptyHint(
+    status: String, s: Float, heroFocus: FocusRequester, firstTile: FocusRequester,
+    modifier: Modifier, onCatalogs: () -> Unit,
+) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.06f else 1f, spring(0.6f, 450f), label = "hintBtn")
     Column(modifier.padding(start = (56 * s).dp, top = (130 * s).dp).widthIn(max = (480 * s).dp)) {
         Text("Glassio", color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
         Spacer(Modifier.height((10 * s).dp))
         Text(if (status.isBlank()) "Loading…" else status, color = Color.White.copy(alpha = 0.7f), fontSize = (14 * s).sp)
         Spacer(Modifier.height((6 * s).dp))
         Text("Open Settings → Catalogs to connect Nuvio and fill the carousel.", color = Color.White.copy(alpha = 0.55f), fontSize = (12 * s).sp)
+        Spacer(Modifier.height((14 * s).dp))
+        Text(
+            "Open Catalogs",
+            color = if (focused) Color.Black else Color.White,
+            fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .focusRequester(heroFocus)
+                .focusProperties { down = firstTile }
+                .onFocusChanged { focused = it.isFocused }
+                .tvPress(onClick = onCatalogs)
+                .clip(RoundedCornerShape(50))
+                .background(if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.14f))
+                .padding(horizontal = (14 * s).dp, vertical = (6 * s).dp),
+        )
     }
 }
 
