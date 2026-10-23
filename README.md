@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/icon_512.png" width="140" alt="Glass Launcher icon"></p>
+
 # Glass Launcher
 
 **An Apple TV–style home screen for Google TV / Android TV**, with real liquid glass, a carousel fed by your
