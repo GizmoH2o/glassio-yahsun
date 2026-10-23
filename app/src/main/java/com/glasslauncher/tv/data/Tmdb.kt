@@ -69,6 +69,12 @@ class Tmdb(private val http: Http) {
                 .map { "https://image.tmdb.org/t/p/original" + it.optString("file_path") }
                 .distinct().take(6)
         }.orEmpty()
+        // Highest resolution: textless first, then the widest file.
+        val bestArt = d.optJSONObject("images")?.optJSONArray("backdrops")?.let { arr ->
+            (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.filter { it.optString("file_path").startsWith("/") }
+                .sortedWith(compareBy<JSONObject> { if (it.isNull("iso_639_1")) 0 else 1 }.thenByDescending { it.optInt("width") })
+                .firstOrNull()?.let { "https://image.tmdb.org/t/p/original" + it.optString("file_path") }
+        }.orEmpty()
         val genresEn = if (lang == "ar") runCatching { get("https://api.themoviedb.org/3/$kind/$tmdbId?language=en-US", token) }.getOrDefault(d) else d
         val genres = genresEn.optJSONArray("genres")?.let { g ->
             (0 until minOf(3, g.length())).mapNotNull { g.optJSONObject(it)?.optString("name")?.takeIf { n -> n.isNotBlank() } }
@@ -89,6 +95,8 @@ class Tmdb(private val http: Http) {
             genres = genres.ifEmpty { item.genres },
             platform = platform.ifBlank { item.platform },
             gallery = (listOf(backdrop.ifBlank { item.background }) + gallery).filter { it.isNotBlank() }.distinct(),
+            addonArt = item.addonArt.ifBlank { item.background },
+            bestArt = bestArt,
         )
     }
 

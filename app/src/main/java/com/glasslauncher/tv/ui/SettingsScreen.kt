@@ -39,6 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
@@ -101,6 +105,7 @@ private fun openSystem(ctx: Context, action: String) {
     catch (_: Exception) { toast(ctx, "This screen is not available on this device") }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     val s = LocalScale.current
@@ -116,11 +121,14 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     var phoneDialog by remember { mutableStateOf(false) }
     var cat by remember { mutableIntStateOf(initialCat) }
     var shownCat by remember { mutableIntStateOf(initialCat) }
-    LaunchedEffect(cat) { if (cat != shownCat) { kotlinx.coroutines.delay(160); shownCat = cat } }
+    LaunchedEffect(cat) { if (cat != shownCat) { kotlinx.coroutines.delay(120); shownCat = cat } }
     val packList = remember { listOf("") + app.packs.installed().map { it.pkg } }
     val packLabels = remember { app.packs.installed().associate { it.pkg to it.label } }
     var rightFocused by remember { mutableStateOf(false) }
     val firstCat = remember { FocusRequester() }
+    // One requester per category: leaving the right pane goes back to the category it belongs to,
+    // instead of whichever category happens to sit next to the row (that switched the page).
+    val catFocus = remember { List(16) { FocusRequester() } }
 
     fun io(block: suspend () -> String) = scope.launch(Dispatchers.IO) {
         toast(ctx, runCatching { block() }.getOrElse { it.message ?: "Failed" })
@@ -131,13 +139,21 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             fun custom() { st.perfMode = "custom" }
             listOf(
                 Adjust("Mode", when (st.perfMode) {
+                    "auto" -> "Picked for this TV from its memory and graphics chip"
                     "performance" -> "Smoothest: lighter pictures, quick fades, flat glass"
                     "quality" -> "Sharpest: original pictures, slow fades, full glass"
                     "balanced" -> "Sharp pictures, smooth navigation"
                     else -> "Your own mix of the settings below"
                 }, {
-                    when (st.perfMode) { "performance" -> "Performance"; "quality" -> "Quality"; "balanced" -> "Balanced"; else -> "Custom" }
-                }, { st.applyMode(cycle(listOf("performance", "balanced", "quality"), st.perfMode.takeIf { m -> m != "custom" } ?: "balanced", it)) }),
+                    fun n(m: String) = when (m) { "performance" -> "Performance"; "quality" -> "Quality"; "balanced" -> "Balanced"; else -> "Custom" }
+                    if (st.perfMode == "auto") "Auto (${n(st.autoTier)})" else n(st.perfMode)
+                }, { st.applyMode(cycle(listOf("auto", "performance", "balanced", "quality"), st.perfMode.takeIf { m -> m != "custom" } ?: "auto", it)) }),
+                Adjust("Glass detail", "Resolution of the picture the glass bends (higher = crisper glass, more memory)", {
+                    when (st.glassRes) { 480 -> "Light (480 px)"; 960 -> "Sharp (960 px)"; else -> "Standard (720 px)" }
+                }, { st.glassRes = cycle(listOf(480, 720, 960), st.glassRes, it); custom() }),
+                Adjust("Sharpness", if (android.os.Build.VERSION.SDK_INT >= 33) "Sharpens the backdrop on the graphics chip" else "Needs Android 13 or newer on this TV", {
+                    listOf("Off", "Low", "Medium", "High")[st.sharpness]
+                }, { st.sharpness = cycle(listOf(0, 1, 2, 3), st.sharpness, it); custom() }),
                 Adjust("Picture quality", "Carousel backdrops", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
                     { st.imageQuality = cycle(listOf("high", "max"), st.imageQuality, it); custom() }),
                 Adjust("Prepare ahead", "Slides loaded before you get to them", { "${st.prefetchDepth}" }, { st.prefetchDepth += it; custom() }),
@@ -176,6 +192,11 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Synopsis language", "Needs a TMDB token", { if (st.descLang == "ar") "Arabic" else "English" }, {
                     st.descLang = cycle(listOf("en", "ar"), st.descLang, it); app.catalogs.clearEnrichment()
                 }),
+                Adjust("Artwork", "Which picture each title uses", {
+                    when (st.artChoice) { "second" -> "Second picture"; "best" -> "Highest resolution"; "addon" -> "Add-on picture"; else -> "Main (TMDB)" }
+                }, { st.artChoice = cycle(listOf("main", "second", "best", "addon"), st.artChoice, it) }),
+                Note("One title: on the carousel hold OK (or press Menu) to switch to its next picture. Glassio remembers it."),
+                Act("Reset pictures picked per title", "", "") { st.clearArtPicks(); toast(ctx, "Every title is back to the Artwork setting") },
                 Act("Reload carousel now", "") { io { app.catalogs.refresh(); app.catalogs.status.value } },
             )
         },
@@ -193,8 +214,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     dialog = TextEntry("Weather city", st.weatherCity, "Baghdad") { st.weatherCity = it; app.weather.reload() }
                 },
                 Toggle("Fahrenheit", "", { st.weatherF }, { st.weatherF = it }),
-                Toggle("Auto-hide clock and settings button", "They fade out after a few seconds", { st.topAutoHide }, { st.topAutoHide = it }),
-                Adjust("Hide after", "", { "${st.topHideSec} s" }, { st.topHideSec += it }),
+                Toggle("Auto-hide clock and settings button", "Hidden while you browse; they appear when you go up to the settings button", { st.topAutoHide }, { st.topAutoHide = it }),
+                Adjust("Shown at start for", "Then hidden until you go up to them", { "${st.topHideSec} s" }, { st.topHideSec += it }),
                 Adjust("Corner radius", "Dock and app tiles (0 = square)", { "${st.cornerRadius}" }, { st.cornerRadius += it * 2 }),
                 Adjust("Glass blur", "0 turns blur off", { "${st.blurRadius}" }, { st.blurRadius += it * 4 }),
                 Adjust("Glass refraction", "How much the rim bends what is behind it (0 = flat)", { "${st.refraction}" }, { st.refraction += it * 2 }),
@@ -364,32 +385,45 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
 
     // Catalog choices made here are applied when the screen closes.
     DisposableEffect(Unit) { onDispose { app.scope.launch(Dispatchers.IO) { runCatching { app.catalogs.refresh() } } } }
-    BackHandler { if (rightFocused) runCatching { firstCat.requestFocus() } else onClose() }
+    BackHandler { if (rightFocused) runCatching { catFocus[cat].requestFocus() } else onClose() }
     LaunchedEffect(Unit) { delay150(); runCatching { firstCat.requestFocus() } }
 
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.55f)).padding((28 * s).dp)) {
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy((16 * s).dp)) {
             GlassPanel(Modifier.width((230 * s).dp).fillMaxHeight(), (30 * s).dp, style = st.panelStyle, darken = 0.42f) {
-                Column(Modifier.padding((14 * s).dp)) {
-                    Text("Settings", color = Color.White, fontSize = (22 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (8 * s).dp, bottom = (10 * s).dp))
+                // Scrolls when the list is taller than the screen (the last entry, About, was cut off).
+                Column(Modifier.padding(horizontal = (14 * s).dp, vertical = (12 * s).dp).verticalScroll(rememberScrollState())) {
+                    Text("Settings", color = Color.White, fontSize = (22 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (8 * s).dp, bottom = (8 * s).dp))
                     categories.forEachIndexed { i, c ->
                         var f by remember { mutableStateOf(false) }
                         Text(
                             c.title, color = Color.White, fontSize = (13.5f * s).sp,
                             fontWeight = if (cat == i) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.fillMaxWidth().padding(vertical = (2 * s).dp)
+                            modifier = Modifier.fillMaxWidth().padding(vertical = (1.5f * s).dp)
                                 .clip(RoundedCornerShape((14 * s).dp))
                                 .background(if (f) Color.White.copy(alpha = 0.30f) else if (cat == i) Color.White.copy(alpha = 0.12f) else Color.Transparent)
+                                .focusRequester(catFocus[i])
                                 .then(if (i == initialCat) Modifier.focusRequester(firstCat) else Modifier)
                                 .onFocusChanged { f = it.isFocused; if (it.isFocused) cat = i }
                                 .clickable { cat = i }
-                                .padding(horizontal = (12 * s).dp, vertical = (9 * s).dp),
+                                .padding(horizontal = (12 * s).dp, vertical = (7.5f * s).dp),
                         )
                     }
                 }
             }
             GlassPanel(
-                Modifier.weight(1f).fillMaxHeight().onFocusChanged { rightFocused = it.hasFocus },
+                Modifier.weight(1f).fillMaxHeight().onFocusChanged { rightFocused = it.hasFocus }
+                    // Left goes back to this page's own category; Up/Down at the ends stay in the page.
+                    .focusProperties {
+                        exit = { dir ->
+                            when (dir) {
+                                androidx.compose.ui.focus.FocusDirection.Left -> catFocus[cat]
+                                androidx.compose.ui.focus.FocusDirection.Up, androidx.compose.ui.focus.FocusDirection.Down -> FocusRequester.Cancel
+                                else -> FocusRequester.Default
+                            }
+                        }
+                    }
+                    .focusGroup(),
                 (30 * s).dp, style = st.panelStyle, darken = 0.42f,
             ) {
                 val c = categories[shownCat]

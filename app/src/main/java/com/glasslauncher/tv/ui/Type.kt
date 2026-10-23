@@ -30,6 +30,8 @@ fun GlassType(content: @Composable () -> Unit) {
     CompositionLocalProvider(
         LocalTextStyle provides LocalTextStyle.current.copy(
             fontFamily = Inter,
+            // The TV draws apps at 1080p and scales them up to 4K: Regular strokes go soft, Medium stays crisp.
+            fontWeight = FontWeight.Medium,
             platformStyle = PlatformTextStyle(includeFontPadding = false),
             lineHeightStyle = LineHeightStyle(LineHeightStyle.Alignment.Center, LineHeightStyle.Trim.None),
         ),

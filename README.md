@@ -145,8 +145,17 @@ screensaver with Glassio: Apple, Amazon and your own 4K videos, clock and info o
 Without Aerial Views: *Type* → Apple aerial videos (streamed by Glassio) or posters with logos, and *Add video link* for your own .mp4 / .mov.
 
 ### Performance
-Settings → **Performance**: *Performance* (1280 px pictures, quick fades, flat glass, no gallery), *Balanced*, *Quality*
-(original pictures, full glass). Each setting can be changed on its own (the mode then shows *Custom*).
+Settings → **Performance** → *Mode*: **Auto** (default: picked for the TV from its memory and graphics chip,
+e.g. a 2 GB TCL gets Performance, a Google TV Streamer gets Balanced), *Performance*, *Balanced*, *Quality*.
+Each setting can be changed on its own (the mode then shows *Custom*):
+- **Glass detail**: resolution of the picture the glass bends (480 / 720 / 960 px).
+- **Sharpness**: sharpens the backdrop on the GPU (Android 13+).
+- Picture quality, prepare ahead, slide transition, glass refraction, backdrop gallery.
+
+### Artwork
+Settings → Carousel → **Artwork**: Main (TMDB), Second picture, Highest resolution, or the add-on's own picture.
+For one title: on the carousel **hold OK** (or press Menu) to switch to its next picture; Glassio remembers it
+(*Reset pictures picked per title* undoes all of them).
 
 ---
 

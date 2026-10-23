@@ -67,6 +67,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
             previous?.uncaughtException(t, e)
         }
         settings = Settings(this)
+        if (settings.perfMode == "auto") settings.applyMode("auto")
+        com.glasslauncher.tv.ui.GlassCache.res = settings.glassRes
         http = Http(this)
         icons = IconStore(this)
         packs = IconPacks(this)

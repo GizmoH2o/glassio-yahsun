@@ -132,7 +132,7 @@ class AppRepository(private val ctx: Context, private val settings: Settings, pr
                 } else {
                     val pack = settings.iconPack
                     val d: Drawable = (if (pack.isNotEmpty()) packs.drawableFor(pack, e.component) else null)
-                        ?: pm.getActivityInfo(e.component, 0).let { ai -> ai.loadBanner(pm) ?: ai.loadIcon(pm) }
+                        ?: pm.getActivityInfo(e.component, 0).let { ai -> hiRes(ai) ?: ai.loadBanner(pm) ?: ai.loadIcon(pm) }
                     val iw = d.intrinsicWidth; val ih = d.intrinsicHeight
                     val wide = iw > 0 && ih > 0 && iw.toFloat() / ih > 1.3f
                     d.toBitmap(if (wide) 640 else 256)
@@ -143,6 +143,18 @@ class AppRepository(private val ctx: Context, private val settings: Settings, pr
             }.getOrNull()
         }
     }
+
+    /**
+     * The app's banner (or icon) at the highest density it ships: loadBanner() picks the TV's own density
+     * (xhdpi, 320×180) and the tile then scales it up, which made icons soft.
+     */
+    private fun hiRes(ai: android.content.pm.ActivityInfo): Drawable? = runCatching {
+        val res = pm.getResourcesForApplication(ai.applicationInfo)
+        val banner = if (ai.banner != 0) ai.banner else ai.applicationInfo.banner
+        val icon = if (ai.icon != 0) ai.icon else ai.applicationInfo.icon
+        val id = if (banner != 0) banner else icon
+        if (id == 0) null else res.getDrawableForDensity(id, android.util.DisplayMetrics.DENSITY_XXXHIGH, null)
+    }.getOrNull()
 
     /** White / light-grey parts (lettering) turn near-black; coloured parts keep their colour. */
     private fun darkenWhites(src: Bitmap): Bitmap {

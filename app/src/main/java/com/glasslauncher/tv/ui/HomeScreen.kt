@@ -63,6 +63,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -167,7 +168,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     var shownBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
     var fadeMs by remember { mutableIntStateOf(settings.transitionMs) }
     val mix = remember { androidx.compose.animation.core.Animatable(1f) }
-    LaunchedEffect(backdrop, settings.blurRadius) {
+    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes) {
+        GlassCache.res = settings.glassRes
         val u = backdrop ?: return@LaunchedEffect
         // Wait for both the full picture and its glass copy, then switch them in the same frame.
         // Originals are big downloads: if the original is not cached yet, show the 1280 px copy first
@@ -273,7 +275,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             // Backdrop and scrims are flattened into one cached GPU layer: moving focus in the dock then
             // composites a single texture instead of redrawing the photo and both gradients every frame.
             if (!folderOpen) Box(Modifier.fillMaxSize().graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }) {
-                Backdrop(shownBackdrop, fadeMs)
+                Backdrop(shownBackdrop, fadeMs, settings.sharpness)
                 Box(Modifier.fillMaxHeight().fillMaxWidth(0.62f).background(Brush.horizontalGradient(
                     0f to Color.Black.copy(alpha = 0.88f), 1f to Color.Transparent)))
                 Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().fillMaxHeight(0.42f).background(Brush.verticalGradient(
@@ -358,12 +360,64 @@ private fun appMenu(
     return MenuDialog(e.label, opts)
 }
 
+/** The picture a title shows: the Settings choice, or the one picked for it with a long press. */
+private fun withArtwork(i: HeroItem, choice: String, pick: String?): HeroItem {
+    val chosen = pick?.takeIf { it.isNotBlank() } ?: when (choice) {
+        "second" -> i.gallery.getOrNull(1)
+        "best" -> i.bestArt.takeIf { it.isNotBlank() }
+        "addon" -> i.addonArt.takeIf { it.isNotBlank() }
+        else -> null
+    }
+    if (chosen == null || chosen == i.background) return i
+    return i.copy(background = chosen, gallery = (listOf(chosen) + i.gallery).distinct())
+}
+
+/** Every picture a long press cycles through: TMDB backdrops, the highest-resolution one, the add-on's own. */
+private fun artOptions(i: HeroItem): List<String> =
+    (listOf(i.background) + i.gallery + listOf(i.bestArt, i.addonArt)).filter { it.isNotBlank() }.distinct()
+
+private const val SHARPEN_SKSL = """
+uniform shader content;
+uniform float amount;
+half4 main(float2 p) {
+    half4 c = content.eval(p);
+    half4 n = content.eval(p + float2(0.0, -1.0)) + content.eval(p + float2(0.0, 1.0))
+            + content.eval(p + float2(-1.0, 0.0)) + content.eval(p + float2(1.0, 0.0));
+    half3 o = c.rgb + (c.rgb * 4.0 - n.rgb) * half(amount);
+    return half4(clamp(o, 0.0, 1.0), c.a);
+}
+"""
+
+/** Unsharp mask on the GPU (Android 13+); null when off or not supported. */
+private fun sharpenEffect(level: Int): androidx.compose.ui.graphics.RenderEffect? {
+    if (level <= 0 || android.os.Build.VERSION.SDK_INT < 33) return null
+    val sh = android.graphics.RuntimeShader(SHARPEN_SKSL)
+    sh.setFloatUniform("amount", floatArrayOf(0f, 0.12f, 0.22f, 0.34f)[level.coerceIn(0, 3)])
+    return android.graphics.RenderEffect.createRuntimeShaderEffect(sh, "content").asComposeRenderEffect()
+}
+
+/** Play triangle drawn as a path: crisp at any size, optically centred. */
 @Composable
-private fun Backdrop(bmp: ImageBitmap?, ms: Int) {
+private fun PlayGlyph(modifier: Modifier, color: Color) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val w = size.width; val h = size.height
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w * 0.14f, h * 0.06f); lineTo(w * 0.94f, h * 0.5f); lineTo(w * 0.14f, h * 0.94f); close()
+        }
+        drawPath(path, color)
+        drawPath(path, color, style = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.10f,
+            join = androidx.compose.ui.graphics.StrokeJoin.Round))
+    }
+}
+
+@Composable
+private fun Backdrop(bmp: ImageBitmap?, ms: Int, sharpness: Int = 0) {
+    val sharpen = remember(sharpness) { sharpenEffect(sharpness) }
     // Same bitmap, same frame, same fade as the glass: the two can never drift apart.
     Crossfade(targetState = bmp, animationSpec = tween(ms, easing = androidx.compose.animation.core.LinearEasing), label = "backdrop") { b ->
         if (b != null) {
-            Image(b, null, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.High, modifier = Modifier.fillMaxSize())
+            Image(b, null, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+                modifier = Modifier.fillMaxSize().then(if (sharpen != null) Modifier.graphicsLayer { renderEffect = sharpen } else Modifier))
         } else {
             Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
         }
@@ -423,6 +477,7 @@ private fun HeroSection(
 
     val raw = if (items.isEmpty()) null else items[index.mod(items.size)]
     val target = raw?.let { r -> enriched[r.key]?.copy(progress = r.progress, sub = r.sub) ?: r }
+        ?.let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }
 
     // The slide changes once its backdrop and logo are decoded (usually instant: prefetched). While you are
     // browsing with the remote it never waits long, so the text keeps up with every press.
@@ -538,6 +593,17 @@ private fun HeroSection(
                 onFocus = { focused = it },
                 onPrev = { app.navAt = System.currentTimeMillis(); index-- }, onNext = { app.navAt = System.currentTimeMillis(); index++ },
                 onOpen = { NuvioLaunch.open(ctx, settings, app.http, shown) },
+                onLong = {
+                    val base = enriched[shown.key] ?: shown
+                    val options = artOptions(base)
+                    if (options.size < 2) toast(ctx, "No other pictures for ${shown.name} (add a TMDB token for more)")
+                    else {
+                        val cur = options.indexOf(shown.background).coerceAtLeast(0)
+                        val next = options[(cur + 1) % options.size]
+                        settings.setArtPick(shown.key, next)
+                        toast(ctx, "Picture ${(cur + 1) % options.size + 1} of ${options.size} · ${shown.name}  (hold OK again for the next)")
+                    }
+                },
                 modifier = Modifier.align(Alignment.TopStart),
             )
         } else {
@@ -594,12 +660,13 @@ private fun EmptyHint(
 @Composable
 private fun HeroInfo(
     item: HeroItem, app: GlassApp, s: Float, focused: Boolean, heroFocus: FocusRequester, firstTile: FocusRequester,
-    onFocus: (Boolean) -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit,
+    onFocus: (Boolean) -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit, onLong: () -> Unit,
     modifier: Modifier,
 ) {
     val settings = app.settings
     val ms = settings.transitionMs
     var heroDown by remember { mutableStateOf(false) }
+    var heroLong by remember { mutableStateOf(false) }
     // The block itself is the focus target (invisible): Left/Right change slide, OK opens the title.
     Box(
         modifier
@@ -612,10 +679,13 @@ private fun HeroInfo(
                     ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown -> { onNext(); true }
                     ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown -> { onPrev(); true }
                     ev.isSelect -> {
-                        if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) heroDown = true
-                        if (ev.type == KeyEventType.KeyUp && heroDown) { heroDown = false; onOpen() }
+                        if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) { heroDown = true; heroLong = false }
+                        // Hold OK: next picture of this title.
+                        if (ev.type == KeyEventType.KeyDown && heroDown && !heroLong && ev.nativeKeyEvent.repeatCount >= 1) { heroLong = true; onLong() }
+                        if (ev.type == KeyEventType.KeyUp && heroDown) { heroDown = false; if (!heroLong) onOpen(); heroLong = false }
                         true
                     }
+                    ev.key == Key.Menu -> { if (ev.type == KeyEventType.KeyDown) onLong(); true }
                     else -> false
                 }
             }
@@ -688,7 +758,7 @@ private fun HeroInfo(
                                 .padding(horizontal = (16 * s).dp, vertical = (7 * s).dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("▶", color = Color.Black, fontSize = (11 * s).sp)
+                            PlayGlyph(Modifier.size((10 * s).dp), Color.Black)
                             Spacer(Modifier.width((7 * s).dp))
                             Text("Play", color = Color.Black, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
                         }
@@ -789,13 +859,12 @@ private fun TopBar(app: GlassApp, s: Float, onSettings: () -> Unit, modifier: Mo
         while (true) { value = clockText(settings.clock24h); delay(10_000) }
     }
     var barFocused by remember { mutableStateOf(false) }
-    var visible by remember { mutableStateOf(true) }
-    val tick = app.interaction.longValue
-    LaunchedEffect(tick, barFocused, settings.topAutoHide, settings.topHideSec) {
-        visible = true
-        if (settings.topAutoHide && !barFocused) { delay(settings.topHideSec * 1000L); visible = false }
-    }
-    val a by animateFloatAsState(if (visible || barFocused) 1f else 0f, tween(350), label = "topAlpha")
+    // Auto-hide: the clock and the settings button stay hidden while you move around the home screen
+    // and only appear when focus goes up to the settings button. (A few seconds at first, so you see where it is.)
+    var intro by remember { mutableStateOf(true) }
+    LaunchedEffect(settings.topAutoHide, settings.topHideSec) { intro = true; delay(settings.topHideSec * 1000L); intro = false }
+    val visible = !settings.topAutoHide || barFocused || intro
+    val a by animateFloatAsState(if (visible) 1f else 0f, tween(350), label = "topAlpha")
     val date by produceState(dateText(), Unit) { while (true) { value = dateText(); delay(60_000) } }
     val wx by app.weather.now.collectAsState()
     val shade = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 8f))
@@ -1108,8 +1177,9 @@ private fun FocusColorArt(art: Art?, label: String, s: Float, litState: androidx
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = litState.value }
             .background(if (dark) Color(0xF0141416) else Color(0xE6E4E4EA)))
         Image(bm, label, colorFilter = if (art.transparent) (if (restOnLight) blackGlyph else whiteGlyph) else grayscale, contentScale = scale,
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
             modifier = mod.graphicsLayer { alpha = (1f - litState.value) * if (art.transparent) 0.92f else 0.75f })
-        Image(if (dark) bm else art.onLight, label, contentScale = scale,
+        Image(if (dark) bm else art.onLight, label, contentScale = scale, filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
             modifier = mod.graphicsLayer { alpha = litState.value })
     }
 }
@@ -1129,7 +1199,7 @@ private fun IconArt(art: Art?, label: String, style: String, s: Float) {
         else -> null
     }
     Image(
-        bm, label, colorFilter = filter,
+        bm, label, colorFilter = filter, filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
         contentScale = if (wide && !art.transparent) ContentScale.Crop else ContentScale.Fit,
         modifier = Modifier.fillMaxSize().padding(if (wide && !art.transparent) 0.dp else (8 * s).dp),
     )

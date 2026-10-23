@@ -36,6 +36,9 @@ data class HeroItem(
     val sub: String = "",
     /** Extra backdrops of this title (TMDB), shown one after another like the Apple TV app. */
     val gallery: List<String> = emptyList(),
+    /** The add-on's own picture (before TMDB) and TMDB's highest-resolution backdrop. */
+    val addonArt: String = "",
+    val bestArt: String = "",
 )
 
 /**

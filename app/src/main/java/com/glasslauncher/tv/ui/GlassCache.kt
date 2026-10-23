@@ -30,6 +30,8 @@ fun sized(url: String, size: String) = url.replace("/t/p/original/", "/t/p/$size
  * it never cancels a job other callers are waiting for.
  */
 object GlassCache {
+    /** Width of the glass copies (Settings → Performance → Glass detail). */
+    @Volatile var res: Int = 720
     private val cache = LruCache<String, GlassImages>(24)
     private val pending = HashMap<String, Deferred<GlassImages?>>()
     // One low-priority worker: blurring never competes with drawing the screen.
@@ -38,7 +40,7 @@ object GlassCache {
     }
     private val scope = CoroutineScope(SupervisorJob() + worker.asCoroutineDispatcher())
 
-    fun peek(url: String, blur: Int): GlassImages? = pinned["$blur|$url"] ?: cache.get("$blur|$url")
+    fun peek(url: String, blur: Int): GlassImages? = pinned["$blur|$res|$url"] ?: cache.get("$blur|$res|$url")
 
     /** Continue Watching titles: kept for as long as they are in the list, whatever else is browsed. */
     private val pinned = java.util.concurrent.ConcurrentHashMap<String, GlassImages>()
@@ -46,28 +48,29 @@ object GlassCache {
     val pinnedLogo = java.util.concurrent.ConcurrentHashMap<String, ImageBitmap>()
 
     suspend fun pin(ctx: Context, url: String, blur: Int) {
-        val key = "$blur|$url"
+        val key = "$blur|$res|$url"
         if (pinned.containsKey(key)) return
         get(ctx, url, blur)?.let { pinned[key] = it }
     }
 
     /** Drops pins of titles that left Continue Watching. */
     fun keepOnly(urls: Set<String>) {
-        pinned.keys.removeAll { k -> k.substringAfter('|') !in urls }
+        pinned.keys.removeAll { k -> k.substringAfter('|').substringAfter('|') !in urls }
         pinnedFull.keys.retainAll(urls)
         pinnedLogo.keys.retainAll(urls)
     }
 
     suspend fun get(ctx: Context, url: String, blur: Int): GlassImages? {
-        val key = "$blur|$url"
+        val r = res
+        val key = "$blur|$r|$url"
         pinned[key]?.let { return it }
         cache.get(key)?.let { return it }
         val job = synchronized(pending) {
             pending.getOrPut(key) {
                 scope.async {
                     try {
-                        val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, "w780"))
-                            .size(480, 270).allowHardware(false).build()
+                        val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, if (r > 720) "w1280" else "w780"))
+                            .size(r, r * 9 / 16).allowHardware(false).build()
                         val src = (SingletonImageLoader.get(ctx.applicationContext).execute(req) as? SuccessResult)?.image?.toBitmap()
                         src?.let { GlassImages(blurredBackdrop(it, blur), it.asImageBitmap(), blurredBackdrop(it, 80)) }
                             ?.also { cache.put(key, it) }

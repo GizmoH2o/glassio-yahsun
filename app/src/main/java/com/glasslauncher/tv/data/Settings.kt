@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableIntStateOf
  * Every launcher option lives here. Reads touch a Compose state counter, so any composable that
  * reads a property recomposes automatically when a setter bumps it.
  */
-class Settings(ctx: Context) {
+class Settings(private val ctx: Context) {
     private val sp = ctx.getSharedPreferences("glass", Context.MODE_PRIVATE)
     private val rev = mutableIntStateOf(0)
 
@@ -26,18 +26,52 @@ class Settings(ctx: Context) {
 
     // ---- Hero / carousel
     var heroAutoplay: Boolean get() = b("heroAutoplay", true); set(v) = putB("heroAutoplay", v)
-    /** performance | balanced | quality | custom */
-    var perfMode: String get() = s("perfMode", "custom"); set(v) = putS("perfMode", v)
+    /** auto | performance | balanced | quality | custom */
+    var perfMode: String get() = s("perfMode", "auto"); set(v) = putS("perfMode", v)
+
+    /**
+     * What this TV can carry, from its memory and GPU: 2 GB / GLES 2 boxes get "performance",
+     * ~4 GB boxes (Google TV Streamer, Shield) "balanced", bigger ones "quality".
+     */
+    fun deviceTier(): String {
+        val am = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+        val gb = mi.totalMem / (1024.0 * 1024 * 1024)
+        val gles = am.deviceConfigurationInfo.reqGlEsVersion
+        val cores = Runtime.getRuntime().availableProcessors()
+        return when {
+            am.isLowRamDevice || gb < 2.6 || gles < 0x30000 || android.os.Build.VERSION.SDK_INT < 33 -> "performance"
+            gb < 5.0 || cores < 6 -> "balanced"
+            else -> "quality"
+        }
+    }
+    /** The tier Auto picked, for display. */
+    val autoTier: String by lazy { deviceTier() }
+
+    /** Glass copies of the backdrop: 480 px (light), 720 px, 960 px (sharpest glass). */
+    var glassRes: Int get() = i("glassRes", 720); set(v) = putI("glassRes", v.coerceIn(480, 960))
+    /** Backdrop sharpening on the GPU (Android 13+): 0 off … 3 strong. */
+    var sharpness: Int get() = i("sharpness", 1); set(v) = putI("sharpness", v.coerceIn(0, 3))
+
+    /** Which picture a title uses: main | second | best (highest resolution) | addon (the add-on's own). */
+    var artChoice: String get() = s("artChoice", "main"); set(v) = putS("artChoice", v)
+    /** Per-title picture picked with a long press on the carousel: "key\turl" lines. */
+    fun artPick(key: String): String? = list("artPicks").firstOrNull { it.startsWith("$key\t") }?.substringAfter('\t')
+    fun setArtPick(key: String, url: String?) {
+        val rest = list("artPicks").filterNot { it.startsWith("$key\t") }
+        putList("artPicks", if (url == null) rest else (rest + "$key\t$url").takeLast(300))
+    }
+    fun clearArtPicks() = putList("artPicks", emptyList())
     /** max = original pictures (4K source, sharpest) | high = 1280 px pictures (faster, lighter) */
     var imageQuality: String get() = s("imageQuality", "max"); set(v) = putS("imageQuality", v)
     /** How many slides ahead are prepared (pictures, logos, glass). */
     var prefetchDepth: Int get() = i("prefetchDepth", 4); set(v) = putI("prefetchDepth", v.coerceIn(1, 8))
 
     fun applyMode(m: String) {
-        when (m) {
-            "performance" -> { imageQuality = "high"; prefetchDepth = 2; transitionMs = 250; refraction = 0; heroGallery = false }
-            "balanced" -> { imageQuality = "max"; prefetchDepth = 4; transitionMs = 450; refraction = 6; heroGallery = true; galleryShots = 2 }
-            "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3 }
+        when (if (m == "auto") deviceTier() else m) {
+            "performance" -> { imageQuality = "high"; prefetchDepth = 2; transitionMs = 250; refraction = 0; heroGallery = false; glassRes = 480; sharpness = 0 }
+            "balanced" -> { imageQuality = "max"; prefetchDepth = 4; transitionMs = 450; refraction = 6; heroGallery = true; galleryShots = 2; glassRes = 720; sharpness = 1 }
+            "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3; glassRes = 960; sharpness = 2 }
         }
         perfMode = m
     }
