@@ -91,7 +91,12 @@ class Settings(private val ctx: Context) {
     var synopsisScale: Float get() = f("synopsisScale", 1.0f); set(v) = putF("synopsisScale", v.coerceIn(0.6f, 2.0f))
     var synopsisLines: Int get() = i("synopsisLines", 3); set(v) = putI("synopsisLines", v.coerceIn(1, 8))
     /** window | progress | hidden */
+    /** window (dots on a pill) | liquid (liquid-glass drops, no pill) | progress | hidden */
     var dotsMode: String get() = s("dotsMode", "window"); set(v) = putS("dotsMode", v)
+    /** apple (Apple TV: the new picture opens up from the side with parallax) | slide (push) | fade */
+    var slideAnim: String get() = s("slideAnim", "apple"); set(v) = putS("slideAnim", v)
+    /** Buttons under the title: apple (Play + round Next, like Apple TV) | play (Play only, when selected) | hidden */
+    var heroButtons: String get() = s("heroButtons", "apple"); set(v) = putS("heroButtons", v)
     var dotsMax: Int get() = i("dotsMax", 10); set(v) = putI("dotsMax", v.coerceIn(3, 20))
     var perCatalog: Int get() = i("perCatalog", 20); set(v) = putI("perCatalog", v.coerceIn(5, 500))
     /** 0 = unlimited */
@@ -112,6 +117,8 @@ class Settings(private val ctx: Context) {
     var folderPos: Int get() = i("folderPos", -1); set(v) = putI("folderPos", v)
     /** Continue Watching: off | first (at the start of the carousel) | mixed (among the catalogs) */
     var continueMode: String get() = s("continueMode", "first"); set(v) = putS("continueMode", v)
+    /** Continue Watching also from the Trakt account (when one is connected). */
+    var cwTrakt: Boolean get() = b("cwTrakt", true); set(v) = putB("cwTrakt", v)
     /** After you leave the player, the carousel opens on what you just watched. */
     /** How many titles in progress open the carousel (0 = all); the rest mix in with the catalogs. */
     var cwLead: Int get() = i("cwLead", 1); set(v) = putI("cwLead", v)
@@ -156,10 +163,12 @@ class Settings(private val ctx: Context) {
     var showMobileApps: Boolean get() = b("showMobileApps", false); set(v) = putB("showMobileApps", v)
     var dockOrder: List<String> get() = list("dockOrder"); set(v) = putList("dockOrder", v)
     var hiddenApps: List<String> get() = list("hiddenApps"); set(v) = putList("hiddenApps", v)
+    /** The Apps folder tile in the dock. */
+    var showFolder: Boolean get() = b("showFolder", true); set(v) = putB("showFolder", v)
 
     // ---- Nuvio / Home Assistant
-    /** legacy | reshaped */
-    var nuvioTarget: String get() = s("nuvioTarget", "legacy"); set(v) = putS("nuvioTarget", v)
+    /** auto (first installed: Legacy, official, Arc, Re-Shaped) | legacy | official | arc | reshaped */
+    var nuvioTarget: String get() = s("nuvioTarget", "auto"); set(v) = putS("nuvioTarget", v)
     var haWebhook: String get() = s("haWebhook", ""); set(v) = putS("haWebhook", v.trim())
     var haOnLaunch: Boolean get() = b("haOnLaunch", false); set(v) = putB("haOnLaunch", v)
 

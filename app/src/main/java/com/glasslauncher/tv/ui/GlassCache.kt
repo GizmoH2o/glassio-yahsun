@@ -79,6 +79,7 @@ object GlassCache {
                         src?.let { val sh = if (it.isMutable) it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it; sh.prepareToDraw(); GlassImages(blurredBackdrop(it, blur), sh.asImageBitmap(), blurredBackdrop(it, 80)) }
                             ?.also { cache.put(key, it) }
                     } catch (e: Exception) {
+                        com.glasslauncher.tv.data.Glog.w("Glass copy of $url", e)
                         null
                     } finally {
                         synchronized(pending) { pending.remove(key) }

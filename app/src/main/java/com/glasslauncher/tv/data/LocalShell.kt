@@ -45,7 +45,8 @@ object LocalShell {
                 check(res.exitCode == 0) { res.allOutput.trim().ifBlank { "exit ${res.exitCode}" } }
                 res.allOutput
             }
-            if (r.isSuccess || attempt == 1) return r
+            if (r.isSuccess) return r
+            if (attempt == 1) { Glog.w("TV adb shell", r.exceptionOrNull()); return r }
             runCatching { conn?.close() }; conn = null
         }
         return Result.failure(IllegalStateException())

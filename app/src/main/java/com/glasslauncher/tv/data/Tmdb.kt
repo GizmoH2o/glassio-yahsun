@@ -19,7 +19,7 @@ class Tmdb(private val http: Http) {
         if (token.isBlank()) return null
         val isTv = item.type.equals("series", true) || item.type.equals("tv", true)
         val kind = if (isTv) "tv" else "movie"
-        val tmdbLang = if (lang == "ar") "ar-SA" else "en-US"
+        val tmdbLang = TMDB_LANGS[lang] ?: "en-US"
         val imdb = item.id.takeIf { it.matches(Regex("tt\\d{7,10}")) }
         var tmdbId = 0
         runCatching {
@@ -75,7 +75,7 @@ class Tmdb(private val http: Http) {
                 .sortedWith(compareBy<JSONObject> { if (it.isNull("iso_639_1")) 0 else 1 }.thenBy { if (it.optInt("width") > 3840) 1 else 0 }.thenByDescending { it.optInt("width") })
                 .firstOrNull()?.let { "https://image.tmdb.org/t/p/original" + it.optString("file_path") }
         }.orEmpty()
-        val genresEn = if (lang == "ar") runCatching { get("https://api.themoviedb.org/3/$kind/$tmdbId?language=en-US", token) }.getOrDefault(d) else d
+        val genresEn = if (lang != "en") runCatching { get("https://api.themoviedb.org/3/$kind/$tmdbId?language=en-US", token) }.getOrDefault(d) else d
         val genres = genresEn.optJSONArray("genres")?.let { g ->
             (0 until minOf(3, g.length())).mapNotNull { g.optJSONObject(it)?.optString("name")?.takeIf { n -> n.isNotBlank() } }
         }.orEmpty()
@@ -130,3 +130,18 @@ class Tmdb(private val http: Http) {
         }
     }
 }
+
+/** Synopsis languages (Settings → Carousel → Synopsis language): setting value → TMDB language. */
+val TMDB_LANGS = linkedMapOf(
+    "en" to "en-US", "ar" to "ar-SA", "fr" to "fr-FR", "es" to "es-ES", "es-MX" to "es-MX", "de" to "de-DE",
+    "it" to "it-IT", "pt" to "pt-PT", "pt-BR" to "pt-BR", "nl" to "nl-NL", "tr" to "tr-TR", "ru" to "ru-RU",
+    "uk" to "uk-UA", "pl" to "pl-PL", "fa" to "fa-IR", "he" to "he-IL", "hi" to "hi-IN", "id" to "id-ID",
+    "ja" to "ja-JP", "ko" to "ko-KR", "zh" to "zh-CN", "zh-TW" to "zh-TW", "sv" to "sv-SE", "el" to "el-GR",
+)
+val LANG_NAMES = mapOf(
+    "en" to "English", "ar" to "Arabic", "fr" to "French", "es" to "Spanish (Spain)", "es-MX" to "Spanish (Latin America)",
+    "de" to "German", "it" to "Italian", "pt" to "Portuguese", "pt-BR" to "Portuguese (Brazil)", "nl" to "Dutch",
+    "tr" to "Turkish", "ru" to "Russian", "uk" to "Ukrainian", "pl" to "Polish", "fa" to "Persian", "he" to "Hebrew",
+    "hi" to "Hindi", "id" to "Indonesian", "ja" to "Japanese", "ko" to "Korean", "zh" to "Chinese (Simplified)",
+    "zh-TW" to "Chinese (Traditional)", "sv" to "Swedish", "el" to "Greek",
+)

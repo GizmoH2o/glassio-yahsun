@@ -6,7 +6,6 @@ import android.provider.Settings as AndroidSettings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -89,6 +88,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -112,6 +119,7 @@ import com.glasslauncher.tv.data.HeroItem
 import com.glasslauncher.tv.data.NuvioLaunch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 enum class Screen { Home, Settings }
@@ -178,7 +186,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     val shownUrl = remember { mutableStateOf<String?>(null) }
     var fadeMs by remember { mutableIntStateOf(settings.transitionMs) }
     val mix = remember { androidx.compose.animation.core.Animatable(1f) }
-    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes) {
+    // 0 = crossfade; 1 / -1 = the new picture slides in from the right / left (Slide animation).
+    var slideDir by remember { mutableIntStateOf(0) }
+    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes, settings.slideAnim) {
         GlassCache.res = settings.glassRes
         val u = backdrop ?: return@LaunchedEffect
         // Wait for both the full picture and its glass copy, then switch them in the same frame.
@@ -202,31 +212,41 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         }
         if (fullBmp == null) return@LaunchedEffect
         val first = backImgs == null
-        fadeMs = if (app.browsing()) 220 else settings.transitionMs
+        fadeMs = if (app.browsing()) (when (settings.slideAnim) { "apple" -> 560; "slide" -> 420; else -> 220 }) else settings.transitionMs
         val dm = ctx.resources.displayMetrics
-        val src = fullBmp!!
-        val baked = BakeCache.get(u, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, dm.widthPixels, dm.heightPixels) }.also { BakeCache.put(u, src, it) }
+        val src = fullBmp
+        // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
+        val slide = settings.slideAnim != "fade"
+        val bk = if (slide) "$u|slide" else u
+        val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, dm.widthPixels, dm.heightPixels, !slide) }.also { BakeCache.put(bk, src, it) }
         if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
         // Page and glass fade in the same frames with the same timing, so the bar never runs ahead.
         prevImgs = backImgs
         prevBackdrop = shownBackdrop
         if (next != null) backImgs = next
+        slideDir = if (slide && !first && prevBackdrop != null) SlideDir.dir else 0
         if (!first && next != null) mix.snapTo(0f)
         shownBackdrop = baked
         shownUrl.value = u
         try {
             if (first || next == null) mix.snapTo(1f)
-            else mix.animateTo(1f, tween(fadeMs, easing = androidx.compose.animation.core.LinearEasing))
+            else mix.animateTo(1f, tween(fadeMs, easing = when {
+                slideDir == 0 -> androidx.compose.animation.core.LinearEasing
+                // Apple TV: a quick start that settles slowly.
+                settings.slideAnim == "apple" -> androidx.compose.animation.core.CubicBezierEasing(0.22f, 0.0f, 0.0f, 1.0f)
+                else -> FastOutSlowInEasing
+            }))
         } finally {
             // Also when this fade is cut short by the next slide: never leave the glass half faded with the
             // old layer underneath (every glass surface would then be drawn twice, translucent, on every frame).
             prevImgs = null
             prevBackdrop = null
+            slideDir = 0
             withContext(kotlinx.coroutines.NonCancellable) { mix.snapTo(1f) }
         }
         upgrade?.let { d -> bmpOf(d.await())?.let { hi ->
             val dm = ctx.resources.displayMetrics
-            val b = withContext(Dispatchers.Default) { bakeBackdrop(hi, dm.widthPixels, dm.heightPixels).also { GlassHalf.of(it) } }
+            val b = withContext(Dispatchers.Default) { bakeBackdrop(hi, dm.widthPixels, dm.heightPixels, !slide).also { GlassHalf.of(it) } }
             fadeMs = 0; shownBackdrop = b
         } }
     }
@@ -298,7 +318,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         // GlassCache copy is only the fallback before the first picture is on screen.
         val pageSharp = if (PageGlass.on.value) GlassHalf.peek(shownBackdrop) else null
         val env = GlassEnv(backImgs?.first, pageSharp ?: backImgs?.second, backImgs?.third, rootW, rootH, settings.glassTint, settings.refraction, 1f, wobble.asState(),
-            prevImgs?.first, if (prevImgs != null) (GlassHalf.peek(prevBackdrop) ?: prevImgs?.second) else null, mix.asState(), veil, sharpIsPage = pageSharp != null)
+            prevImgs?.first, if (prevImgs != null) (GlassHalf.peek(prevBackdrop) ?: prevImgs?.second) else null, mix.asState(), veil, sharpIsPage = pageSharp != null,
+            slide = slideDir, slideKind = if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH,
+            pageNoSideShade = settings.slideAnim != "fade")
         val radius = settings.cornerRadius
         val metrics = remember(s, maxWidth, settings.dockScale) { DockMetrics(s, maxWidth.value, settings.dockScale) }
 
@@ -309,7 +331,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             // The scrims are baked into the picture (bakeBackdrop): a slide change draws two flat pictures and
             // nothing else, which keeps the crossfade smooth on TV graphics chips.
             if (!folderOpen) Box(Modifier.fillMaxSize()) {
-                Backdrop(shownBackdrop, fadeMs)
+                if (settings.slideAnim != "fade") SlideBackdrop(prevBackdrop, shownBackdrop, mix, slideDir,
+                    if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH)
+                else FadeBackdrop(prevBackdrop, shownBackdrop, mix)
             }
             // Dock open: the whole page blurs and darkens (the glass draws the same veil, see LiquidSurface).
             val veilOn by remember { androidx.compose.runtime.derivedStateOf { veil.value > 0.01f } }
@@ -335,7 +359,14 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                     folderFocus = folderFocus, tileFocus = tileFocus, onMove = kick,
                     onMenu = { showMenu(it, false) },
                     onFolder = { folderOpen = true },
-                    onFolderMenu = { dialog = MenuDialog("Apps", listOf("Move" to { movingPkg = FOLDER })) },
+                    onFolderMenu = { dialog = MenuDialog("Apps", listOf(
+                        "Move" to { movingPkg = FOLDER },
+                        "Hide from the dock" to {
+                            settings.showFolder = false
+                            scope.launch { delay(80); runCatching { firstTile.requestFocus() } }
+                            android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings → Dock & icons", android.widget.Toast.LENGTH_LONG).show()
+                        },
+                    )) },
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }
@@ -351,7 +382,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                     },
                 )
             }
-            if (screen == Screen.Home && !folderOpen) UpdateBanner(app, s, Modifier.align(Alignment.TopCenter))
+            if (screen == Screen.Home && !folderOpen) UpdateBanner(app, s, Modifier.align(Alignment.TopEnd).padding(end = (34 * s).dp))
             if (screen == Screen.Settings) SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
             pickerFor?.let { e ->
                 IconPicker(
@@ -453,7 +484,7 @@ private object BakeCache {
  * The backdrop scaled to the screen (centre crop) with the two scrims painted in, as one bitmap.
  * Done once per picture on a background thread; drawing it is then a single full-screen copy.
  */
-private fun bakeBackdrop(src: ImageBitmap, w: Int, h: Int): ImageBitmap {
+private fun bakeBackdrop(src: ImageBitmap, w: Int, h: Int, hScrim: Boolean = true): ImageBitmap {
     var bmp = src.asAndroidBitmap()
     if (bmp.config == android.graphics.Bitmap.Config.HARDWARE) bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
     val out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
@@ -464,7 +495,7 @@ private fun bakeBackdrop(src: ImageBitmap, w: Int, h: Int): ImageBitmap {
     c.drawBitmap(bmp, null, dst, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG or android.graphics.Paint.DITHER_FLAG))
     val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
     p.shader = android.graphics.LinearGradient(0f, 0f, w * 0.62f, 0f, 0xE0000000.toInt(), 0x00000000, android.graphics.Shader.TileMode.CLAMP)
-    c.drawRect(0f, 0f, w * 0.62f, h.toFloat(), p)
+    if (hScrim) c.drawRect(0f, 0f, w * 0.62f, h.toFloat(), p)
     p.shader = android.graphics.LinearGradient(0f, h * 0.58f, 0f, h.toFloat(), 0x00000000, 0xCC000000.toInt(), android.graphics.Shader.TileMode.CLAMP)
     c.drawRect(0f, h * 0.58f, w.toFloat(), h.toFloat(), p)
     return immutable(out).asImageBitmap()
@@ -480,18 +511,63 @@ private fun immutable(b: android.graphics.Bitmap): android.graphics.Bitmap {
     return r
 }
 
+/** Which way the next slide moves (set by the remote / auto-play just before the index changes). */
+object SlideDir { @Volatile var dir = 1 }
+
+/**
+ * Slide animation: the old picture leaves to one side while the new one comes in from the other, both moved
+ * as cached layers (no redraw). The side shade is not baked into these pictures; it is drawn once on top and
+ * stays still, so no dark band travels across the screen.
+ */
 @Composable
-private fun Backdrop(bmp: ImageBitmap?, ms: Int) {
-    // Same bitmap, same frame, same fade as the glass: the two can never drift apart.
-    Crossfade(targetState = bmp, animationSpec = tween(ms, easing = androidx.compose.animation.core.LinearEasing), label = "backdrop") { b ->
-        if (b != null) {
-            // Baked at screen size: drawn 1:1, so plain sampling (High would add mipmap/cubic work for nothing).
-            Image(b, null, contentScale = ContentScale.FillBounds, filterQuality = androidx.compose.ui.graphics.FilterQuality.None, modifier = Modifier.fillMaxSize())
-        } else {
-            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
+private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>, dir: Int, kind: Int) {
+    // One canvas: both pictures drawn straight (no layers), the old one darkened by a colour filter in the
+    // same pass instead of a full-screen rectangle on top.
+    if (cur == null && prev == null) {
+        Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
+        return
+    }
+    Canvas(Modifier.fillMaxSize()) {
+        val W = size.width; val H = size.height
+        val dst = androidx.compose.ui.unit.IntSize(W.toInt(), H.toInt())
+        fun img(b: ImageBitmap, dx: Float, dim: Float = 0f) = drawImage(
+            b, dstOffset = androidx.compose.ui.unit.IntOffset(dx.roundToInt(), 0), dstSize = dst,
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
+            colorFilter = if (dim > 0.002f) androidx.compose.ui.graphics.ColorFilter.tint(Color.Black.copy(alpha = dim), androidx.compose.ui.graphics.BlendMode.SrcAtop) else null,
+        )
+        if (prev == null || dir == 0 || cur == null) { (cur ?: prev)?.let { img(it, 0f) } }
+        else {
+            val f = slideFrame(kind, dir, mix.value, W)
+            img(prev, f.prevShift, f.dim)
+            clipRect(left = if (f.curRight) f.edge else -1e5f, right = if (f.curRight) 1e5f else f.edge) { img(cur, f.curShift) }
+            // A soft shadow on the old picture along the moving edge gives the new one some depth.
+            if (kind == SLIDE_APPLE) {
+                val sw = W * 0.05f; val a = 0.35f * (1f - mix.value); val e = f.edge
+                if (f.curRight) drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = a), startX = e - sw, endX = e),
+                    topLeft = Offset(e - sw, 0f), size = androidx.compose.ui.geometry.Size(sw, H))
+                else drawRect(Brush.horizontalGradient(0f to Color.Black.copy(alpha = a), 1f to Color.Transparent, startX = e, endX = e + sw),
+                    topLeft = Offset(e, 0f), size = androidx.compose.ui.geometry.Size(sw, H))
+            }
         }
+        drawRect(Brush.horizontalGradient(0f to Color(0xE0000000), 1f to Color.Transparent, startX = 0f, endX = W * 0.62f),
+            size = androidx.compose.ui.geometry.Size(W * 0.62f, H))
     }
 }
+
+/**
+ * Crossfade driven by the very same [mix] value as the glass: the old picture stays fully drawn and the new
+ * one's opacity goes 0 → 1 on top, exactly what every glass surface does. (Compose's Crossfade also fades the
+ * old picture out, so mid-fade the page was darker than the glass and the two looked out of step.)
+ */
+@Composable
+private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>) {
+    val fq = androidx.compose.ui.graphics.FilterQuality.None
+    if (prev != null) Image(prev, null, contentScale = ContentScale.FillBounds, filterQuality = fq, modifier = Modifier.fillMaxSize())
+    if (cur != null) Image(cur, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
+        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (prev != null) mix.value else 1f })
+    else if (prev == null) Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
+}
+
 
 // ───────────────────────────── hero / carousel ─────────────────────────────
 
@@ -581,6 +657,7 @@ private fun HeroSection(
             loader.enqueue(imgReq(ctx, next)); launch { GlassCache.get(ctx, next, settings.blurRadius) }
             delay(shotMs)
             if (shot + 1 >= gallery.size) break
+            SlideDir.dir = 1
             shot++
         }
     }
@@ -616,10 +693,12 @@ private fun HeroSection(
                     val u = n.background
                     val r = loader.execute(imgReq(ctx, if (settings.imageQuality == "high") sized(u, "w1280") else u))
                     val b = (r as? SuccessResult)?.image?.toBitmap()?.asImageBitmap() ?: return@launch
-                    if (BakeCache.get(u, b) == null) {
+                    val slide = settings.slideAnim != "fade"
+                    val bk = if (slide) "$u|slide" else u
+                    if (BakeCache.get(bk, b) == null) {
                         val dm = ctx.resources.displayMetrics
-                        val baked = withContext(Dispatchers.Default) { bakeBackdrop(b, dm.widthPixels, dm.heightPixels) }
-                        BakeCache.put(u, b, baked)
+                        val baked = withContext(Dispatchers.Default) { bakeBackdrop(b, dm.widthPixels, dm.heightPixels, !slide) }
+                        BakeCache.put(bk, b, baked)
                         withContext(Dispatchers.Default) { GlassHalf.of(baked) }
                     }
                 }
@@ -668,6 +747,7 @@ private fun HeroSection(
         if (settings.heroAutoplay && !hidden && !paused && resumed && items.size > 1) {
             val shots = item?.let { i -> if (settings.heroGallery) i.gallery.take(settings.galleryShots).size else 0 } ?: 0
             delay(settings.heroIntervalSec * 1000L * shots.coerceAtLeast(1))
+            SlideDir.dir = 1
             index++
         }
     }
@@ -682,7 +762,7 @@ private fun HeroSection(
             HeroInfo(
                 item = shown, app = app, s = s, focused = focused, heroFocus = heroFocus, firstTile = firstTile,
                 onFocus = { focused = it },
-                onPrev = { app.navAt = System.currentTimeMillis(); index-- }, onNext = { app.navAt = System.currentTimeMillis(); index++ },
+                onPrev = { app.navAt = System.currentTimeMillis(); SlideDir.dir = -1; index-- }, onNext = { app.navAt = System.currentTimeMillis(); SlideDir.dir = 1; index++ },
                 onOpen = { NuvioLaunch.open(ctx, settings, app.http, shown) },
                 onLong = {
                     val base = enriched[shown.key] ?: shown
@@ -758,17 +838,22 @@ private fun HeroInfo(
     val ms = settings.transitionMs
     var heroDown by remember { mutableStateOf(false) }
     var heroLong by remember { mutableStateOf(false) }
+    // Apple TV buttons: 0 = Play, 1 = the round Next button. The block stays one focus target; Left/Right
+    // move between the two and past them change the title, so holding a direction keeps browsing.
+    val nextBtn = settings.heroButtons == "apple"
+    var btn by remember { mutableIntStateOf(0) }
     // The block itself is the focus target (invisible): Left/Right change slide, OK opens the title.
     Box(
         modifier
-            .padding(start = (48 * s).dp, top = (96 * s).dp)
+            .padding(start = (48 * s).dp, top = ((if (settings.heroButtons == "apple") 78 else 96) * s).dp)
             .width((440 * s).dp)
             .focusRequester(heroFocus)
             .focusProperties { down = firstTile }
             .onKeyEvent { ev ->
                 when {
-                    ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown -> { onNext(); true }
-                    ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown -> { onPrev(); true }
+                    ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown -> { if (nextBtn && btn == 0) btn = 1 else onNext(); true }
+                    ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown -> { if (nextBtn && btn == 1) btn = 0 else onPrev(); true }
+                    ev.isSelect && nextBtn && btn == 1 -> { if (ev.type == KeyEventType.KeyDown) onNext(); true }
                     ev.isSelect -> {
                         if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) { heroDown = true; heroLong = false }
                         // Hold OK: next picture of this title.
@@ -780,10 +865,15 @@ private fun HeroInfo(
                     else -> false
                 }
             }
-            .onFocusChanged { onFocus(it.isFocused) }
+            .onFocusChanged { if (it.isFocused) btn = 0; onFocus(it.isFocused) }
             .focusable()
             .padding((8 * s).dp),
     ) {
+      Column {
+        // With the Apple TV buttons the text sits in a fixed-height area: logo and details stay where they always
+        // were (top), the synopsis takes what is left (its own line setting), and the buttons below never move.
+        val fixed = nextBtn
+        Box(if (fixed) Modifier.height((240 * s).dp).clipToBounds() else Modifier, contentAlignment = Alignment.TopStart) {
         AnimatedContent(
             targetState = item,
             transitionSpec = { fadeIn(tween(ms)) togetherWith fadeOut(tween((ms * 0.4f).toInt())) },
@@ -841,7 +931,7 @@ private fun HeroInfo(
                     }
                 }
                 // Simple Play button: only shows while the carousel is selected.
-                AnimatedVisibility(visible = focused, enter = fadeIn(tween(180)), exit = fadeOut(tween(140))) {
+                if (settings.heroButtons == "play") AnimatedVisibility(visible = focused, enter = fadeIn(tween(180)), exit = fadeOut(tween(140))) {
                     Column {
                         Spacer(Modifier.height((14 * s).dp))
                         Row(
@@ -857,6 +947,10 @@ private fun HeroInfo(
                 }
             }
         }
+        }
+        // Apple TV buttons stay put while the title changes; only the text above fades.
+        if (nextBtn) HeroButtons(focused, btn, s, settings.cornerRadius)
+      }
     }
 }
 
@@ -918,6 +1012,7 @@ private fun Chip(text: String, s: Float) {
 
 @Composable
 private fun Dots(total: Int, current: Int, mode: String, max: Int, s: Float, modifier: Modifier) {
+    if (mode == "liquid") { LiquidDots(total, current, max, s, modifier); return }
     Box(
         modifier.clipR((8 * s).dp).background(Color.Black.copy(alpha = 0.34f))
             .padding(horizontal = (8 * s).dp, vertical = (5 * s).dp),
@@ -992,29 +1087,51 @@ private fun TopBar(app: GlassApp, s: Float, onSettings: () -> Unit, modifier: Mo
                     if (settings.showDate) Text(date, color = Color.White.copy(alpha = 0.75f), fontSize = (8 * s).sp,
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
-                UpdateDot(app, s)
+                UpdateDot(app, s) { barFocused = it }
                 GearButton(s, onSettings) { barFocused = it }
             }
             weatherRow()
         } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             weatherRow()
-            UpdateDot(app, s)
+            UpdateDot(app, s) { barFocused = it }
             GearButton(s, onSettings) { barFocused = it }
         }
     }
 }
 
-/** A small pill when a new version is on GitHub (details and install in Settings → About). */
+/** True while the Update pill in the top bar is selected: the banner below it shows what's new. */
+private val updateFocused = mutableStateOf(false)
+
+/**
+ * A small pill when a new version is on GitHub, next to the settings button. Select it (Up, then Left)
+ * and press OK: it downloads and installs right there, showing its progress, no trip to Settings.
+ */
 @Composable
-private fun UpdateDot(app: GlassApp, s: Float) {
+private fun UpdateDot(app: GlassApp, s: Float, onFocus: (Boolean) -> Unit = {}) {
     val r by app.updater.available.collectAsState()
+    val status by app.updater.status.collectAsState()
     val rel = r ?: return
+    var focused by remember { mutableStateOf(false) }
+    val busy = status.isNotBlank() && !status.startsWith("Update failed")
     Text(
-        "Update ${rel.version}", color = Color.Black, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.92f))
-            .padding(horizontal = (7 * s).dp, vertical = (2 * s).dp),
+        if (status.isNotBlank()) status else "Update ${rel.version}",
+        color = if (focused) Color.Black else Color.White, fontSize = (9f * s).sp, fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.clip(RoundedCornerShape(50))
+            .background(if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.22f))
+            .onFocusChanged { focused = it.isFocused; updateFocused.value = it.isFocused; onFocus(it.isFocused) }
+            .clickable { if (!busy) app.updater.install() }
+            .padding(horizontal = (9 * s).dp, vertical = (3 * s).dp),
     )
 }
+
+/** The release notes' bullet points, shortened to their headline ("**Sharp glass**: …" → "Sharp glass"). */
+private fun noteLines(notes: String, max: Int = 4): List<String> =
+    notes.lines().map { it.trim() }.filter { it.startsWith("- ") || it.startsWith("* ") }
+        .map { l ->
+            val t = l.drop(2).trim()
+            val bold = Regex("""^\*\*(.+?)\*\*""").find(t)?.groupValues?.get(1)
+            (bold ?: t.replace("**", "")).trim().trimEnd(':', '.')
+        }.filter { it.isNotBlank() }.take(max)
 
 /** One-time card when an update is found: tvOS-style banner, top centre, for a few seconds. */
 @Composable
@@ -1022,16 +1139,27 @@ fun UpdateBanner(app: GlassApp, s: Float, modifier: Modifier) {
     val r by app.updater.available.collectAsState()
     var shownFor by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
+    val status by app.updater.status.collectAsState()
+    val pill by updateFocused
     LaunchedEffect(r?.version) {
         val v = r?.version ?: return@LaunchedEffect
         if (v == shownFor) return@LaunchedEffect
         shownFor = v; visible = true; delay(9000); visible = false
     }
-    AnimatedVisibility(visible, modifier, enter = fadeIn(tween(300)), exit = fadeOut(tween(400))) {
-        GlassPanel(Modifier.padding(top = (16 * s).dp), (16 * s).dp, style = app.settings.panelStyle, darken = 0.55f) {
-            Column(Modifier.padding(horizontal = (16 * s).dp, vertical = (10 * s).dp)) {
-                Text("Glassio ${r?.version} is available", color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold)
-                Text("Settings → About → Install update", color = AppleSecondary, fontSize = (10 * s).sp, fontWeight = FontWeight.Medium)
+    // Shown once when the update is found, and again whenever the Update pill is selected.
+    AnimatedVisibility((visible || pill || status.isNotBlank()) && r != null, modifier, enter = fadeIn(tween(250)), exit = fadeOut(tween(300))) {
+        GlassPanel(Modifier.padding(top = (54 * s).dp).width((300 * s).dp), (16 * s).dp, style = app.settings.panelStyle, darken = 0.55f) {
+            Column(Modifier.padding(horizontal = (16 * s).dp, vertical = (11 * s).dp)) {
+                Text("Glassio ${r?.version}", color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height((5 * s).dp))
+                noteLines(r?.notes.orEmpty()).forEach {
+                    Text("·  $it", color = AppleSecondary, fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Spacer(Modifier.height((6 * s).dp))
+                Text(
+                    when { status.isNotBlank() -> status; pill -> "Press OK to update now"; else -> "Go up to Update and press OK" },
+                    color = Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.Medium,
+                )
             }
         }
     }
@@ -1121,9 +1249,10 @@ private fun Dock(
     val allApps by app.apps.apps.collectAsState()
     val apps = remember(allApps, settings.dockOrder, settings.hiddenApps, settings.showMobileApps) { app.apps.ordered() }
     // null marks where the Apps folder sits.
-    val items: List<AppEntry?> = remember(apps, settings.folderPos) {
+    val showFolder = settings.showFolder
+    val items: List<AppEntry?> = remember(apps, settings.folderPos, showFolder) {
         val p = settings.folderPos.let { if (it < 0 || it > apps.size) apps.size else it }
-        apps.toMutableList<AppEntry?>().apply { add(p, null) }
+        apps.toMutableList<AppEntry?>().apply { if (showFolder) add(p, null) }
     }
     val rows = remember(items) { items.chunked(DOCK_COLUMNS) }
     // Move mode: a moved tile is laid out again in its new slot and loses focus, which then fell to the
@@ -1523,4 +1652,80 @@ private fun FolderOverlay(
         }
     }
 }
+}
+
+/**
+ * Liquid glass page dots (tvOS / iOS 26 style): white drops with no pill behind them. The selected drop is a
+ * longer capsule whose front and back follow with different springs, so moving stretches it like a drop of
+ * water, and the dots it passes swell and merge into it before it settles.
+ */
+@Composable
+private fun LiquidDots(total: Int, current: Int, max: Int, s: Float, modifier: Modifier) {
+    val page = current / max
+    val start = page * max
+    val count = minOf(max, total - start)
+    val li = (current - start).toFloat()
+    val head = remember { androidx.compose.animation.core.Animatable(li) }
+    val tail = remember { androidx.compose.animation.core.Animatable(li) }
+    var lastPage by remember { mutableIntStateOf(page) }
+    LaunchedEffect(li, page) {
+        if (page != lastPage) { lastPage = page; head.snapTo(li); tail.snapTo(li); return@LaunchedEffect }
+        // The front races ahead and the back follows slowly: the drop stretches into the next dot, then
+        // its back pulls away from the old one until the bridge snaps.
+        launch { head.animateTo(li, spring(dampingRatio = 0.72f, stiffness = 1100f)) }
+        launch { tail.animateTo(li, spring(dampingRatio = 0.86f, stiffness = 380f)) }
+    }
+    // On a small liquid-glass capsule, the same glass as the dock.
+    val st = LocalGlassEnv.current
+    GlassPanel(modifier, radius = (11 * s).dp, style = "water_still", refract = st.refractionDp > 0) {
+        GlassDots(count, { head.value }, { tail.value }, s, Modifier.padding(horizontal = (3 * s).dp, vertical = (2 * s).dp))
+    }
+}
+
+
+/**
+ * Play and Next, drawn like the Apple TV app: grey glass when not selected, white with a dark glyph when
+ * selected, the selected one a little larger.
+ */
+@Composable
+private fun HeroButtons(focused: Boolean, btn: Int, s: Float, corner: Int) {
+    val h = (30 * s).dp
+    Column {
+        Spacer(Modifier.height((14 * s).dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            val playOn = focused && btn == 0
+            val nextOn = focused && btn == 1
+            val pScale by animateFloatAsState(if (playOn) 1.06f else 1f, spring(0.7f, 700f), label = "playScale")
+            val nScale by animateFloatAsState(if (nextOn) 1.12f else 1f, spring(0.7f, 700f), label = "nextScale")
+            // Dark when not selected, white when selected.
+            val pBg by androidx.compose.animation.animateColorAsState(if (playOn) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.55f), tween(140), label = "playBg")
+            val nBg by androidx.compose.animation.animateColorAsState(if (nextOn) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.55f), tween(140), label = "nextBg")
+            val pFg = if (playOn) Color.Black else Color.White
+            val nFg = if (nextOn) Color.Black else Color.White
+            Row(
+                Modifier.graphicsLayer { scaleX = pScale; scaleY = pScale }.height(h)
+                    .clipR((corner * 0.7f * s).dp.coerceAtLeast(h / 2)).background(pBg)
+                    .padding(horizontal = (16 * s).dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlayGlyph(Modifier.size((10 * s).dp), pFg)
+                Spacer(Modifier.width((7 * s).dp))
+                Text("Play", color = pFg, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.width((10 * s).dp))
+            Box(
+                Modifier.graphicsLayer { scaleX = nScale; scaleY = nScale }.size(h).clip(androidx.compose.foundation.shape.CircleShape).background(nBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Canvas(Modifier.size((11 * s).dp)) {
+                    val w = size.width; val hh = size.height
+                    val path = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(w * 0.36f, hh * 0.16f); lineTo(w * 0.70f, hh * 0.5f); lineTo(w * 0.36f, hh * 0.84f)
+                    }
+                    drawPath(path, nFg, style = androidx.compose.ui.graphics.drawscope.Stroke(
+                        width = w * 0.17f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                }
+            }
+        }
+    }
 }

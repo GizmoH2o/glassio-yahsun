@@ -42,7 +42,13 @@ class ContinueWatching(
     @Volatile private var started = false
 
     @Volatile private var access = sp.getBoolean("access", false)
-    private val wake = Object()
+    val trakt = Trakt(ctx)
+    @Volatile private var traktAt = 0L
+    @Volatile private var woke = false
+    /** Last Trakt sync result for Settings ("12 titles", or the error). */
+    val traktStatus = MutableStateFlow("")
+    /** Released to wake the poll loop early (Glass came back to the front). */
+    private val wake = java.util.concurrent.Semaphore(0)
 
     /** True once the local adb shell has answered (USB debugging allowed for Glassio). */
     fun hasLogAccess(): Boolean = access
@@ -54,14 +60,71 @@ class ContinueWatching(
         thread(name = "glass-cw-log", isDaemon = true) {
             while (true) {
                 if (settings.cwLegacy && settings.continueMode != "off") poll()
+                // Trakt: every 3 minutes, or right away (at most every 45 s) when Glass comes back to the front.
+                val now = System.currentTimeMillis()
+                if (settings.cwTrakt && settings.continueMode != "off" && trakt.connected &&
+                    now - traktAt > (if (woke) 45_000L else 180_000L)) { traktAt = now; syncTrakt() }
+                woke = false
                 // Every 20 s, or right away when Glass comes back to the front (pollNow).
-                synchronized(wake) { runCatching { (wake as Object).wait(20_000) } }
+                runCatching { wake.tryAcquire(20, java.util.concurrent.TimeUnit.SECONDS) }
+                wake.drainPermits()
             }
         }
     }
 
     /** Called when the home screen resumes, so leaving Nuvio shows up immediately. */
-    fun pollNow() { synchronized(wake) { (wake as Object).notifyAll() } }
+    fun pollNow() { woke = true; wake.release() }
+
+    /** Trakt sign-in in progress: the line to show ("Go to … and enter CODE"), null when idle. */
+    val traktCode = MutableStateFlow<String?>(null)
+    @Volatile var traktUrl: String = "https://trakt.tv/activate"
+    @Volatile private var signIn: kotlinx.coroutines.Job? = null
+
+    /** Starts the device sign-in; it keeps going when you leave Settings. [say] shows a short message. */
+    fun connectTrakt(say: (String) -> Unit) {
+        if (signIn?.isActive == true) return
+        signIn = scope.launch(Dispatchers.IO) {
+            val dc = runCatching { trakt.deviceCode() }.getOrElse { say("Trakt: ${it.message}"); return@launch }
+            traktUrl = dc.url
+            traktCode.value = dc.userCode
+            val ok = trakt.waitForApproval(dc) { signIn?.isCancelled == true }
+            traktCode.value = null
+            say(if (ok) "Trakt connected" + (trakt.user.takeIf { it.isNotBlank() }?.let { " as $it" } ?: "") else "Trakt sign-in expired. Try again")
+            if (ok) { settings.cwTrakt = true; syncTraktNow() }
+        }
+    }
+
+    /** Forces a Trakt sync on the next round (after signing in). */
+    fun syncTraktNow() { traktAt = 0L; pollNow() }
+
+    private fun traktIds(): JSONObject = runCatching { JSONObject(sp.getString("traktIds", null) ?: "{}") }.getOrDefault(JSONObject())
+
+    /**
+     * What you paused on Trakt joins the list. A title Nuvio Legacy saw more recently keeps Legacy's
+     * progress; Trakt titles that are no longer paused there (finished or removed) leave the list.
+     */
+    private fun syncTrakt() {
+        val paused = runCatching { trakt.playback() }.getOrElse { Glog.w("Trakt sync", it); traktStatus.value = "Sync failed: ${it.message}"; return }
+        synchronized(this) {
+            val ids = JSONObject()
+            val list = entries.value.filterNot { it.app == "Trakt" }.toMutableList()
+            for (p in paused) {
+                if (p.percent >= 92) continue
+                val e = CwEntry(p.imdb, p.season, p.episode, p.percent, p.at, "Trakt")
+                val other = list.firstOrNull { it.imdb == p.imdb }
+                if (other != null && other.at >= p.at) continue
+                list.removeAll { it.imdb == p.imdb }
+                list.add(e)
+                ids.put(e.key, p.id)
+            }
+            val trimmed = list.sortedByDescending { it.at }.take(30)
+            entries.value = trimmed
+            save(trimmed)
+            sp.edit().putString("traktIds", ids.toString()).apply()
+        }
+        traktStatus.value = "${paused.size} paused on Trakt"
+        rebuildItems()
+    }
 
     private val epochLine = Regex("""^(\d+)\.(\d+)\s+\d+\s+\d+\s+[A-Z]\s+nuvio\s*:\s(.*)$""")
     private val startRe = Regex("""\[atividade] inicio (tt\d+) T(\d+)E(\d+) (\d+)%""")
@@ -117,6 +180,10 @@ class ContinueWatching(
     fun clear() { entries.value = emptyList(); save(emptyList()); items.value = emptyList() }
 
     fun remove(key: String) {
+        if (entries.value.any { it.key == key && it.app == "Trakt" }) {
+            val id = traktIds().optLong(key, 0L)
+            if (id > 0) scope.launch(Dispatchers.IO) { trakt.removePlayback(id) }
+        }
         val l = entries.value.filterNot { it.key == key }
         entries.value = l; save(l)
         scope.launch(Dispatchers.IO) { rebuildItems() }

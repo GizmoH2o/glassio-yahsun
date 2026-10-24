@@ -23,6 +23,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,6 +52,8 @@ fun toast(ctx: Context, msg: String) {
 sealed interface DialogState
 class TextEntry(val title: String, val initial: String, val hint: String, val onDone: (String) -> Unit) : DialogState
 class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>) : DialogState
+/** A sign-in code with a QR code of the page to enter it on; closes by itself when [code] turns null. */
+class QrCodeDialog(val title: String, val url: String, val code: kotlinx.coroutines.flow.StateFlow<String?>, val note: String) : DialogState
 
 @Composable
 fun DialogHost(state: DialogState?, onDismiss: () -> Unit) {
@@ -58,6 +62,7 @@ fun DialogHost(state: DialogState?, onDismiss: () -> Unit) {
         when (state) {
             is TextEntry -> TextEntryDialog(state, onDismiss)
             is MenuDialog -> MenuDialogView(state, onDismiss)
+            is QrCodeDialog -> QrCodeDialogView(state, onDismiss)
         }
     }
 }
@@ -132,6 +137,37 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
             d.options.forEachIndexed { i, (label, action) ->
                 DialogButton(label, Modifier.fillMaxWidth().padding(bottom = 3.dp).let { if (i == 0) it.focusRequester(fr) else it }) { onDismiss(); action() }
             }
+        }
+    }
+    LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
+}
+
+@Composable
+private fun QrCodeDialogView(d: QrCodeDialog, onDismiss: () -> Unit) {
+    val code by d.code.collectAsState()
+    var seen by remember { mutableStateOf(false) }
+    LaunchedEffect(code) { if (code != null) seen = true else if (seen) onDismiss() }
+    val qr = remember(d.url) { com.glasslauncher.tv.net.Net.qr(d.url, 360).asImageBitmap() }
+    val fr = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        DialogSurface(width = 460) {
+            Text(d.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                androidx.compose.foundation.Image(qr, null, Modifier.width(150.dp).height(150.dp).clip(RoundedCornerShape(10.dp)))
+                Spacer(Modifier.width(16.dp))
+                Column {
+                    Text("Scan with your phone, or open", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                    Text(d.url.removePrefix("https://"), color = Color.White, fontSize = 13.sp)
+                    Spacer(Modifier.height(10.dp))
+                    Text("and enter", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                    Text(code ?: "…", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(d.note, color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            DialogButton("Close", Modifier.focusRequester(fr), onClick = onDismiss)
         }
     }
     LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }

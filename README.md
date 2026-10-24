@@ -26,6 +26,9 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 **Carousel**
 - Endless hero carousel from your Nuvio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like.
+- Settings → Carousel → **Slide animation**: **Apple TV** (default: the next picture opens up from the right with parallax, from the left going back, glass included), *Slide* (pushed in) or *Fade*.
+- **Buttons**: **Play + Next** (default, like Apple TV: Right from Play selects the round Next button, Right or OK on it shows the next title, Left on Play the previous one; Play stays in place whatever the synopsis length), *Play only* or *Hidden*.
+- **Dots**: *Dots*, **Liquid glass dots** (clear glass drops on a glass capsule that stretch, join and part like water as you move), *Progress bar* or *Hidden*.
 - Title logo (sizes evened out), rating / year / platform chips, genres, synopsis in Apple's grey, Play button when selected.
 - **Backdrop gallery** like the Apple TV app: each title shows several of its pictures before the carousel moves on.
 - **Continue Watching** from Nuvio Legacy: at the start of the carousel (1–5 slides or all) or mixed in, with progress
@@ -33,6 +36,8 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
   memory, so going back to them — even after browsing far or pressing Home — never reloads.
 - Home pressed on the home screen jumps back to the first slide.
 - Opening a title brings Nuvio forward and opens it directly (no restart, no splash when Nuvio is running).
+  Works with **Nuvio Legacy**, the **official Nuvio TV** app, **Nuvio Arc** and **Nuvio Re-Shaped**
+  (Settings → Nuvio & Home Assistant → *Open titles in*; **Auto** picks the first installed in that order).
 
 **Glass**
 - Real refraction (AGSL shader), blurred backdrop shared by every glass surface, "Glass like glass" (with or without ripple), clear, AMOLED black, black-on-white.
@@ -103,12 +108,27 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 ### TMDB token (logos, full-size art, synopsis language, ratings, gallery)
 1. Create a free account at [themoviedb.org](https://www.themoviedb.org/) → Settings → API → copy the **API Read Access Token**.
 2. Settings → Catalogs → **TMDB token** (or paste it on the phone page).
+3. Settings → Carousel → **Synopsis language**: 24 languages (English, Arabic, French, Spanish, German, Italian,
+   Portuguese, Turkish, Russian, Persian, Hindi, Japanese, Korean, Chinese …). English is used when a title has no text in that language.
 
 ### Continue Watching
-- Works with **Nuvio Legacy**: Glass reads what Nuvio Legacy writes to the system log while you watch (through the TV's
-  adb, after "Allow USB debugging"). Other apps (Netflix, YouTube…) keep their Continue Watching private on Google TV.
+- Works with **Nuvio Legacy**: Nuvio Legacy writes what you play (title, episode, how far) to the TV's log, and Glassio
+  reads that log through the TV's own debugging connection (ADB, see below). Nothing leaves the TV.
+- **Trakt**: Settings → Continue Watching → *Connect Trakt account* shows a short code; enter it at trakt.tv/activate on
+  your phone (no password on the TV). What you pause in any app that scrobbles to Trakt — the official Nuvio app,
+  Nuvio Arc, Re-Shaped, Stremio, Kodi… — then shows up too (synced every few minutes and when you come back to Glassio).
+  Removing a Trakt title here removes it on Trakt as well.
+- The official Nuvio app, Nuvio Arc and Re-Shaped don't write the Legacy log, so for them use Trakt. Other apps (Netflix, YouTube…) keep their Continue Watching private on Google TV.
 - Settings → **Continue Watching**: at the start / mixed / off, how many slides lead, open on what you just watched, progress bar, clear the list.
 - A title leaves the list when you finish it (past 92 %) or remove it.
+
+### TV access (ADB) — one-time setup
+Continue Watching, *Make Aerial Views the TV screensaver*, starting the screensaver and silent updates use the TV's own
+debugging connection (Glassio talks to it on the TV itself, like Nuvio TV Relay). Settings → **System** walks you through it:
+1. **Open About** → press OK on *Android TV OS build* (or *Build*) **7 times** until it says you are a developer.
+2. **Open Developer options** → turn on **USB debugging** (on some TVs also *Network debugging* / *ADB over network*).
+3. **Allow Glassio** → the TV asks *Allow USB debugging?* → tick **Always allow from this computer** → OK. Asked only once.
+The rows show what is already done (Developer options on, USB debugging on, Glassio allowed).
 
 ### Icons
 **One app**
@@ -124,6 +144,8 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 **Many icons from files**
 - Copy `<package>.png` files (for example `com.netflix.ninja.png`) into the icon folder shown in
   Settings → Dock & icons, then press **Import icons from the icon folder**.
+
+**Apps folder**: Settings → Dock & icons → *Show Apps folder* (or hold OK on the folder → *Hide from the dock*).
 
 Look: Settings → Dock & icons (dock size, dock and settings background, icon style) and
 Settings → Clock & glass (colour on focus, plate light/dark, bounce, lift).
@@ -206,13 +228,20 @@ on your home network.
 ---
 
 ## Updates
-Glass checks this repository's latest release at start and every 12 hours. A banner and an **Update x.y.z** pill appear;
-Settings → **About → Install update** downloads the APK and installs it. With "Allow USB debugging" accepted, the update is
+Glass checks this repository's latest release at start and every 12 hours. An **Update x.y.z** pill appears next to the
+clock with a small banner of what's new: go up to it and press **OK** to download and install right there (or Settings →
+**About → Install update**). With "Allow USB debugging" accepted, the update is
 silent and Glass reopens by itself; otherwise Android asks you to confirm (allow *Install unknown apps* for Glassio).
 
 Releases are signed with the same key, so they install over each other.
 
 ---
+
+## Troubleshooting
+- Everything that fails quietly (network, Trakt, the TV's adb, opening a title in Nuvio) is logged under one tag:
+  `adb logcat -s Glassio`.
+- Settings snapshot: `adb shell am start -n com.glasslauncher.tv/.MainActivity --ez dump_settings true`, then `adb logcat -s GlassSettings`.
+- Continue Watching from Nuvio Legacy, the Aerial Views button and silent updates need TV access (ADB): Settings → System.
 
 ## Tools
 - `tools/appletv_icons.py <out>` — builds the Apple TV icon library from Apple's public iTunes Search API (the tvOS
