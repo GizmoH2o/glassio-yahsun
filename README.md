@@ -242,3 +242,7 @@ export ANDROID_HOME=/path/to/android-sdk
 ## Credits
 Inter typeface (SIL Open Font License) · Weather by [Open-Meteo](https://open-meteo.com) · Catalog data from your Nuvio add-ons ·
 This product uses the TMDB API but is not endorsed or certified by TMDB. · Not affiliated with Apple, Google or Nuvio.
+
+## License
+Glassio is free software under the [GNU General Public License v3.0](LICENSE) (GPL-3.0), the same license as Nuvio.
+You may use, study, change and share it; changed versions you publish must stay open source under GPL-3.0.
