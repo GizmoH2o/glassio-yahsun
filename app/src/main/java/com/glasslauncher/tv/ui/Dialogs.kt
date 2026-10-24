@@ -158,10 +158,14 @@ private fun QrCodeDialogView(d: QrCodeDialog, onDismiss: () -> Unit) {
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text("Scan with your phone, or open", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                    // (long links wrap)
                     Text(d.url.removePrefix("https://"), color = Color.White, fontSize = 13.sp)
                     Spacer(Modifier.height(10.dp))
-                    Text("and enter", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
-                    Text(code ?: "…", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+                    // An empty code: the link itself signs in (Nuvio), nothing to type.
+                    if (code != "") {
+                        Text("and enter", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                        Text(code ?: "…", color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.sp)
+                    }
                     Spacer(Modifier.height(8.dp))
                     Text(d.note, color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp)
                 }

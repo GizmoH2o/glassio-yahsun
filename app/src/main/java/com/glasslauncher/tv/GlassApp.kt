@@ -17,7 +17,9 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     /** Bigger caches than Coil's defaults: backdrops and logos come back instantly when you browse back. */
     override fun newImageLoader(context: coil3.PlatformContext): coil3.ImageLoader =
         coil3.ImageLoader.Builder(context)
-            .memoryCache { coil3.memory.MemoryCache.Builder().maxSizePercent(context, when (settings.perfMode) { "performance" -> 0.2; "quality" -> 0.3; else -> 0.25 }).build() }
+            // A fixed size by memory tier: a percentage of the (large) heap gave Coil over 100 MB on 2 GB TVs,
+            // and Android then closed Glassio while you browsed.
+            .memoryCache { coil3.memory.MemoryCache.Builder().maxSizeBytes(when (settings.memTier) { 0 -> 40L; 2 -> 120L; else -> 72L } * 1024 * 1024).build() }
             .diskCache {
                 coil3.disk.DiskCache.Builder()
                     .directory(java.io.File(cacheDir, "images").absolutePath.let { okio.Path.Companion.run { it.toPath() } })
@@ -25,6 +27,20 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
                     .build()
             }
             .build()
+
+    /**
+     * The TV is short of memory: drop every picture that can be made again (decoded images, glass copies,
+     * prepared backdrops), so Android doesn't have to close Glass.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            com.glasslauncher.tv.data.Glog.w("Low memory (level $level): clearing picture caches")
+            runCatching { coil3.SingletonImageLoader.get(this).memoryCache?.clear() }
+            com.glasslauncher.tv.ui.GlassCache.trim()
+            com.glasslauncher.tv.ui.trimPageCaches()
+        }
+    }
 
     /** Bumped when Home is pressed while Glass is already in front: the carousel goes back to its start. */
     val homeRev = androidx.compose.runtime.mutableIntStateOf(0)
@@ -54,6 +70,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     lateinit var cw: com.glasslauncher.tv.data.ContinueWatching; private set
     lateinit var weather: com.glasslauncher.tv.data.Weather; private set
     lateinit var updater: com.glasslauncher.tv.data.Updater; private set
+    lateinit var library: com.glasslauncher.tv.data.Library; private set
 
     override fun onCreate() {
         super.onCreate()
@@ -76,6 +93,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         catalogs = CatalogRepository(this, settings, http).also { it.start(scope) }
         cw = com.glasslauncher.tv.data.ContinueWatching(this, settings, http, scope).also { it.start() }
         weather = com.glasslauncher.tv.data.Weather(settings, http, scope).also { it.start() }
+        library = com.glasslauncher.tv.data.Library(this, settings, http, cw.trakt, scope)
         updater = com.glasslauncher.tv.data.Updater(this, scope).also { it.start() }
         // If Glass was closed while the TV screensaver was being started, put the screen timeout back.
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()

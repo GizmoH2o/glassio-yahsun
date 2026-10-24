@@ -19,7 +19,9 @@ def ms(a, b):
     if not vals:
         return '-'
     vals.sort()
-    return f"med {vals[len(vals)//2]:6.1f}  max {vals[-1]:6.1f}"
+    p90 = vals[int(len(vals) * 0.9) - 1] if len(vals) >= 10 else vals[-1]
+    slow = sum(1 for x in vals if x > 33.4)
+    return f"med {vals[len(vals)//2]:6.1f}  p90 {p90:6.1f}  max {vals[-1]:6.1f}  >33ms {slow}"
 
 print('frames', len(rows))
 for name, a, b in [

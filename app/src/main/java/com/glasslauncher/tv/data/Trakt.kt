@@ -44,14 +44,19 @@ class Trakt(ctx: Context) {
     /** Step 1: a short code for the person to enter at trakt.tv/activate. */
     fun deviceCode(): DeviceCode {
         val (code, text) = call("POST", "/oauth/device/code", JSONObject().put("client_id", clientId))
-        check(code in 200..299) { "Trakt answered HTTP $code" }
+        if (code !in 200..299) Glog.w("Trakt device code: HTTP $code $text")
+        check(code in 200..299) { "Trakt answered HTTP $code" + (if (code == 401 || code == 403) " (this Glassio build's Trakt app is not allowed)" else "") }
         val o = JSONObject(text)
         return DeviceCode(o.getString("device_code"), o.getString("user_code"),
             o.optString("verification_url", "https://trakt.tv/activate"), o.optInt("expires_in", 600), o.optInt("interval", 5))
     }
 
+    /** Why the last [waitForApproval] failed, for the message on screen. */
+    @Volatile var lastError: String = ""
+
     /** Step 2: poll until the code is approved. Returns true when signed in, false when expired / denied. */
     fun waitForApproval(dc: DeviceCode, cancelled: () -> Boolean): Boolean {
+        lastError = "The code expired"
         val end = System.currentTimeMillis() + dc.expiresIn * 1000L
         var wait = dc.interval.coerceAtLeast(1) * 1000L
         while (System.currentTimeMillis() < end && !cancelled()) {
@@ -61,8 +66,18 @@ class Trakt(ctx: Context) {
             }.getOrElse { 0 to "" }
             when (code) {
                 200 -> { saveTokens(JSONObject(text)); fetchUser(); return true }
+                400 -> {} // still waiting for approval
                 429 -> wait += 1000 // slow down
-                404, 409, 410, 418 -> return false // invalid, already used, expired, denied
+                else -> {
+                    lastError = when (code) {
+                        404 -> "Invalid code"; 409 -> "Code already used"; 410 -> "The code expired"
+                        418 -> "Sign-in was denied"
+                        401, 403 -> "Trakt refused this account (HTTP $code)"
+                        else -> "Trakt answered HTTP $code"
+                    }
+                    Glog.w("Trakt device token: HTTP $code $text")
+                    if (code in setOf(404, 409, 410, 418, 401, 403)) return false
+                }
             }
         }
         return false
@@ -125,6 +140,34 @@ class Trakt(ctx: Context) {
             }
         }
     }
+
+    data class Listed(val imdb: String, val type: String, val at: Long)
+
+    /** Your Trakt watchlist (movies and shows with an IMDb id), newest first. */
+    fun watchlist(): List<Listed> {
+        if (!connected) return emptyList()
+        val (code, text) = call("GET", "/sync/watchlist?sort_by=added&sort_how=desc", auth = true)
+        check(code == 200) { "Trakt answered HTTP $code" }
+        val a = JSONArray(text)
+        return (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            val at = runCatching { java.time.Instant.parse(o.optString("listed_at")).toEpochMilli() }.getOrDefault(0L)
+            when (o.optString("type")) {
+                "movie" -> o.optJSONObject("movie")?.optJSONObject("ids")?.optString("imdb")?.takeIf { it.startsWith("tt") }?.let { Listed(it, "movie", at) }
+                "show" -> o.optJSONObject("show")?.optJSONObject("ids")?.optString("imdb")?.takeIf { it.startsWith("tt") }?.let { Listed(it, "series", at) }
+                else -> null
+            }
+        }.sortedByDescending { it.at }
+    }
+
+    /** Adds a title to (or removes it from) the Trakt watchlist. */
+    fun setWatchlist(add: Boolean, type: String, imdb: String): Boolean = runCatching {
+        val key = if (type == "movie") "movies" else "shows"
+        val body = JSONObject().put(key, JSONArray().put(JSONObject().put("ids", JSONObject().put("imdb", imdb))))
+        val (code, text) = call("POST", if (add) "/sync/watchlist" else "/sync/watchlist/remove", body, auth = true)
+        if (code !in 200..299) Glog.w("Trakt watchlist ${if (add) "add" else "remove"}: HTTP $code $text")
+        code in 200..299
+    }.getOrDefault(false)
 
     /** Removes a paused item on Trakt too, so it doesn't come back with the next sync. */
     fun removePlayback(id: Long) { runCatching { call("DELETE", "/sync/playback/$id", auth = true) } }

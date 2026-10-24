@@ -44,6 +44,12 @@ object GlassCache {
     }
     private val scope = CoroutineScope(SupervisorJob() + worker.asCoroutineDispatcher())
 
+    /** Memory for glass copies by tier (12 / 24 / 36 MB). */
+    fun limit(tier: Int) { cache.resize(when (tier) { 0 -> 12; 2 -> 36; else -> 24 } * 1024 * 1024) }
+
+    /** Low memory: keep only what is pinned (Continue Watching). */
+    fun trim() { cache.evictAll() }
+
     fun peek(url: String, blur: Int): GlassImages? = pinned["$blur|$res|$url"] ?: cache.get("$blur|$res|$url")
 
     /** Continue Watching titles: kept for as long as they are in the list, whatever else is browsed. */

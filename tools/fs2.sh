@@ -5,5 +5,5 @@ for t in 1 2 3; do adb -s $D shell dumpsys power | grep -q "mWakefulness=Awake" 
 adb -s $D shell "$3" >/dev/null 2>&1; sleep 1
 adb -s $D shell dumpsys gfxinfo com.glasslauncher.tv reset >/dev/null
 adb -s $D shell "$2"
-adb -s $D shell dumpsys gfxinfo com.glasslauncher.tv framestats | python3 tools/framestats.py | grep -E "frames|issue|gpu|total"
+adb -s $D shell dumpsys gfxinfo com.glasslauncher.tv framestats | python3 tools/framestats.py | cat
 adb -s $D shell dumpsys gfxinfo com.glasslauncher.tv | grep -E "Janky frames:|50th percentile|90th percentile|99th percentile"

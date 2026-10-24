@@ -84,6 +84,7 @@ private fun <T> cycle(list: List<T>, cur: T, d: Int): T {
     return list[(i + d).mod(list.size)]
 }
 private fun styleName(v: String) = when (v) { "water" -> "Glass like glass"; "water_still" -> "Glass like glass (still)"; "clear" -> "Clear (matte)"; "amoled" -> "AMOLED black"; "bow" -> "Black on white"; else -> "Liquid glass" }
+private fun themeName(v: String) = when (v) { "bow" -> "Black on white"; "amoled" -> "Black AMOLED"; "liquid" -> "Liquid"; "clear" -> "Clear"; "water_still" -> "Glass still"; "water" -> "Glass is glass"; else -> "Custom" }
 private fun hostOf(u: String) = runCatching { java.net.URI(u).host }.getOrNull() ?: "add-on"
 private fun pct(f: Float) = "${(f * 100).roundToInt()}%"
 private fun tenth(f: Float, d: Int) = ((f * 10).roundToInt() + d) / 10f
@@ -100,6 +101,12 @@ private fun openPlay(ctx: Context, pkg: String?, query: String?) {
     toast(ctx, "Google Play is not available on this device")
 }
 
+/** Is Glassio's Home-button accessibility service switched on? */
+private fun isHomeKeyOn(ctx: Context): Boolean = runCatching {
+    AndroidSettings.Secure.getString(ctx.contentResolver, AndroidSettings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
+        .contains("${ctx.packageName}/")
+}.getOrDefault(false)
+
 private fun openSystem(ctx: Context, action: String) {
     try { ctx.startActivity(Intent(action).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
     catch (_: Exception) { toast(ctx, "This screen is not available on this device") }
@@ -113,6 +120,11 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     val st = app.settings
     val scope = rememberCoroutineScope()
     val traktCode by app.cw.traktCode.collectAsState()
+    val nuvioUrl by app.library.nuvioUrl.collectAsState()
+    // The QR dialog closes when this turns null (sign-in finished); the Nuvio code is in the QR itself.
+    val nuvioShort = remember { kotlinx.coroutines.flow.MutableStateFlow<String?>(null) }
+    LaunchedEffect(nuvioUrl) { nuvioShort.value = nuvioUrl?.let { "" } }
+    var homeKeyOn by remember { mutableStateOf(isHomeKeyOn(ctx)) }
     var adbAccess by remember { mutableStateOf<Boolean?>(if (app.cw.hasLogAccess()) true else null) }
     val catalogs by app.catalogs.catalogs.collectAsState()
     val selected by app.catalogs.selectedKeys.collectAsState()
@@ -206,7 +218,27 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             )
         },
         Category("Clock & glass") {
+            val bgFolder = CustomBackground.folder(ctx).absolutePath
+            fun pick(video: Boolean) {
+                val files = CustomBackground.files(ctx, video)
+                if (files.isEmpty()) { toast(ctx, "No ${if (video) "videos" else "pictures"} yet. Copy them to: $bgFolder"); return }
+                dialog = MenuDialog(if (video) "Videos in the folder" else "Pictures in the folder", files.map { f ->
+                    f.name to { if (video) { st.bgVideo = f.absolutePath; st.bgMode = "video" } else { st.bgImage = f.absolutePath; st.bgMode = "image" } }
+                })
+            }
             listOf(
+                Adjust("Background", "Each title's own picture, or yours: a picture or a video, from a link or the folder below",
+                    { when (st.bgMode) { "image" -> "My picture"; "video" -> "My video"; "aerial" -> "Screensaver (aerials)"; else -> "Title backdrops" } },
+                    { st.bgMode = cycle(listOf("carousel", "image", "video", "aerial"), st.bgMode, it) }),
+                Act("Picture from a link", st.bgImage.ifBlank { "https://… (jpg, png, webp)" }, "") {
+                    dialog = TextEntry("Picture link", st.bgImage.takeIf { it.startsWith("http") }.orEmpty(), "https://…") { v -> if (v.isNotBlank()) { st.bgImage = v.trim(); st.bgMode = "image" } }
+                },
+                Act("Picture from the folder", "", "") { pick(false) },
+                Act("Video from a link", st.bgVideo.ifBlank { "https://… (mp4, webm, mkv); plays muted, on a loop" }, "") {
+                    dialog = TextEntry("Video link", st.bgVideo.takeIf { it.startsWith("http") }.orEmpty(), "https://…") { v -> if (v.isNotBlank()) { st.bgVideo = v.trim(); st.bgMode = "video" } }
+                },
+                Act("Video from the folder", "", "") { pick(true) },
+                Note("Folder for your pictures and videos: $bgFolder (copy with adb push, a file manager or a USB stick). The glass shows the picture; with a video it shows one frame of it."),
                 Toggle("Show clock", "", { st.showClock }, { st.showClock = it }),
                 Toggle("24-hour clock", "", { st.clock24h }, { st.clock24h = it }),
                 Toggle("Show date", "Under the clock, like Apple TV", { st.showDate }, { st.showDate = it }),
@@ -243,12 +275,12 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Toggle("Show Apps folder", "The folder with all your apps, in the dock. Hidden apps stay listed below", { st.showFolder }, { st.showFolder = it }))
                 add(Adjust("Dock size", "Smaller makes the dock and its icons narrower", { pct(st.dockScale) }, { st.dockScale = ((st.dockScale * 20).roundToInt() + it) / 20f }))
                 add(Adjust("Dock background", "Behind the apps row and the Apps folder", { styleName(st.dockStyle) },
-                    { st.dockStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.dockStyle, it) }))
+                    { st.dockStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.dockStyle, it); st.theme = "" }))
                 add(Adjust("Settings background", "Behind settings and the icon picker", { styleName(st.panelStyle) },
                     { st.panelStyle = cycle(listOf("liquid", "clear", "amoled"), st.panelStyle, it) }))
                 add(Adjust("Icon style", "How the plate behind every icon looks", {
                     styleName(st.tileStyle)
-                }, { st.tileStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.tileStyle, it) }))
+                }, { st.tileStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.tileStyle, it); st.theme = "" }))
                 add(Note("Change one icon: on the home screen hold OK on the app → Change icon. Pick from an icon pack, the Apple TV icons, a photo on the TV, a link to a PNG, or send one from your phone (Manage from phone)."))
                 add(Note("Icon packs: install any Android TV / Projectivy icon pack from Google Play, then choose it above. Every app takes the pack's icon; you can still change single apps."))
                 add(Act("Find icon packs on Google Play", "Projectivy / Android TV icon packs", "") { openPlay(ctx, null, "projectivy icon pack") })
@@ -262,6 +294,45 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Note("Folder for <package>.png files: ${app.icons.dropFolder.absolutePath}"))
                 app.apps.ordered(includeHidden = true).forEach { add(AppItem(it)) }
             }
+        },
+        Category("Menu, Library & themes") {
+            val themes = listOf("bow", "amoled", "liquid", "clear", "water_still", "water")
+            listOf(
+                Adjust("Theme", "One look for the dock, the icons and the menu. Black ones keep the dock clear (matte)",
+                    { if (st.theme.isBlank()) "Custom" else themeName(st.theme) }, { st.applyTheme(cycle(themes, st.theme.ifBlank { "liquid" }, it)) }),
+                Adjust("Menu", "The Apple TV-style menu at the settings button",
+                    { when (st.menuMode) { "auto" -> "Opens when you go up to it"; "manual" -> "Opens with OK"; else -> "Off (OK opens Settings)" } },
+                    { st.menuMode = cycle(listOf("auto", "manual", "off"), st.menuMode, it) }),
+                Adjust("Menu look", "", { styleName(st.menuStyle) },
+                    { st.menuStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.menuStyle, it); st.theme = "" }),
+                Toggle("Clock in the menu", "", { st.menuClock }, { st.menuClock = it }),
+                Toggle("Date in the menu", "", { st.menuDate }, { st.menuDate = it }),
+                Toggle("Weather in the menu", "Temperature, conditions, high / low, humidity and wind (city in Clock & glass)", { st.menuWeather }, { st.menuWeather = it; app.weather.reload() }),
+                Toggle("City in the menu", "", { st.menuCity }, { st.menuCity = it }),
+                Toggle("Library in the menu", "", { st.menuLibrary }, { st.menuLibrary = it }),
+                Toggle("Android settings in the menu", "", { st.menuAndroid }, { st.menuAndroid = it }),
+                Toggle("Wi-Fi in the menu", "", { st.menuWifi }, { st.menuWifi = it }),
+                Toggle("Themes in the menu", "", { st.menuThemes }, { st.menuThemes = it }),
+                Toggle("Background in the menu", "Switch between title backdrops, your picture, your video and the screensaver", { st.menuBackground }, { st.menuBackground = it }),
+                Toggle("+ button on the carousel", "Between Play and Next: saves the title to your Library", { st.heroPlus }, { st.heroPlus = it }),
+                Toggle("Trakt watchlist in the Library", "Needs Trakt (Continue Watching)", { st.libraryTrakt }, { st.libraryTrakt = it; scope.launch(Dispatchers.IO) { app.library.refreshWatchlist() } }),
+                Toggle("Nuvio library", if (app.library.nuvio.connected) "From your Nuvio account" + (app.library.nuvio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ": Nuvio Legacy, the official Nuvio app and forks that sync with it"
+                    else "Connect your Nuvio account below", { st.libraryNuvio }, { st.libraryNuvio = it; scope.launch(Dispatchers.IO) { app.library.refreshNuvio() } }),
+                if (!app.library.nuvio.connected) Act("Connect Nuvio account", "Scan a QR code with your phone and approve, like signing in to Nuvio on a TV", if (nuvioUrl != null) "Waiting…" else "") {
+                    val appCtx = ctx.applicationContext
+                    app.library.connectNuvio { msg -> toast(appCtx, msg) }
+                    scope.launch {
+                        var n = 0
+                        while (app.library.nuvioUrl.value == null && n++ < 60) kotlinx.coroutines.delay(100)
+                        app.library.nuvioUrl.value?.let { u -> dialog = QrCodeDialog("Connect Nuvio", u, nuvioShort,
+                            "Scan with your phone and approve on nuvio.tv. This closes by itself once you approve.") }
+                    }
+                } else Act("Sign out of Nuvio", app.library.nuvio.email, "") { app.library.nuvio.signOut(); app.library.nuvioList.value = emptyList(); st.libraryNuvio = st.libraryNuvio; toast(ctx, "Signed out of Nuvio") },
+                Toggle("Save to the Nuvio library too", "The + button also saves the title to your Nuvio account (Legacy, official Nuvio and forks see it)", { st.libraryToNuvio }, { st.libraryToNuvio = it }),
+                Toggle("Save to the Trakt watchlist too", "The + button also adds the title on Trakt", { st.libraryToTrakt }, { st.libraryToTrakt = it }),
+                Toggle("Titles under posters", "In the Library", { st.libraryTitles }, { st.libraryTitles = it }),
+                Note("In the Library: OK opens the title like the carousel. Hold OK (or Menu) to remove it."),
+            )
         },
         Category("Catalogs") {
             buildList {
@@ -413,6 +484,20 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             listOf(
                 Toggle("Home button opens Glassio", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
                 Act("Turn on the accessibility service", "Find Glassio and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
+                Act("Turn it on with ADB", if (homeKeyOn) "The accessibility service is on" else "When the TV doesn't let you (restricted setting / greyed out). Needs TV access (ADB), below", "") {
+                    scope.launch(Dispatchers.IO) {
+                        val svc = "${ctx.packageName}/com.glasslauncher.tv.HomeKeyService"
+                        val cmd = "cur=\$(settings get secure enabled_accessibility_services); " +
+                            "case \"\$cur\" in *$svc*) ;; null|'') settings put secure enabled_accessibility_services $svc ;; " +
+                            "*) settings put secure enabled_accessibility_services \"\$cur:$svc\" ;; esac; " +
+                            "settings put secure accessibility_enabled 1; appops set ${ctx.packageName} ACCESS_RESTRICTED_SETTINGS allow 2>/dev/null; " +
+                            // Lets Glassio switch the service back on by itself after every update.
+                            "pm grant ${ctx.packageName} android.permission.WRITE_SECURE_SETTINGS 2>/dev/null; true"
+                        val r = com.glasslauncher.tv.data.LocalShell.run(ctx, cmd)
+                        homeKeyOn = isHomeKeyOn(ctx)
+                        toast(ctx, if (r.isSuccess && homeKeyOn) "Accessibility service turned on" else if (r.isSuccess) "Done, but the TV didn't turn it on. Try the button above" else "Allow TV access (ADB) first: steps below")
+                    }
+                },
                 Act("Choose default home app", "", "") { openSystem(ctx, AndroidSettings.ACTION_HOME_SETTINGS) },
                 Note("TV access (ADB): Continue Watching from Nuvio Legacy, setting Aerial Views as the screensaver, starting the screensaver and silent updates use the TV's own debugging connection. Turn it on once:"),
                 Note("1. Developer options: open About below and press OK on \"Android TV OS build\" (or \"Build\") 7 times, until it says you are a developer."),

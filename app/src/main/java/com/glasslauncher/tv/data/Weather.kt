@@ -9,7 +9,11 @@ import java.net.URLEncoder
 import kotlin.math.roundToInt
 
 /** What the top bar shows: current conditions for the chosen city (Open-Meteo, no key needed). */
-data class WeatherNow(val city: String, val tempC: Double, val code: Int, val day: Boolean) {
+data class WeatherNow(
+    val city: String, val tempC: Double, val code: Int, val day: Boolean,
+    val hiC: Double = Double.NaN, val loC: Double = Double.NaN, val feelsC: Double = Double.NaN,
+    val humidity: Int = -1, val windKmh: Double = Double.NaN,
+) {
     /** sun | moon | partly | cloud | fog | drizzle | rain | snow | storm */
     val icon: String get() = when (code) {
         0, 1 -> if (day) "sun" else "moon"
@@ -51,7 +55,7 @@ class Weather(private val settings: Settings, private val http: Http, private va
     fun start() {
         scope.launch(Dispatchers.IO) {
             while (true) {
-                if (settings.weatherMode != "off") runCatching { refresh() }
+                if (settings.weatherMode != "off" || (settings.menuMode != "off" && settings.menuWeather)) runCatching { refresh() }
                 delay(15 * 60_000L)
             }
         }
@@ -97,10 +101,16 @@ class Weather(private val settings: Settings, private val http: Http, private va
             val ll = locate(city) ?: run { found.value = "City not found"; return }
             Triple(city, ll.first, ll.second).also { place = it }
         }
-        val c = http.json(
-            "https://api.open-meteo.com/v1/forecast?latitude=${p.second}&longitude=${p.third}&current=temperature_2m,weather_code,is_day",
+        val j = http.json(
+            "https://api.open-meteo.com/v1/forecast?latitude=${p.second}&longitude=${p.third}&current=temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto",
             10 * 60_000L,
-        ).optJSONObject("current") ?: return
-        now.value = WeatherNow(found.value.substringBefore(",").ifBlank { city }, c.optDouble("temperature_2m"), c.optInt("weather_code"), c.optInt("is_day", 1) == 1)
+        )
+        val c = j.optJSONObject("current") ?: return
+        val d = j.optJSONObject("daily")
+        now.value = WeatherNow(
+            found.value.substringBefore(",").ifBlank { city }, c.optDouble("temperature_2m"), c.optInt("weather_code"), c.optInt("is_day", 1) == 1,
+            d?.optJSONArray("temperature_2m_max")?.optDouble(0) ?: Double.NaN, d?.optJSONArray("temperature_2m_min")?.optDouble(0) ?: Double.NaN,
+            c.optDouble("apparent_temperature"), c.optInt("relative_humidity_2m", -1), c.optDouble("wind_speed_10m"),
+        )
     }
 }

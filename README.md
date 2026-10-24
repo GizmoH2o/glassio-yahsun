@@ -19,10 +19,21 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 | ![Dock & icons](docs/screenshots/13-settings-dock-icons.jpg) | ![Catalogs](docs/screenshots/14-settings-catalogs.jpg) |
 | ![Continue Watching](docs/screenshots/15-settings-continue-watching.jpg) | ![Nuvio & Home Assistant](docs/screenshots/16-settings-nuvio-ha.jpg) |
 | ![Screensaver](docs/screenshots/17-settings-screensaver.jpg) | ![About](docs/screenshots/20-settings-about.jpg) |
+| ![Menu](docs/screenshots/40-menu.jpg) | ![Themes](docs/screenshots/41-menu-themes.jpg) |
+| ![Background](docs/screenshots/42-menu-background.jpg) | ![Library](docs/screenshots/43-library.jpg) |
+| ![Screensaver as background](docs/screenshots/44-screensaver-background.jpg) | ![Black on white](docs/screenshots/45-theme-black-on-white.jpg) |
 
 ---
 
 ## Features
+
+**Menu, Library, themes and backgrounds (1.9.5)**
+- **Menu** at the settings button, like the Apple TV Control Center: clock, date, weather (high / low, feels like, humidity, wind, city), then Library, Glassio settings, Android settings, Wi-Fi, Themes and Background. It opens when you go up to the button (or with OK, or never: Settings → Menu, Library & themes), and every part can be hidden.
+- **Library**: the **+** button between Play and Next saves the title. Grey page, five posters a row; OK opens the title, hold OK removes it. It also shows your **Nuvio account library** (Nuvio Legacy, official Nuvio and the forks that sync with the account; sign in with a QR code) and your **Trakt watchlist**; + can save to both.
+- **Themes**: Black on white, Black AMOLED, Liquid, Clear, Glass still, Glass is glass — for the dock, the icons and the menu (black ones keep a clear matte dock). *Colour on focus* is in the same list.
+- **Background**: each title's backdrop, **your picture** or **your video** (a link, or a file in the backgrounds folder shown in Settings → Clock & glass), or **the screensaver's aerials**. With your own background the page is just that (no title or buttons); the glass follows the video.
+- **Turn the accessibility service on with ADB** from Settings → System, for TVs that grey it out (Google TV Streamer).
+- Faster and lighter: the open dock and slides cost far less GPU, about half the memory, 16-bit backdrops in Performance, logos and pictures retry when a download fails.
 
 **Carousel**
 - Endless hero carousel from your Nuvio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like.

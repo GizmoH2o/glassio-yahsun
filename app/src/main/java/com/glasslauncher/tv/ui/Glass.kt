@@ -264,10 +264,17 @@ fun LiquidSurface(
     tint: Color = Color.Transparent,
     sharp: Boolean = false,
     wobble: Float = 0f,
+    /** false (small surfaces, the dock icons): during a slide the glass crossfades instead of sliding inside. */
+    slideInside: Boolean = true,
+    /** Keep the glass in its own cached texture. Off while the surface is resizing (the open/close of the
+     *  dock): a texture re-made at a new size every frame showed one frame late, so the glass flickered. */
+    cache: Boolean = true,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
     val env = LocalGlassEnv.current
     val density = LocalDensity.current
+    // Video behind: the glass changes every copy, a cached texture would only be drawn twice.
+    val videoBehind = VideoFrames.showing.value
     val pos = remember { mutableStateOf(Offset.Zero) }
     var sz by remember { mutableStateOf(IntSize.Zero) }
     val refractor = remember { Refractor() }
@@ -290,18 +297,18 @@ fun LiquidSurface(
                 else if (env.pageNoSideShade) drawScrims(env.rootW, env.rootH, pos.value, false)
             }
             fun androidx.compose.ui.graphics.drawscope.DrawScope.picture(b: ImageBitmap, shift: Float, withShade: Boolean = true) {
-                drawBackdropRegion(b, env.rootW, env.rootH, pos.value, scrims = false, shift = shift)
-                if (withShade) shade(b)
+                if (DebugHide.intValue and 64 == 0) drawBackdropRegion(b, env.rootW, env.rootH, pos.value, scrims = false, shift = shift)
+                if (withShade && DebugHide.intValue and 128 == 0) shade(b)
             }
             fun androidx.compose.ui.graphics.drawscope.DrawScope.veil() {
                 val v = env.veil?.value ?: 0f
-                if (v > 0.01f) {
+                if (v > 0.01f && DebugHide.intValue and 16 == 0) {
                     env.heavy?.let { drawBackdropRegion(it, env.rootW, env.rootH, pos.value, alpha = v, scrims = false) }
                     drawRect(Color.Black.copy(alpha = v * VEIL_DIM))
                 }
             }
             val prev = if (sharp) env.prevSharp ?: env.prevBmp else env.prevBmp
-            val dir = env.slide
+            val dir = if (slideInside) env.slide else 0
             if (prev != null && dir != 0 && Build.VERSION.SDK_INT >= 33) {
                 // Slide, Android 13+: the middle of the glass is drawn like the page (two plain pictures, cheap),
                 // and only the rim band, where the refraction is, is drawn with a shader brush that reads both
@@ -377,14 +384,24 @@ fun LiquidSurface(
                 if (prev != null) Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = still }) { picture(prev, 0f); veil() }
                 Canvas(Modifier.matchParentSize().graphicsLayer {
                     val w = if (wobble > 0f && live != null) live.value * wobble else 0f
-                    renderEffect = if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
+                    renderEffect = if (videoBehind && DebugHide.intValue and 2048 != 0) null else if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
                     alpha = if (prev != null) (env.mix?.value ?: 1f) else 1f
-                }) { picture(bmp, 0f); veil() }
+                    // Rendered once into its own texture and reused while nothing behind the glass changes:
+                    // moving focus over the dock then costs one copy instead of the picture and its shades again.
+                    if (cache && !videoBehind && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                }) {
+                    // A video behind: the glass shows its live frames (sharp or frosted), with the page's shades.
+                    val live = if (sharp) VideoFrames.sharp.value else VideoFrames.soft.value
+                    if (live != null) {
+                        drawBackdropRegion(live, env.rootW, env.rootH, pos.value, scrims = false)
+                    } else picture(bmp, 0f)
+                    veil()
+                }
             }
         } else {
             Box(Modifier.matchParentSize().background(Color(0xFF1A1A22)))
         }
-        if (tint.alpha > 0f) Box(Modifier.matchParentSize().background(tint))
+        if (tint.alpha > 0f && DebugHide.intValue and 256 == 0) Box(Modifier.matchParentSize().background(tint))
         content()
     }
 }
@@ -397,6 +414,8 @@ fun GlassPanel(
     style: String = "liquid",
     darken: Float = 0f,
     refract: Boolean = true,
+    /** Keep the glass in a cached texture (off while the panel is resizing). */
+    cache: Boolean = refract,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val env = LocalGlassEnv.current
@@ -407,19 +426,20 @@ fun GlassPanel(
         // Glass like glass: almost no frost or tint, strong rim bending, ripples after a move.
         "water", "water_still" -> LiquidSurface(
             modifier, radius, if (refract) (env.refractionDp * 1.5f).dp else 0.dp, (radius * 1.2f).coerceIn(12.dp, 34.dp),
-            tint = Color.Black.copy(alpha = darken.coerceAtMost(0.9f)), sharp = true, wobble = if (refract && style == "water") env.wobble else 0f,
+            tint = Color.Black.copy(alpha = darken.coerceAtMost(0.9f)), sharp = true, wobble = if (refract && style == "water") env.wobble else 0f, cache = cache,
         ) {
             content()
             Box(Modifier.matchParentSize().border(0.6.dp, Color.White.copy(alpha = 0.16f), shape))
         }
-        "clear" -> LiquidSurface(modifier, radius, 0.dp, 10.dp, tint = Color.White.copy(alpha = 0.06f)) {
+        // Frosted panels show a blurred copy: during a slide they crossfade (looks the same, half the GPU work).
+        "clear" -> LiquidSurface(modifier, radius, 0.dp, 10.dp, tint = Color.White.copy(alpha = 0.06f), slideInside = false, cache = cache) {
             if (darken > 0f) Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = darken)))
             content()
             Box(Modifier.matchParentSize().border(0.6.dp, Color.White.copy(alpha = 0.10f), shape))
         }
         else -> LiquidSurface(
             modifier, radius, if (refract) env.refractionDp.dp else 0.dp, (radius * 1.1f).coerceIn(10.dp, 30.dp),
-            tint = Color.Black.copy(alpha = (0.14f + darken).coerceAtMost(0.9f)),
+            tint = Color.Black.copy(alpha = (0.14f + darken).coerceAtMost(0.9f)), slideInside = false, cache = cache,
         ) {
             content()
             Box(Modifier.matchParentSize().border(0.6.dp, Color.White.copy(alpha = 0.10f), shape))

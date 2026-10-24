@@ -89,7 +89,7 @@ class ContinueWatching(
             traktCode.value = dc.userCode
             val ok = trakt.waitForApproval(dc) { signIn?.isCancelled == true }
             traktCode.value = null
-            say(if (ok) "Trakt connected" + (trakt.user.takeIf { it.isNotBlank() }?.let { " as $it" } ?: "") else "Trakt sign-in expired. Try again")
+            say(if (ok) "Trakt connected" + (trakt.user.takeIf { it.isNotBlank() }?.let { " as $it" } ?: "") else "Trakt: ${trakt.lastError}. Try again")
             if (ok) { settings.cwTrakt = true; syncTraktNow() }
         }
     }
