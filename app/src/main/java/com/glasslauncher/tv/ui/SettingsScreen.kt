@@ -245,7 +245,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Act("Find icon packs on Google Play", "Projectivy / Android TV icon packs", "") { openPlay(ctx, null, "projectivy icon pack") })
                 add(Note("Many icons at once: copy <package>.png files (e.g. com.netflix.ninja.png) into the icon folder below, then Import."))
                 add(Note("On the home screen, hold OK on an app for App info, Move, Change icon and Hide."))
-                add(Note("Here: ◀ ▶ reorders an app, OK opens its options."))
+                add(Note("Here: OK picks an app up, ◀ ▶ moves it, OK puts it down. Hold OK (or Menu) for its options."))
                 add(Act("Import icons from the icon folder", "", "") {
                     val n = app.icons.importDropFolder(app.apps.apps.value.map { it.pkg })
                     toast(ctx, if (n > 0) "Imported $n icons" else "No new icons. Folder: ${app.icons.dropFolder.absolutePath}")
@@ -471,18 +471,33 @@ private fun appMenu(app: GlassApp, e: AppEntry, ctx: Context, scope: kotlinx.cor
 private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Unit) {
     when (row) {
         is Note -> Text(row.text, color = Color.White.copy(alpha = 0.55f), fontSize = (11.5f * s).sp, modifier = Modifier.padding(horizontal = (8 * s).dp, vertical = (6 * s).dp))
-        is Toggle -> Frame(s, onKey = null, onClick = { row.set(!row.get()) }) { f ->
+        is Toggle -> Frame(s, onClick = { row.set(!row.get()) }) { f ->
             Label(row.title, row.desc, s, Modifier.weight(1f))
             val on = row.get()
             Box(Modifier.width((38 * s).dp).height((22 * s).dp).clip(RoundedCornerShape(50)).background(if (on) Color(0xFF7B61FF) else Color.White.copy(alpha = 0.22f)).padding((3 * s).dp)) {
                 Box(Modifier.size((16 * s).dp).clip(RoundedCornerShape(50)).background(Color.White).align(if (on) Alignment.CenterEnd else Alignment.CenterStart))
             }
         }
-        is Adjust -> Frame(s, onKey = { k -> when (k) { Key.DirectionLeft -> { row.step(-1); true }; Key.DirectionRight -> { row.step(1); true }; else -> false } }, onClick = { row.step(1) }) { f ->
-            Label(row.title, row.desc, s, Modifier.weight(1f))
-            Text("‹  ${row.value()}  ›", color = Color.White.copy(alpha = if (f) 1f else 0.75f), fontSize = (13 * s).sp)
+        is Adjust -> {
+            var editing by remember { mutableStateOf(false) }
+            Frame(s, editing = editing, onKey = { ev ->
+                when {
+                    !editing -> false
+                    ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight -> {
+                        if (ev.type == KeyEventType.KeyDown) row.step(if (ev.key == Key.DirectionLeft) -1 else 1); true
+                    }
+                    ev.key == Key.Back -> { if (ev.type == KeyEventType.KeyUp) editing = false; true }
+                    // Up/Down while editing: stay on the row
+                    ev.key == Key.DirectionUp || ev.key == Key.DirectionDown -> true
+                    else -> false
+                }
+            }, onFocus = { if (!it) editing = false }, onClick = { editing = !editing }) { f ->
+                Label(row.title, if (editing) "◀ ▶ to change · OK when done" else row.desc, s, Modifier.weight(1f))
+                if (editing) Text("‹  ${row.value()}  ›", color = Color(0xFFB9ABFF), fontSize = (13.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                else Text(row.value(), color = Color.White.copy(alpha = if (f) 1f else 0.75f), fontSize = (13 * s).sp)
+            }
         }
-        is Act -> Frame(s, onKey = null, onClick = row.onClick) { f ->
+        is Act -> Frame(s, onClick = row.onClick) { f ->
             Label(row.title, row.desc, s, Modifier.weight(1f))
             if (row.value.isNotEmpty()) Text(row.value, color = Color.White.copy(alpha = 0.7f), fontSize = (12.5f * s).sp)
         }
@@ -490,7 +505,19 @@ private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Uni
             val e = row.entry
             val hidden = e.pkg in app.settings.hiddenApps
             val art by produceState<ImageBitmap?>(null, e.pkg) { value = app.apps.artwork(e)?.bmp }
-            Frame(s, onKey = { k -> when (k) { Key.DirectionLeft -> { app.apps.move(e.pkg, -1); true }; Key.DirectionRight -> { app.apps.move(e.pkg, 1); true }; else -> false } }, onClick = { onApp(e) }) { f ->
+            var moving by remember { mutableStateOf(false) }
+            Frame(s, editing = moving, onKey = { ev ->
+                when {
+                    ev.key == Key.Menu -> { if (ev.type == KeyEventType.KeyDown) onApp(e); true }
+                    !moving -> false
+                    ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight -> {
+                        if (ev.type == KeyEventType.KeyDown) app.apps.move(e.pkg, if (ev.key == Key.DirectionLeft) -1 else 1); true
+                    }
+                    ev.key == Key.Back -> { if (ev.type == KeyEventType.KeyUp) moving = false; true }
+                    ev.key == Key.DirectionUp || ev.key == Key.DirectionDown -> true
+                    else -> false
+                }
+            }, onFocus = { if (!it) moving = false }, onClick = { moving = !moving }, onLong = { onApp(e) }) { f ->
                 Box(Modifier.size((34 * s).dp).clip(RoundedCornerShape((8 * s).dp)).background(Color.White.copy(alpha = 0.10f)), contentAlignment = Alignment.Center) {
                     art?.let { Image(it, null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding((3 * s).dp)) }
                 }
@@ -498,7 +525,7 @@ private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Uni
                 Label(e.label, e.pkg, s, Modifier.weight(1f))
                 val flags = listOfNotNull(if (hidden) "Hidden" else null, if (app.icons.has(e.pkg)) "Custom icon" else null).joinToString(" · ")
                 if (flags.isNotEmpty()) Text(flags, color = Color(0xFFB9ABFF), fontSize = (11.5f * s).sp)
-                Text("  ◀ ▶", color = Color.White.copy(alpha = if (f) 0.9f else 0.35f), fontSize = (12 * s).sp)
+                Text(if (moving) "  ◀ ▶ · OK" else "", color = Color(0xFFB9ABFF), fontSize = (12 * s).sp)
             }
         }
     }
@@ -513,15 +540,26 @@ private fun Label(title: String, desc: String, s: Float, modifier: Modifier) {
 }
 
 @Composable
-private fun Frame(s: Float, onKey: ((Key) -> Boolean)?, onClick: () -> Unit, content: @Composable androidx.compose.foundation.layout.RowScope.(Boolean) -> Unit) {
+private fun Frame(
+    s: Float,
+    onKey: ((androidx.compose.ui.input.key.KeyEvent) -> Boolean)? = null,
+    onClick: () -> Unit,
+    onLong: (() -> Unit)? = null,
+    onFocus: (Boolean) -> Unit = {},
+    editing: Boolean = false,
+    content: @Composable androidx.compose.foundation.layout.RowScope.(Boolean) -> Unit,
+) {
     var focused by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth()
-            .onKeyEvent { ev -> if (onKey != null && ev.type == KeyEventType.KeyDown) onKey(ev.key) else false }
-            .onFocusChanged { focused = it.isFocused }
+            .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
             .clip(RoundedCornerShape((14 * s).dp))
-            .background(if (focused) Color.White.copy(alpha = 0.26f) else Color.White.copy(alpha = 0.06f))
-            .clickable(onClick = onClick)
+            .background(when {
+                editing -> Color(0xFF7B61FF).copy(alpha = 0.34f)
+                focused -> Color.White.copy(alpha = 0.26f)
+                else -> Color.White.copy(alpha = 0.06f)
+            })
+            .tvPress(onLong = onLong, onKey = onKey, onClick = onClick)
             .padding(horizontal = (14 * s).dp, vertical = (9 * s).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) { content(focused) }

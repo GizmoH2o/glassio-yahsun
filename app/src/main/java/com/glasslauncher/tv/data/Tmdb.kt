@@ -72,7 +72,7 @@ class Tmdb(private val http: Http) {
         // Highest resolution: textless first, then the widest file.
         val bestArt = d.optJSONObject("images")?.optJSONArray("backdrops")?.let { arr ->
             (0 until arr.length()).mapNotNull { arr.optJSONObject(it) }.filter { it.optString("file_path").startsWith("/") }
-                .sortedWith(compareBy<JSONObject> { if (it.isNull("iso_639_1")) 0 else 1 }.thenByDescending { it.optInt("width") })
+                .sortedWith(compareBy<JSONObject> { if (it.isNull("iso_639_1")) 0 else 1 }.thenBy { if (it.optInt("width") > 3840) 1 else 0 }.thenByDescending { it.optInt("width") })
                 .firstOrNull()?.let { "https://image.tmdb.org/t/p/original" + it.optString("file_path") }
         }.orEmpty()
         val genresEn = if (lang == "ar") runCatching { get("https://api.themoviedb.org/3/$kind/$tmdbId?language=en-US", token) }.getOrDefault(d) else d

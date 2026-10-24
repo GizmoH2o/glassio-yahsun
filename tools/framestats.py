@@ -23,12 +23,15 @@ def ms(a, b):
 
 print('frames', len(rows))
 for name, a, b in [
+    ('vsync->start ', 'IntendedVsync', 'HandleInputStart'),
     ('input+anim   ', 'HandleInputStart', 'PerformTraversalsStart'),
     ('layout       ', 'PerformTraversalsStart', 'DrawStart'),
     ('record draw  ', 'DrawStart', 'SyncQueued'),
+    ('queue->sync  ', 'SyncQueued', 'SyncStart'),
     ('sync         ', 'SyncStart', 'IssueDrawCommandsStart'),
     ('issue (RT)   ', 'IssueDrawCommandsStart', 'SwapBuffers'),
     ('gpu after sub', 'SwapBuffers', 'GpuCompleted'),
+    ('gpu->done    ', 'GpuCompleted', 'FrameCompleted'),
     ('total        ', 'IntendedVsync', 'FrameCompleted'),
 ]:
     print(name, ms(a, b))

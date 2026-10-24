@@ -151,6 +151,12 @@ Each setting can be changed on its own (the mode then shows *Custom*):
 - **Glass detail**: resolution of the picture the glass bends (480 px, or 720 px for crisper glass).
 - Picture quality, prepare ahead, slide transition, glass refraction, backdrop gallery.
 
+The clear dock and tiles show the page picture itself (half screen resolution), so the glass lines up with the
+backdrop and stays sharp at any *Glass detail*.
+
+In Settings, rows changed with ◀ ▶ (and app order) only change after you press **OK** on them; OK or Back
+again when done. Moving down the list never changes a value by accident.
+
 ### Artwork
 Settings → Carousel → **Artwork**: Main (TMDB), Second picture, Highest resolution, or the add-on's own picture.
 For one title: on the carousel **hold OK** (or press Menu) to switch to its next picture; Glassio remembers it

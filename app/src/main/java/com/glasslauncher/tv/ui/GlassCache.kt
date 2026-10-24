@@ -76,7 +76,7 @@ object GlassCache {
                         val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, "w780"))
                             .size(r, r * 9 / 16).allowHardware(false).build()
                         val src = (SingletonImageLoader.get(ctx.applicationContext).execute(req) as? SuccessResult)?.image?.toBitmap()
-                        src?.let { GlassImages(blurredBackdrop(it, blur), it.asImageBitmap(), blurredBackdrop(it, 80)) }
+                        src?.let { val sh = if (it.isMutable) it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it; sh.prepareToDraw(); GlassImages(blurredBackdrop(it, blur), sh.asImageBitmap(), blurredBackdrop(it, 80)) }
                             ?.also { cache.put(key, it) }
                     } catch (e: Exception) {
                         null

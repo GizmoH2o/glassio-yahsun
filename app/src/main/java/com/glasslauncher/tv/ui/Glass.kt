@@ -65,6 +65,12 @@ data class GlassEnv(
     val mix: androidx.compose.runtime.State<Float>? = null,
     /** 0..1 while the dock is open: the whole page, glass included, turns blurred and dark. */
     val veil: androidx.compose.runtime.State<Float>? = null,
+    /**
+     * True when [sharp]/[prevSharp] are the full-screen page pictures themselves (scrims already baked in):
+     * the clear glass then shows the picture at full screen resolution instead of a small copy blown up
+     * (which looked pixelated and broken up behind the dock), and lines up with the page exactly.
+     */
+    val sharpIsPage: Boolean = false,
 )
 
 /** How dark the page gets under the open dock. */
@@ -91,7 +97,9 @@ fun blurredBackdrop(src: Bitmap, strength: Int): ImageBitmap {
         repeat(3) { boxBlur(px, tmp, w, h, r); boxBlur(tmp, px, w, h, r, vertical = true) }
         small.setPixels(px, 0, w, 0, 0, w, h)
     }
-    return small.asImageBitmap()
+    // Immutable, so the GPU keeps its texture instead of uploading it again for every glass surface.
+    val out = small.copy(Bitmap.Config.ARGB_8888, false).also { small.recycle(); it.prepareToDraw() }
+    return out.asImageBitmap()
 }
 
 private fun boxBlur(src: IntArray, dst: IntArray, w: Int, h: Int, r: Int, vertical: Boolean = false) {
@@ -196,7 +204,7 @@ private fun DrawScope.drawBackdropRegion(bmp: ImageBitmap, rootW: Int, rootH: In
         dstOffset = IntOffset(((l - sx) * scale).roundToInt(), ((t - sy) * scale).roundToInt()),
         dstSize = IntSize(((r - l) * scale).roundToInt().coerceAtLeast(1), ((b - t) * scale).roundToInt().coerceAtLeast(1)),
         alpha = alpha,
-        filterQuality = FilterQuality.Low,
+        filterQuality = if (scale <= 1.01f) FilterQuality.None else FilterQuality.Low,
     )
     if (scrims) translate(-pos.x, -pos.y) {
         drawRect(
@@ -239,22 +247,24 @@ fun LiquidSurface(
     ) {
         val bmp = if (sharp) env.sharp ?: env.bmp else env.bmp
         if (bmp != null) {
-            Canvas(Modifier.matchParentSize().graphicsLayer {
-                val w = if (wobble > 0f && live != null) live.value * wobble else 0f
-                renderEffect = if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
-            }) {
-                val m = env.mix?.value ?: 1f
-                val prev = if (sharp) env.prevSharp ?: env.prevBmp else env.prevBmp
-                if (m < 0.995f && prev != null) {
-                    drawBackdropRegion(prev, env.rootW, env.rootH, pos.value, scrims = false)
-                    drawBackdropRegion(bmp, env.rootW, env.rootH, pos.value, alpha = m)
-                } else drawBackdropRegion(bmp, env.rootW, env.rootH, pos.value)
+            fun androidx.compose.ui.graphics.drawscope.DrawScope.glass(b: ImageBitmap) {
+                val page = env.sharpIsPage && (b === env.sharp || b === env.prevSharp)
+                drawBackdropRegion(b, env.rootW, env.rootH, pos.value, scrims = !page)
                 val v = env.veil?.value ?: 0f
                 if (v > 0.01f) {
                     env.heavy?.let { drawBackdropRegion(it, env.rootW, env.rootH, pos.value, alpha = v, scrims = false) }
                     drawRect(Color.Black.copy(alpha = v * VEIL_DIM))
                 }
             }
+            // While the page crossfades, the old and the new glass are two cached layers and only the
+            // top one's opacity changes: in step with the page, without redrawing or re-refracting the glass.
+            val prev = if (sharp) env.prevSharp ?: env.prevBmp else env.prevBmp
+            if (prev != null) Canvas(Modifier.matchParentSize()) { glass(prev) }
+            Canvas(Modifier.matchParentSize().graphicsLayer {
+                val w = if (wobble > 0f && live != null) live.value * wobble else 0f
+                renderEffect = if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
+                alpha = if (prev != null) (env.mix?.value ?: 1f) else 1f
+            }) { glass(bmp) }
         } else {
             Box(Modifier.matchParentSize().background(Color(0xFF1A1A22)))
         }
