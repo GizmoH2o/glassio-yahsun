@@ -1,0 +1,11 @@
+name: Feature request
+description: An idea for Glassio
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: "What it should do and where (carousel, dock, menu, Library, settings…). Screenshots or examples help."
+    validations:
+      required: true

@@ -1,5 +1,5 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
-  - name: Ideas and setup questions
+  - name: Setup questions and chat
     url: https://github.com/mohammadmrh12/glassio/discussions
-    about: Feature ideas, Home button / catalogs / Home Assistant help, and screenshots go to Discussions.
+    about: "Home button, catalogs, Home Assistant help, screenshots and general talk go to Discussions."

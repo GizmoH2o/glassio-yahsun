@@ -1,19 +1,37 @@
 name: Bug report
 description: Something doesn't work as expected
-labels: [bug]
+labels: ["bug"]
 body:
   - type: input
     id: version
-    attributes: { label: Glassio version, description: Settings → About, placeholder: "1.8.0" }
-    validations: { required: true }
+    attributes:
+      label: Glassio version
+      description: "Settings → About"
+      placeholder: "1.9.5"
+    validations:
+      required: true
   - type: input
     id: device
-    attributes: { label: Device and Android version, placeholder: "Google TV Streamer, Android 14" }
-    validations: { required: true }
+    attributes:
+      label: Device and Android version
+      placeholder: "Google TV Streamer, Android 14"
+    validations:
+      required: true
   - type: textarea
     id: what
-    attributes: { label: What happened?, description: Steps to reproduce, what you expected and what you saw. Screenshots help. }
-    validations: { required: true }
+    attributes:
+      label: What happened?
+      description: "Steps to reproduce, what you expected and what you saw. Screenshots help."
+    validations:
+      required: true
   - type: textarea
     id: crash
-    attributes: { label: Last crash (optional), description: Settings → About → Last crash, if it shows one. }
+    attributes:
+      label: Last crash (optional)
+      description: "Settings → About → Last crash, if it shows one."
+  - type: textarea
+    id: log
+    attributes:
+      label: Log (optional)
+      description: "From a computer: adb logcat -d -s Glassio"
+      render: text
