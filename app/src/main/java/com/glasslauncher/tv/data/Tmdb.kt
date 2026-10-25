@@ -9,6 +9,33 @@ import java.util.Locale
  * synopsis, rating, year, genres and the streaming platform. Only runs when a read token is set.
  */
 class Tmdb(private val http: Http) {
+    companion object {
+        /** TMDB's v3 API Key (32 hex characters): not what Glassio takes. */
+        fun looksLikeApiKey(t: String) = Regex("^[0-9a-fA-F]{32}$").matches(t.trim())
+
+        /**
+         * Checks the API Read Access Token with TMDB itself: true = works, false = TMDB refused it,
+         * null = couldn't ask (offline).
+         */
+        fun verify(token: String): Boolean? {
+            if (token.isBlank()) return false
+            if (looksLikeApiKey(token)) return false
+            return runCatching {
+                val c = java.net.URL("https://api.themoviedb.org/3/authentication").openConnection() as java.net.HttpURLConnection
+                c.connectTimeout = 8000; c.readTimeout = 8000
+                c.setRequestProperty("Authorization", "Bearer ${token.trim()}")
+                c.setRequestProperty("Accept", "application/json")
+                try {
+                    when (c.responseCode) {
+                        in 200..299 -> JSONObject(c.inputStream.bufferedReader().use { it.readText() }).optBoolean("success", true)
+                        401, 403 -> false
+                        else -> null
+                    }
+                } finally { c.disconnect() }
+            }.getOrNull()
+        }
+    }
+
     private val ttl = 30L * 24 * 3600 * 1000
 
     private fun get(url: String, token: String) = http.json(url, ttl, token)

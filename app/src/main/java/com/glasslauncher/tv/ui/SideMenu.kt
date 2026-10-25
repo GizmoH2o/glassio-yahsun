@@ -77,14 +77,14 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
     var themes by remember { mutableStateOf(false) }
     var bgPage by remember { mutableStateOf(false) }
     // One requester per row: after a choice (the menu redraws in the new theme) focus comes back to the same row.
-    val reqs = remember { List(12) { FocusRequester() } }
+    val reqs = remember { List(16) { FocusRequester() } }
     var target by remember { mutableIntStateOf(0) }
     var current by remember { mutableIntStateOf(0) }
     val enter = remember { Animatable(0f) }
     LaunchedEffect(Unit) { enter.animateTo(1f, tween(260, easing = EASE)) }
     var inside by remember { mutableStateOf(false) }
     // Take focus from the settings button (or wherever it is): retry until a row has it.
-    LaunchedEffect(themes, bgPage, style) { inside = false; repeat(8) { delay(30); if (inside) return@LaunchedEffect; runCatching { reqs[target.coerceIn(0, reqs.lastIndex)].requestFocus() } } }
+    LaunchedEffect(themes, bgPage, style) { inside = false; repeat(16) { delay(25); if (inside) return@LaunchedEffect; runCatching { reqs[target.coerceIn(0, reqs.lastIndex)].requestFocus() } } }
     var themesRow by remember { mutableIntStateOf(0) }
     var bgRow by remember { mutableIntStateOf(0) }
     BackHandler { if (themes) { target = themesRow; themes = false } else if (bgPage) { target = bgRow; bgPage = false } else onClose() }
@@ -193,8 +193,13 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                     val n = THEMES.size
                     MenuRow(s, light, "Colour on focus", if (st.focusColor) "On" else "Off",
                         modifier = Modifier.focusRequester(reqs[n]), onFocused = { current = n },
-                        first = false, last = true, onLeft = back,
+                        first = false, last = !st.focusColor, onLeft = back,
                         glyph = { c -> glyph(if (st.focusColor) "dotOn" else "dotOff", c) }, onClick = { target = n; st.focusColor = !st.focusColor })
+                    if (st.focusColor) MenuRow(s, light, "Focus plate", PLATE_NAMES[st.focusPlate] ?: "Dark",
+                        modifier = Modifier.focusRequester(reqs[n + 1]), onFocused = { current = n + 1 },
+                        first = false, last = true, onLeft = back,
+                        glyph = { c -> plateGlyph(st.focusPlate, c) },
+                        onClick = { target = n + 1; st.focusPlate = PLATES[(PLATES.indexOf(st.focusPlate) + 1).mod(PLATES.size)] })
                 }
             }
         }
@@ -244,6 +249,17 @@ private fun MenuRow(
             }
         }
     }
+}
+
+/** Plates behind the selected icon with "Colour on focus". */
+val PLATES = listOf("light", "dark", "glass", "amoled")
+val PLATE_NAMES = mapOf("light" to "White", "dark" to "Dark", "glass" to "Glass", "amoled" to "Black AMOLED")
+
+private fun DrawScope.plateGlyph(p: String, c: Color) {
+    val r = androidx.compose.ui.geometry.CornerRadius(size.width * 0.26f)
+    val fill = when (p) { "light" -> Color(0xFFE4E4EA); "dark" -> Color(0xFF2A2A2E); "amoled" -> Color.Black; else -> Color.White.copy(alpha = 0.28f) }
+    drawRoundRect(fill, cornerRadius = r)
+    drawRoundRect(c, cornerRadius = r, style = Stroke(size.width * 0.1f))
 }
 
 private val BG_MODES = listOf("carousel" to "Title backdrops", "image" to "My picture", "video" to "My video", "aerial" to "Screensaver")

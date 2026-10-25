@@ -27,6 +27,14 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 ## Features
 
+**New in 1.9.7**
+- **Focus plate**: White, Dark, Glass or Black AMOLED behind the selected icon — also in the menu's Themes page.
+- **Add-ons from your Nuvio account** (Settings → Catalogs): merged with the TV's own, an add-on never shows up twice. The Nuvio account row is also in Catalogs and Nuvio & Home Assistant.
+- **Backgrounds from your phone** (Manage from phone): picture or video link, save a link to the TV, upload a picture or video from the phone, pick or delete files in the backgrounds folder.
+- **Aerial Views as the TV screensaver** on / off and its start time (20 s, 30 s, 1 min, 2 min) through ADB, in Settings → Screensaver. Glassio's own screensaver can start after 10 s or 30 s.
+- **TMDB token check**: a green check when the token works with TMDB, red when it's refused or when the API Key was pasted instead of the API Read Access Token. The Home Assistant webhook shows a green check when set.
+- **Smoother dock**: it opens at full frame rate (the page dims and blurs right after), moving inside the open dock is smooth, and the menu opens every time you go up to the settings button.
+
 **Menu, Library, themes and backgrounds (1.9.5)**
 - **Menu** at the settings button, like the Apple TV Control Center: clock, date, weather (high / low, feels like, humidity, wind, city), then Library, Glassio settings, Android settings, Wi-Fi, Themes and Background. It opens when you go up to the button (or with OK, or never: Settings → Menu, Library & themes), and every part can be hidden.
 - **Library**: the **+** button between Play and Next saves the title. Grey page, five posters a row; OK opens the title, hold OK removes it. It also shows your **Nuvio account library** (Nuvio Legacy, official Nuvio and the forks that sync with the account; sign in with a QR code) and your **Trakt watchlist**; + can save to both.

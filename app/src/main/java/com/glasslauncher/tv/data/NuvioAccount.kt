@@ -159,6 +159,42 @@ class NuvioAccount(ctx: Context) {
         c in 200..299
     }.getOrElse { Glog.w("Nuvio library change", it); false }
 
+    private fun get(pathQuery: String, bearer: String): Pair<Int, String> {
+        val c = URL(base + pathQuery).openConnection() as HttpURLConnection
+        c.connectTimeout = 8000; c.readTimeout = 15000
+        c.setRequestProperty("apikey", key)
+        c.setRequestProperty("Authorization", "Bearer $bearer")
+        try {
+            val code = c.responseCode
+            val text = runCatching { (if (code in 200..299) c.inputStream else c.errorStream)?.bufferedReader()?.use { it.readText() } }.getOrNull().orEmpty()
+            return code to text
+        } finally { c.disconnect() }
+    }
+
+    /** The account id inside the access token (its "sub"). */
+    private fun userId(tok: String): String = runCatching {
+        val part = tok.split(".")[1]
+        JSONObject(String(android.util.Base64.decode(part, android.util.Base64.URL_SAFE or android.util.Base64.NO_PADDING or android.util.Base64.NO_WRAP))).optString("sub")
+    }.getOrDefault("")
+
+    /**
+     * The add-ons installed on the account (profile 1, in the account's order, only the ones turned on): the same
+     * list Nuvio Legacy and the Nuvio web app read. Null when it couldn't be read (signed out, offline).
+     */
+    fun addons(profile: Int = 1): List<String>? = runCatching {
+        var tok = access() ?: return null
+        val uid = userId(tok).ifBlank { return null }
+        val q = "/rest/v1/addons?user_id=eq.$uid&profile_id=eq.$profile&select=*&order=sort_order.asc"
+        var (c, t) = get(q, tok)
+        if (c == 401) { tok = access(force = true) ?: return null; val r = get(q, tok); c = r.first; t = r.second }
+        if (c !in 200..299) { Glog.w("Nuvio add-ons: HTTP $c"); lastError = "Nuvio answered HTTP $c"; return null }
+        val a = JSONArray(t)
+        (0 until a.length()).mapNotNull { a.optJSONObject(it) }
+            .filter { !it.has("enabled") || it.opt("enabled").toString() != "false" }
+            .map { it.optString("url").trim() }
+            .filter { it.startsWith("http") || it.startsWith("stremio") }
+    }.getOrElse { Glog.w("Nuvio add-ons", it); null }
+
     data class Saved(val id: String, val type: String, val name: String, val poster: String, val background: String,
                      val description: String, val year: String, val at: Long)
 

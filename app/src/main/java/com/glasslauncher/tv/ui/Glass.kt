@@ -81,6 +81,8 @@ data class GlassEnv(
     val slideKind: Int = SLIDE_PUSH,
     /** Page pictures were baked without the side shade (Slide animation): the glass draws it, still, on top. */
     val pageNoSideShade: Boolean = false,
+    /** 0..1: the blur of the open-dock veil, which fades in once the dock has finished opening ([veil] is the dimming). */
+    val blur: androidx.compose.runtime.State<Float>? = null,
 )
 
 const val SLIDE_PUSH = 1
@@ -104,6 +106,10 @@ fun slideFrame(kind: Int, dir: Int, e: Float, w: Float): SlideFrame {
 
 /** How dark the page gets under the open dock. */
 const val VEIL_DIM = 0.62f
+
+/** The open-dock veil in one pass: the blurred picture already darkened (instead of a black layer on top of it). */
+val VeilFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(
+    1f - VEIL_DIM, 0f, 0f, 0f, 0f,  0f, 1f - VEIL_DIM, 0f, 0f, 0f,  0f, 0f, 1f - VEIL_DIM, 0f, 0f,  0f, 0f, 0f, 1f, 0f)))
 
 val LocalGlassEnv = compositionLocalOf { GlassEnv(null, null, null, 0, 0, 6, 14) }
 /** 1.0 at 960dp wide (1080p TV at 2x); every size in the UI is multiplied by this. */
@@ -217,7 +223,8 @@ private class Refractor {
 }
 
 /** Draws the (blurred) backdrop region that sits behind this element, darkened like the scene. */
-private fun DrawScope.drawBackdropRegion(bmp: ImageBitmap, rootW: Int, rootH: Int, pos: Offset, alpha: Float = 1f, scrims: Boolean = true, shift: Float = 0f) {
+private fun DrawScope.drawBackdropRegion(bmp: ImageBitmap, rootW: Int, rootH: Int, pos: Offset, alpha: Float = 1f, scrims: Boolean = true, shift: Float = 0f,
+                                        colorFilter: androidx.compose.ui.graphics.ColorFilter? = null) {
     val bw = bmp.width.toFloat(); val bh = bmp.height.toFloat()
     if (bw < 1 || bh < 1 || rootW <= 0 || rootH <= 0) return
     val scale = max(rootW / bw, rootH / bh)
@@ -235,6 +242,7 @@ private fun DrawScope.drawBackdropRegion(bmp: ImageBitmap, rootW: Int, rootH: In
         dstOffset = IntOffset(((l - sx) * scale).roundToInt(), ((t - sy) * scale).roundToInt()),
         dstSize = IntSize(((r - l) * scale).roundToInt().coerceAtLeast(1), ((b - t) * scale).roundToInt().coerceAtLeast(1)),
         alpha = alpha,
+        colorFilter = colorFilter,
         filterQuality = if (scale <= 1.01f) FilterQuality.None else FilterQuality.Low,
     )
     if (scrims) drawScrims(rootW, rootH, pos, true)
@@ -302,10 +310,13 @@ fun LiquidSurface(
     val live = env.live
     Box(
         modifier
-            .clip(RoundedCornerShape(radius))
+            .then(if (DebugHide.intValue and 262144 != 0) Modifier else Modifier.clip(RoundedCornerShape(radius)))
             .onGloballyPositioned { pos.value = it.positionInRoot(); if (it.size != sz) sz = it.size },
     ) {
         val bmp = if (sharp) env.sharp ?: env.bmp else env.bmp
+        // The tint is drawn inside the cached glass layers when they're used (one less pass every frame).
+        var tintDone = false
+        fun androidx.compose.ui.graphics.drawscope.DrawScope.tintIn(t: Color) { if (t.alpha > 0f && DebugHide.intValue and 256 == 0) drawRect(t) }
         if (bmp != null) {
             fun isPage(b: ImageBitmap) = env.sharpIsPage && (b === env.sharp || b === env.prevSharp)
             // Page pictures carry their shades (with Slide all but the side shade); small copies carry none.
@@ -320,8 +331,11 @@ fun LiquidSurface(
             fun androidx.compose.ui.graphics.drawscope.DrawScope.veil() {
                 val v = env.veil?.value ?: 0f
                 if (v > 0.01f && DebugHide.intValue and 16 == 0) {
-                    if (!videoBehind) env.heavy?.let { drawBackdropRegion(it, env.rootW, env.rootH, pos.value, alpha = v, scrims = false) }
-                    drawRect(Color.Black.copy(alpha = v * VEIL_DIM))
+                    val heavy = if (!videoBehind && DebugHide.intValue and 32768 == 0) env.heavy else null
+                    // Same as the page veil: dimmed while the dock opens, then the darkened blurred picture fades in.
+                    // Like the page veil: the darkened blurred picture over the glass, one pass.
+                    if (heavy != null) drawBackdropRegion(heavy, env.rootW, env.rootH, pos.value, alpha = v, scrims = false, colorFilter = VeilFilter)
+                    else drawRect(Color.Black.copy(alpha = v * VEIL_DIM))
                 }
             }
             val prev = if (sharp) env.prevSharp ?: env.prevBmp else env.prevBmp
@@ -398,11 +412,15 @@ fun LiquidSurface(
                 // top one's opacity changes: in step with the page, without redrawing or re-refracting the glass.
                 // The old glass is refracted too (rendered once, it doesn't change), so the rims don't thin out
                 // and snap back while the new one fades in on top.
-                if (prev != null) Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = still }) { picture(prev, 0f); veil() }
+                // The open-dock veil is its own layer above (see below): only its opacity changes while it fades
+                // in, so these stay cached instead of being redrawn (picture, shades, refraction) every frame.
+                val veilPic = if (!videoBehind && DebugHide.intValue and 32768 == 0) env.heavy else null
+                val covered = { veilPic != null && (env.veil?.value ?: 0f) > 0.995f && DebugHide.intValue and 16 == 0 }
+                if (prev != null) Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = still; alpha = if (covered()) 0f else 1f }) { picture(prev, 0f); if (veilPic == null) veil(); tintIn(tint) }
                 Canvas(Modifier.matchParentSize().graphicsLayer {
                     val w = if (wobble > 0f && live != null) live.value * wobble else 0f
-                    renderEffect = if (videoBehind && DebugHide.intValue and 2048 != 0) null else if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
-                    alpha = if (prev != null) (env.mix?.value ?: 1f) else 1f
+                    renderEffect = if (videoBehind && DebugHide.intValue and 2048 != 0) null else if (!cache && DebugHide.intValue and 16384 != 0) null else if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
+                    alpha = if (covered()) 0f else if (prev != null) (env.mix?.value ?: 1f) else 1f
                     // Rendered once into its own texture and reused while nothing behind the glass changes:
                     // moving focus over the dock then costs one copy instead of the picture and its shades again.
                     if (cache && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
@@ -412,13 +430,26 @@ fun LiquidSurface(
                     if (live != null) {
                         drawBackdropRegion(live, env.rootW, env.rootH, pos.value, scrims = false)
                     } else picture(bmp, 0f)
-                    veil()
+                    if (veilPic == null) veil()
+                    tintIn(tint)
                 }
+                if (veilPic != null && DebugHide.intValue and 16 == 0) {
+                    val veilOn by remember(env.veil) { androidx.compose.runtime.derivedStateOf { (env.veil?.value ?: 0f) > 0.005f } }
+                    if (veilOn) Canvas(Modifier.matchParentSize().graphicsLayer {
+                        alpha = env.veil?.value ?: 0f
+                        renderEffect = still
+                        if (cache && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                    }) {
+                        drawBackdropRegion(veilPic, env.rootW, env.rootH, pos.value, scrims = false, colorFilter = VeilFilter)
+                        tintIn(tint)
+                    }
+                }
+                tintDone = true
             }
         } else {
             Box(Modifier.matchParentSize().background(Color(0xFF1A1A22)))
         }
-        if (tint.alpha > 0f && DebugHide.intValue and 256 == 0) Box(Modifier.matchParentSize().background(tint))
+        if (!tintDone && tint.alpha > 0f && DebugHide.intValue and 256 == 0) Box(Modifier.matchParentSize().background(tint))
         content()
     }
 }

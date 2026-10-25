@@ -94,6 +94,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         cw = com.glasslauncher.tv.data.ContinueWatching(this, settings, http, scope).also { it.start() }
         weather = com.glasslauncher.tv.data.Weather(settings, http, scope).also { it.start() }
         library = com.glasslauncher.tv.data.Library(this, settings, http, cw.trakt, scope)
+        catalogs.account = { library.nuvio.addons() }
         updater = com.glasslauncher.tv.data.Updater(this, scope).also { it.start() }
         // If Glass was closed while the TV screensaver was being started, put the screen timeout back.
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()

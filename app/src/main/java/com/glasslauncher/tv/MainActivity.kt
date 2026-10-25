@@ -34,10 +34,10 @@ class MainActivity : ComponentActivity() {
             BackHandler(enabled = true) { screen = Screen.Home }
             LaunchedEffect(Unit) {
                 while (true) {
-                    delay(10_000)
-                    val minutes = app.settings.idleMinutes
+                    delay(2_000)
+                    val secs = app.settings.idleSeconds
                     val idle = System.currentTimeMillis() - lastInput
-                    if (minutes > 0 && idle > minutes * 60_000L && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    if (secs > 0 && idle > secs * 1000L && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                         lastInput = System.currentTimeMillis()
                         startActivity(Intent(this@MainActivity, ScreensaverActivity::class.java))
                     }

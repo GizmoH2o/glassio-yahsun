@@ -66,6 +66,36 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     private fun saveAddons(set: Set<String>) {
         sp.edit().putStringSet("addons", set).apply(); addonList.value = set
     }
+    /** Add-ons read from the Nuvio account (kept apart from the TV's own list, so turning it off removes only them). */
+    val accountAddons = MutableStateFlow(sp.getStringSet("account_addons", emptySet()) ?: emptySet())
+    /** Reads the account's add-ons; set once the Library (which holds the account) exists. */
+    @Volatile var account: (() -> List<String>?)? = null
+
+    /** One add-on, however its link is written: host without case, path without the trailing slash. */
+    fun addonKey(u: String): String = normalize(u).let { n ->
+        runCatching { val x = java.net.URI(n); x.host.orEmpty().lowercase() + (if (x.port > 0) ":${x.port}" else "") + x.rawPath.orEmpty().trimEnd('/') + (x.rawQuery?.let { "?$it" } ?: "") }
+            .getOrDefault(n.lowercase())
+    }
+    /** The TV's add-ons, then the account's ones it doesn't already have (each add-on once). */
+    fun allAddons(): List<String> {
+        val out = LinkedHashMap<String, String>()
+        for (u in addons.sorted()) out.putIfAbsent(addonKey(u), u)
+        if (settings.catalogsNuvio) for (u in accountAddons.value) out.putIfAbsent(addonKey(u), u)
+        return out.values.toList()
+    }
+    /** Account add-ons that aren't also on the TV's own list. */
+    fun accountOnly(): List<String> {
+        if (!settings.catalogsNuvio) return emptyList()
+        val mine = addons.map { addonKey(it) }.toSet()
+        return accountAddons.value.filter { addonKey(it) !in mine }.distinctBy { addonKey(it) }
+    }
+    /** The link already in use for this add-on (so its selected catalogs keep their keys), else [u] itself. */
+    private fun canonical(u: String): String { val k = addonKey(u); return (addons + accountAddons.value).firstOrNull { addonKey(it) == k } ?: normalize(u) }
+    private fun saveAccount(list: List<String>) {
+        val set = list.map { normalize(it) }.toCollection(LinkedHashSet())
+        sp.edit().putStringSet("account_addons", set).apply(); accountAddons.value = set
+    }
+
     private fun saveSelected(set: Set<String>) {
         sp.edit().putStringSet("selected", set).apply(); selectedKeys.value = set
     }
@@ -119,7 +149,8 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     suspend fun refresh() = loadLock.withLock {
         withContext(Dispatchers.IO) {
             status.value = "Loading catalogs…"
-            val urls = addons.toList()
+            if (settings.catalogsNuvio) account?.invoke()?.let { saveAccount(it) }
+            val urls = allAddons()
             val refs = java.util.Collections.synchronizedList(mutableListOf<CatalogRef>())
             val gate = Semaphore(4)
             coroutineScope {
@@ -270,7 +301,7 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
         val urls = linkedSetOf<String>()
         for (i in 0 until a.length()) {
             val u = a.optJSONObject(i)?.optString("url")?.trim().orEmpty()
-            if (u.isNotBlank()) urls += normalize(u)
+            if (u.isNotBlank()) urls += canonical(u)
         }
         if (urls.isEmpty()) return@withContext "Nuvio returned no add-ons."
         saveAddons(urls + manual)
@@ -280,7 +311,7 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     }
 
     suspend fun addAddon(raw: String): String = withContext(Dispatchers.IO) {
-        val url = normalize(raw)
+        val url = canonical(raw)
         val m = try { http.json(url, 0) } catch (e: Exception) { throw IllegalStateException("Could not read that add-on (${e.message})") }
         val refs = parseCatalogs(url, java.net.URI(url).host ?: "Add-on", m)
         sp.edit().putStringSet("manual_addons", manual + url).apply()
@@ -296,6 +327,26 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
         saveSelected(selectedKeys.value.filterNot { it.startsWith("$url|") }.toSet())
         refresh()
         "Removed"
+    }
+
+    /**
+     * Turns the account's add-ons on or off. Their catalogs are listed but not put in the carousel by themselves
+     * (you pick them, like any other catalog); turning it off also takes theirs out of the carousel.
+     */
+    suspend fun useAccount(on: Boolean): String = withContext(Dispatchers.IO) {
+        if (!on) {
+            val only = accountOnly().toSet()
+            settings.catalogsNuvio = false
+            if (only.isNotEmpty()) saveSelected(selectedKeys.value.filterNot { k -> only.any { k.startsWith("$it|") } }.toSet())
+            refresh(); return@withContext "Nuvio account add-ons off"
+        }
+        settings.catalogsNuvio = true
+        val list = account?.invoke() ?: run { settings.catalogsNuvio = false; return@withContext "Couldn't read add-ons from your Nuvio account. Connect it first (Menu, Library & themes)." }
+        saveAccount(list)
+        refresh()
+        val only = accountOnly().size
+        val same = list.size - only
+        "${list.size} add-ons on your Nuvio account: $only new" + (if (same > 0) ", $same already here (not added twice)" else "") + ". Pick their catalogs below."
     }
 
     fun addonName(url: String) = catalogs.value.firstOrNull { it.addon == url }?.addonName ?: (runCatching { java.net.URI(url).host }.getOrNull() ?: url)

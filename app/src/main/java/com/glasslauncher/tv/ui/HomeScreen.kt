@@ -86,6 +86,8 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clipToBounds
@@ -296,6 +298,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     }
     LaunchedEffect(app.homeRev.intValue) {
         folderOpen = false; folderMoving = null; pickerFor = null; dialog = null; movingPkg = null; expanded = false
+        if (app.homeRev.intValue > 0) menuOpen = false
     }
     LaunchedEffect(app.requestSettingsRev.intValue) {
         val c = app.requestSettings.intValue
@@ -353,14 +356,20 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         val rootH = with(density) { maxHeight.roundToPx() }
         val s = maxWidth.value / 960f
         val screenHdp = maxHeight.value
-        val veil = animateFloatAsState(if (expanded && !folderOpen) 1f else 0f, tween(170), label = "veil")
+        // The veil (the page blurred and dark) comes once the dock has (almost) opened: animating both at once
+        // doubled what the TV GPU drew per frame and the dock opened at about 30 fps.
+        val veilIn = expanded && !folderOpen
+        val veil = animateFloatAsState(if (veilIn) 1f else 0f, if (veilIn) tween(140, delayMillis = 130) else tween(100), label = "veil")
+        val blur = veil
+        // Where the open (and settled) dock covers the page; empty while it moves.
+        val dockCover = remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
         // Clear glass shows the page picture itself (full resolution, scrims included); the small
         // GlassCache copy is only the fallback before the first picture is on screen.
         val pageSharp = if (PageGlass.on.value) GlassHalf.peek(shownBackdrop) else null
         val env = GlassEnv(backImgs?.first, pageSharp ?: backImgs?.second, backImgs?.third, rootW, rootH, settings.glassTint, settings.refraction, 1f, wobble.asState(),
             prevImgs?.first, if (prevImgs != null) (GlassHalf.peek(prevBackdrop) ?: prevImgs?.second) else null, mix.asState(), veil, sharpIsPage = pageSharp != null,
             slide = slideDir, slideKind = if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH,
-            pageNoSideShade = settings.slideAnim != "fade")
+            pageNoSideShade = settings.slideAnim != "fade", blur = blur)
         val radius = settings.cornerRadius
         val metrics = remember(s, maxWidth, settings.dockScale) { DockMetrics(s, maxWidth.value, settings.dockScale) }
 
@@ -370,7 +379,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             // composites a single texture instead of redrawing the photo and both gradients every frame.
             // The scrims are baked into the picture (bakeBackdrop): a slide change draws two flat pictures and
             // nothing else, which keeps the crossfade smooth on TV graphics chips.
-            if (!folderOpen && DebugHide.intValue and 1 == 0 && !VideoFrames.showing.value) Box(Modifier.fillMaxSize()) {
+            // Under the fully open veil (an opaque picture) the backdrop isn't drawn at all.
+            val veilCovers = backImgs?.third != null
+            if (!folderOpen && DebugHide.intValue and 1 == 0 && !VideoFrames.showing.value) Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (veilCovers && blur.value > 0.995f) 0f else 1f }) {
                 if (settings.slideAnim != "fade") SlideBackdrop(prevBackdrop, shownBackdrop, mix, slideDir,
                     if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH)
                 else FadeBackdrop(prevBackdrop, shownBackdrop, mix)
@@ -409,8 +420,33 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             val veilOn by remember { androidx.compose.runtime.derivedStateOf { veil.value > 0.01f } }
             if (veilOn && !folderOpen && DebugHide.intValue and 32 == 0) {
                 // With a video behind, the open dock only darkens it (a still blurred frame over it looked frozen).
-                if (!VideoFrames.showing.value) backImgs?.third?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = veil.value }) }
-                Box(Modifier.fillMaxSize().graphicsLayer { alpha = veil.value }.background(Color.Black.copy(alpha = VEIL_DIM)))
+                // One pass: the blurred picture comes already darkened (a black layer on top cost the TV GPU a
+                // whole extra screen every frame of the opening).
+                // Dimming first (a flat colour, cheap), then the darkened blurred picture over it once the dock is open;
+                // fully blurred, the dimming and the backdrop under it aren't drawn at all.
+                val img = if (!VideoFrames.showing.value && DebugHide.intValue and 32768 == 0) backImgs?.third else null
+                if (img == null) Box(Modifier.fillMaxSize().graphicsLayer { alpha = veil.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }.background(Color.Black.copy(alpha = VEIL_DIM)))
+                // Not drawn where the open dock covers it (its glass is opaque): on the TV GPU every pixel drawn twice counts.
+                if (img != null) {
+                    val brush = remember(img, rootW, rootH) {
+                        val bw = img.width.toFloat(); val bh = img.height.toFloat()
+                        val sc = maxOf(rootW / bw, rootH / bh)
+                        val sh = android.graphics.BitmapShader(img.asAndroidBitmap(), android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
+                        sh.setLocalMatrix(android.graphics.Matrix().apply { setScale(sc, sc); postTranslate((rootW - bw * sc) / 2f, (rootH - bh * sc) / 2f) })
+                        androidx.compose.ui.graphics.ShaderBrush(sh)
+                    }
+                    val cornerPx = with(density) { (radius * s).dp.toPx() }
+                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = blur.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }) {
+                        val d = dockCover.value
+                        fun part(l: Float, t: Float, r: Float, b: Float) { if (r > l && b > t) drawRect(brush, androidx.compose.ui.geometry.Offset(l, t), androidx.compose.ui.geometry.Size(r - l, b - t), colorFilter = VeilFilter) }
+                        if (d.isEmpty || DebugHide.intValue and 524288 != 0) part(0f, 0f, size.width, size.height)
+                        else {
+                            val t = d.top + cornerPx; val b = d.bottom - cornerPx
+                            part(0f, 0f, size.width, t); part(0f, b, size.width, size.height)
+                            part(0f, t, d.left, b); part(d.right, t, size.width, b)
+                        }
+                    }
+                }
             }
 
             // Fully covered by settings or the folder: stop drawing it at all.
@@ -428,7 +464,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                             else scope.launch { delay(16); runCatching { gearReq.requestFocus() } }
                         })
                 }
-                if (DebugHide.intValue and 4 == 0) TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { if (!menuOpen && android.os.SystemClock.uptimeMillis() - menuClosedAt > 900) menuOpen = true }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
+                if (DebugHide.intValue and 4 == 0) TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed -> if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
                 Dock(
                     app = app, s = s, metrics = metrics, screenH = screenHdp, radius = radius,
                     expanded = expanded, onExpanded = { expanded = it },
@@ -445,6 +481,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                         },
                     )) },
                     modifier = Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = if (DebugHide.intValue and 8 != 0) 0f else 1f },
+                    onCover = { dockCover.value = it },
                 )
             }
             if (folderOpen) {
@@ -668,7 +705,7 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
     val fq = if ((cur ?: prev)?.width?.let { it < 1800 } == true) androidx.compose.ui.graphics.FilterQuality.Low else androidx.compose.ui.graphics.FilterQuality.None
     if (prev != null) Image(prev, null, contentScale = ContentScale.FillBounds, filterQuality = fq, modifier = Modifier.fillMaxSize())
     if (cur != null) Image(cur, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
-        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (prev != null) mix.value else 1f })
+        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (prev != null) mix.value else 1f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
     else if (prev == null) Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
 }
 
@@ -874,13 +911,14 @@ private fun HeroSection(
         }
     }
 
-    val alpha by animateFloatAsState(if (hidden) 0f else 1f, tween(250), label = "heroAlpha")
+    val alpha by animateFloatAsState(if (hidden) 0f else 1f, tween(if (hidden) 150 else 220), label = "heroAlpha")
     val dotsOn = items.size > 1 && settings.dotsMode != "hidden" && (!settings.dotsAutoHide || focused)
     val dotsAlpha by animateFloatAsState(if (dotsOn) 1f else 0f, tween(300), label = "dotsAlpha")
 
     // Your own picture / video / the screensaver behind: the page is just that, no title, details or buttons.
     val customBg = when (settings.bgMode) { "image" -> settings.bgImage.isNotBlank(); "video" -> settings.bgVideo.isNotBlank(); "aerial" -> true; else -> false }
-    Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }) {
+    // ModulateAlpha: no full-screen off-screen pass while it fades (the dock opening); the pieces barely overlap.
+    Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }) {
         val shown = textItem
         if (customBg) {
             // Holds the dock's Up: opens the menu (or selects the settings button) straight away.
@@ -1192,15 +1230,21 @@ private fun Dots(total: Int, current: Int, mode: String, max: Int, s: Float, mod
 // ───────────────────────────── top bar ─────────────────────────────
 
 @Composable
-private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: () -> Unit, modifier: Modifier) {
+private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: (pressed: Boolean) -> Unit, modifier: Modifier) {
     val settings = app.settings
     // The settings button opens the menu (as soon as it is selected, or with OK), or Settings when the menu is off.
-    val gearClick = if (settings.menuMode == "off") onSettings else onMenu
+    // A key pressed on it (OK, or Up again when it is already selected) always opens it: that is never by accident.
+    val gearClick = if (settings.menuMode == "off") onSettings else { { onMenu(true) } }
+    val gearUp: () -> Boolean = { if (settings.menuMode == "auto") { onMenu(true); true } else false }
     // Only when you went up to it: focus can also land there by itself when Glassio starts or comes back.
     val since = remember { android.os.SystemClock.uptimeMillis() }
+    // Still on the button a moment later (it was just closed, or the TV was busy): that's on purpose, open it.
+    var gearOn by remember { mutableStateOf(false) }
+    LaunchedEffect(gearOn) { if (gearOn && settings.menuMode == "auto") { delay(450); if (gearOn && android.os.SystemClock.uptimeMillis() - since > 1200) onMenu(true) } }
     val gearFocus: (Boolean) -> Unit = {
-        if (it && settings.menuMode == "auto" && android.os.SystemClock.uptimeMillis() - since > 1500 &&
-            System.currentTimeMillis() - app.interaction.longValue < 1500) onMenu()
+        gearOn = it
+        if (it && settings.menuMode == "auto" && android.os.SystemClock.uptimeMillis() - since > 1200 &&
+            System.currentTimeMillis() - app.interaction.longValue < 2500) onMenu(false)
     }
     val time by produceState(clockText(settings.clock24h), settings.clock24h) {
         while (true) { value = clockText(settings.clock24h); delay(10_000) }
@@ -1249,13 +1293,13 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
                 UpdateDot(app, s) { barFocused = it }
-                GearButton(s, gearClick, gearReq) { barFocused = it; gearFocus(it) }
+                GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
             }
             weatherRow()
         } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             weatherRow()
             UpdateDot(app, s) { barFocused = it }
-            GearButton(s, gearClick, gearReq) { barFocused = it; gearFocus(it) }
+            GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
         }
     }
 }
@@ -1330,7 +1374,7 @@ private fun dateText(): String =
     java.text.SimpleDateFormat("d MMM ''yy", java.util.Locale.US).format(java.util.Date()).uppercase()
 
 @Composable
-private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onFocus: (Boolean) -> Unit) {
+private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp: () -> Boolean = { false }, onFocus: (Boolean) -> Unit) {
     // tvOS 26 top-right button: a small glass circle with the gearshape glyph; selected it turns white.
     var focused by remember { mutableStateOf(false) }
     val scale = animateFloatAsState(if (focused) 1.16f else 1f, spring(0.8f, 900f), label = "gear")
@@ -1340,7 +1384,7 @@ private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onFoc
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
             .focusRequester(req)
             .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
-            .tvPress(onClick = onClick),
+            .tvPress(onKey = { ev -> ev.type == KeyEventType.KeyDown && ev.key == Key.DirectionUp && onUp() }, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         SlidersGlyph(Modifier.fillMaxSize(), Color.White) { lit.value }
@@ -1406,6 +1450,7 @@ private fun Dock(
     movingPkg: String?, onMoveKey: (KeyEvent) -> Boolean, firstTile: FocusRequester, heroFocus: FocusRequester,
     folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>, onMove: () -> Unit,
     onMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit, modifier: Modifier,
+    onCover: (androidx.compose.ui.geometry.Rect) -> Unit = {},
 ) {
     val ctx = LocalContext.current
     val settings = app.settings
@@ -1440,12 +1485,12 @@ private fun Dock(
             val px = hState.value.roundToPx()
             val p = m.measure(c.copy(minHeight = px, maxHeight = px))
             layout(p.width, px) { p.place(0, 0) }
-        },
+        }.onGloballyPositioned { c -> onCover(if (still && expanded && settings.dockStyle != "amoled" && settings.dockStyle != "bow") c.boundsInRoot() else androidx.compose.ui.geometry.Rect.Zero) },
         radius = (radius * s).dp,
         style = settings.dockStyle,
         // The rims stay on while the dock opens: switching them off for the move made them blink.
         refract = true,
-        cache = still,
+        cache = still || DebugHide.intValue and 131072 != 0,
     ) {
         // Plain rows instead of a lazy grid: about twenty apps, and focus moves in and out predictably.
         // When every row fits in the open dock nothing scrolls: scrolling to the second row while the dock was
@@ -1455,7 +1500,7 @@ private fun Dock(
             androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides (if (fits) NoScroll else androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current),
         ) {
         Column(
-            Modifier.fillMaxWidth().verticalScroll(scroll)
+            Modifier.fillMaxWidth().graphicsLayer { alpha = if (DebugHide.intValue and 65536 != 0) 0f else 1f }.verticalScroll(scroll)
                 .padding(start = metrics.padH.dp, end = metrics.padH.dp, top = metrics.padTop.dp, bottom = metrics.padBottom.dp),
             verticalArrangement = Arrangement.spacedBy(metrics.gap.dp),
         ) {
@@ -1565,9 +1610,9 @@ private val blackGlyph = ColorFilter.tint(Color(0xFF111114), BlendMode.SrcIn)
  * colours on a light plate. [lit] animates 0..1, both looks are drawn and cross-faded.
  */
 @Composable
-private fun FocusColorArt(art: Art?, label: String, s: Float, litState: androidx.compose.runtime.State<Float>, dark: Boolean, restOnLight: Boolean = false) {
+private fun FocusColorArt(art: Art?, label: String, s: Float, litState: androidx.compose.runtime.State<Float>, plate: String, restOnLight: Boolean = false) {
     if (art == null) {
-        Text(label, color = androidx.compose.ui.graphics.lerp(Color.White, Color.Black, litState.value), fontSize = (11 * s).sp, maxLines = 2, textAlign = TextAlign.Center)
+        Text(label, color = androidx.compose.ui.graphics.lerp(Color.White, if (plate == "light") Color.Black else Color.White, litState.value), fontSize = (11 * s).sp, maxLines = 2, textAlign = TextAlign.Center)
         return
     }
     val bm = art.bmp
@@ -1577,14 +1622,18 @@ private fun FocusColorArt(art: Art?, label: String, s: Float, litState: androidx
     val scale = if (crop) ContentScale.Crop else ContentScale.Fit
     // All three layers stay composed; only their alpha changes, read while drawing (no recomposition).
     Box(Modifier.fillMaxSize()) {
-        // Light: soft frosted white (not paper white). Dark: near-black glass.
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = litState.value }
-            .background(if (dark) Color(0xF0141416) else Color(0xE6E4E4EA)))
+        // White: soft frosted white (not paper white). Dark: near-black glass. Glass: a clear lighter pane
+        // (the tile's own glass shows through). Black AMOLED: pure black.
+        val light = plate == "light"
+        // ModulateAlpha: each layer is one draw, so its opacity goes straight into the draw instead of an
+        // off-screen pass per icon (eighteen of them every frame while the dock opened).
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = litState.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }
+            .background(when (plate) { "light" -> Color(0xE6E4E4EA); "glass" -> Color(0x40FFFFFF); "amoled" -> Color.Black; else -> Color(0xF0141416) }))
         Image(bm, label, colorFilter = if (art.transparent) (if (restOnLight) blackGlyph else whiteGlyph) else grayscale, contentScale = scale,
             filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
-            modifier = mod.graphicsLayer { alpha = (1f - litState.value) * if (art.transparent) 0.92f else 0.75f })
-        Image(if (dark) bm else art.onLight, label, contentScale = scale, filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
-            modifier = mod.graphicsLayer { alpha = litState.value })
+            modifier = mod.graphicsLayer { alpha = (1f - litState.value) * if (art.transparent) 0.92f else 0.75f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
+        Image(if (light) art.onLight else bm, label, contentScale = scale, filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
+            modifier = mod.graphicsLayer { alpha = litState.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
     }
 }
 
@@ -1717,7 +1766,7 @@ private fun DockTile(
     TileFrame(s, radius, moving, label, alwaysLabel, modifier, onFocus, onMoveKey, onClick, onLong, solid, app.settings.tileLift, app.settings.edgeBounce, edges) { focused, r ->
         if (colorOnFocus) {
             val lit = animateFloatAsState(if (focused) 1f else 0f, tween(220), label = "lit")
-            TilePlate(style, focused, s, r, flat) { FocusColorArt(art, entry.label, s, lit, app.settings.focusPlate == "dark", restOnLight = style == "bow") }
+            TilePlate(style, focused, s, r, flat) { FocusColorArt(art, entry.label, s, lit, app.settings.focusPlate, restOnLight = style == "bow") }
         } else TilePlate(style, focused, s, r, flat) { IconArt(art, entry.label, style, s) }
     }
 }

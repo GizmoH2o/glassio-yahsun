@@ -135,6 +135,8 @@ class Settings(private val ctx: Context) {
     /** The Nuvio account's Library (Nuvio Legacy, official Nuvio and forks that sync with the account). */
     var libraryNuvio: Boolean get() = b("libraryNuvio", true); set(v) = putB("libraryNuvio", v)
     /** The + button also saves to the Nuvio account's Library. */
+    /** Catalogs also come from the add-ons installed on the Nuvio account (merged with the TV's own, never twice). */
+    var catalogsNuvio: Boolean get() = b("catalogsNuvio", false); set(v) = putB("catalogsNuvio", v)
     var libraryToNuvio: Boolean get() = b("libraryToNuvio", true); set(v) = putB("libraryToNuvio", v)
     var libraryToTrakt: Boolean get() = b("libraryToTrakt", true); set(v) = putB("libraryToTrakt", v)
     var libraryTitles: Boolean get() = b("libraryTitles", true); set(v) = putB("libraryTitles", v)
@@ -205,7 +207,7 @@ class Settings(private val ctx: Context) {
     /** tvOS look: icons are white until selected, then show their colours on a light plate. */
     var focusColor: Boolean get() = b("focusColor", true); set(v) = putB("focusColor", v)
     /** The selected icon rises a little, like tvOS. */
-    /** Plate behind the selected icon in "Colour on focus": light | dark */
+    /** Plate behind the selected icon in "Colour on focus": light | dark | glass | amoled (pure black) */
     var focusPlate: String get() = s("focusPlate", "dark"); set(v) = putS("focusPlate", v)
     /** Clock: left (Apple TV) | right (next to the settings button, weather under it) */
     var clockPos: String get() = s("clockPos", "right"); set(v) = putS("clockPos", v)
@@ -230,6 +232,9 @@ class Settings(private val ctx: Context) {
 
     // ---- Screensaver
     var idleMinutes: Int get() = i("idleMinutes", 0); set(v) = putI("idleMinutes", v.coerceAtLeast(0))
+    /** Idle time before the screensaver, in seconds (0 = off). Older versions kept whole minutes in idleMinutes. */
+    var idleSeconds: Int get() = if (sp.contains("idleSeconds")) i("idleSeconds", 0) else i("idleMinutes", 0) * 60
+        set(v) = putI("idleSeconds", v.coerceAtLeast(0))
     /** aerial (Apple videos) | slideshow (posters with logos) | system (the TV's own screensaver, e.g. Aerial Views) */
     var saverMode: String get() = s("saverMode", "aerial"); set(v) = putS("saverMode", v)
     var useAppleAerials: Boolean get() = b("useAppleAerials", true); set(v) = putB("useAppleAerials", v)

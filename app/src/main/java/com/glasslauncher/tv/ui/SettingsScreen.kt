@@ -72,7 +72,8 @@ import kotlin.math.roundToInt
 private sealed interface SRow
 private class Toggle(val title: String, val desc: String, val get: () -> Boolean, val set: (Boolean) -> Unit) : SRow
 private class Adjust(val title: String, val desc: String, val value: () -> String, val step: (Int) -> Unit) : SRow
-private class Act(val title: String, val desc: String, val value: String = "", val onClick: () -> Unit) : SRow
+/** [ok]: true shows the value in green with a check mark (set and working), false in red. */
+private class Act(val title: String, val desc: String, val value: String = "", val ok: Boolean? = null, val onClick: () -> Unit) : SRow
 private class Note(val text: String) : SRow
 private class AppItem(val entry: AppEntry) : SRow
 
@@ -124,11 +125,23 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     // The QR dialog closes when this turns null (sign-in finished); the Nuvio code is in the QR itself.
     val nuvioShort = remember { kotlinx.coroutines.flow.MutableStateFlow<String?>(null) }
     LaunchedEffect(nuvioUrl) { nuvioShort.value = nuvioUrl?.let { "" } }
+    val tvRev = remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var tmdbOk by remember { mutableStateOf<Boolean?>(null) }
+    var tmdbChecking by remember { mutableStateOf(false) }
+    LaunchedEffect(st.tmdbToken) {
+        tmdbOk = null
+        val t = st.tmdbToken
+        if (t.isBlank() || com.glasslauncher.tv.data.Tmdb.looksLikeApiKey(t)) return@LaunchedEffect
+        tmdbChecking = true
+        tmdbOk = kotlinx.coroutines.withContext(Dispatchers.IO) { com.glasslauncher.tv.data.Tmdb.verify(t) }
+        tmdbChecking = false
+    }
     var homeKeyOn by remember { mutableStateOf(isHomeKeyOn(ctx)) }
     var adbAccess by remember { mutableStateOf<Boolean?>(if (app.cw.hasLogAccess()) true else null) }
     val catalogs by app.catalogs.catalogs.collectAsState()
     val selected by app.catalogs.selectedKeys.collectAsState()
     val addons by app.catalogs.addonList.collectAsState()
+    val accountAddons by app.catalogs.accountAddons.collectAsState()
     val status by app.catalogs.status.collectAsState()
     val allApps by app.apps.apps.collectAsState()
     var dialog by remember { mutableStateOf<DialogState?>(null) }
@@ -147,6 +160,37 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     fun io(block: suspend () -> String) = scope.launch(Dispatchers.IO) {
         toast(ctx, runCatching { block() }.getOrElse { it.message ?: "Failed" })
     }
+    // TMDB: the token is checked with TMDB itself whenever it changes, so "Set" means it really works.
+    fun tmdbRow(): SRow {
+        val t = st.tmdbToken
+        val (value, ok) = when {
+            t.isBlank() -> "Not set" to null
+            com.glasslauncher.tv.data.Tmdb.looksLikeApiKey(t) -> "API Key, not the token" to false
+            tmdbOk == true -> "Set" to true
+            tmdbOk == false -> "Not working" to false
+            tmdbChecking -> "Checking…" to null
+            else -> "Set (couldn't check, offline?)" to null
+        }
+        return Act("TMDB token", "Use the API Read Access Token (long, starts eyJ…), not the short API Key",
+            value, ok) {
+            dialog = TextEntry("TMDB API Read Access Token", "", "The long token starting eyJ… (not the 32-character API Key). Easier from the phone page") {
+                st.tmdbToken = it; app.catalogs.clearEnrichment()
+            }
+        }
+    }
+    // Connect / sign out of the Nuvio account: the same row in Menu & Library, Catalogs and Nuvio & Home Assistant.
+    fun nuvioAccountRow(): SRow =
+        if (!app.library.nuvio.connected) Act("Connect Nuvio account", "Scan a QR code with your phone and approve, like signing in to Nuvio on a TV", if (nuvioUrl != null) "Waiting…" else "") {
+                        val appCtx = ctx.applicationContext
+                        app.library.connectNuvio { msg -> toast(appCtx, msg) }
+                        scope.launch {
+                            var n = 0
+                            while (app.library.nuvioUrl.value == null && n++ < 60) kotlinx.coroutines.delay(100)
+                            app.library.nuvioUrl.value?.let { u -> dialog = QrCodeDialog("Connect Nuvio", u, nuvioShort,
+                                "Scan with your phone and approve on nuvio.tv. This closes by itself once you approve.") }
+                        }
+                    } else Act("Nuvio account", "Signed in" + app.library.nuvio.email.takeIf { it.isNotBlank() }?.let { " as $it" }.orEmpty() + ": Library, add-ons and saving use it", "Sign out") { app.library.nuvio.signOut(); app.library.nuvioList.value = emptyList(); st.libraryNuvio = st.libraryNuvio; toast(ctx, "Signed out of Nuvio") }
+
 
     val categories = listOf(
         Category("Performance") {
@@ -258,8 +302,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Glass refraction", "How much the rim bends what is behind it (0 = flat)", { "${st.refraction}" }, { st.refraction += it * 2 }),
                 Adjust("Glass brightness", "", { "${st.glassTint}" }, { st.glassTint += it * 2 }),
                 Toggle("Colour on focus", "Like tvOS: icons stay white, the selected one shows its colours on a light plate", { st.focusColor }, { st.focusColor = it }),
-                Adjust("Selected icon plate", "With Colour on focus", { if (st.focusPlate == "dark") "Dark" else "Light" },
-                    { st.focusPlate = cycle(listOf("light", "dark"), st.focusPlate, it) }),
+                Adjust("Selected icon plate", "With Colour on focus", { PLATE_NAMES[st.focusPlate] ?: "Dark" },
+                    { st.focusPlate = cycle(PLATES, st.focusPlate, it) }),
                 Toggle("Bounce at the edges", "Pressing past the first or last icon nudges it, like tvOS", { st.edgeBounce }, { st.edgeBounce = it }),
                 Toggle("Lift selected icon", "The selected icon rises a little, glass and all", { st.tileLift }, { st.tileLift = it }),
                 Toggle("Show phone apps too", "Apps without a TV launcher entry", { st.showMobileApps }, { st.showMobileApps = it; app.apps.reload() }),
@@ -318,16 +362,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Trakt watchlist in the Library", "Needs Trakt (Continue Watching)", { st.libraryTrakt }, { st.libraryTrakt = it; scope.launch(Dispatchers.IO) { app.library.refreshWatchlist() } }),
                 Toggle("Nuvio library", if (app.library.nuvio.connected) "From your Nuvio account" + (app.library.nuvio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ": Nuvio Legacy, the official Nuvio app and forks that sync with it"
                     else "Connect your Nuvio account below", { st.libraryNuvio }, { st.libraryNuvio = it; scope.launch(Dispatchers.IO) { app.library.refreshNuvio() } }),
-                if (!app.library.nuvio.connected) Act("Connect Nuvio account", "Scan a QR code with your phone and approve, like signing in to Nuvio on a TV", if (nuvioUrl != null) "Waiting…" else "") {
-                    val appCtx = ctx.applicationContext
-                    app.library.connectNuvio { msg -> toast(appCtx, msg) }
-                    scope.launch {
-                        var n = 0
-                        while (app.library.nuvioUrl.value == null && n++ < 60) kotlinx.coroutines.delay(100)
-                        app.library.nuvioUrl.value?.let { u -> dialog = QrCodeDialog("Connect Nuvio", u, nuvioShort,
-                            "Scan with your phone and approve on nuvio.tv. This closes by itself once you approve.") }
-                    }
-                } else Act("Sign out of Nuvio", app.library.nuvio.email, "") { app.library.nuvio.signOut(); app.library.nuvioList.value = emptyList(); st.libraryNuvio = st.libraryNuvio; toast(ctx, "Signed out of Nuvio") },
+                nuvioAccountRow(),
                 Toggle("Save to the Nuvio library too", "The + button also saves the title to your Nuvio account (Legacy, official Nuvio and forks see it)", { st.libraryToNuvio }, { st.libraryToNuvio = it }),
                 Toggle("Save to the Trakt watchlist too", "The + button also adds the title on Trakt", { st.libraryToTrakt }, { st.libraryToTrakt = it }),
                 Toggle("Titles under posters", "In the Library", { st.libraryTitles }, { st.libraryTitles = it }),
@@ -337,12 +372,11 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         Category("Catalogs") {
             buildList {
                 add(Act("Add add-ons from my phone (QR)", "Scan the code, paste Nuvio manifest links and your TMDB token", "") { phoneDialog = true })
-                add(Act("TMDB token", "Title logos, full-size art, synopsis, platform", if (st.tmdbToken.isBlank()) "Not set" else "Set") {
-                    dialog = TextEntry("TMDB read access token", "", "Paste the token (easier from the phone: option above)") {
-                        st.tmdbToken = it; app.catalogs.clearEnrichment()
-                    }
-                })
+                add(tmdbRow())
                 add(Act("Connect to Nuvio", "Open Nuvio > Add-ons > Manage from phone first", "") { io { app.catalogs.connectLocal() } })
+                add(Toggle("Add-ons from my Nuvio account", if (app.library.nuvio.connected) "The add-ons on your Nuvio account (${app.library.nuvio.email.ifBlank { "signed in" }}) too. One that's already here isn't added twice"
+                    else "Connect your Nuvio account first (the row below)", { st.catalogsNuvio }, { on -> io { app.catalogs.useAccount(on) } }))
+                add(nuvioAccountRow())
                 add(Act("Add add-on link", "Paste a manifest link", "") {
                     dialog = TextEntry("Add-on link", "", "https://…/manifest.json or stremio://…") { u -> io { app.catalogs.addAddon(u) } }
                 })
@@ -353,6 +387,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     add(Act("Add-on · ${app.catalogs.addonName(u)}", hostOf(u), "Remove") {
                         dialog = MenuDialog("Remove ${app.catalogs.addonName(u)}?", listOf("Remove add-on" to { io { app.catalogs.removeAddon(u) } }))
                     })
+                }
+                accountAddons.size.let { _ -> app.catalogs.accountOnly() }.sorted().forEach { u ->
+                    add(Act("Add-on · ${app.catalogs.addonName(u)}", "From your Nuvio account · " + hostOf(u), "") { toast(ctx, "Add or remove it in Nuvio; it updates here on the next refresh") })
                 }
                 if (catalogs.isEmpty()) add(Note("No catalogs yet. Connect to Nuvio or add an add-on link."))
                 catalogs.forEach { c ->
@@ -404,6 +441,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         },
         Category("Nuvio & Home Assistant") {
             listOf(
+                nuvioAccountRow(),
                 Adjust("Open titles in", "Auto uses the first installed: Nuvio Legacy, Nuvio (official), Nuvio Arc, Nuvio Re-Shaped", {
                     val n = NuvioLaunch.NAMES[st.nuvioTarget] ?: "Auto"
                     val r = NuvioLaunch.resolve(ctx, st)
@@ -415,16 +453,13 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 }, {
                     st.nuvioTarget = cycle(listOf("auto") + NuvioLaunch.TARGETS.keys, st.nuvioTarget, it)
                 }),
-                Act("Home Assistant webhook", "Full webhook URL from your Home Assistant", if (st.haWebhook.isBlank()) "Not set" else "Set") {
+                Act("Home Assistant webhook", "Full webhook URL from your Home Assistant", if (st.haWebhook.isBlank()) "Not set" else "Set",
+                    ok = if (st.haWebhook.startsWith("http")) true else null) {
                     dialog = TextEntry("Home Assistant webhook", st.haWebhook, "http://homeassistant.local:8123/api/webhook/…") { st.haWebhook = it }
                 },
                 Toggle("Tell Home Assistant when a title opens", "Sends title, type and id as JSON", { st.haOnLaunch }, { st.haOnLaunch = it }),
                 Act("Send a test event", "") { io { NuvioLaunch.testWebhook(st, app.http) } },
-                Act("TMDB token", "Adds title logos, full-size art, synopsis and platform", if (st.tmdbToken.isBlank()) "Not set" else "Set") {
-                    dialog = TextEntry("TMDB read access token", "", "Paste the token (easier from the phone page)") {
-                        st.tmdbToken = it; app.catalogs.clearEnrichment()
-                    }
-                },
+                tmdbRow(),
             )
         },
         Category("Screensaver") {
@@ -439,20 +474,39 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Note("Recommended: Aerial Views. The best screensaver with Glassio: Apple, Amazon and your own 4K videos, clock and info, free on Google Play."))
                 if (!avInstalled) add(Act("Install Aerial Views", "Opens it on Google Play", "Google Play") { openPlay(ctx, aerialViews, null) })
                 else {
-                    add(Act("Make Aerial Views the TV screensaver", if (system.startsWith(aerialViews)) "Already set" else "Sets it in the TV and sets Type below to TV screensaver", "") {
-                        io {
-                            val r = com.glasslauncher.tv.data.LocalShell.run(ctx, "settings put secure screensaver_components $avComponent && settings put secure screensaver_enabled 1")
-                            if (r.isSuccess) { st.saverMode = "system"; "Aerial Views is now the TV screensaver" }
-                            else "Allow USB debugging for Glassio when the TV asks (Always allow), then try again"
-                        }
-                    })
                     add(Act("Open Aerial Views settings", "Choose videos, clock, overlays", "") {
                         ctx.packageManager.getLaunchIntentForPackage(aerialViews)?.let { runCatching { ctx.startActivity(it.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) } }
                     })
                 }
-                add(Note("Steps: 1. Install Aerial Views. 2. Make Aerial Views the TV screensaver (the TV asks once to allow USB debugging for Glassio: Always allow). 3. Type: TV screensaver. 4. Start after / Back starts it."))
-                add(Adjust("Start after", "Idle time on the launcher", { if (st.idleMinutes == 0) "Off" else "${st.idleMinutes} min" }, {
-                    st.idleMinutes = cycle(listOf(0, 1, 2, 3, 5, 10, 15, 30), st.idleMinutes, it)
+                // The TV's own screensaver, switched through the TV's debugging connection (ADB): on / off and when it starts.
+                tvRev.intValue
+                val cr = ctx.contentResolver
+                val tvOn = runCatching { AndroidSettings.Secure.getInt(cr, "screensaver_enabled", 1) == 1 }.getOrDefault(true) &&
+                    runCatching { AndroidSettings.Secure.getString(cr, "screensaver_components") }.getOrNull().orEmpty().startsWith(aerialViews)
+                val tvAfter = runCatching { AndroidSettings.System.getInt(cr, "screen_off_timeout") }.getOrDefault(0)
+                fun tv(cmd: String, done: String) = io {
+                    val r = com.glasslauncher.tv.data.LocalShell.run(ctx, cmd)
+                    tvRev.intValue++
+                    if (r.isSuccess) done else "Allow USB debugging for Glassio when the TV asks (Always allow), then try again"
+                }
+                if (avInstalled) add(Toggle("Aerial Views as the TV screensaver (ADB)", if (tvOn) "On: the TV starts Aerial Views by itself when idle" else "Off: the TV doesn't start a screensaver",
+                    { tvOn }, { on ->
+                        if (on) tv("settings put secure screensaver_components $avComponent && settings put secure screensaver_enabled 1 && settings put secure screensaver_activate_on_sleep 1", "Aerial Views screensaver on").also { st.saverMode = "system" }
+                        // Off: with no screensaver the TV goes to sleep at that idle time, so the screen then stays on
+                        // until the TV's own sleep time (Energy settings, sleep_timeout) instead.
+                        else tv("settings put secure screensaver_enabled 0 && s=\$(settings get secure sleep_timeout) && case \$s in ''|null|-1|0) s=1800000;; esac && settings put system screen_off_timeout \$s",
+                            "TV screensaver off (the TV now sleeps at its own sleep time)")
+                    }))
+                add(Adjust("TV screensaver starts after (ADB)", "The TV's own idle time (Android: screen_off_timeout)", {
+                    when { tvAfter <= 0 -> "Unknown"; tvAfter < 60_000 -> "${tvAfter / 1000} s"; tvAfter >= 3_600_000 -> "${tvAfter / 3_600_000} h"; else -> "${tvAfter / 60_000} min" + (if (tvAfter % 60_000 != 0) " ${tvAfter % 60_000 / 1000} s" else "") }
+                }, { d ->
+                    val opts = listOf(20_000, 30_000, 60_000, 120_000)
+                    val next = cycle(opts, opts.minByOrNull { kotlin.math.abs(it - tvAfter) } ?: 60_000, if (tvAfter in opts) d else 0)
+                    tv("settings put system screen_off_timeout $next && settings put secure screensaver_activate_on_sleep 1", "The TV screensaver now starts after " + (if (next < 60_000) "${next / 1000} s" else "${next / 60_000} min"))
+                }))
+                add(Note("Steps: 1. Install Aerial Views. 2. Turn on Aerial Views as the TV screensaver (the TV asks once to allow USB debugging for Glassio: Always allow). 3. Type: TV screensaver. 4. Start after / Back starts it."))
+                add(Adjust("Start after", "Idle time on the launcher", { st.idleSeconds.let { v -> if (v == 0) "Off" else if (v < 60) "$v s" else "${v / 60} min" } }, {
+                    st.idleSeconds = cycle(listOf(0, 10, 30, 60, 120, 180, 300, 600, 900, 1800), st.idleSeconds, it)
                 }))
                 add(Adjust("Type", "What plays when the screensaver starts", {
                     when (st.saverMode) {
@@ -636,7 +690,9 @@ private fun RowView(row: SRow, s: Float, app: GlassApp, onApp: (AppEntry) -> Uni
         }
         is Act -> Frame(s, onClick = row.onClick) { f ->
             Label(row.title, row.desc, s, Modifier.weight(1f))
-            if (row.value.isNotEmpty()) Text(row.value, color = Color.White.copy(alpha = 0.7f), fontSize = (12.5f * s).sp)
+            if (row.value.isNotEmpty()) Text(if (row.ok == true) "✓  " + row.value else row.value,
+                color = when (row.ok) { true -> Color(0xFF34C759); false -> Color(0xFFFF6961); else -> Color.White.copy(alpha = 0.7f) },
+                fontSize = (12.5f * s).sp, fontWeight = if (row.ok != null) FontWeight.SemiBold else null)
         }
         is AppItem -> {
             val e = row.entry
@@ -723,7 +779,7 @@ private fun PhonePane(app: GlassApp, s: Float) {
     }
     Column(Modifier.fillMaxSize().padding(start = (6 * s).dp)) {
         Text(
-            "Scan the code with your phone (same Wi-Fi) to add add-ons, set app icons from your phone or a link, and paste tokens with a real keyboard.",
+            "Scan the code with your phone (same Wi-Fi) to add add-ons, set app icons, set or upload a background picture or video, and paste tokens with a real keyboard.",
             color = Color.White.copy(alpha = 0.7f), fontSize = (12.5f * s).sp,
         )
         Spacer(Modifier.height((14 * s).dp))
@@ -767,7 +823,7 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
                 scope.launch(Dispatchers.IO) { toast(ctx, app.updater.check()) }
             })
             add(Note("A pill appears next to the clock when a new version is out."))
-            add(Note("Made by Mohammad · Fonts: Inter (SIL OFL) · Weather: Open-Meteo · This product uses the TMDB API but is not endorsed or certified by TMDB."))
+            add(Note("Made by Mohammad (mrh12) · Fonts: Inter (SIL OFL) · Weather: Open-Meteo · This product uses the TMDB API but is not endorsed or certified by TMDB."))
             if (crash.isNotBlank()) add(Act("Last crash", crash.take(120), "Clear") { java.io.File(ctx.filesDir, "last-crash.txt").delete(); toast(ctx, "Cleared") })
         }
         LazyColumn(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
