@@ -1622,13 +1622,13 @@ private fun FocusColorArt(art: Art?, label: String, s: Float, litState: androidx
     val scale = if (crop) ContentScale.Crop else ContentScale.Fit
     // All three layers stay composed; only their alpha changes, read while drawing (no recomposition).
     Box(Modifier.fillMaxSize()) {
-        // White: soft frosted white (not paper white). Dark: near-black glass. Glass: a clear lighter pane
-        // (the tile's own glass shows through). Black AMOLED: pure black.
+        // White: soft frosted white (not paper white). Dark: near-black glass. Glass: no plate at all, the tile
+        // stays as it is and only the icon's colours come in. Black AMOLED: pure black.
         val light = plate == "light"
         // ModulateAlpha: each layer is one draw, so its opacity goes straight into the draw instead of an
         // off-screen pass per icon (eighteen of them every frame while the dock opened).
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = litState.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }
-            .background(when (plate) { "light" -> Color(0xE6E4E4EA); "glass" -> Color(0x40FFFFFF); "amoled" -> Color.Black; else -> Color(0xF0141416) }))
+        if (plate != "glass") Box(Modifier.fillMaxSize().graphicsLayer { alpha = litState.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }
+            .background(when (plate) { "light" -> Color(0xE6E4E4EA); "glass" -> Color.Transparent; "amoled" -> Color.Black; else -> Color(0xF0141416) }))
         Image(bm, label, colorFilter = if (art.transparent) (if (restOnLight) blackGlyph else whiteGlyph) else grayscale, contentScale = scale,
             filterQuality = androidx.compose.ui.graphics.FilterQuality.High,
             modifier = mod.graphicsLayer { alpha = (1f - litState.value) * if (art.transparent) 0.92f else 0.75f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
