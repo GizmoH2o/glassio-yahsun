@@ -70,26 +70,55 @@ object GlassCache {
         pinnedLogo.keys.retainAll(urls)
     }
 
-    suspend fun get(ctx: Context, url: String, blur: Int): GlassImages? {
+    /** The slide on screen: never waits behind the prepared-ahead ones on the low-priority worker. */
+    private val urgentScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Logos of the slides around the current one, decoded ahead so the title appears with its picture. */
+    val logos = LruCache<String, ImageBitmap>(16)
+
+    private suspend fun make(ctx: Context, url: String, blur: Int, r: Int, key: String): GlassImages? = try {
+        val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, "w780"))
+            .size(r, r * 9 / 16).allowHardware(false).build()
+        val src = (SingletonImageLoader.get(ctx.applicationContext).execute(req) as? SuccessResult)?.image?.toBitmap()
+        src?.let { val sh = if (it.isMutable) it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it; sh.prepareToDraw(); GlassImages(blurredBackdrop(it, blur), sh.asImageBitmap(), blurredBackdrop(it, 80)) }
+            ?.also { cache.put(key, it) }
+    } catch (e: Exception) {
+        com.glasslauncher.tv.data.Glog.w("Glass copy of $url", e)
+        null
+    }
+
+    /**
+     * The glass copies made from a picture already in memory (the page's own): nothing to download, so the
+     * slide on screen never waits for a second copy of its picture.
+     */
+    fun fromBitmap(url: String, blur: Int, full: android.graphics.Bitmap): GlassImages {
         val r = res
         val key = "$blur|$r|$url"
         pinned[key]?.let { return it }
         cache.get(key)?.let { return it }
+        val src = android.graphics.Bitmap.createScaledBitmap(full, r, r * 9 / 16, true)
+        val sh = if (src.isMutable) src.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else src
+        sh.prepareToDraw()
+        return GlassImages(blurredBackdrop(src, blur), sh.asImageBitmap(), blurredBackdrop(src, 80)).also { cache.put(key, it) }
+    }
+
+    /** [urgent]: the picture going on screen now (runs at once instead of queueing behind prefetching). */
+    suspend fun get(ctx: Context, url: String, blur: Int, urgent: Boolean = false): GlassImages? {
+        val r = res
+        val key = "$blur|$r|$url"
+        pinned[key]?.let { return it }
+        cache.get(key)?.let { return it }
+        if (urgent) {
+            val queued = synchronized(pending) { pending[key] }
+            // Already being made right now? wait a little for it, otherwise make it here.
+            queued?.let { q -> kotlinx.coroutines.withTimeoutOrNull(60) { q.await() }?.let { return it } }
+            cache.get(key)?.let { return it }
+            return urgentScope.async { make(ctx, url, blur, r, key) }.await()
+        }
         val job = synchronized(pending) {
             pending.getOrPut(key) {
                 scope.async {
-                    try {
-                        val req = ImageRequest.Builder(ctx.applicationContext).data(sized(url, "w780"))
-                            .size(r, r * 9 / 16).allowHardware(false).build()
-                        val src = (SingletonImageLoader.get(ctx.applicationContext).execute(req) as? SuccessResult)?.image?.toBitmap()
-                        src?.let { val sh = if (it.isMutable) it.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else it; sh.prepareToDraw(); GlassImages(blurredBackdrop(it, blur), sh.asImageBitmap(), blurredBackdrop(it, 80)) }
-                            ?.also { cache.put(key, it) }
-                    } catch (e: Exception) {
-                        com.glasslauncher.tv.data.Glog.w("Glass copy of $url", e)
-                        null
-                    } finally {
-                        synchronized(pending) { pending.remove(key) }
-                    }
+                    try { make(ctx, url, blur, r, key) } finally { synchronized(pending) { pending.remove(key) } }
                 }
             }
         }

@@ -180,6 +180,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     var pickerFor by remember { mutableStateOf<AppEntry?>(null) }
     var folderOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    val gearReq = remember { FocusRequester() }
     // Just closed: focus can pass over the settings button on its way back, which must not open it again.
     var menuClosedAt by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     var folderMoving by remember { mutableStateOf<String?>(null) }
@@ -211,6 +212,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         // Originals are big downloads: if the original is not cached yet, show the 1280 px copy first
         // (fast) and swap in the original silently once it arrives.
         val loader = SingletonImageLoader.get(ctx)
+        val t0 = android.os.SystemClock.uptimeMillis()
         fun bmpOf(r: coil3.request.ImageResult?) = (r as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()
         var fullBmp: ImageBitmap? = null
         var upgrade: kotlinx.coroutines.Deferred<coil3.request.ImageResult?>? = null
@@ -218,13 +220,21 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         val pinnedBmp = GlassCache.pinnedFull[u]
         val orig = async { if (pinnedBmp != null) null else loader.execute(imgReq(ctx, if (high) sized(u, "w1280") else u)) }
         val next = kotlinx.coroutines.coroutineScope {
-            val g = async { GlassCache.get(ctx, u, settings.blurRadius) }
+            // Glass copies: ready (prepared ahead), or made from the page picture itself once it is here.
+            val g = async { GlassCache.peek(u, settings.blurRadius) }
             fullBmp = pinnedBmp ?: kotlinx.coroutines.withTimeoutOrNull(120) { bmpOf(orig.await()) }
             if (fullBmp == null && !high && sized(u, "w1280") != u) {
                 fullBmp = bmpOf(loader.execute(imgReq(ctx, sized(u, "w1280"))))
                 upgrade = orig
+            } else if (fullBmp == null && app.browsing() && sized(u, "w780") != u) {
+                // Moving fast through the carousel and this picture isn't here yet: a small copy (a third of the
+                // download) goes on screen now, the full one replaces it silently when it arrives.
+                fullBmp = kotlinx.coroutines.withTimeoutOrNull(1500) { bmpOf(loader.execute(imgReq(ctx, sized(u, "w780")))) }
+                if (fullBmp != null) upgrade = orig else fullBmp = bmpOf(orig.await())
             } else if (fullBmp == null) fullBmp = bmpOf(orig.await())
-            g.await()?.let { Triple(it.blurred, it.sharp, it.heavy) }
+            (g.await() ?: fullBmp?.let { fb -> withContext(Dispatchers.Default) { runCatching { GlassCache.fromBitmap(u, settings.blurRadius, fb.asAndroidBitmap().let { b ->
+                if (b.config == android.graphics.Bitmap.Config.HARDWARE) b.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else b }) }.getOrNull() } })
+                ?.let { Triple(it.blurred, it.sharp, it.heavy) }
         }
         // A slow or busy TV sometimes loses a download: try again (smaller copy) before giving up on this title.
         var tries = 0
@@ -245,6 +255,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier
         val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide) }.also { BakeCache.put(bk, src, it) }
         if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
+        if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Slide ready in ${android.os.SystemClock.uptimeMillis() - t0} ms (${u.substringAfterLast('/')})")
         // Page and glass fade in the same frames with the same timing, so the bar never runs ahead.
         prevImgs = backImgs
         prevBackdrop = shownBackdrop
@@ -342,7 +353,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         val rootH = with(density) { maxHeight.roundToPx() }
         val s = maxWidth.value / 960f
         val screenHdp = maxHeight.value
-        val veil = animateFloatAsState(if (expanded && !folderOpen) 1f else 0f, tween(320), label = "veil")
+        val veil = animateFloatAsState(if (expanded && !folderOpen) 1f else 0f, tween(170), label = "veil")
         // Clear glass shows the page picture itself (full resolution, scrims included); the small
         // GlassCache copy is only the fallback before the first picture is on screen.
         val pageSharp = if (PageGlass.on.value) GlassHalf.peek(shownBackdrop) else null
@@ -380,18 +391,25 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                 // came back black).
                 var resumes by remember { mutableIntStateOf(0) }
                 androidx.compose.runtime.DisposableEffect(life) {
-                    val o = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_START) resumes++ }
+                    // Only a real return (after ON_STOP): adding the observer replays ON_START too.
+                    var stopped = false
+                    val o = androidx.lifecycle.LifecycleEventObserver { _, e ->
+                        if (e == androidx.lifecycle.Lifecycle.Event.ON_STOP) stopped = true
+                        if (e == androidx.lifecycle.Lifecycle.Event.ON_START && stopped) { stopped = false; resumes++ }
+                    }
                     life.addObserver(o); onDispose { life.removeObserver(o) }
                 }
                 androidx.compose.runtime.key(videoSrc, resumes) {
-                    VideoBackground(videoSrc, playing = screen == Screen.Home && state.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED),
-                        onError = { if (settings.bgMode == "aerial") CustomBackground.nextAerial() })
+                    VideoBackground(videoSrc, playing = screen == Screen.Home && state.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && DebugHide.intValue and 4096 == 0,
+                        onError = { if (settings.bgMode == "aerial") CustomBackground.nextAerial() },
+                        busy = { System.currentTimeMillis() - app.interaction.longValue < 600 })
                 }
             }
             // Dock open: the whole page blurs and darkens (the glass draws the same veil, see LiquidSurface).
             val veilOn by remember { androidx.compose.runtime.derivedStateOf { veil.value > 0.01f } }
             if (veilOn && !folderOpen && DebugHide.intValue and 32 == 0) {
-                backImgs?.third?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = veil.value }) }
+                // With a video behind, the open dock only darkens it (a still blurred frame over it looked frozen).
+                if (!VideoFrames.showing.value) backImgs?.third?.let { Image(it, null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize().graphicsLayer { alpha = veil.value }) }
                 Box(Modifier.fillMaxSize().graphicsLayer { alpha = veil.value }.background(Color.Black.copy(alpha = VEIL_DIM)))
             }
 
@@ -404,9 +422,13 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             ) {
                 Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (DebugHide.intValue and 2 != 0) 0f else 1f }) {
                     HeroSection(app, s, hidden = expanded || folderOpen, paused = screen != Screen.Home, metrics = metrics, shownUrl = shownUrl,
-                        heroFocus = heroFocus, firstTile = firstTile, onBackdrop = { backdrop = it })
+                        heroFocus = heroFocus, firstTile = firstTile, onBackdrop = { backdrop = it },
+                        onCustomUp = {
+                            if (settings.menuMode == "auto") { menuClosedAt = 0L; menuOpen = true }
+                            else scope.launch { delay(16); runCatching { gearReq.requestFocus() } }
+                        })
                 }
-                if (DebugHide.intValue and 4 == 0) TopBar(app, s, onSettings = { onScreen(Screen.Settings) }, onMenu = { if (!menuOpen && android.os.SystemClock.uptimeMillis() - menuClosedAt > 900) menuOpen = true }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
+                if (DebugHide.intValue and 4 == 0) TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { if (!menuOpen && android.os.SystemClock.uptimeMillis() - menuClosedAt > 900) menuOpen = true }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
                 Dock(
                     app = app, s = s, metrics = metrics, screenH = screenHdp, radius = radius,
                     expanded = expanded, onExpanded = { expanded = it },
@@ -630,8 +652,8 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
                     topLeft = Offset(e, 0f), size = androidx.compose.ui.geometry.Size(sw, H))
             }
         }
-        drawRect(Brush.horizontalGradient(0f to Color(0xE0000000), 1f to Color.Transparent, startX = 0f, endX = W * 0.62f),
-            size = androidx.compose.ui.geometry.Size(W * 0.62f, H))
+        // The side shade stays still on top (a pre-painted picture: a live gradient this size was costly).
+        drawImage(Scrims.side, dstSize = dst, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
     }
 }
 
@@ -658,6 +680,7 @@ private fun HeroSection(
     app: GlassApp, s: Float, hidden: Boolean, paused: Boolean, metrics: DockMetrics,
     heroFocus: FocusRequester, firstTile: FocusRequester, onBackdrop: (String?) -> Unit,
     shownUrl: androidx.compose.runtime.State<String?> = androidx.compose.runtime.mutableStateOf(null),
+    onCustomUp: () -> Unit = {},
 ) {
     val settings = app.settings
     val ctx = LocalContext.current
@@ -764,13 +787,26 @@ private fun HeroSection(
     LaunchedEffect(index, items.size, enriched.size, settings.artChoice) {
         if (items.size < 2) return@LaunchedEffect
         val loader = SingletonImageLoader.get(ctx)
+        // Wait until you stop on a slide: while you hold Right, preparing the slides around each one passed only
+        // filled the download queue, and the picture you landed on waited behind them. Everything below runs in
+        // this effect, so moving on cancels it and frees the downloads for the slide on screen.
+        delay(if (app.browsing()) 350 else 60)
         // Both directions, a few slides deep, glass copies included.
         val depth = settings.prefetchDepth
         val ahead = (1..depth).flatMap { if (it <= (depth + 1) / 2) listOf(it, -it) else listOf(it) }
+        // Downloads only (no decoding kept in memory), further ahead: fast browsing finds the pictures on disk.
+        launch {
+            delay(400)
+            for (k in depth + 1..depth + 2) {
+                val n = items[(index + k).mod(items.size)].let { withArtwork(enriched[it.key] ?: it, settings.artChoice, settings.artPick(it.key)) }
+                if (n.background.isNotBlank()) loader.execute(imgReq(ctx, sized(n.background, if (settings.imageQuality == "high") "w1280" else "original"))
+                    .newBuilder().memoryCachePolicy(coil3.request.CachePolicy.DISABLED).build())
+            }
+        }
         for (k in ahead) {
             val n = items[(index + k).mod(items.size)].let { withArtwork(enriched[it.key] ?: it, settings.artChoice, settings.artPick(it.key)) }
             if (n.background.isNotBlank()) {
-                loader.enqueue(imgReq(ctx, sized(n.background, "w1280")))
+                launch { loader.execute(imgReq(ctx, sized(n.background, "w1280"))) }
                 if (kotlin.math.abs(k) <= 1 && settings.memTier > 0) launch {
                     val u = n.background
                     val r = loader.execute(imgReq(ctx, if (settings.imageQuality == "high") sized(u, "w1280") else u))
@@ -786,7 +822,10 @@ private fun HeroSection(
                 }
                 launch { GlassCache.get(ctx, n.background, settings.blurRadius) }
             }
-            if (n.logo.isNotBlank()) loader.enqueue(imgReq(ctx, n.logo, 1000, 400))
+            // Logos decoded into memory ahead, so a title's name appears in the same frame as its picture.
+            if (n.logo.isNotBlank() && GlassCache.logos.get(n.logo) == null && GlassCache.pinnedLogo[n.logo] == null) launch {
+                (loader.execute(imgReq(ctx, n.logo, 1000, 400)) as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()?.let { GlassCache.logos.put(n.logo, it) }
+            }
         }
     }
     // Continue Watching stays in memory (picture, logo, glass) for as long as the title is in the list:
@@ -844,11 +883,10 @@ private fun HeroSection(
     Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha }) {
         val shown = textItem
         if (customBg) {
-            // Holds the dock's Up: passes it straight on to the settings button (the menu).
-            val fm = androidx.compose.ui.platform.LocalFocusManager.current
+            // Holds the dock's Up: opens the menu (or selects the settings button) straight away.
             Box(Modifier.align(Alignment.TopStart).padding(start = (48 * s).dp, top = (300 * s).dp).size(1.dp)
                 .focusRequester(heroFocus)
-                .onFocusChanged { if (it.isFocused) fm.moveFocus(androidx.compose.ui.focus.FocusDirection.Up) }
+                .onFocusChanged { if (it.isFocused) onCustomUp() }
                 .focusable())
         } else if (shown != null) {
             HeroInfo(
@@ -1076,7 +1114,7 @@ private fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
     )
     if (mode == "text" || item.logo.isBlank()) { asText(); return }
     val ctx = LocalContext.current
-    val pinnedLogo = GlassCache.pinnedLogo[item.logo]
+    val pinnedLogo = GlassCache.pinnedLogo[item.logo] ?: GlassCache.logos.get(item.logo)
     // Logos that fail to download are tried twice more before the title is shown as text.
     var attempt by remember(item.logo) { mutableIntStateOf(0) }
     val req = remember(item.logo, attempt) { imgReq(ctx, item.logo, 1000, 400) }
@@ -1154,7 +1192,7 @@ private fun Dots(total: Int, current: Int, mode: String, max: Int, s: Float, mod
 // ───────────────────────────── top bar ─────────────────────────────
 
 @Composable
-private fun TopBar(app: GlassApp, s: Float, onSettings: () -> Unit, onMenu: () -> Unit, modifier: Modifier) {
+private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: () -> Unit, modifier: Modifier) {
     val settings = app.settings
     // The settings button opens the menu (as soon as it is selected, or with OK), or Settings when the menu is off.
     val gearClick = if (settings.menuMode == "off") onSettings else onMenu
@@ -1211,13 +1249,13 @@ private fun TopBar(app: GlassApp, s: Float, onSettings: () -> Unit, onMenu: () -
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
                 UpdateDot(app, s) { barFocused = it }
-                GearButton(s, gearClick) { barFocused = it; gearFocus(it) }
+                GearButton(s, gearClick, gearReq) { barFocused = it; gearFocus(it) }
             }
             weatherRow()
         } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             weatherRow()
             UpdateDot(app, s) { barFocused = it }
-            GearButton(s, gearClick) { barFocused = it; gearFocus(it) }
+            GearButton(s, gearClick, gearReq) { barFocused = it; gearFocus(it) }
         }
     }
 }
@@ -1292,7 +1330,7 @@ private fun dateText(): String =
     java.text.SimpleDateFormat("d MMM ''yy", java.util.Locale.US).format(java.util.Date()).uppercase()
 
 @Composable
-private fun GearButton(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit) {
+private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onFocus: (Boolean) -> Unit) {
     // tvOS 26 top-right button: a small glass circle with the gearshape glyph; selected it turns white.
     var focused by remember { mutableStateOf(false) }
     val scale = animateFloatAsState(if (focused) 1.16f else 1f, spring(0.8f, 900f), label = "gear")
@@ -1300,6 +1338,7 @@ private fun GearButton(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit
     Box(
         Modifier.size((20 * s).dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+            .focusRequester(req)
             .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
             .tvPress(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -1389,7 +1428,7 @@ private fun Dock(
     val fullH = metrics.padTop + rows.size * metrics.cellH + (rows.size - 1).coerceAtLeast(0) * metrics.gap + metrics.padBottom + 8 * s
     val expandedH = minOf(fullH, screenH * 0.72f).coerceAtLeast(metrics.collapsedH)
     val targetH = if (expanded) expandedH else metrics.collapsedH
-    val hState = animateDpAsState(targetH.dp, tween(280, easing = FastOutSlowInEasing), label = "dockH")
+    val hState = animateDpAsState(targetH.dp, tween(170, easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "dockH")
     // While the dock grows or shrinks its glass is flat (no off-screen layer resized every frame).
     // The height is applied in the layout phase, so the dock is not recomposed on every animation frame.
     val still by remember(targetH) { androidx.compose.runtime.derivedStateOf { kotlin.math.abs(hState.value.value - targetH) < 0.5f } }

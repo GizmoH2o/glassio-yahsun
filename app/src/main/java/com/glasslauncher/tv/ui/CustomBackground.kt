@@ -114,6 +114,39 @@ object VideoFrames {
     fun clear() { sharp.value = null; soft.value = null; showing.value = false }
 }
 
+/** Makes a smooth frosted copy: 960 → 480 → 240 → 160 px with filtering, then two box-blur passes (CPU, ~1 ms). */
+private class Softener(val w: Int, val h: Int) {
+    private val m1 = android.graphics.Bitmap.createBitmap(480, 270, android.graphics.Bitmap.Config.ARGB_8888)
+    private val m2 = android.graphics.Bitmap.createBitmap(240, 135, android.graphics.Bitmap.Config.ARGB_8888)
+    private val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
+    private val px = IntArray(w * h)
+    private val tmp = IntArray(w * h)
+    private fun scale(src: android.graphics.Bitmap, dst: android.graphics.Bitmap) =
+        android.graphics.Canvas(dst).drawBitmap(src, null, android.graphics.Rect(0, 0, dst.width, dst.height), paint)
+
+    fun make(src: android.graphics.Bitmap, out: android.graphics.Bitmap) {
+        scale(src, m1); scale(m1, m2); scale(m2, out)
+        out.getPixels(px, 0, w, 0, 0, w, h)
+        repeat(2) { blur(px, tmp, false); blur(tmp, px, true) }
+        out.setPixels(px, 0, w, 0, 0, w, h)
+    }
+
+    private fun blur(src: IntArray, dst: IntArray, vertical: Boolean) {
+        val r = 3; val div = 2 * r + 1
+        val len = if (vertical) h else w; val lines = if (vertical) w else h
+        for (line in 0 until lines) {
+            fun idx(i: Int) = if (vertical) i.coerceIn(0, len - 1) * w + line else line * w + i.coerceIn(0, len - 1)
+            var sr = 0; var sg = 0; var sb = 0
+            for (i in -r..r) { val c = src[idx(i)]; sr += (c shr 16) and 255; sg += (c shr 8) and 255; sb += c and 255 }
+            for (i in 0 until len) {
+                dst[idx(i)] = (0xFF shl 24) or ((sr / div) shl 16) or ((sg / div) shl 8) or (sb / div)
+                val o = src[idx(i - r)]; val n = src[idx(i + r + 1)]
+                sr += ((n shr 16) and 255) - ((o shr 16) and 255); sg += ((n shr 8) and 255) - ((o shr 8) and 255); sb += (n and 255) - (o and 255)
+            }
+        }
+    }
+}
+
 /**
  * The video, muted and looping, with the page's shades on top. Paused while [playing] is false.
  *
@@ -122,13 +155,14 @@ object VideoFrames {
  * (PixelCopy, scaled on the GPU) about 20 times a second.
  */
 @Composable
-fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}) {
+fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}, busy: () -> Boolean = { false }) {
     var ready by remember(src) { mutableStateOf(false) }
     var aspect by remember(src) { mutableStateOf(16f / 9f) }
     val player = remember(src) { MediaPlayer() }
     var view by remember { mutableStateOf<android.view.SurfaceView?>(null) }
     DisposableEffect(src) {
-        onDispose { runCatching { player.release() }; VideoFrames.clear() }
+        Glog.i("Background video on: $src")
+        onDispose { Glog.i("Background video off"); runCatching { player.release() }; VideoFrames.clear() }
     }
     androidx.compose.runtime.LaunchedEffect(playing, ready) {
         runCatching { if (ready) { if (playing && !player.isPlaying) player.start() else if (!playing && player.isPlaying) player.pause() } }
@@ -137,7 +171,8 @@ fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}) {
         val v = view ?: return@LaunchedEffect
         if (!ready || !playing || android.os.Build.VERSION.SDK_INT < 24) return@LaunchedEffect
         val sharpBufs = Array(3) { android.graphics.Bitmap.createBitmap(960, 540, android.graphics.Bitmap.Config.ARGB_8888) }
-        val softBufs = Array(3) { android.graphics.Bitmap.createBitmap(96, 54, android.graphics.Bitmap.Config.ARGB_8888) }
+        val softBufs = Array(3) { android.graphics.Bitmap.createBitmap(160, 90, android.graphics.Bitmap.Config.ARGB_8888) }
+        val soften = Softener(160, 90)
         val h = android.os.Handler(android.os.Looper.getMainLooper())
         val shadeH = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG).apply {
             shader = android.graphics.LinearGradient(0f, 0f, 960 * 0.62f, 0f, 0xB0000000.toInt(), 0, android.graphics.Shader.TileMode.CLAMP) }
@@ -148,6 +183,8 @@ fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}) {
             while (true) {
                 kotlinx.coroutines.delay(33)
                 if (!v.holder.surface.isValid) continue
+                // While you move around, the GPU goes to the menu / dock: the glass catches up right after.
+                if (busy()) continue
                 val i = k++ % 3
                 val sb = sharpBufs[i]
                 runCatching {
@@ -156,11 +193,12 @@ fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}) {
                         // The page's shades, painted into the small copy here on the CPU (the glass then draws one
                         // picture; shading every glass surface on the TV GPU cost more than the whole page).
                         android.graphics.Canvas(sb).apply { drawRect(0f, 0f, sb.width * 0.62f, sb.height.toFloat(), shadeH); drawRect(0f, sb.height * 0.58f, sb.width.toFloat(), sb.height.toFloat(), shadeV) }
+                        // Reused buffers (three, in turn): copying into new bitmaps each time piled up native memory faster
+                        // than the garbage collector freed it.
                         VideoFrames.sharp.value = sb.asImageBitmap()
-                        // Frosted copy: scaled down from the sharp one with filtering, then drawn scaled up.
+                        // Frosted copy: halved step by step (no sparkle), then blurred, so scaled up it reads as frost.
                         val soft = softBufs[i]
-                        android.graphics.Canvas(soft).drawBitmap(sb, null, android.graphics.Rect(0, 0, soft.width, soft.height),
-                            android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+                        soften.make(sb, soft)
                         VideoFrames.soft.value = soft.asImageBitmap()
                     }, h)
                 }
@@ -202,7 +240,24 @@ fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}) {
             modifier = Modifier.align(androidx.compose.ui.Alignment.Center).wrapContentSize(unbounded = true).requiredSize(vw, vh),
         )
         // The same shades the backdrops have baked in, so the text stays readable.
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0f to Color(0xB0000000), 0.62f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.58f to Color.Transparent, 1f to Color(0xCC000000))))
+        // The page's shades as one small picture painted once (dithered) and scaled up: drawn live as two
+        // full-screen gradients over the video they cost the TV GPU 30 ms a frame, this costs about 2.
+        if (DebugHide.intValue and 8192 == 0) androidx.compose.foundation.Image(Shades.get(), null, Modifier.fillMaxSize(),
+            contentScale = androidx.compose.ui.layout.ContentScale.FillBounds, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+    }
+}
+
+private object Shades {
+    private var img: androidx.compose.ui.graphics.ImageBitmap? = null
+    fun get(): androidx.compose.ui.graphics.ImageBitmap = img ?: run {
+        val w = 480; val h = 270
+        val b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(b)
+        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
+        p.shader = android.graphics.LinearGradient(0f, 0f, w * 0.62f, 0f, 0xB0000000.toInt(), 0, android.graphics.Shader.TileMode.CLAMP)
+        c.drawRect(0f, 0f, w * 0.62f, h.toFloat(), p)
+        p.shader = android.graphics.LinearGradient(0f, h * 0.58f, 0f, h.toFloat(), 0, 0xCC000000.toInt(), android.graphics.Shader.TileMode.CLAMP)
+        c.drawRect(0f, h * 0.58f, w.toFloat(), h.toFloat(), p)
+        b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap().also { img = it }
     }
 }

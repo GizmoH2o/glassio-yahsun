@@ -13,8 +13,8 @@ android {
         applicationId = "com.glasslauncher.tv"
         minSdk = 26
         targetSdk = 35
-        versionCode = 27
-        versionName = "1.9.5"
+        versionCode = 28
+        versionName = "1.9.6"
         // Trakt app (PKCE, no secret). Kept in local.properties, which is not committed.
         val props = Properties().apply {
             rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }

@@ -165,7 +165,7 @@ private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier
     val k by animateFloatAsState(if (focused) 1.07f else 1f, androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "poster")
     val shape = RoundedCornerShape((10 * s).dp)
     val req = remember(item.poster) {
-        ImageRequest.Builder(ctx).data(item.poster.ifBlank { item.background }).size((180 * s * 1.5f).toInt(), (270 * s * 1.5f).toInt()).build()
+        ImageRequest.Builder(ctx).data(sharpPoster(item.poster).ifBlank { item.background }).size((180 * s * 2f).toInt(), (270 * s * 2f).toInt()).build()
     }
     Column(modifier.graphicsLayer { scaleX = k; scaleY = k }, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
@@ -221,4 +221,12 @@ private object PosterShadow {
         android.graphics.Canvas(b).drawRoundRect(pad + 4f, pad + 8f, pad + w - 4f, pad + h.toFloat(), 14f, 14f, p)
         b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap().also { img = it }
     }
+}
+
+/** A bigger copy of the poster when the site has one (catalog posters are often thumbnails: w185 / w342, "small"). */
+private fun sharpPoster(u: String): String = when {
+    u.isBlank() -> u
+    "image.tmdb.org/t/p/" in u -> u.replace(Regex("/t/p/(w\\d+|original)/"), "/t/p/w780/")
+    "images.metahub.space/poster/" in u -> u.replace(Regex("/poster/(small|medium)/"), "/poster/large/")
+    else -> u
 }

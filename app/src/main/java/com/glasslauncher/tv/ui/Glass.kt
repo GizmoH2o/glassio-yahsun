@@ -242,16 +242,33 @@ private fun DrawScope.drawBackdropRegion(bmp: ImageBitmap, rootW: Int, rootH: In
 
 /** The page's two shades in screen space: side (left) and, unless [sideOnly], bottom. */
 private fun DrawScope.drawScrims(rootW: Int, rootH: Int, pos: Offset, bottom: Boolean) {
+    // Pre-painted shade pictures instead of live gradients: a gradient over a large area cost the TV GPU
+    // many times more than drawing a small picture scaled up.
+    val full = androidx.compose.ui.unit.IntSize(rootW, rootH)
     translate(-pos.x, -pos.y) {
-        drawRect(
-            Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.88f), 1f to Color.Transparent, startX = 0f, endX = rootW * 0.62f),
-            topLeft = Offset.Zero, size = Size(rootW * 0.62f, rootH.toFloat()),
-        )
-        if (bottom) drawRect(
-            Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.80f), startY = rootH * 0.58f, endY = rootH.toFloat()),
-            topLeft = Offset(0f, rootH * 0.58f), size = Size(rootW.toFloat(), rootH * 0.42f),
-        )
+        drawImage(Scrims.side, dstSize = full, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+        if (bottom) drawImage(Scrims.bottom, dstSize = full, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
     }
+}
+
+/** The page's two shades as small dithered pictures (painted once), drawn scaled to the screen. */
+object Scrims {
+    private fun paint(side: Boolean): ImageBitmap {
+        val w = 480; val h = 270
+        val b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
+        val c = android.graphics.Canvas(b)
+        if (side) {
+            p.shader = android.graphics.LinearGradient(0f, 0f, w * 0.62f, 0f, 0xE0000000.toInt(), 0, android.graphics.Shader.TileMode.CLAMP)
+            c.drawRect(0f, 0f, w * 0.62f, h.toFloat(), p)
+        } else {
+            p.shader = android.graphics.LinearGradient(0f, h * 0.58f, 0f, h.toFloat(), 0, 0xCC000000.toInt(), android.graphics.Shader.TileMode.CLAMP)
+            c.drawRect(0f, h * 0.58f, w.toFloat(), h.toFloat(), p)
+        }
+        return b.copy(Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap()
+    }
+    val side: ImageBitmap by lazy { paint(true) }
+    val bottom: ImageBitmap by lazy { paint(false) }
 }
 
 /** A liquid-glass surface: blurred backdrop + rim refraction ([refraction] dp, 0 = flat frosted glass). */
@@ -303,7 +320,7 @@ fun LiquidSurface(
             fun androidx.compose.ui.graphics.drawscope.DrawScope.veil() {
                 val v = env.veil?.value ?: 0f
                 if (v > 0.01f && DebugHide.intValue and 16 == 0) {
-                    env.heavy?.let { drawBackdropRegion(it, env.rootW, env.rootH, pos.value, alpha = v, scrims = false) }
+                    if (!videoBehind) env.heavy?.let { drawBackdropRegion(it, env.rootW, env.rootH, pos.value, alpha = v, scrims = false) }
                     drawRect(Color.Black.copy(alpha = v * VEIL_DIM))
                 }
             }
@@ -388,7 +405,7 @@ fun LiquidSurface(
                     alpha = if (prev != null) (env.mix?.value ?: 1f) else 1f
                     // Rendered once into its own texture and reused while nothing behind the glass changes:
                     // moving focus over the dock then costs one copy instead of the picture and its shades again.
-                    if (cache && !videoBehind && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                    if (cache && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                 }) {
                     // A video behind: the glass shows its live frames (sharp or frosted), with the page's shades.
                     val live = if (sharp) VideoFrames.sharp.value else VideoFrames.soft.value
