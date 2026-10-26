@@ -67,6 +67,7 @@ import com.glasslauncher.tv.data.NuvioLaunch
 import com.glasslauncher.tv.net.Net
 import com.glasslauncher.tv.net.PhoneServer
 import com.glasslauncher.tv.saver.ScreensaverActivity
+import com.glasslauncher.tv.data.Backup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -105,7 +106,7 @@ private fun openPlay(ctx: Context, pkg: String?, query: String?) {
 }
 
 /** Is Glassio's Home-button accessibility service switched on? */
-private fun isHomeKeyOn(ctx: Context): Boolean = runCatching {
+internal fun isHomeKeyOn(ctx: Context): Boolean = runCatching {
     AndroidSettings.Secure.getString(ctx.contentResolver, AndroidSettings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
         .contains("${ctx.packageName}/")
 }.getOrDefault(false)
@@ -548,6 +549,43 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val devOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1 }.getOrDefault(false)
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
+                // A backup: everything in one file locked with a code (Backup), in the TV's Downloads and via the phone page.
+                Act("Back up settings", "Everything, sign-ins included, locked with a code. Saved in Downloads; to your phone from Manage from phone", "") {
+                    dialog = TextEntry("Backup code", "", "At least ${Backup.MIN_CODE} characters. You need it to restore: keep it somewhere safe", secret = true) { code ->
+                        if (code.length < Backup.MIN_CODE) { toast(ctx, "The code needs at least ${Backup.MIN_CODE} characters"); return@TextEntry }
+                        // (after this dialog has closed: it clears the dialog as it goes)
+                        scope.launch {
+                            kotlinx.coroutines.delay(60)
+                            dialog = TextEntry("Type the code again", "", "The same code, to be sure", secret = true) { again ->
+                                if (again != code) { toast(ctx, "The codes don't match: nothing was saved"); return@TextEntry }
+                                toast(ctx, "Making the backup…")
+                                scope.launch(Dispatchers.IO) {
+                                    val r = runCatching { Backup.saveToDownloads(ctx, Backup.make(ctx, code)) }
+                                    toast(ctx, r.fold({ "Backup saved: Downloads › ${Backup.NAME}" }, { "Backup failed: ${it.message}" }))
+                                }
+                            }
+                        }
+                    }
+                },
+                Act("Restore a backup", "From the phone page or Downloads (after a reinstall, Downloads needs TV access). Glassio restarts after", "") {
+                    scope.launch(Dispatchers.IO) {
+                        val file = runCatching { Backup.findOnTv(ctx) }.getOrNull()
+                        if (file == null) { toast(ctx, "No backup on this TV: send one from Manage from phone, or allow TV access (below) to read Downloads"); return@launch }
+                        val made = java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(Backup.madeAt(file)))
+                        kotlinx.coroutines.withContext(Dispatchers.Main) {
+                            dialog = TextEntry("Restore the backup from $made", "", "Its code. Everything here now is replaced, then Glassio restarts", secret = true) { code ->
+                                toast(ctx, "Restoring…")
+                                scope.launch(Dispatchers.IO) {
+                                    runCatching { Backup.restore(ctx, file, code) }.fold({
+                                        toast(ctx, "Restored ${it.settings} settings and ${it.files} files. Glassio restarts")
+                                        kotlinx.coroutines.delay(1500)
+                                        kotlinx.coroutines.withContext(Dispatchers.Main) { Backup.restart(ctx) }
+                                    }, { toast(ctx, "Couldn't restore: ${it.message}") })
+                                }
+                            }
+                        }
+                    }
+                },
                 Toggle("Open Glassio when the TV starts", "After a restart, Glassio Yahsun instead of Google TV's home screen. Needs the accessibility service or TV access (ADB), below" +
                     (if (BootReceiver.TCL) ". TCL TVs: TV access lets Glassio start by itself" else ""), { st.bootGlassio }, {
                     st.bootGlassio = it
@@ -798,7 +836,7 @@ private fun PhonePane(app: GlassApp, s: Float) {
     }
     Column(Modifier.fillMaxSize().padding(start = (6 * s).dp)) {
         Text(
-            "Scan the code with your phone (same Wi-Fi) to add add-ons, set app icons, set or upload a background picture or video, and paste tokens with a real keyboard.",
+            "Scan the code with your phone (same Wi-Fi) to add add-ons, set app icons, set or upload a background picture or video, paste tokens with a real keyboard, and back up or restore Glassio.",
             color = Color.White.copy(alpha = 0.7f), fontSize = (12.5f * s).sp,
         )
         Spacer(Modifier.height((14 * s).dp))

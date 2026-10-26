@@ -640,10 +640,13 @@ final class LiveTheme {
     }
 
     private static StateListDrawable selector(Context c) {
-        float r = 10 * round * c.getResources().getDisplayMetrics().density;
-        GradientDrawable on = new GradientDrawable();
-        on.setColor(tile);
-        on.setCornerRadius(r);
+        float dp = c.getResources().getDisplayMetrics().density;
+        GradientDrawable plate = new GradientDrawable();
+        plate.setColor(tile);
+        plate.setCornerRadius(Math.min(14, 10 * round) * dp);
+        // Inset from the card's edges, as Glassio's own lists: a plate under the row, not a band across the card.
+        android.graphics.drawable.Drawable on = new android.graphics.drawable.InsetDrawable(plate,
+                Math.round(12 * dp), Math.round(3 * dp), Math.round(12 * dp), Math.round(3 * dp));
         StateListDrawable s = new StateListDrawable();
         s.addState(new int[] {android.R.attr.state_focused}, on);
         s.addState(new int[] {android.R.attr.state_pressed}, on);

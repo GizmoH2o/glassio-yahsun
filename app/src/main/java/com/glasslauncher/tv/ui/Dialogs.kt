@@ -50,7 +50,8 @@ fun toast(ctx: Context, msg: String) {
 }
 
 sealed interface DialogState
-class TextEntry(val title: String, val initial: String, val hint: String, val onDone: (String) -> Unit) : DialogState
+/** [secret]: what's typed shows as dots (a backup's code). */
+class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val onDone: (String) -> Unit) : DialogState
 class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>) : DialogState
 /** A sign-in code with a QR code of the page to enter it on; closes by itself when [code] turns null. */
 class QrCodeDialog(val title: String, val url: String, val code: kotlinx.coroutines.flow.StateFlow<String?>, val note: String) : DialogState
@@ -102,7 +103,9 @@ private fun TextEntryDialog(d: TextEntry, onDismiss: () -> Unit) {
             BasicTextField(
                 value = text, onValueChange = { text = it }, singleLine = true,
                 textStyle = TextStyle(color = Color.White, fontSize = 14.sp), cursorBrush = SolidColor(Color.White),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                    keyboardType = if (d.secret) androidx.compose.ui.text.input.KeyboardType.Password else androidx.compose.ui.text.input.KeyboardType.Text),
+                visualTransformation = if (d.secret) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                 keyboardActions = KeyboardActions(onDone = { d.onDone(text); onDismiss() }),
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
                     .background(Color.White.copy(alpha = 0.10f)).padding(10.dp).focusRequester(fr),

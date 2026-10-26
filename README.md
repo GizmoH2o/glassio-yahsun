@@ -29,6 +29,11 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
+**New in 2.2: backup and restore**
+- **Back up settings** and **Restore a backup** (Settings › System, and the phone page): everything, sign-ins included, in one file locked with a code you choose. It goes to the TV's Downloads and to your phone; restoring brings it all back and restarts Glassio.
+- **Watch on Home** is selectable: OK full screen, Up / Down change the channel, Back selects it and closes it.
+- A setup checklist on a fresh install, and Live TV's list highlight as Glassio's.
+
 **New in 2.1: Live TV on the home screen**
 - **Continue Watching** now starts with Live TV: a followed match on now (with the score), the channel you watched last (what's on, with a LIVE tag) and your newest recordings. OK opens them in Live TV; hold OK takes one out of the row.
 - **Watch on Home** (Live TV's menu): the channel keeps playing in a small glass window on the home screen while you browse. Back closes it.
@@ -290,7 +295,7 @@ Releases from 2.1.1 on are signed with the same key, so they install over each o
 
 Terminal helpers (`adb shell am start -n com.glasslauncher.tv/.MainActivity …`): `--ez open_folder true`,
 `--ei open_settings <tab>`, `--es icon_pack <pkg|none>`, `--es tile_style …`, `--es dock_style …`, `--ei blur <n>`,
-`--es saver_mode aerial|slideshow|system`, `--ez start_saver true`, `--es continue_mode first|mixed|off`, `--ez dump_settings true`.
+`--es saver_mode aerial|slideshow|system`, `--ez start_saver true`, `--ez show_setup true|false`, `--es continue_mode first|mixed|off`, `--ez dump_settings true`.
 
 ## Build
 ```sh
@@ -306,7 +311,7 @@ signed with Glassio Yahsun's release key, set in `local.properties` (`RELEASE_ST
 key a release build is signed with the debug key, which installs fine but can't update a published release.
 
 ## Privacy & security
-- No accounts, analytics or ads. Settings stay on the TV (`allowBackup=false`).
+- No accounts, analytics or ads. Settings stay on the TV (`allowBackup=false`); a backup you make is locked with your code (AES-256-GCM, the key from PBKDF2) and goes only where you take it.
 - The phone page only runs while its screen is open and every request needs the one-time token in its QR code.
 - Webhook, TMDB token and add-on links are only sent where you point them.
 - The TV's adb is used only for: starting the screensaver, reading Nuvio's playback log, installing Glass updates.

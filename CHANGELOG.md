@@ -2,6 +2,23 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 2.2.0 — 2026-10-26
+
+**Backup and restore**
+- **Back up settings** (Settings › System): everything in one file, sign-ins included (Nuvio, Trakt, TMDB, Live TV's playlists and logins), your app icons, Live TV's favorites, Following, profiles and reminders, and Glassio's TV access, so no new "Allow USB debugging" after a restore. Locked with a code you choose (at least 6 characters); without the code the file can't be opened.
+- The backup goes to the TV's Downloads, which an uninstall leaves alone, and to your phone from Manage from phone (Download a backup).
+- **Restore a backup** (Settings › System, or Restore on the TV from the phone page): Glassio's settings are replaced and it restarts by itself. After a reinstall it reads the backup from Downloads through TV access, or you send it from your phone.
+- Recordings and the TV guide stay out of the backup (Live TV reads the guide again).
+
+**Watch on Home**
+- The small window is selected as it opens: OK goes full screen in Live TV, Up / Down (or the remote's channel buttons) change the channel, Left goes back to the home screen. Back selects the window again, and Back on it closes it.
+- Its video has rounded corners, like its frame.
+
+**Polish**
+- After a fresh install the home screen lists the steps to set Glassio up, each with where it stands (restore a backup, catalogs, Nuvio, TV access, the Home button, Live TV) and OK to go there.
+- Live TV's lists: the selected row is a rounded plate inside the card, as in Glassio's own lists.
+- Codes typed in Glassio's own dialogs (a backup's) show as dots.
+
 ## 2.1.1 — 2026-10-26
 
 **Install once by hand**: from this version, Glassio Yahsun is signed with its own release key instead of a development one. If you have 2.1.0, uninstall it and install 2.1.1 (updates work again after that). Uninstalling clears Glassio's settings and Live TV's sign-in, so note your playlist details first.

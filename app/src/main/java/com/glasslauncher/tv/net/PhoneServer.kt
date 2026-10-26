@@ -79,6 +79,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             respond(c, 200, "application/json", msg.fold({ JSONObject().put("ok", true).put("message", it).toString() }, { err(it.message ?: "Upload failed") }))
             return
         }
+        if (path == "/api/backup/make" || path == "/api/backup/restore") { backup(c, path, input, len); return }
         val max = if (path == "/api/icon/upload") 8 * 1024 * 1024 else 64 * 1024
         if (len !in 0..max) { respond(c, 400, "application/json", err("Too large")); return }
         val body = ByteArray(len)
@@ -92,6 +93,39 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
                 post(path, j)
             }
             respond(c, 200, "application/json", JSONObject().put("ok", true).put("message", msg).toString())
+        } catch (e: Exception) {
+            respond(c, 200, "application/json", err(e.message ?: "Failed"))
+        }
+    }
+
+    /**
+     * The backup (Backup): made here and handed to the phone (also saved in the TV's Downloads), or one from the phone
+     * restored, then Glassio restarts. The code comes in the body, never in the address.
+     */
+    private fun backup(c: Socket, path: String, input: InputStream, len: Int) {
+        if (len !in 1..(24 * 1024 * 1024)) { respond(c, 400, "application/json", err("Too large")); return }
+        val body = ByteArray(len)
+        var read = 0
+        while (read < len) { val n = input.read(body, read, len - read); if (n < 0) break; read += n }
+        val j = runCatching { JSONObject(String(body, 0, read, Charsets.UTF_8)) }.getOrDefault(JSONObject())
+        val code = j.optString("code")
+        val b = com.glasslauncher.tv.data.Backup
+        try {
+            if (path == "/api/backup/make") {
+                val file = b.make(app, code)
+                runCatching { b.saveToDownloads(app, file) }
+                respond(c, 200, "application/json", JSONObject().put("ok", true).put("message", "Backup made").put("name", b.NAME)
+                    .put("file", String(file, Charsets.UTF_8)).toString())
+            } else {
+                val file = j.optString("file").toByteArray(Charsets.UTF_8)
+                require(b.madeAt(file) > 0) { "That file isn't a Glassio Yahsun backup" }
+                val r = b.restore(app, file, code)
+                runCatching { b.incomingFile(app).apply { parentFile?.mkdirs() }.writeBytes(file) }
+                respond(c, 200, "application/json", JSONObject().put("ok", true)
+                    .put("message", "Restored ${r.settings} settings and ${r.files} files. Glassio restarts on the TV").toString())
+                // After the answer is out: Glassio starts again with what was restored.
+                Thread({ Thread.sleep(1500); android.os.Handler(android.os.Looper.getMainLooper()).post { b.restart(app) } }, "glass-restore").start()
+            }
         } catch (e: Exception) {
             respond(c, 200, "application/json", err(e.message ?: "Failed"))
         }
@@ -250,7 +284,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
 <title>Glassio</title><style>
 body{margin:0;background:#0b0d16;color:#eef1fb;font:16px/1.5 -apple-system,Roboto,Segoe UI,sans-serif}
 main{max-width:620px;margin:0 auto;padding:22px 16px 60px}h1{font-size:26px;margin:6px 0 0}h2{font-size:13px;letter-spacing:.12em;color:#9d8cff;margin:30px 0 8px;text-transform:uppercase}
-p{color:#98a2bd;margin:4px 0 12px}input[type=text],textarea{width:100%;box-sizing:border-box;background:#141827;color:#eef1fb;border:1px solid #232a40;border-radius:12px;padding:12px;font:15px monospace}
+p{color:#98a2bd;margin:4px 0 12px}input[type=text],input[type=password],textarea{width:100%;box-sizing:border-box;background:#141827;color:#eef1fb;border:1px solid #232a40;border-radius:12px;padding:12px;font:15px monospace}
 button{background:#7b61ff;color:#fff;border:0;border-radius:12px;padding:11px 16px;font-size:15px;font-weight:600;margin-top:8px}
 button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin:0 4px 0 0}button.d{background:#3a1f2b;color:#ff8f9b}
 #msg{position:sticky;top:0;padding:10px 0;min-height:1.4em;font-weight:600}.ok{color:#6ee7b7}.bad{color:#ff8f9b}
@@ -270,6 +304,10 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 <h2>App icons</h2><p>Pick an app, then paste an image link or upload an image from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>
+<h2>Backup</h2><p>Everything Glassio has on this TV (settings, sign-ins, app icons, Live TV) in one file, locked with a code you choose: at least 6 characters. Keep the code safe: without it the file can't be opened.</p>
+<input type="password" id="bc" placeholder="Code for the backup" autocomplete="new-password"><button onclick="bk()">Download a backup</button>
+<p style="margin-top:14px">Restore one: Glassio's settings on the TV are replaced, then it restarts.</p>
+<input type="file" id="bkf" accept=".json,application/json"><input type="password" id="rc" placeholder="Code of that backup" autocomplete="off" style="margin-top:8px"><button class="d" onclick="rs()">Restore on the TV</button>
 <h2>Screensaver video links</h2><div id="aerial"></div>
 <input type="text" id="av" placeholder="https://.../video.mp4"><button onclick="send('/api/aerial/add',{url:v('av')},'av')">Add video</button>
 </main><script>
@@ -278,6 +316,11 @@ function v(i){return document.getElementById(i).value.trim()}
 function say(t,ok){var m=document.getElementById('msg');m.textContent=t;m.className=ok?'ok':'bad'}
 function api(p,b){return fetch(p+'?t='+encodeURIComponent(T),b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{}).then(function(r){return r.json()})}
 function send(p,b,clear){say('...',true);api(p,b).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok){if(clear)document.getElementById(clear).value='';load()}}).catch(function(){say('Cannot reach the TV',false)})}
+function bk(){var c=v('bc');if(c.length<6){say('The code needs at least 6 characters',false);return}say('Making the backup... (a few seconds)',true);
+api('/api/backup/make',{code:c}).then(function(r){if(!r.ok){say(r.error,false);return}var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.file],{type:'application/json'}));a.download=r.name;document.body.appendChild(a);a.click();a.remove();document.getElementById('bc').value='';say('Backup downloaded (also saved in the TV's Downloads)',true)}).catch(function(){say('Cannot reach the TV',false)})}
+function rs(){var f=document.getElementById('bkf').files[0],c=v('rc');if(!f){say('Choose the backup file first',false);return}if(!c){say('Type its code',false);return}
+if(!confirm('Replace Glassio's settings on the TV with this backup?'))return;say('Restoring...',true);var fr=new FileReader();
+fr.onload=function(){api('/api/backup/restore',{code:c,file:fr.result}).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok)document.getElementById('rc').value=''}).catch(function(){say('Cannot reach the TV',false)})};fr.readAsText(f)}
 function addAddon(){var u=v('au');if(u)send('/api/addon/add',{url:u},'au')}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
 function up(pkg,f){say('Uploading...',true);fetch('/api/icon/upload?pkg='+encodeURIComponent(pkg)+'&t='+encodeURIComponent(T),{method:'POST',body:f}).then(function(r){return r.json()}).then(function(r){say(r.ok?r.message:r.error,r.ok);load()}).catch(function(){say('Upload failed',false)})}

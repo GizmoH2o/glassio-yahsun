@@ -85,6 +85,7 @@ class MainActivity : ComponentActivity() {
         val app = application as GlassApp
         i?.getStringExtra("reset_icon")?.let { app.icons.reset(it) }
         if (i?.getBooleanExtra("open_folder", false) == true) app.requestFolder.value = true
+        if (i?.hasExtra("show_setup") == true) app.showSetup.value = i.getBooleanExtra("show_setup", false)
         // Watch on Home (Live TV's menu): the channel it handed over, in the small window. Read from the app's own file,
         // so nothing outside the app can put a stream here.
         if (i?.getBooleanExtra("mini_live", false) == true) {
@@ -153,10 +154,14 @@ class MainActivity : ComponentActivity() {
         (application as GlassApp).touch()
     }
 
-    // Watch on Home: Back closes the small window first, before the home screen sees it (its own keys take Back too).
+    // Watch on Home: Back goes to the small window (selects it), and Back on it closes it, before the home screen sees
+    // it (its own keys take Back too).
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_BACK && com.glasslauncher.tv.ui.MiniLive.now.value != null) {
-            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) com.glasslauncher.tv.ui.MiniLive.close()
+        val mini = com.glasslauncher.tv.ui.MiniLive
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && mini.now.value != null) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) {
+                if (mini.selected.value) mini.close() else mini.selectRequest.intValue++
+            }
             return true
         }
         return super.dispatchKeyEvent(event)

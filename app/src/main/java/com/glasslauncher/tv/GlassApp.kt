@@ -59,6 +59,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     val interaction = mutableLongStateOf(0L)
     /** Set by `am start ... --ez open_folder true`: opens the Apps folder (testing without the remote). */
     val requestFolder = androidx.compose.runtime.mutableStateOf(false)
+    /** Set by `am start ... --ez show_setup true`: the first-run steps instead of the carousel (checking them). */
+    val showSetup = androidx.compose.runtime.mutableStateOf(false)
     /** Set by `am start ... --ei open_settings <tab>`: opens Settings on that tab. */
     val requestSettings = androidx.compose.runtime.mutableIntStateOf(-1)
     /** Bumped with every request, so asking for the same tab twice (or while the screen was asleep) still works. */

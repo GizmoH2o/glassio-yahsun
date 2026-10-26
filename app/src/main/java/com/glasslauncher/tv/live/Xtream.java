@@ -966,7 +966,7 @@ final class Xtream {
         return f.lastModified() * 31 + f.length();
     }
 
-    private static File listFile(Context c) {
+    static File listFile(Context c) {
         return new File(c.getFilesDir(), "live-channels.json");
     }
 

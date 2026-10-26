@@ -139,6 +139,9 @@ const val DOCK_COLUMNS = 6
 const val PHONE_CATEGORY = 9
 /** Index of the "Catalogs" category in the settings list. */
 const val CATALOGS_CATEGORY = 5
+/** Index of "Nuvio & Home Assistant" and of "System" (backup, Home button, TV access) in the settings list. */
+const val NUVIO_CATEGORY = 7
+const val SYSTEM_CATEGORY = 10
 /** Pseudo package used by move mode for the Apps folder tile. */
 private const val FOLDER = "__apps_folder__"
 
@@ -1071,7 +1074,7 @@ private fun HeroSection(
                 .focusRequester(heroFocus)
                 .onFocusChanged { if (it.isFocused) onCustomUp() }
                 .focusable())
-        } else if (shown != null) {
+        } else if (shown != null && !app.showSetup.value) {
             HeroInfo(
                 item = shown, app = app, s = s, focused = focused, heroFocus = heroFocus, firstTile = if (rowOn) rowFocus else firstTile,
                 onFocus = { focused = it; onHeroFocus(it) },
@@ -1091,8 +1094,8 @@ private fun HeroSection(
                 modifier = Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value; translationY = (1f - heroTextState.value) * -20 * s * density },
             )
         } else {
-            EmptyHint(status, s, heroFocus, if (rowOn) rowFocus else firstTile, Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value }, onHeroFocus) {
-                app.requestSettings.intValue = CATALOGS_CATEGORY; app.requestSettingsRev.intValue++
+            EmptyHint(app, status, s, heroFocus, if (rowOn) rowFocus else firstTile, Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value }, onHeroFocus) { cat ->
+                app.requestSettings.intValue = cat; app.requestSettingsRev.intValue++
             }
         }
         // Scrolled down to the apps: the page darkens behind the row, so its titles read where the carousel's text was.
@@ -1136,39 +1139,117 @@ private fun HeroSection(
 }
 
 /**
- * Shown while the carousel has nothing. It must hold [heroFocus]: the dock's first row points Up at it,
- * and without a focus target there Up did nothing, so Settings could not be reached from the dock.
+ * Shown while the carousel has nothing: after a fresh install, the steps to set Glassio Yahsun up, each with where it
+ * stands and OK to go there. Its first row holds [heroFocus]: the dock's first row points Up at it, and without a
+ * focus target there Up did nothing, so Settings could not be reached from the dock.
  */
 @Composable
 private fun EmptyHint(
-    status: String, s: Float, heroFocus: FocusRequester, firstTile: FocusRequester,
-    modifier: Modifier, onFocus: (Boolean) -> Unit, onCatalogs: () -> Unit,
+    app: GlassApp, status: String, s: Float, heroFocus: FocusRequester, firstTile: FocusRequester,
+    modifier: Modifier, onFocus: (Boolean) -> Unit, onSettings: (category: Int) -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.06f else 1f, spring(0.6f, 450f), label = "hintBtn")
-    Column(modifier.padding(start = (56 * s).dp, top = (130 * s).dp).widthIn(max = (480 * s).dp)) {
+    val ctx = LocalContext.current
+    // Where each step stands, looked at again every few seconds (it changes in Settings and on the TV).
+    val state by produceState(SetupState(), Unit) {
+        while (true) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                SetupState(
+                    catalogs = app.catalogs.addons.isNotEmpty() || app.catalogs.accountOnly().isNotEmpty(),
+                    nuvio = app.library.nuvio.connected,
+                    adb = com.glasslauncher.tv.data.LocalShell.run(ctx, "echo ok").isSuccess,
+                    home = isHomeKeyOn(ctx),
+                    live = runCatching { com.glasslauncher.tv.live.LiveHome.ready(ctx) }.getOrDefault(false),
+                )
+            }
+            delay(5_000)
+        }
+    }
+    val steps = listOf(
+        SetupStep("Restore a backup", "Had Glassio before? Everything back in one go", null) { onSettings(SYSTEM_CATEGORY) },
+        SetupStep("Add catalogs", "Nuvio add-ons fill the carousel", state.catalogs) { onSettings(CATALOGS_CATEGORY) },
+        SetupStep("Sign in to Nuvio", "Continue Watching and your library", state.nuvio) { onSettings(NUVIO_CATEGORY) },
+        SetupStep("Allow TV access (ADB)", "Silent updates, the screensaver, Nuvio Legacy", state.adb) { onSettings(SYSTEM_CATEGORY) },
+        SetupStep("Turn on the Home button", "Home opens Glassio", state.home) { onSettings(SYSTEM_CATEGORY) },
+        SetupStep("Sign in to Live TV", "Your IPTV playlist", state.live) {
+            runCatching { ctx.startActivity(com.glasslauncher.tv.live.LiveHome.open(ctx, -1, false)) }
+        },
+    )
+    val reqs = remember { List(steps.size) { FocusRequester() } }
+    // Two columns of three, so the steps stay above Continue Watching's row: ↑ ↓ in a column, ← → across.
+    val half = (steps.size + 1) / 2
+    Column(modifier.padding(start = (56 * s).dp, top = (96 * s).dp)) {
         Text("Glassio", color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
         Text("YAHSUN", color = Color.White.copy(alpha = 0.8f), fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (4 * s).sp,
             modifier = Modifier.padding(start = (3 * s).dp, top = (2 * s).dp))
         Spacer(Modifier.height((10 * s).dp))
-        Text(if (status.isBlank()) "Loading…" else status, color = Color.White.copy(alpha = 0.7f), fontSize = (14 * s).sp)
-        Spacer(Modifier.height((6 * s).dp))
-        Text("Open Settings → Catalogs to connect Nuvio and fill the carousel.", color = Color.White.copy(alpha = 0.55f), fontSize = (12 * s).sp)
-        Spacer(Modifier.height((14 * s).dp))
-        Text(
-            "Open Catalogs",
-            color = if (focused) Color.Black else Color.White,
-            fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier
-                .graphicsLayer { scaleX = scale; scaleY = scale }
-                .focusRequester(heroFocus)
-                .focusProperties { down = firstTile }
-                .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
-                .tvPress(onClick = onCatalogs)
-                .clip(RoundedCornerShape(50))
-                .background(if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.14f))
-                .padding(horizontal = (14 * s).dp, vertical = (6 * s).dp),
-        )
+        Text(if (status.isBlank()) "Loading…" else status, color = Color.White.copy(alpha = 0.7f), fontSize = (13 * s).sp)
+        Spacer(Modifier.height((12 * s).dp))
+        Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+            for (col in 0 until 2) Column(verticalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                for (i in col * half until minOf(steps.size, (col + 1) * half)) {
+                    fun req(j: Int) = if (j == 0) heroFocus else reqs[j]
+                    SetupRow(
+                        steps[i], s,
+                        Modifier.focusRequester(req(i))
+                            .focusProperties {
+                                if (i != col * half) up = req(i - 1)
+                                down = if (i == minOf(steps.size, (col + 1) * half) - 1) firstTile else req(i + 1)
+                                left = if (col == 1) req(i - half) else FocusRequester.Cancel
+                                right = if (col == 0 && i + half < steps.size) req(i + half) else FocusRequester.Cancel
+                            },
+                        onFocus,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private data class SetupState(
+    val catalogs: Boolean? = null, val nuvio: Boolean? = null, val adb: Boolean? = null, val home: Boolean? = null, val live: Boolean? = null,
+)
+
+/** A step: its name, a line about it, done (true), to do (false) or nothing to tell (null), and where OK goes. */
+private class SetupStep(val title: String, val about: String, val done: Boolean?, val open: () -> Unit)
+
+@Composable
+private fun SetupRow(step: SetupStep, s: Float, modifier: Modifier, onFocus: (Boolean) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(if (focused) 1.03f else 1f, spring(0.6f, 450f), label = "setupRow")
+    val ink = if (focused) Color.Black else Color.White
+    Row(
+        modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f) }
+            .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
+            .tvPress(onClick = step.open)
+            .clip(RoundedCornerShape((11 * s).dp))
+            .background(if (focused) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.28f))
+            // (a faint light over the dark, as glass, so the row reads on a bright picture and on the plain page)
+            .background(if (focused) Color.Transparent else Color.White.copy(alpha = 0.07f))
+            .width((236 * s).dp)
+            .padding(horizontal = (11 * s).dp, vertical = (5 * s).dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // Done: a green check; to do: an empty ring; nothing to tell: a dot.
+        androidx.compose.foundation.Canvas(Modifier.size((11 * s).dp)) {
+            val r = size.minDimension / 2
+            when (step.done) {
+                true -> {
+                    drawCircle(Color(0xFF34C77B), r)
+                    val p = androidx.compose.ui.graphics.Path().apply {
+                        moveTo(size.width * 0.28f, size.height * 0.52f); lineTo(size.width * 0.45f, size.height * 0.68f); lineTo(size.width * 0.74f, size.height * 0.36f)
+                    }
+                    drawPath(p, Color.White, style = androidx.compose.ui.graphics.drawscope.Stroke(width = r * 0.28f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                }
+                false -> drawCircle(ink.copy(alpha = 0.55f), r * 0.86f, style = androidx.compose.ui.graphics.drawscope.Stroke(width = r * 0.22f))
+                null -> drawCircle(ink.copy(alpha = 0.45f), r * 0.32f)
+            }
+        }
+        Spacer(Modifier.width((9 * s).dp))
+        Column {
+            Text(step.title, color = ink, fontSize = (11.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(step.about, color = ink.copy(alpha = 0.6f), fontSize = (8.5f * s).sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
     }
 }
 

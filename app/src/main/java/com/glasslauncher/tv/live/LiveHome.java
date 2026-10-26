@@ -625,6 +625,59 @@ public final class LiveHome {
         }
     }
 
+    /** The channel list read for the small window's channel changes, kept while its file stays the same. */
+    private static Xtream.Lineup miniLineup;
+    private static long miniLineupAt;
+
+    /**
+     * The channel before (`dir` -1) or after (1) `channel` for the small window: in its own category (the first of the
+     * provider's that has it, else All channels), round, skipping channels locked behind the parental PIN; with a
+     * Kids profile, among the children's channels only. Its address asked for now (a MAG portal's). Null when there's
+     * none. Blocking: the first call reads the whole channel list.
+     */
+    public static Mini miniStep(Context c, int channel, int dir) {
+        Xtream.Lineup l;
+        synchronized (LiveHome.class) {
+            long at = Xtream.listFile(c).lastModified();
+            if (miniLineup == null || miniLineupAt != at) {
+                miniLineup = Xtream.saved(c);
+                if (miniLineup != null && LiveProfiles.kids(c)) miniLineup = LiveProfiles.kidsOnly(miniLineup);
+                miniLineupAt = at;
+            }
+            l = miniLineup;
+        }
+        if (l == null) return null;
+        Xtream.Channel now = l.find(channel);
+        if (now == null) return null;
+        List<Xtream.Channel> list = null;
+        for (int i = 2; i < l.categories.size() && list == null; i++) if (l.categories.get(i).channels.contains(now)) list = l.categories.get(i).channels;
+        if (list == null) list = l.all();
+        int at = list.indexOf(now);
+        if (at < 0 || list.size() < 2) return null;
+        for (int step = 1; step < list.size(); step++) {
+            Xtream.Channel ch = list.get(Math.floorMod(at + dir * step, list.size()));
+            if (LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
+            Xtream.Channel src = ch.sources != null && !ch.sources.isEmpty() ? ch.sources.get(0) : ch;
+            String format = LiveOptions.format(c);
+            if (format.equals(LiveOptions.AUTO)) format = l.format;
+            try {
+                String url = Xtream.resolve(c, Xtream.streamUrl(c, src, format));
+                Mini m = new Mini();
+                m.url = url;
+                m.mime = Xtream.mime(c, url, format);
+                if (m.mime == null) m.mime = "";
+                m.name = ch.name == null ? "" : ch.name;
+                m.logo = ch.logo == null ? "" : ch.logo;
+                m.channel = ch.id;
+                return m;
+            } catch (java.io.IOException e) {
+                AppLog.w("live: the small window couldn't get the next channel's address");
+                return null;
+            }
+        }
+        return null;
+    }
+
     /** The user agent Live TV's own player sends (some providers only answer it). */
     public static String userAgent() {
         return Live.USER_AGENT;

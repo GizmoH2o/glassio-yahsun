@@ -18,8 +18,8 @@ android {
         applicationId = "com.glasslauncher.tv"
         minSdk = 28
         targetSdk = 35
-        versionCode = 35
-        versionName = "2.1.1"
+        versionCode = 36
+        versionName = "2.2.0"
         // Trakt app (PKCE, no secret).
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"${localProps.getProperty("TRAKT_CLIENT_ID", "")}\"")
         buildConfigField("String", "NUVIO_ANON_KEY", "\"${localProps.getProperty("NUVIO_ANON_KEY", "")}\"")

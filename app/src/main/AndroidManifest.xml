@@ -98,6 +98,14 @@
         </service>
             <receiver android:name=".data.InstallResultReceiver" android:exported="false"/>
         <!-- After a restart: Glassio instead of Google TV's own home screen (Settings → System). -->
+        <!-- Glassio again in a new process after a backup is restored (its own small process, gone right after). -->
+        <activity
+            android:name=".RestartActivity"
+            android:process=":restart"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"/>
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
