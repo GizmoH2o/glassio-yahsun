@@ -6,6 +6,11 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// Kept in local.properties, which is not committed: the Trakt and Nuvio keys, and the release signing key's settings.
+val localProps = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+
 android {
     namespace = "com.glasslauncher.tv"
     compileSdk = 36
@@ -13,22 +18,30 @@ android {
         applicationId = "com.glasslauncher.tv"
         minSdk = 28
         targetSdk = 35
-        versionCode = 34
-        versionName = "2.1.0"
-        // Trakt app (PKCE, no secret). Kept in local.properties, which is not committed.
-        val props = Properties().apply {
-            rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+        versionCode = 35
+        versionName = "2.1.1"
+        // Trakt app (PKCE, no secret).
+        buildConfigField("String", "TRAKT_CLIENT_ID", "\"${localProps.getProperty("TRAKT_CLIENT_ID", "")}\"")
+        buildConfigField("String", "NUVIO_ANON_KEY", "\"${localProps.getProperty("NUVIO_ANON_KEY", "")}\"")
+    }
+    // Glassio Yahsun's release key (RELEASE_STORE_FILE and the rest in local.properties). Without it, a release build
+    // is signed with the local debug key instead: fine to try, but it won't update a published release
+    // (tools/release.sh refuses to publish it).
+    val releaseStore = localProps.getProperty("RELEASE_STORE_FILE")?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (releaseStore != null) create("release") {
+            storeFile = releaseStore
+            storePassword = localProps.getProperty("RELEASE_STORE_PASSWORD")
+            keyAlias = localProps.getProperty("RELEASE_KEY_ALIAS")
+            keyPassword = localProps.getProperty("RELEASE_KEY_PASSWORD")
         }
-        buildConfigField("String", "TRAKT_CLIENT_ID", "\"${props.getProperty("TRAKT_CLIENT_ID", "")}\"")
-        buildConfigField("String", "NUVIO_ANON_KEY", "\"${props.getProperty("NUVIO_ANON_KEY", "")}\"")
     }
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Signed with the local debug key so it installs over the debug build and updates cleanly.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName(if (releaseStore != null) "release" else "debug")
         }
     }
     compileOptions {

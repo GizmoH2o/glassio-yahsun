@@ -268,7 +268,7 @@ clock with a small banner of what's new: go up to it and press **OK** to downloa
 **About → Install update**). With "Allow USB debugging" accepted, the update is
 silent and Glass reopens by itself; otherwise Android asks you to confirm (allow *Install unknown apps* for Glassio).
 
-Releases are signed with the same key, so they install over each other.
+Releases from 2.1.1 on are signed with the same key, so they install over each other (2.1.0 used another: uninstall it once).
 
 ---
 
@@ -301,7 +301,9 @@ export ANDROID_HOME=/path/to/android-sdk
 
 To release: bump `versionCode` / `versionName` in `app/build.gradle.kts`, add the version's section at the top of
 [CHANGELOG.md](CHANGELOG.md), commit and push, then run `tools/release.sh` (needs the GitHub CLI, signed in). Releases are
-signed with the build computer's debug key: keep `~/.android/debug.keystore`, or installed copies can't update.
+signed with Glassio Yahsun's release key, set in `local.properties` (`RELEASE_STORE_FILE`, `RELEASE_STORE_PASSWORD`,
+`RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`; never committed); the script checks the APK's certificate. Without that
+key a release build is signed with the debug key, which installs fine but can't update a published release.
 
 ## Privacy & security
 - No accounts, analytics or ads. Settings stay on the TV (`allowBackup=false`).

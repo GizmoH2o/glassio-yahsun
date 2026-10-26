@@ -2,6 +2,13 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 2.1.1 — 2026-10-26
+
+**Install once by hand**: from this version, Glassio Yahsun is signed with its own release key instead of a development one. If you have 2.1.0, uninstall it and install 2.1.1 (updates work again after that). Uninstalling clears Glassio's settings and Live TV's sign-in, so note your playlist details first.
+
+- Releases are signed with Glassio Yahsun's own key, and the release script refuses any APK signed with another one.
+- Tidied what was left from porting Live TV: its developer test commands are documented as they work in Glassio, and unused code is gone.
+
 ## 2.1.0 — 2026-10-26
 
 The first release of Glassio Yahsun: it also brings everything in 2.0.0 (Live TV, Following, Continue Watching in its own row; see [CHANGELOG.md](https://github.com/GizmoH2o/glassio-yahsun/blob/main/CHANGELOG.md)).
