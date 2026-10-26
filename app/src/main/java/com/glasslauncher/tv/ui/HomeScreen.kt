@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.offset
 import kotlinx.coroutines.async
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,6 +66,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.asAndroidBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -124,9 +126,12 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-enum class Screen { Home, Settings, Library }
+enum class Screen { Home, Settings, Library, LiveTv, Following }
 
-/** Test only (am start --ei dbg_hide <bits>): 1 backdrop, 2 carousel text, 4 top bar, 8 dock. Finds what the GPU spends a frame on. */
+/**
+ * Test only (am start --ei dbg_hide <bits>): 1 backdrop, 2 carousel text, 4 top bar, 8 dock; 1048576 Continue
+ * Watching's shade, 2097152 its row, 4194304 the Live TV pages' card shadows. Finds what the GPU spends a frame on.
+ */
 val DebugHide = androidx.compose.runtime.mutableIntStateOf(0)
 
 const val DOCK_COLUMNS = 6
@@ -171,13 +176,27 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     val settings = app.settings
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
-    var backdrop by remember { mutableStateOf<String?>(null) }
+    val backdropS = remember { mutableStateOf<String?>(null) }
+    var backdrop by backdropS
     var expanded by remember { mutableStateOf(false) }
     var movingPkg by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<DialogState?>(null) }
     var settingsCat by remember { mutableIntStateOf(0) }
     val firstTile = remember { FocusRequester() }
     val heroFocus = remember { FocusRequester() }
+    /** Continue Watching's own row (Settings → Continue Watching → Own row), between the carousel and the dock. */
+    val rowFocus = remember { FocusRequester() }
+    val cwRowItems by app.cw.items.collectAsState()
+    val ownBackground = when (settings.bgMode) { "image" -> settings.bgImage.isNotBlank(); "video" -> settings.bgVideo.isNotBlank(); "aerial" -> true; else -> false }
+    val liveRowItems by com.glasslauncher.tv.data.LiveCards.items.collectAsState()
+    val rowOn = settings.continueMode == "row" && (cwRowItems.isNotEmpty() || liveRowItems.isNotEmpty()) && !ownBackground
+    // The page scrolls, as Apple TV's does: the carousel on top, Continue Watching under it, the apps under that. Where
+    // the focus is decides how far down the page is: on the carousel the apps wait below the screen.
+    var inDock by remember { mutableStateOf(false) }
+    var inRow by remember { mutableStateOf(false) }
+    var onHero by remember { mutableStateOf(false) }
+    /** A carousel (or its hint) to scroll back up to; with your own background there's none and the apps stay put. */
+    val heroPage = !ownBackground
     val folderFocus = remember { FocusRequester() }
     var pickerFor by remember { mutableStateOf<AppEntry?>(null) }
     var folderOpen by remember { mutableStateOf(false) }
@@ -190,103 +209,115 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
 
     // The current backdrop as a small bitmap: every glass surface refracts it. The page backdrop only
     // switches once the glass copy is ready, and both crossfade together, so the glass never lags behind.
-    var backImgs by remember { mutableStateOf<Triple<ImageBitmap, ImageBitmap, ImageBitmap>?>(null) }
-    var prevImgs by remember { mutableStateOf<Triple<ImageBitmap, ImageBitmap, ImageBitmap>?>(null) }
-    var shownBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
-    var prevBackdrop by remember { mutableStateOf<ImageBitmap?>(null) }
+    // Each a State of its own: the page backdrop and the glass read them where they draw (PageBackdrop, GlassPics),
+    // so a slide change doesn't recompose this whole screen.
+    val backImgsS = remember { mutableStateOf<Triple<ImageBitmap, ImageBitmap, ImageBitmap>?>(null) }
+    var backImgs by backImgsS
+    val prevImgsS = remember { mutableStateOf<Triple<ImageBitmap, ImageBitmap, ImageBitmap>?>(null) }
+    var prevImgs by prevImgsS
+    val shownBackdropS = remember { mutableStateOf<ImageBitmap?>(null) }
+    var shownBackdrop by shownBackdropS
+    val prevBackdropS = remember { mutableStateOf<ImageBitmap?>(null) }
+    var prevBackdrop by prevBackdropS
     // Which picture is on screen: the title text waits for it, so text and picture change together.
     val shownUrl = remember { mutableStateOf<String?>(null) }
     var fadeMs by remember { mutableIntStateOf(settings.transitionMs) }
     val mix = remember { androidx.compose.animation.core.Animatable(1f) }
     // 0 = crossfade; 1 / -1 = the new picture slides in from the right / left (Slide animation).
-    var slideDir by remember { mutableIntStateOf(0) }
-    LaunchedEffect(backdrop, settings.blurRadius, settings.glassRes, settings.slideAnim, settings.pageScale, settings.memTier, settings.bgMode, settings.bgImage, settings.bgVideo, CustomBackground.aerial.value, CustomBackground.frameRev.intValue) {
-        GlassCache.res = settings.glassRes
-        BakeCache.max = when (settings.memTier) { 0 -> 2; 2 -> 4; else -> 3 }
-        backdropScale = settings.pageScale
-        backdrop565 = settings.memTier == 0
-        GlassCache.limit(settings.memTier)
-        // Your own picture / video: it replaces every title's backdrop (one picture, so nothing changes per slide).
-        val custom = CustomBackground.still(ctx, settings)
-        val u = custom ?: backdrop ?: return@LaunchedEffect
-        if (custom != null && shownUrl.value == custom && backImgs != null) return@LaunchedEffect
-        // Wait for both the full picture and its glass copy, then switch them in the same frame.
-        // Originals are big downloads: if the original is not cached yet, show the 1280 px copy first
-        // (fast) and swap in the original silently once it arrives.
-        val loader = SingletonImageLoader.get(ctx)
-        val t0 = android.os.SystemClock.uptimeMillis()
-        fun bmpOf(r: coil3.request.ImageResult?) = (r as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()
-        var fullBmp: ImageBitmap? = null
-        var upgrade: kotlinx.coroutines.Deferred<coil3.request.ImageResult?>? = null
-        val high = settings.imageQuality == "high"
-        val pinnedBmp = GlassCache.pinnedFull[u]
-        val orig = async { if (pinnedBmp != null) null else loader.execute(imgReq(ctx, if (high) sized(u, "w1280") else u)) }
-        val next = kotlinx.coroutines.coroutineScope {
-            // Glass copies: ready (prepared ahead), or made from the page picture itself once it is here.
-            val g = async { GlassCache.peek(u, settings.blurRadius) }
-            fullBmp = pinnedBmp ?: kotlinx.coroutines.withTimeoutOrNull(120) { bmpOf(orig.await()) }
-            if (fullBmp == null && !high && sized(u, "w1280") != u) {
-                fullBmp = bmpOf(loader.execute(imgReq(ctx, sized(u, "w1280"))))
-                upgrade = orig
-            } else if (fullBmp == null && app.browsing() && sized(u, "w780") != u) {
-                // Moving fast through the carousel and this picture isn't here yet: a small copy (a third of the
-                // download) goes on screen now, the full one replaces it silently when it arrives.
-                fullBmp = kotlinx.coroutines.withTimeoutOrNull(1500) { bmpOf(loader.execute(imgReq(ctx, sized(u, "w780")))) }
-                if (fullBmp != null) upgrade = orig else fullBmp = bmpOf(orig.await())
-            } else if (fullBmp == null) fullBmp = bmpOf(orig.await())
-            (g.await() ?: fullBmp?.let { fb -> withContext(Dispatchers.Default) { runCatching { GlassCache.fromBitmap(u, settings.blurRadius, fb.asAndroidBitmap().let { b ->
-                if (b.config == android.graphics.Bitmap.Config.HARDWARE) b.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else b }) }.getOrNull() } })
-                ?.let { Triple(it.blurred, it.sharp, it.heavy) }
-        }
-        // A slow or busy TV sometimes loses a download: try again (smaller copy) before giving up on this title.
-        var tries = 0
-        while (fullBmp == null && tries < 3) {
-            delay(700L * (tries + 1))
-            val res = loader.execute(imgReq(ctx, sized(u, "w1280")))
-            fullBmp = bmpOf(res)
-            if (fullBmp == null) com.glasslauncher.tv.data.Glog.w("Backdrop $u failed (try ${tries + 1})", (res as? coil3.request.ErrorResult)?.throwable)
-            tries++
-        }
-        if (fullBmp == null) return@LaunchedEffect
-        val first = backImgs == null
-        fadeMs = if (app.browsing()) (when (settings.slideAnim) { "apple" -> 560; "slide" -> 420; else -> 220 }) else settings.transitionMs
-        val dm = ctx.resources.displayMetrics
-        val src = fullBmp
-        // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
-        val slide = settings.slideAnim != "fade"
-        val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier
-        val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide) }.also { BakeCache.put(bk, src, it) }
-        if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
-        if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Slide ready in ${android.os.SystemClock.uptimeMillis() - t0} ms (${u.substringAfterLast('/')})")
-        // Page and glass fade in the same frames with the same timing, so the bar never runs ahead.
-        prevImgs = backImgs
-        prevBackdrop = shownBackdrop
-        if (next != null) backImgs = next
-        slideDir = if (slide && !first && prevBackdrop != null) SlideDir.dir else 0
-        if (!first && next != null) mix.snapTo(0f)
-        shownBackdrop = baked
-        shownUrl.value = u
-        try {
-            if (first || next == null) mix.snapTo(1f)
-            else mix.animateTo(1f, tween(fadeMs, easing = when {
-                slideDir == 0 -> androidx.compose.animation.core.LinearEasing
-                // Apple TV: a quick start that settles slowly.
-                settings.slideAnim == "apple" -> androidx.compose.animation.core.CubicBezierEasing(0.22f, 0.0f, 0.0f, 1.0f)
-                else -> FastOutSlowInEasing
-            }))
-        } finally {
-            // Also when this fade is cut short by the next slide: never leave the glass half faded with the
-            // old layer underneath (every glass surface would then be drawn twice, translucent, on every frame).
-            prevImgs = null
-            prevBackdrop = null
-            slideDir = 0
-            withContext(kotlinx.coroutines.NonCancellable) { mix.snapTo(1f) }
-        }
-        upgrade?.let { d -> bmpOf(d.await())?.let { hi ->
+    val slideDirS = remember { mutableIntStateOf(0) }
+    var slideDir by slideDirS
+    // The slide's picture, its glass copies and the switch to them. The picture's address is collected here instead
+    // of being a key of this effect: read as a key, every slide recomposed this whole screen. A new address still
+    // cancels the work for the old one (collectLatest), as restarting the effect did.
+    LaunchedEffect(settings.blurRadius, settings.glassRes, settings.slideAnim, settings.pageScale, settings.memTier, settings.bgMode, settings.bgImage, settings.bgVideo, CustomBackground.aerial.value, CustomBackground.frameRev.intValue) {
+        androidx.compose.runtime.snapshotFlow { backdropS.value }.collectLatest { backdrop ->
+            GlassCache.res = settings.glassRes
+            BakeCache.max = when (settings.memTier) { 0 -> 2; 2 -> 4; else -> 3 }
+            backdropScale = settings.pageScale
+            backdrop565 = settings.memTier == 0
+            GlassCache.limit(settings.memTier)
+            // Your own picture / video: it replaces every title's backdrop (one picture, so nothing changes per slide).
+            val custom = CustomBackground.still(ctx, settings)
+            val u = custom ?: backdrop ?: return@collectLatest
+            if (custom != null && shownUrl.value == custom && backImgs != null) return@collectLatest
+            // Wait for both the full picture and its glass copy, then switch them in the same frame.
+            // Originals are big downloads: if the original is not cached yet, show the 1280 px copy first
+            // (fast) and swap in the original silently once it arrives.
+            val loader = SingletonImageLoader.get(ctx)
+            val t0 = android.os.SystemClock.uptimeMillis()
+            fun bmpOf(r: coil3.request.ImageResult?) = (r as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()
+            var fullBmp: ImageBitmap? = null
+            var upgrade: kotlinx.coroutines.Deferred<coil3.request.ImageResult?>? = null
+            val high = settings.imageQuality == "high"
+            val pinnedBmp = GlassCache.pinnedFull[u]
+            val orig = async { if (pinnedBmp != null) null else loader.execute(imgReq(ctx, if (high) sized(u, "w1280") else u)) }
+            val next = kotlinx.coroutines.coroutineScope {
+                // Glass copies: ready (prepared ahead), or made from the page picture itself once it is here.
+                val g = async { GlassCache.peek(u, settings.blurRadius) }
+                fullBmp = pinnedBmp ?: kotlinx.coroutines.withTimeoutOrNull(120) { bmpOf(orig.await()) }
+                if (fullBmp == null && !high && sized(u, "w1280") != u) {
+                    fullBmp = bmpOf(loader.execute(imgReq(ctx, sized(u, "w1280"))))
+                    upgrade = orig
+                } else if (fullBmp == null && app.browsing() && sized(u, "w780") != u) {
+                    // Moving fast through the carousel and this picture isn't here yet: a small copy (a third of the
+                    // download) goes on screen now, the full one replaces it silently when it arrives.
+                    fullBmp = kotlinx.coroutines.withTimeoutOrNull(1500) { bmpOf(loader.execute(imgReq(ctx, sized(u, "w780")))) }
+                    if (fullBmp != null) upgrade = orig else fullBmp = bmpOf(orig.await())
+                } else if (fullBmp == null) fullBmp = bmpOf(orig.await())
+                (g.await() ?: fullBmp?.let { fb -> withContext(Dispatchers.Default) { runCatching { GlassCache.fromBitmap(u, settings.blurRadius, fb.asAndroidBitmap().let { b ->
+                    if (b.config == android.graphics.Bitmap.Config.HARDWARE) b.copy(android.graphics.Bitmap.Config.ARGB_8888, false) else b }) }.getOrNull() } })
+                    ?.let { Triple(it.blurred, it.sharp, it.heavy) }
+            }
+            // A slow or busy TV sometimes loses a download: try again (smaller copy) before giving up on this title.
+            var tries = 0
+            while (fullBmp == null && tries < 3) {
+                delay(700L * (tries + 1))
+                val res = loader.execute(imgReq(ctx, sized(u, "w1280")))
+                fullBmp = bmpOf(res)
+                if (fullBmp == null) com.glasslauncher.tv.data.Glog.w("Backdrop $u failed (try ${tries + 1})", (res as? coil3.request.ErrorResult)?.throwable)
+                tries++
+            }
+            if (fullBmp == null) return@collectLatest
+            val first = backImgs == null
+            fadeMs = if (app.browsing()) (when (settings.slideAnim) { "apple" -> 560; "slide" -> 420; else -> 220 }) else settings.transitionMs
             val dm = ctx.resources.displayMetrics
-            val b = withContext(Dispatchers.Default) { bakeBackdrop(hi, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide).also { GlassHalf.of(it) } }
-            fadeMs = 0; shownBackdrop = b
-        } }
+            val src = fullBmp
+            // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
+            val slide = settings.slideAnim != "fade"
+            val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier
+            val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide) }.also { BakeCache.put(bk, src, it) }
+            if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
+            if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Slide ready in ${android.os.SystemClock.uptimeMillis() - t0} ms (${u.substringAfterLast('/')})")
+            // Page and glass fade in the same frames with the same timing, so the bar never runs ahead.
+            prevImgs = backImgs
+            prevBackdrop = shownBackdrop
+            if (next != null) backImgs = next
+            slideDir = if (slide && !first && prevBackdrop != null) SlideDir.dir else 0
+            if (!first && next != null) mix.snapTo(0f)
+            shownBackdrop = baked
+            shownUrl.value = u
+            try {
+                if (first || next == null) mix.snapTo(1f)
+                else mix.animateTo(1f, tween(fadeMs, easing = when {
+                    slideDir == 0 -> androidx.compose.animation.core.LinearEasing
+                    // Apple TV: a quick start that settles slowly.
+                    settings.slideAnim == "apple" -> androidx.compose.animation.core.CubicBezierEasing(0.22f, 0.0f, 0.0f, 1.0f)
+                    else -> FastOutSlowInEasing
+                }))
+            } finally {
+                // Also when this fade is cut short by the next slide: never leave the glass half faded with the
+                // old layer underneath (every glass surface would then be drawn twice, translucent, on every frame).
+                prevImgs = null
+                prevBackdrop = null
+                slideDir = 0
+                withContext(kotlinx.coroutines.NonCancellable) { mix.snapTo(1f) }
+            }
+            upgrade?.let { d -> bmpOf(d.await())?.let { hi ->
+                val dm = ctx.resources.displayMetrics
+                val b = withContext(Dispatchers.Default) { bakeBackdrop(hi, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide).also { GlassHalf.of(it) } }
+                fadeMs = 0; shownBackdrop = b
+            } }
+        }
     }
     // Glass like glass: a short ripple after every move in the dock.
     val wobble = remember { androidx.compose.animation.core.Animatable(0f) }
@@ -305,18 +336,39 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         when {
             c == 100 -> { onScreen(Screen.Home); menuOpen = true; app.requestSettings.intValue = -1 }
             c == 101 -> { menuOpen = false; onScreen(Screen.Library); app.requestSettings.intValue = -1 }
+            c == 102 -> { menuOpen = false; onScreen(Screen.LiveTv); app.requestSettings.intValue = -1 }
+            c == 103 -> { menuOpen = false; onScreen(Screen.Following); app.requestSettings.intValue = -1 }
             c >= 0 -> { settingsCat = c; onScreen(Screen.Settings); app.requestSettings.intValue = -1 }
         }
     }
+    // The menu opened: Live TV's and Following's pages read ahead, so either opens at once.
+    LaunchedEffect(menuOpen) { if (menuOpen && settings.menuLive) prefetchLive(app) }
     LaunchedEffect(app.requestFolder.value) { if (app.requestFolder.value) { folderOpen = true; app.requestFolder.value = false } }
 
     LaunchedEffect(screen) {
-        if (screen == Screen.Home) { delay(400); runCatching { firstTile.requestFocus() } }
+        // The top of the page first (the carousel); the apps when there's no carousel to show. Tried for a few seconds:
+        // on a cold start the carousel (or its hint) comes a moment after the screen.
+        // As it starts, the system may hand the focus to the first thing on screen (the settings button) a moment later:
+        // done once it has stayed where it belongs for half a second.
+        if (screen == Screen.Home) {
+            delay(400)
+            val target = if (heroPage) heroFocus else firstTile
+            var held = 0
+            repeat(50) {
+                if (if (heroPage) onHero else inDock) { if (++held >= 5) return@LaunchedEffect }
+                else { held = 0; runCatching { target.requestFocus() } }
+                delay(100)
+            }
+        }
     }
     BackHandler(enabled = screen == Screen.Home && movingPkg != null) { movingPkg = null }
     BackHandler(enabled = screen == Screen.Home && movingPkg == null && expanded && !folderOpen) { runCatching { firstTile.requestFocus() } }
     BackHandler(enabled = settings.backSaver && screen == Screen.Home && movingPkg == null && !expanded && !folderOpen && pickerFor == null) {
         runCatching { ctx.startActivity(android.content.Intent(ctx, com.glasslauncher.tv.saver.ScreensaverActivity::class.java)) }
+    }
+    // Back further down the page (Continue Watching, the apps' first row): to the top, the carousel.
+    BackHandler(enabled = screen == Screen.Home && heroPage && (inRow || inDock) && movingPkg == null && !expanded && !folderOpen && pickerFor == null) {
+        runCatching { heroFocus.requestFocus() }
     }
 
     val onMoveKey: (KeyEvent) -> Boolean = { ev ->
@@ -363,15 +415,28 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         val blur = veil
         // Where the open (and settled) dock covers the page; empty while it moves.
         val dockCover = remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+        // The pictures behind the glass, worked out from the slide's states (and again only when they change).
         // Clear glass shows the page picture itself (full resolution, scrims included); the small
         // GlassCache copy is only the fallback before the first picture is on screen.
-        val pageSharp = if (PageGlass.on.value) GlassHalf.peek(shownBackdrop) else null
-        val env = GlassEnv(backImgs?.first, pageSharp ?: backImgs?.second, backImgs?.third, rootW, rootH, settings.glassTint, settings.refraction, 1f, wobble.asState(),
-            prevImgs?.first, if (prevImgs != null) (GlassHalf.peek(prevBackdrop) ?: prevImgs?.second) else null, mix.asState(), veil, sharpIsPage = pageSharp != null,
-            slide = slideDir, slideKind = if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH,
+        val pics = remember {
+            androidx.compose.runtime.derivedStateOf {
+                val b = backImgsS.value; val p = prevImgsS.value
+                val pageSharp = if (PageGlass.on.value) GlassHalf.peek(shownBackdropS.value) else null
+                GlassPics(b?.first, pageSharp ?: b?.second, b?.third,
+                    p?.first, if (p != null) (GlassHalf.peek(prevBackdropS.value) ?: p.second) else null,
+                    sharpIsPage = pageSharp != null, slide = slideDirS.intValue)
+            }
+        }
+        // The same value from one slide to the next (the pictures are behind [pics]): no glass recomposes for a slide.
+        val env = GlassEnv(pics, rootW, rootH, settings.glassTint, settings.refraction, 1f, wobble.asState(), mix.asState(), veil,
+            slideKind = if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH,
             pageNoSideShade = settings.slideAnim != "fade", blur = blur)
         val radius = settings.cornerRadius
         val metrics = remember(s, maxWidth, settings.dockScale) { DockMetrics(s, maxWidth.value, settings.dockScale) }
+        // On the carousel and in Continue Watching the apps wait below the screen (1); on the apps they're up (0).
+        val appsAway = heroPage && screen == Screen.Home && !inDock && !expanded && !folderOpen && movingPkg == null && pickerFor == null
+        val away = animateFloatAsState(if (appsAway) 1f else 0f, tween(320, easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "appsAway")
+        val awayDp = metrics.collapsedH + metrics.bottomMargin + 12 * s
 
         CompositionLocalProvider(LocalGlassEnv provides env, LocalScale provides s) {
             // Nothing under the folder is drawn: it covers the whole screen (the TV GPU is the bottleneck).
@@ -380,12 +445,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             // The scrims are baked into the picture (bakeBackdrop): a slide change draws two flat pictures and
             // nothing else, which keeps the crossfade smooth on TV graphics chips.
             // Under the fully open veil (an opaque picture) the backdrop isn't drawn at all.
-            val veilCovers = backImgs?.third != null
-            if (!folderOpen && DebugHide.intValue and 1 == 0 && !VideoFrames.showing.value) Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (veilCovers && blur.value > 0.995f) 0f else 1f }) {
-                if (settings.slideAnim != "fade") SlideBackdrop(prevBackdrop, shownBackdrop, mix, slideDir,
-                    if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH)
-                else FadeBackdrop(prevBackdrop, shownBackdrop, mix)
-            }
+            if (!folderOpen && DebugHide.intValue and 1 == 0 && !VideoFrames.showing.value)
+                PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, settings.slideAnim, { backImgsS.value?.third != null && blur.value > 0.995f })
             // Screensaver as background: one of its aerial videos (your links and / or Apple's feed).
             LaunchedEffect(settings.bgMode) {
                 if (settings.bgMode == "aerial" && CustomBackground.aerial.value == null)
@@ -458,17 +519,20 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             ) {
                 Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (DebugHide.intValue and 2 != 0) 0f else 1f }) {
                     HeroSection(app, s, hidden = expanded || folderOpen, paused = screen != Screen.Home, metrics = metrics, shownUrl = shownUrl,
-                        heroFocus = heroFocus, firstTile = firstTile, onBackdrop = { backdrop = it },
+                        heroFocus = heroFocus, firstTile = firstTile, rowFocus = rowFocus, rowOn = rowOn, inDock = inDock, away = away, awayDp = awayDp,
+                        onInRow = { inRow = it }, onHeroFocus = { onHero = it }, onBackdrop = { backdrop = it },
                         onCustomUp = {
                             if (settings.menuMode == "auto") { menuClosedAt = 0L; menuOpen = true }
                             else scope.launch { delay(16); runCatching { gearReq.requestFocus() } }
                         })
                 }
-                if (DebugHide.intValue and 4 == 0) TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed -> if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
+                if (DebugHide.intValue and 4 == 0) TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed ->
+                    if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
+                }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
                 Dock(
                     app = app, s = s, metrics = metrics, screenH = screenHdp, radius = radius,
                     expanded = expanded, onExpanded = { expanded = it },
-                    movingPkg = movingPkg, onMoveKey = onMoveKey, firstTile = firstTile, heroFocus = heroFocus,
+                    movingPkg = movingPkg, onMoveKey = onMoveKey, firstTile = firstTile, heroFocus = if (rowOn) rowFocus else heroFocus,
                     folderFocus = folderFocus, tileFocus = tileFocus, onMove = kick,
                     onMenu = { showMenu(it, false) },
                     onFolder = { folderOpen = true },
@@ -480,9 +544,26 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                             android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings → Dock & icons", android.widget.Toast.LENGTH_LONG).show()
                         },
                     )) },
-                    modifier = Modifier.align(Alignment.BottomCenter).graphicsLayer { alpha = if (DebugHide.intValue and 8 != 0) 0f else 1f },
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .graphicsLayer { alpha = if (DebugHide.intValue and 8 != 0) 0f else 1f; translationY = away.value * awayDp * this.density }
+                        // Before the group it watches: the focus is on one of the apps (or the folder).
+                        .onFocusChanged { inDock = it.hasFocus }
+                        .focusGroup(),
                     onCover = { dockCover.value = it },
                 )
+                // No Continue Watching row: the apps' name peeks at the bottom while they wait below.
+                if (heroPage && !rowOn) androidx.compose.foundation.layout.Row(
+                    Modifier.align(Alignment.BottomStart).padding(start = (56 * s).dp, bottom = (18 * s).dp)
+                        .graphicsLayer { this.alpha = away.value; translationY = (1f - away.value) * 20 * s * this.density },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Apps", color = Color.White.copy(alpha = 0.72f), fontSize = (13 * s).sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width((6 * s).dp))
+                    androidx.compose.foundation.Canvas(Modifier.size((9 * s).dp)) {
+                        val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.15f, size.height * 0.32f); lineTo(size.width * 0.5f, size.height * 0.7f); lineTo(size.width * 0.85f, size.height * 0.32f) }
+                        drawPath(p, Color.White.copy(alpha = 0.7f), style = androidx.compose.ui.graphics.drawscope.Stroke(size.width * 0.16f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+                    }
+                }
             }
             if (folderOpen) {
                 FolderOverlay(
@@ -508,10 +589,14 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                     scope.launch { delay(30); runCatching { (if (custom) firstTile else heroFocus).requestFocus() } }
                 },
                 onLibrary = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Library) },
+                onLiveTv = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.LiveTv) },
+                onFollowing = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Following) },
                 onSettings = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Settings) },
             )
             if (screen == Screen.Settings) SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
             if (screen == Screen.Library) LibraryScreen(app) { onScreen(Screen.Home) }
+            if (screen == Screen.LiveTv) LiveTvScreen(app, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
+            if (screen == Screen.Following) FollowingScreen(app) { onScreen(Screen.Home) }
             pickerFor?.let { e ->
                 IconPicker(
                     app, e,
@@ -695,6 +780,22 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
 }
 
 /**
+ * The page's picture: its own composable, so a slide change (new pictures, the slide's direction) recomposes only
+ * this. [covered]: the open dock's veil hides it completely (it isn't drawn then).
+ */
+@Composable
+private fun PageBackdrop(
+    prev: androidx.compose.runtime.State<ImageBitmap?>, cur: androidx.compose.runtime.State<ImageBitmap?>,
+    dir: androidx.compose.runtime.State<Int>, mix: androidx.compose.animation.core.Animatable<Float, *>, anim: String,
+    covered: () -> Boolean,
+) {
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (covered()) 0f else 1f }) {
+        if (anim != "fade") SlideBackdrop(prev.value, cur.value, mix, dir.value, if (anim == "apple") SLIDE_APPLE else SLIDE_PUSH)
+        else FadeBackdrop(prev.value, cur.value, mix)
+    }
+}
+
+/**
  * Crossfade driven by the very same [mix] value as the glass: the old picture stays fully drawn and the new
  * one's opacity goes 0 → 1 on top, exactly what every glass surface does. (Compose's Crossfade also fades the
  * old picture out, so mid-fade the page was darker than the glass and the two looked out of step.)
@@ -712,10 +813,34 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
 
 // ───────────────────────────── hero / carousel ─────────────────────────────
 
+/**
+ * The shade behind Continue Watching while the page is down at the apps: clear down to [TOP] of the screen, then darker
+ * to the bottom. Painted once, small and dithered, and drawn scaled (as the page's other shades are, see Scrims).
+ */
+private object RowShade {
+    const val TOP = 0.3f
+    val picture: ImageBitmap by lazy {
+        val w = 64; val h = 189     // the lower 70% of a 270-high screen picture
+        val b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
+        // The same stops as before, measured from the top of the screen: 0.3 clear, 0.62 at 45%, 1.0 at 75%.
+        p.shader = android.graphics.LinearGradient(0f, 0f, 0f, h.toFloat(), intArrayOf(0, 0x73000000, 0xBF000000.toInt()),
+            floatArrayOf(0f, (0.62f - TOP) / (1f - TOP), 1f), android.graphics.Shader.TileMode.CLAMP)
+        android.graphics.Canvas(b).drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
+        b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap()
+    }
+}
+
+/** Continue Watching's row at rest: its bottom this far above the page's (dp at 960 wide), the dots this far above that. */
+private const val ROW_BOTTOM = 12f
+private const val ROW_DOTS = 142f
+
 @Composable
 private fun HeroSection(
     app: GlassApp, s: Float, hidden: Boolean, paused: Boolean, metrics: DockMetrics,
-    heroFocus: FocusRequester, firstTile: FocusRequester, onBackdrop: (String?) -> Unit,
+    heroFocus: FocusRequester, firstTile: FocusRequester, rowFocus: FocusRequester, rowOn: Boolean,
+    inDock: Boolean, away: androidx.compose.runtime.State<Float>, awayDp: Float, onInRow: (Boolean) -> Unit,
+    onHeroFocus: (Boolean) -> Unit, onBackdrop: (String?) -> Unit,
     shownUrl: androidx.compose.runtime.State<String?> = androidx.compose.runtime.mutableStateOf(null),
     onCustomUp: () -> Unit = {},
 ) {
@@ -730,10 +855,11 @@ private fun HeroSection(
     val mode = settings.continueMode
     val lead = settings.cwLead
     val items = remember(catalogItems, cwItems, mode, lead) {
-        val cw = if (mode == "off") emptyList() else cwItems
-        val keys = cw.map { it.key }.toSet()
+        val cw = if (mode == "off" || mode == "row") emptyList() else cwItems
+        val keys = cwItems.map { it.key }.toSet()
         val rest = catalogItems.filterNot { it.key in keys }
         when {
+            mode == "row" -> rest
             cw.isEmpty() -> catalogItems
             else -> buildList {
                 // "At the start": the first [lead] titles open the carousel, the others follow one after
@@ -755,7 +881,7 @@ private fun HeroSection(
     val jumpRev by app.cw.jumpRev.collectAsState()
     var jumpedRev by remember { mutableIntStateOf(jumpRev) }
     LaunchedEffect(resumed, jumpRev, items) {
-        if (resumed && jumpRev != jumpedRev && settings.continueJump && mode != "off") {
+        if (resumed && jumpRev != jumpedRev && settings.continueJump && mode != "off" && mode != "row") {
             val k = app.cw.lastWatched.value
             val i = items.indexOfFirst { it.key == k }
             if (i >= 0) index = i
@@ -786,13 +912,19 @@ private fun HeroSection(
         }
         item = t
     }
+    // Continue Watching's row: in it (the carousel's text steps aside and waits), and the card selected there.
+    var inRow by remember { mutableStateOf(false) }
+    var rowPick by remember { mutableStateOf<HeroItem?>(null) }
+    LaunchedEffect(rowOn) { if (!rowOn) { inRow = false; rowPick = null; onInRow(false) } }
+    /** The page scrolled down to the apps: the row moves up over the carousel's place, so its text steps aside. */
+    val below = rowOn && inDock
     // Apple TV style gallery: the title stays, its pictures change.
     val gallery = item?.let { i -> if (settings.heroGallery) i.gallery.take(settings.galleryShots) else emptyList() }.orEmpty()
     var shot by remember { mutableIntStateOf(0) }
     LaunchedEffect(item?.key) { shot = 0 }
     val shotMs = (settings.heroIntervalSec * 1000L).coerceAtLeast(4000L)
-    LaunchedEffect(item?.key, gallery.size, hidden, paused, resumed) {
-        if (gallery.size < 2 || hidden || paused || !resumed) return@LaunchedEffect
+    LaunchedEffect(item?.key, gallery.size, hidden, paused, resumed, inRow) {
+        if (gallery.size < 2 || hidden || paused || !resumed || inRow) return@LaunchedEffect
         val loader = SingletonImageLoader.get(ctx)
         while (true) {
             val next = gallery[(shot + 1).mod(gallery.size)]
@@ -831,12 +963,14 @@ private fun HeroSection(
         // Both directions, a few slides deep, glass copies included.
         val depth = settings.prefetchDepth
         val ahead = (1..depth).flatMap { if (it <= (depth + 1) / 2) listOf(it, -it) else listOf(it) }
-        // Downloads only (no decoding kept in memory), further ahead: fast browsing finds the pictures on disk.
+        // Downloads only, further ahead: fast browsing finds the pictures on disk. The disk keeps the whole file
+        // whatever size it's decoded at, so it's decoded tiny (a full 1280 px decode thrown away cost the TV a
+        // few hundredths of a second of CPU and 3.5 MB of memory for each one).
         launch {
             delay(400)
             for (k in depth + 1..depth + 2) {
                 val n = items[(index + k).mod(items.size)].let { withArtwork(enriched[it.key] ?: it, settings.artChoice, settings.artPick(it.key)) }
-                if (n.background.isNotBlank()) loader.execute(imgReq(ctx, sized(n.background, if (settings.imageQuality == "high") "w1280" else "original"))
+                if (n.background.isNotBlank()) loader.execute(imgReq(ctx, sized(n.background, if (settings.imageQuality == "high") "w1280" else "original"), 64, 36)
                     .newBuilder().memoryCachePolicy(coil3.request.CachePolicy.DISABLED).build())
             }
         }
@@ -869,8 +1003,18 @@ private fun HeroSection(
     // going back to it — even after browsing far, or with Home — never reloads anything.
     val cwKeys = remember(cwItems) { cwItems.map { it.key } }
     LaunchedEffect(cwKeys) { cwItems.forEach { app.catalogs.enrich(it) } }
-    val cwShown = cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) } }
-    LaunchedEffect(cwShown.map { it.background + it.logo }, settings.imageQuality, settings.blurRadius) {
+    val artPicks = cwItems.map { settings.artPick(it.key) }
+    // Keyed on these titles' own details only: every other title enriched while browsing left the row as it was.
+    val cwEnriched = cwItems.map { enriched[it.key] }
+    val cwShown = remember(cwItems, cwEnriched, settings.artChoice, artPicks) {
+        cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) } }
+    }
+    // Live TV's cards (a followed match on now, the channel last watched, new recordings) lead the row.
+    val liveCards by com.glasslauncher.tv.data.LiveCards.items.collectAsState()
+    val rowItems = remember(liveCards, cwShown) { liveCards + cwShown }
+    LaunchedEffect(cwShown.map { it.background + it.logo }, settings.imageQuality, settings.blurRadius, rowOn) {
+        // In their own row, these titles are never slides: nothing of theirs to keep ready for the carousel.
+        if (rowOn) { GlassCache.keepOnly(emptySet()); return@LaunchedEffect }
         val loader = SingletonImageLoader.get(ctx)
         val high = settings.imageQuality == "high"
         val keep = mutableSetOf<String>()
@@ -902,8 +1046,8 @@ private fun HeroSection(
         }
     }
     // Keeps playing while the carousel is selected; any Left/Right restarts the timer (index changes).
-    LaunchedEffect(index, items.size, settings.heroAutoplay, settings.heroIntervalSec, hidden, paused, resumed) {
-        if (settings.heroAutoplay && !hidden && !paused && resumed && items.size > 1) {
+    LaunchedEffect(index, items.size, settings.heroAutoplay, settings.heroIntervalSec, hidden, paused, resumed, inRow) {
+        if (settings.heroAutoplay && !hidden && !paused && resumed && items.size > 1 && !inRow) {
             val shots = item?.let { i -> if (settings.heroGallery) i.gallery.take(settings.galleryShots).size else 0 } ?: 0
             delay(settings.heroIntervalSec * 1000L * shots.coerceAtLeast(1))
             SlideDir.dir = 1
@@ -912,7 +1056,8 @@ private fun HeroSection(
     }
 
     val alpha by animateFloatAsState(if (hidden) 0f else 1f, tween(if (hidden) 150 else 220), label = "heroAlpha")
-    val dotsOn = items.size > 1 && settings.dotsMode != "hidden" && (!settings.dotsAutoHide || focused)
+    val dotsOn = items.size > 1 && settings.dotsMode != "hidden" && (!settings.dotsAutoHide || focused) && !below
+    val heroTextState = animateFloatAsState(if (below) 0f else 1f, tween(if (below) 180 else 260), label = "heroText")
     val dotsAlpha by animateFloatAsState(if (dotsOn) 1f else 0f, tween(300), label = "dotsAlpha")
 
     // Your own picture / video / the screensaver behind: the page is just that, no title, details or buttons.
@@ -928,8 +1073,8 @@ private fun HeroSection(
                 .focusable())
         } else if (shown != null) {
             HeroInfo(
-                item = shown, app = app, s = s, focused = focused, heroFocus = heroFocus, firstTile = firstTile,
-                onFocus = { focused = it },
+                item = shown, app = app, s = s, focused = focused, heroFocus = heroFocus, firstTile = if (rowOn) rowFocus else firstTile,
+                onFocus = { focused = it; onHeroFocus(it) },
                 onPrev = { app.navAt = System.currentTimeMillis(); SlideDir.dir = -1; index-- }, onNext = { app.navAt = System.currentTimeMillis(); SlideDir.dir = 1; index++ },
                 onOpen = { NuvioLaunch.open(ctx, settings, app.http, shown) },
                 onLong = {
@@ -943,19 +1088,48 @@ private fun HeroSection(
                         toast(ctx, "Picture ${(cur + 1) % options.size + 1} of ${options.size} · ${shown.name}  (hold OK again for the next)")
                     }
                 },
-                modifier = Modifier.align(Alignment.TopStart),
+                modifier = Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value; translationY = (1f - heroTextState.value) * -20 * s * density },
             )
         } else {
-            EmptyHint(status, s, heroFocus, firstTile, Modifier.align(Alignment.TopStart)) {
+            EmptyHint(status, s, heroFocus, if (rowOn) rowFocus else firstTile, Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value }, onHeroFocus) {
                 app.requestSettings.intValue = CATALOGS_CATEGORY; app.requestSettingsRev.intValue++
             }
         }
+        // Scrolled down to the apps: the page darkens behind the row, so its titles read where the carousel's text was.
+        // Not there at all on the carousel (a full-screen layer, even see-through, is work for the TV's GPU).
+        val shadeOn by remember { androidx.compose.runtime.derivedStateOf { heroTextState.value < 0.999f } }
+        // A small pre-painted picture scaled to the screen, only over the part it darkens: as a live full-screen gradient
+        // it cost the TV's GPU about 26 ms a frame.
+        if (rowOn && shadeOn && DebugHide.intValue and 1048576 == 0) androidx.compose.foundation.Canvas(Modifier.fillMaxSize().graphicsLayer {
+            this.alpha = 1f - heroTextState.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+        }) {
+            val top = (size.height * RowShade.TOP).toInt()
+            drawImage(RowShade.picture, dstOffset = androidx.compose.ui.unit.IntOffset(0, top),
+                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt() - top),
+                filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+        }
+        val pxPerDp = LocalDensity.current.density
+        // The row's bottom, just above the dock (dp at 960 wide, before the scale).
+        val rowAbove = (metrics.collapsedH + metrics.bottomMargin) / s + 8
+        if (rowOn && DebugHide.intValue and 2097152 == 0) ContinueRow(
+            items = rowItems, s = s, entry = rowFocus, up = heroFocus, down = firstTile,
+            // At rest (the apps below the screen) along the bottom of the page, as Apple TV's Up Next.
+            drop = { away.value * (rowAbove - ROW_BOTTOM) * s * pxPerDp },
+            onInside = { inRow = it; onInRow(it) }, onSelected = { rowPick = it },
+            onOpen = { if (com.glasslauncher.tv.data.LiveCards.isLive(it)) com.glasslauncher.tv.data.LiveCards.open(ctx, it) else NuvioLaunch.open(ctx, settings, app.http, it) },
+            onRemove = {
+                if (com.glasslauncher.tv.data.LiveCards.isLive(it)) com.glasslauncher.tv.data.LiveCards.hide(ctx, it) else app.cw.remove(it.key)
+                toast(ctx, "Removed from Continue Watching · ${it.name}")
+            },
+            modifier = Modifier.align(Alignment.BottomStart).padding(bottom = (rowAbove * s).dp),
+        )
         if (!customBg && items.size > 1 && settings.dotsMode != "hidden") {
             Dots(
                 total = items.size, current = index.mod(items.size), mode = settings.dotsMode, max = settings.dotsMax, s = s,
                 modifier = Modifier.align(Alignment.BottomCenter)
-                    .padding(bottom = (metrics.collapsedH + metrics.bottomMargin + 10 * s).dp)
-                    .graphicsLayer { this.alpha = dotsAlpha },
+                    // With the row, just above its name (Apple TV's); without, at the bottom of the page.
+                    .padding(bottom = (if (rowOn) ROW_BOTTOM + ROW_DOTS else metrics.collapsedH / s + metrics.bottomMargin / s + 10).let { (it * s).dp })
+                    .graphicsLayer { this.alpha = dotsAlpha; translationY = if (rowOn) 0f else away.value * (awayDp - 30 * s) * this.density },
             )
         }
     }
@@ -968,12 +1142,14 @@ private fun HeroSection(
 @Composable
 private fun EmptyHint(
     status: String, s: Float, heroFocus: FocusRequester, firstTile: FocusRequester,
-    modifier: Modifier, onCatalogs: () -> Unit,
+    modifier: Modifier, onFocus: (Boolean) -> Unit, onCatalogs: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val scale by animateFloatAsState(if (focused) 1.06f else 1f, spring(0.6f, 450f), label = "hintBtn")
     Column(modifier.padding(start = (56 * s).dp, top = (130 * s).dp).widthIn(max = (480 * s).dp)) {
         Text("Glassio", color = Color.White, fontSize = (30 * s).sp, fontWeight = FontWeight.Light, letterSpacing = 4.sp)
+        Text("YAHSUN", color = Color.White.copy(alpha = 0.8f), fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (4 * s).sp,
+            modifier = Modifier.padding(start = (3 * s).dp, top = (2 * s).dp))
         Spacer(Modifier.height((10 * s).dp))
         Text(if (status.isBlank()) "Loading…" else status, color = Color.White.copy(alpha = 0.7f), fontSize = (14 * s).sp)
         Spacer(Modifier.height((6 * s).dp))
@@ -987,7 +1163,7 @@ private fun EmptyHint(
                 .graphicsLayer { scaleX = scale; scaleY = scale }
                 .focusRequester(heroFocus)
                 .focusProperties { down = firstTile }
-                .onFocusChanged { focused = it.isFocused }
+                .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
                 .tvPress(onClick = onCatalogs)
                 .clip(RoundedCornerShape(50))
                 .background(if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.14f))
@@ -1240,7 +1416,13 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
     val since = remember { android.os.SystemClock.uptimeMillis() }
     // Still on the button a moment later (it was just closed, or the TV was busy): that's on purpose, open it.
     var gearOn by remember { mutableStateOf(false) }
-    LaunchedEffect(gearOn) { if (gearOn && settings.menuMode == "auto") { delay(450); if (gearOn && android.os.SystemClock.uptimeMillis() - since > 1200) onMenu(true) } }
+    LaunchedEffect(gearOn) {
+        if (gearOn && settings.menuMode == "auto") {
+            delay(450)
+            // A key brought the focus here (not the system, handing it to the first thing on screen as Glassio starts).
+            if (gearOn && android.os.SystemClock.uptimeMillis() - since > 1200 && System.currentTimeMillis() - app.interaction.longValue < 2500) onMenu(true)
+        }
+    }
     val gearFocus: (Boolean) -> Unit = {
         gearOn = it
         if (it && settings.menuMode == "auto" && android.os.SystemClock.uptimeMillis() - since > 1200 &&
@@ -1355,7 +1537,7 @@ fun UpdateBanner(app: GlassApp, s: Float, modifier: Modifier) {
     AnimatedVisibility((visible || pill || status.isNotBlank()) && r != null, modifier, enter = fadeIn(tween(250)), exit = fadeOut(tween(300))) {
         GlassPanel(Modifier.padding(top = (54 * s).dp).width((300 * s).dp), (16 * s).dp, style = app.settings.panelStyle, darken = 0.55f) {
             Column(Modifier.padding(horizontal = (16 * s).dp, vertical = (11 * s).dp)) {
-                Text("Glassio ${r?.version}", color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                Text("Glassio Yahsun ${r?.version}", color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height((5 * s).dp))
                 noteLines(r?.notes.orEmpty()).forEach {
                     Text("·  $it", color = AppleSecondary, fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -1839,7 +2021,11 @@ private fun FolderOverlay(
     LaunchedEffect(Unit) { shown = true }
 
     val outer = LocalGlassEnv.current
-    val env = outer.copy(bmp = outer.heavy ?: outer.bmp, sharp = outer.heavy ?: outer.sharp, wobble = 0f, prevBmp = null, prevSharp = null, mix = null, veil = null, sharpIsPage = false)
+    // Inside the folder every glass shows the heavily blurred page, still (no crossfade, no slide, no ripple).
+    val folderPics = remember(outer.pics) {
+        androidx.compose.runtime.derivedStateOf { outer.pics.value.let { p -> GlassPics(p.heavy ?: p.bmp, p.heavy ?: p.sharp, p.heavy) } }
+    }
+    val env = outer.copy(pics = folderPics, wobble = 0f, mix = null, veil = null)
     CompositionLocalProvider(LocalGlassEnv provides env) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         // Blurred page and its dimming in one pass.

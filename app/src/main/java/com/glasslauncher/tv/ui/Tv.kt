@@ -14,6 +14,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.semantics.clearAndSetSemantics
 
 val KeyEvent.isSelect: Boolean
     get() = key == Key.DirectionCenter || key == Key.Enter || key == Key.NumPadEnter
@@ -57,4 +58,25 @@ fun Modifier.tvPress(
             else -> false
         }
     }.focusable()
+}
+
+/**
+ * Compose keeps a description of the screen up to date (redone on every slide) whenever any accessibility service is
+ * on, though Glassio's own Home-button service never reads the screen. Without a service that speaks the screen
+ * (TalkBack and the like), that work is skipped; with one, everything is described as usual.
+ */
+@Composable
+fun QuietSemantics(content: @Composable () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val am = remember { ctx.getSystemService(android.content.Context.ACCESSIBILITY_SERVICE) as android.view.accessibility.AccessibilityManager }
+    fun speaks() = am.isEnabled && am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_SPOKEN).isNotEmpty()
+    var spoken by remember { mutableStateOf(speaks()) }
+    androidx.compose.runtime.DisposableEffect(am) {
+        val l = android.view.accessibility.AccessibilityManager.AccessibilityStateChangeListener { spoken = speaks() }
+        am.addAccessibilityStateChangeListener(l)
+        onDispose { am.removeAccessibilityStateChangeListener(l) }
+    }
+    androidx.compose.foundation.layout.Box(
+        if (spoken) Modifier else Modifier.clearAndSetSemantics { },
+    ) { content() }
 }

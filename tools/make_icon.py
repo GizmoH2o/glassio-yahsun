@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""Renders the Glassio icon (square) and TV banner (16:9): a frosted glass pane over soft colour."""
+"""Renders the Glassio Yahsun icon (square) and TV banner (16:9): a frosted glass pane over soft colour, with the
+Y monogram (icon) or the wordmark (banner) engraved on it in Inter, and the red dot of Live TV."""
+import os
 import sys
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
-def render(W, H, pane_w, pane_h, radius, out):
+FONTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src", "main", "res", "font")
+
+
+def font(name, size):
+    from PIL import ImageFont
+    return ImageFont.truetype(os.path.join(FONTS, name), size)
+
+
+def render(W, H, pane_w, pane_h, radius, out, mark=None):
     S = 2  # supersample
     w, h = W * S, H * S
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
@@ -51,11 +61,69 @@ def render(W, H, pane_w, pane_h, radius, out):
     rim_a = (np.asarray(rim).astype(np.float32) * grad * 0.75).astype(np.uint8)
     out_img = Image.composite(Image.new("RGB", (w, h), (255, 255, 255)), out_img, Image.fromarray(rim_a))
 
+    if mark:
+        out_img = mark(out_img, S, (x0, y0, pw, ph))
     out_img.resize((W, H), Image.LANCZOS).save(out, optimize=True)
     print("wrote", out)
 
 d = sys.argv[1] if len(sys.argv) > 1 else "."
-# Square app icon: pane in 16:10, centred.
-render(512, 512, 330, 220, 46, f"{d}/icon_512.png")
-# TV banner: wide pane.
-render(1280, 720, 760, 420, 70, f"{d}/banner_1280x720.png")
+
+
+def engrave(img, layer, glow):
+    """White lettering on the glass: a soft glow under it, then the letters themselves."""
+    halo = layer.filter(ImageFilter.GaussianBlur(glow))
+    img = Image.composite(Image.new("RGB", img.size, (255, 255, 255)), img, halo.point(lambda v: int(v * 0.45)))
+    return Image.composite(Image.new("RGB", img.size, (255, 255, 255)), img, layer)
+
+
+def live_dot(img, cx, cy, r):
+    """Live TV's red dot, with a little light around it."""
+    glow = Image.new("L", img.size, 0)
+    ImageDraw.Draw(glow).ellipse([cx - r * 2.2, cy - r * 2.2, cx + r * 2.2, cy + r * 2.2], fill=170)
+    img = Image.composite(Image.new("RGB", img.size, (229, 50, 45)), img, glow.filter(ImageFilter.GaussianBlur(r * 1.2)))
+    dot = Image.new("L", img.size, 0)
+    ImageDraw.Draw(dot).ellipse([cx - r, cy - r, cx + r, cy + r], fill=255)
+    return Image.composite(Image.new("RGB", img.size, (255, 72, 66)), img, dot)
+
+
+def monogram(img, S, pane):
+    """The icon: a fine Y centred on the pane, the red dot at its top right."""
+    x0, y0, pw, ph = pane
+    layer = Image.new("L", img.size, 0)
+    f = font("inter_light.ttf", int(ph * 0.78))
+    dr = ImageDraw.Draw(layer)
+    l, t, r, b = dr.textbbox((0, 0), "Y", font=f)
+    dr.text((x0 + (pw - (r - l)) / 2 - l, y0 + (ph - (b - t)) / 2 - t), "Y", font=f, fill=255)
+    img = engrave(img, layer, 6 * S)
+    return live_dot(img, x0 + pw - ph * 0.16, y0 + ph * 0.16, ph * 0.045)
+
+
+def wordmark(img, S, pane):
+    """The banner: Glassio, and YAHSUN in spaced capitals under it; the red dot beside YAHSUN."""
+    x0, y0, pw, ph = pane
+    layer = Image.new("L", img.size, 0)
+    dr = ImageDraw.Draw(layer)
+    big, small = font("inter_light.ttf", int(ph * 0.30)), font("inter_semibold.ttf", int(ph * 0.085))
+    word = "Glassio"
+    l, t, r, b = dr.textbbox((0, 0), word, font=big)
+    sub_word, track = "YAHSUN", ph * 0.045
+    widths = [dr.textbbox((0, 0), ch, font=small)[2] for ch in sub_word]
+    sub_w = sum(widths) + track * (len(sub_word) - 1)
+    sl, st, sr, sb = dr.textbbox((0, 0), sub_word, font=small)
+    gap = ph * 0.07
+    total = (b - t) + gap + (sb - st)
+    top = y0 + (ph - total) / 2
+    dr.text((x0 + (pw - (r - l)) / 2 - l, top - t), word, font=big, fill=255)
+    sx, sy = x0 + (pw - sub_w) / 2, top + (b - t) + gap - st
+    x = sx
+    for ch, cw in zip(sub_word, widths):
+        dr.text((x, sy), ch, font=small, fill=215)
+        x += cw + track
+    img = engrave(img, layer, 5 * S)
+    return live_dot(img, sx + sub_w + ph * 0.1, sy + st + (sb - st) / 2, ph * 0.018)
+
+
+# Square app icon: pane in 16:10, centred, the Y on it.
+render(512, 512, 330, 220, 46, f"{d}/icon_512.png", monogram)
+# TV banner: wide pane, the wordmark on it.
+render(1280, 720, 760, 420, 70, f"{d}/banner_1280x720.png", wordmark)

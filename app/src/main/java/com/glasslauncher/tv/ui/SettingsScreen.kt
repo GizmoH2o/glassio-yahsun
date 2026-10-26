@@ -1,5 +1,7 @@
 package com.glasslauncher.tv.ui
 
+import com.glasslauncher.tv.BootReceiver
+
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings as AndroidSettings
@@ -353,6 +355,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Date in the menu", "", { st.menuDate }, { st.menuDate = it }),
                 Toggle("Weather in the menu", "Temperature, conditions, high / low, humidity and wind (city in Clock & glass)", { st.menuWeather }, { st.menuWeather = it; app.weather.reload() }),
                 Toggle("City in the menu", "", { st.menuCity }, { st.menuCity = it }),
+                Toggle("Live TV and Following in the menu", "Your IPTV channels with a full guide, and the teams and shows you follow", { st.menuLive }, { st.menuLive = it }),
                 Toggle("Library in the menu", "", { st.menuLibrary }, { st.menuLibrary = it }),
                 Toggle("Android settings in the menu", "", { st.menuAndroid }, { st.menuAndroid = it }),
                 Toggle("Wi-Fi in the menu", "", { st.menuWifi }, { st.menuWifi = it }),
@@ -403,15 +406,23 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val cwList by app.cw.entries.collectAsState()
             buildList {
                 add(Adjust("Show Continue Watching", "Where titles you are watching appear", {
-                    when (st.continueMode) { "off" -> "Off"; "mixed" -> "Mixed with catalogs"; else -> "At the start" }
-                }, { st.continueMode = cycle(listOf("first", "mixed", "off"), st.continueMode, it) }))
+                    when (st.continueMode) { "off" -> "Off"; "mixed" -> "Mixed with catalogs"; "first" -> "At the start of the carousel"; else -> "Own row" }
+                }, { st.continueMode = cycle(listOf("row", "first", "mixed", "off"), st.continueMode, it) }))
                 if (st.continueMode == "first") add(Adjust("Slides at the start", "How many titles in progress open the carousel", {
                     if (st.cwLead <= 0) "All" else "${st.cwLead}"
                 }, { st.cwLead = cycle(listOf(1, 2, 3, 4, 5, 0), st.cwLead, it) }))
-                add(Toggle("Open on what I just watched", "Back from Nuvio, the carousel shows that title first", { st.continueJump }, { st.continueJump = it }))
-                add(Toggle("Progress bar", "Shows Continue · S1 · E3 · 42% under the title", { st.cwProgress }, { st.cwProgress = it }))
+                if (st.continueMode == "row") add(Note("Own row: a Continue Watching row above the dock, like the Apple TV app. Down from the carousel goes into it; hold OK on a title to take it out."))
+                if (st.continueMode != "row") add(Toggle("Open on what I just watched", "Back from Nuvio, the carousel shows that title first", { st.continueJump }, { st.continueJump = it }))
+                if (st.continueMode != "row") add(Toggle("Progress bar", "Shows Continue · S1 · E3 · 42% under the title", { st.cwProgress }, { st.cwProgress = it }))
                 add(Note("Apps"))
                 add(Toggle("Nuvio Legacy", if (app.cw.hasLogAccess()) "Reading what you watch in Nuvio Legacy" else "Allow USB debugging for Glassio when the TV asks", { st.cwLegacy }, { st.cwLegacy = it }))
+                val nuvioAcct = app.library.nuvio
+                val nStatus by app.cw.nuvioStatus.collectAsState()
+                if (nuvioAcct.available) add(Toggle("Nuvio (official app)",
+                    if (nuvioAcct.connected) "From your Nuvio account" + (nuvioAcct.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") +
+                        ": what you're watching in the official Nuvio app" + (if (nStatus.isNotBlank()) " · $nStatus" else "")
+                    else "Sign in to your Nuvio account (Settings → Nuvio & Home Assistant) to see what you're watching in the official Nuvio app",
+                    { st.cwNuvio }, { st.cwNuvio = it; app.cw.syncNuvioNow() }))
                 val trakt = app.cw.trakt
                 val tStatus by app.cw.traktStatus.collectAsState()
                 if (trakt.available) {
@@ -431,7 +442,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     else add(Act("Sign out of Trakt", trakt.user, "") { trakt.signOut(); st.cwTrakt = st.cwTrakt; toast(ctx, "Signed out of Trakt") })
                 }
                 add(Note("How it works: Nuvio Legacy writes what you play to the TV's log (title, episode, how far). Glassio reads that log through the TV's own debugging connection (ADB), so this needs ADB once: Settings → System → TV access (ADB). Nothing leaves the TV."))
-                add(Note("The official Nuvio app, Nuvio Arc and Re-Shaped don't write that log: connect Trakt (and turn on Trakt in that Nuvio app) and what you pause there shows up here through Trakt."))
+                add(Note("The official Nuvio app saves what you watch to your Nuvio account: signed in to the same account here, it shows up in Continue Watching. Nuvio Arc and Re-Shaped: connect Trakt (and turn on Trakt in that app) and what you pause there shows up here through Trakt."))
                 add(Note("Other apps (YouTube, Netflix, Apple TV…) keep their Continue Watching private on Google TV; only the system launcher may read it."))
                 add(Act("Clear the list", "${cwList.size} titles", "") { app.cw.clear() })
                 cwList.forEach { e ->
@@ -518,6 +529,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 if (st.saverMode == "system") add(Note("Starts the screensaver chosen in Google TV settings (Aerial Views). The first time, the TV asks to allow USB debugging for Glassio: choose Always allow."))
                 add(Toggle("Apple aerial videos", "Streams Apple's public aerial feed", { st.useAppleAerials }, { st.useAppleAerials = it }))
                 add(Toggle("Show clock", "", { st.saverClock }, { st.saverClock = it }))
+                add(Toggle("Followed matches", "Your team's next match from Following under the clock, with LIVE and the score", { st.saverMatch }, { st.saverMatch = it }))
                 add(Toggle("Back on the home screen starts it", "Like Apple TV: press Back on the home screen", { st.backSaver }, { st.backSaver = it }))
                 add(Act("Add video link", "A direct .mp4 / .mov link", "") {
                     dialog = TextEntry("Video link", "", "https://…/video.mp4") { u ->
@@ -528,7 +540,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     add(Act("Video link", hostOf(u), "Remove") { st.aerialUrls = st.aerialUrls - u })
                 }
                 add(Act("Preview now", "") { ctx.startActivity(Intent(ctx, ScreensaverActivity::class.java)) })
-                add(Act("Use as system screensaver", "Pick Glassio in the list", "") { openSystem(ctx, AndroidSettings.ACTION_DREAM_SETTINGS) })
+                add(Act("Use as system screensaver", "Pick Glassio Yahsun in the list", "") { openSystem(ctx, AndroidSettings.ACTION_DREAM_SETTINGS) })
             }
         },
         Category("Manage from phone", Kind.Phone),
@@ -536,8 +548,15 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val devOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1 }.getOrDefault(false)
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
+                Toggle("Open Glassio when the TV starts", "After a restart, Glassio Yahsun instead of Google TV's home screen. Needs the accessibility service or TV access (ADB), below" +
+                    (if (BootReceiver.TCL) ". TCL TVs: TV access lets Glassio start by itself" else ""), { st.bootGlassio }, {
+                    st.bootGlassio = it
+                    if (it && BootReceiver.TCL) scope.launch(Dispatchers.IO) {
+                        toast(ctx, if (BootReceiver.allowAutoStart(ctx)) "Glassio may start by itself on this TCL TV" else "Allow TV access (ADB) first: steps below")
+                    }
+                }),
                 Toggle("Home button opens Glassio", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
-                Act("Turn on the accessibility service", "Find Glassio and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
+                Act("Turn on the accessibility service", "Find Glassio Yahsun and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
                 Act("Turn it on with ADB", if (homeKeyOn) "The accessibility service is on" else "When the TV doesn't let you (restricted setting / greyed out). Needs TV access (ADB), below", "") {
                     scope.launch(Dispatchers.IO) {
                         val svc = "${ctx.packageName}/com.glasslauncher.tv.HomeKeyService"
@@ -814,7 +833,7 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
             Text("Scan with your phone", color = Color.White.copy(alpha = 0.5f), fontSize = (9 * s).sp)
         }
         val rows = buildList<SRow> {
-            add(Note("Glassio ${app.updater.current}"))
+            add(Note("Glassio Yahsun ${app.updater.current}"))
             if (rel != null) {
                 add(Act("Install update ${rel!!.version}", if (status.isNotBlank()) status else "Downloads from GitHub and restarts Glass", "Install") { app.updater.install() })
                 rel!!.notes.lineSequence().map { it.trim().removePrefix("-").removePrefix("*").trim() }.filter { it.isNotBlank() && !it.startsWith("#") }

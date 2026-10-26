@@ -133,6 +133,8 @@ class Settings(private val ctx: Context) {
     var heroPlus: Boolean get() = b("heroPlus", true); set(v) = putB("heroPlus", v)
     var libraryTrakt: Boolean get() = b("libraryTrakt", true); set(v) = putB("libraryTrakt", v)
     /** The Nuvio account's Library (Nuvio Legacy, official Nuvio and forks that sync with the account). */
+    /** Live TV and Following in the menu. */
+    var menuLive: Boolean get() = b("menuLive", true); set(v) = putB("menuLive", v)
     var libraryNuvio: Boolean get() = b("libraryNuvio", true); set(v) = putB("libraryNuvio", v)
     /** The + button also saves to the Nuvio account's Library. */
     /** Catalogs also come from the add-ons installed on the Nuvio account (merged with the TV's own, never twice). */
@@ -173,8 +175,8 @@ class Settings(private val ctx: Context) {
     var cornerRadius: Int get() = i("cornerRadius", 18); set(v) = putI("cornerRadius", v.coerceIn(0, 40))
     /** Index of the Apps folder among the dock apps; -1 = after the last app. */
     var folderPos: Int get() = i("folderPos", -1); set(v) = putI("folderPos", v)
-    /** Continue Watching: off | first (at the start of the carousel) | mixed (among the catalogs) */
-    var continueMode: String get() = s("continueMode", "first"); set(v) = putS("continueMode", v)
+    /** Continue Watching: row (its own row, Apple TV's) | first (at the start of the carousel) | mixed (among the catalogs) | off */
+    var continueMode: String get() = s("continueMode", "row"); set(v) = putS("continueMode", v)
     /** Continue Watching also from the Trakt account (when one is connected). */
     var cwTrakt: Boolean get() = b("cwTrakt", true); set(v) = putB("cwTrakt", v)
     /** After you leave the player, the carousel opens on what you just watched. */
@@ -182,6 +184,8 @@ class Settings(private val ctx: Context) {
     var cwLead: Int get() = i("cwLead", 3); set(v) = putI("cwLead", v)
     var continueJump: Boolean get() = b("continueJump", true); set(v) = putB("continueJump", v)
     var cwLegacy: Boolean get() = b("cwLegacy", true); set(v) = putB("cwLegacy", v)
+    /** Continue Watching also from the official Nuvio app, through the Nuvio account (when signed in). */
+    var cwNuvio: Boolean get() = b("cwNuvio", true); set(v) = putB("cwNuvio", v)
     var cwProgress: Boolean get() = b("cwProgress", true); set(v) = putB("cwProgress", v)
     /** 0.6 .. 1.0 (1.0 = full width) */
     var dockScale: Float get() = f("dockScale", 1.0f); set(v) = putF("dockScale", v.coerceIn(0.6f, 1.0f))
@@ -240,7 +244,11 @@ class Settings(private val ctx: Context) {
     var useAppleAerials: Boolean get() = b("useAppleAerials", true); set(v) = putB("useAppleAerials", v)
     var aerialUrls: List<String> get() = list("aerialUrls"); set(v) = putList("aerialUrls", v)
     var saverClock: Boolean get() = b("saverClock", true); set(v) = putB("saverClock", v)
+    /** A followed team's next match (Live TV's Following) under the screensaver's clock. */
+    var saverMatch: Boolean get() = b("saverMatch", true); set(v) = putB("saverMatch", v)
 
     // ---- System
     var interceptHome: Boolean get() = b("interceptHome", false); set(v) = putB("interceptHome", v)
+    /** After a restart, Glassio instead of Google TV's own home screen (BootReceiver, HomeKeyService). */
+    var bootGlassio: Boolean get() = b("bootGlassio", true); set(v) = putB("bootGlassio", v)
 }

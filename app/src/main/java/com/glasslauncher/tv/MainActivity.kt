@@ -17,7 +17,11 @@ import androidx.lifecycle.Lifecycle
 import com.glasslauncher.tv.saver.ScreensaverActivity
 import com.glasslauncher.tv.ui.HomeScreen
 import com.glasslauncher.tv.ui.Screen
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     private var screen by mutableStateOf(Screen.Home)
@@ -37,13 +41,26 @@ class MainActivity : ComponentActivity() {
                     delay(2_000)
                     val secs = app.settings.idleSeconds
                     val idle = System.currentTimeMillis() - lastInput
-                    if (secs > 0 && idle > secs * 1000L && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    // Not while a channel plays in the small window (Watch on Home).
+                    if (secs > 0 && idle > secs * 1000L && com.glasslauncher.tv.ui.MiniLive.now.value == null &&
+                        lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
                         lastInput = System.currentTimeMillis()
                         startActivity(Intent(this@MainActivity, ScreensaverActivity::class.java))
                     }
                 }
             }
-            com.glasslauncher.tv.ui.GlassType { HomeScreen(app, screen) { screen = it } }
+            com.glasslauncher.tv.ui.GlassType { com.glasslauncher.tv.ui.QuietSemantics { HomeScreen(app, screen) { screen = it } } }
+            // Watch on Home: over everything, last.
+            com.glasslauncher.tv.ui.MiniLiveWindow()
+        }
+        // Live TV's cards in Continue Watching: read again every minute while the home screen is in front.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (true) {
+                    withContext(kotlinx.coroutines.Dispatchers.IO) { com.glasslauncher.tv.data.LiveCards.refresh(this@MainActivity) }
+                    delay(60_000)
+                }
+            }
         }
     }
 
@@ -59,6 +76,8 @@ class MainActivity : ComponentActivity() {
         lastInput = System.currentTimeMillis()
         hideBars()
         (application as GlassApp).cw.pollNow()
+        // Live TV's "open when the TV starts" (its settings): the first time the home screen shows after a boot.
+        Thread { runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) } }.start()
     }
 
     /** Terminal helper: am start -n com.glasslauncher.tv/.MainActivity --es icon_pack <package> ("none" clears it). */
@@ -66,11 +85,23 @@ class MainActivity : ComponentActivity() {
         val app = application as GlassApp
         i?.getStringExtra("reset_icon")?.let { app.icons.reset(it) }
         if (i?.getBooleanExtra("open_folder", false) == true) app.requestFolder.value = true
+        // Watch on Home (Live TV's menu): the channel it handed over, in the small window. Read from the app's own file,
+        // so nothing outside the app can put a stream here.
+        if (i?.getBooleanExtra("mini_live", false) == true) {
+            screen = Screen.Home
+            Thread {
+                val m = runCatching { com.glasslauncher.tv.live.LiveHome.takeMini(this) }.getOrNull()
+                if (m != null) runOnUiThread { com.glasslauncher.tv.ui.MiniLive.now.value = m }
+            }.start()
+        }
         if (i?.hasExtra("hero_autoplay") == true) app.settings.heroAutoplay = i.getBooleanExtra("hero_autoplay", true)
         if (i?.hasExtra("page_glass") == true) com.glasslauncher.tv.ui.PageGlass.on.value = i.getBooleanExtra("page_glass", true)
         i?.getIntExtra("open_settings", -1)?.takeIf { it >= 0 }?.let { app.requestSettings.intValue = it; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_menu", false) == true) { app.requestSettings.intValue = 100; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_library", false) == true) { app.requestSettings.intValue = 101; app.requestSettingsRev.intValue++ }
+        // Live TV's menu → Home, or am start ... --ez open_live true / --ez open_following true.
+        if (i?.getBooleanExtra("open_live", false) == true) { app.requestSettings.intValue = 102; app.requestSettingsRev.intValue++ }
+        if (i?.getBooleanExtra("open_following", false) == true) { app.requestSettings.intValue = 103; app.requestSettingsRev.intValue++ }
         if (i?.hasExtra("timing") == true) com.glasslauncher.tv.data.Glog.timing = i.getBooleanExtra("timing", false)
         if (i?.hasExtra("dbg_hide") == true) com.glasslauncher.tv.ui.DebugHide.intValue = i.getIntExtra("dbg_hide", 0)
         i?.getStringExtra("dock_style")?.let { app.settings.dockStyle = it }
@@ -85,7 +116,7 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("saver_mode")?.let { if (it in setOf("aerial", "slideshow", "system")) app.settings.saverMode = it }
         i?.getStringExtra("slide_anim")?.let { if (it in setOf("fade", "slide", "apple")) app.settings.slideAnim = it }
         i?.getStringExtra("dots_mode")?.let { if (it in setOf("window", "liquid", "progress", "hidden")) app.settings.dotsMode = it }
-        i?.getStringExtra("continue_mode")?.let { if (it in setOf("off", "first", "mixed")) app.settings.continueMode = it }
+        i?.getStringExtra("continue_mode")?.let { if (it in setOf("row", "off", "first", "mixed")) app.settings.continueMode = it }
         if (i?.getBooleanExtra("start_saver", false) == true)
             startActivity(android.content.Intent(this, com.glasslauncher.tv.saver.ScreensaverActivity::class.java))
         if (i?.getBooleanExtra("dump_prefs", false) == true) app.settings.dumpAll().toSortedMap().forEach { (k, v) ->
@@ -120,6 +151,15 @@ class MainActivity : ComponentActivity() {
     override fun onUserInteraction() {
         lastInput = System.currentTimeMillis()
         (application as GlassApp).touch()
+    }
+
+    // Watch on Home: Back closes the small window first, before the home screen sees it (its own keys take Back too).
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && com.glasslauncher.tv.ui.MiniLive.now.value != null) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) com.glasslauncher.tv.ui.MiniLive.close()
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {

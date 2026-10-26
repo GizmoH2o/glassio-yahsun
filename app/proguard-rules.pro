@@ -9,3 +9,5 @@
 -dontwarn org.bouncycastle.**
 -dontwarn javax.naming.**
 -keep class dadb.** { *; }
+# Live TV (ported from Zero, which kept its own code whole): names unchanged, nothing it reaches dropped.
+-keep class com.glasslauncher.tv.live.** { *; }

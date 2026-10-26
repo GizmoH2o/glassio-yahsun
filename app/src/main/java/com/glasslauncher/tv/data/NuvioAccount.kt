@@ -49,7 +49,7 @@ class NuvioAccount(ctx: Context) {
         val nonce = java.util.UUID.randomUUID().toString()
         fun start(withName: Boolean) = call("/rest/v1/rpc/start_tv_login_session", JSONObject()
             .put("p_device_nonce", nonce).put("p_redirect_base_url", "https://nuvio.tv/tv-login")
-            .apply { if (withName) put("p_device_name", "Glassio") }, anon)
+            .apply { if (withName) put("p_device_name", "Glassio Yahsun") }, anon)
         var (code, text) = start(true)
         if (code !in 200..299) { val r = start(false); code = r.first; text = r.second }
         check(code in 200..299) { "Nuvio answered HTTP $code" }
@@ -94,6 +94,9 @@ class NuvioAccount(ctx: Context) {
         return true
     }
 
+    // One refresh at a time: the Library and Continue Watching ask from their own threads, and a refresh token is
+    // good for one use.
+    @Synchronized
     private fun access(force: Boolean = false): String? {
         if (!connected) return null
         val a = sp.getString("access", "").orEmpty()
@@ -194,6 +197,43 @@ class NuvioAccount(ctx: Context) {
             .map { it.optString("url").trim() }
             .filter { it.startsWith("http") || it.startsWith("stremio") }
     }.getOrElse { Glog.w("Nuvio add-ons", it); null }
+
+    /** One title in progress in the official Nuvio app (and the apps that sync with the account), as the account keeps it. */
+    data class Progress(val id: String, val type: String, val season: Int, val episode: Int, val percent: Int, val at: Long, val key: String)
+
+    /**
+     * What's being watched, as the official Nuvio app saves it to the account (profile 1): the same list its own
+     * Continue Watching reads. Null when it couldn't be read (signed out, offline).
+     */
+    fun watchProgress(profile: Int = 1): List<Progress>? = runCatching {
+        var tok = access() ?: return null
+        val body = JSONObject().put("p_profile_id", profile)
+        var (c, t) = call("/rest/v1/rpc/sync_pull_watch_progress", body, tok)
+        if (c == 401) { tok = access(force = true) ?: return null; val r = call("/rest/v1/rpc/sync_pull_watch_progress", body, tok); c = r.first; t = r.second }
+        if (c !in 200..299) { Glog.w("Nuvio watch progress: HTTP $c"); lastError = "Nuvio answered HTTP $c"; return null }
+        val a = JSONArray(t)
+        (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            val id = o.optString("content_id").trim()
+            val dur = o.optLong("duration"); val pos = o.optLong("position")
+            if (id.isBlank() || dur <= 0) return@mapNotNull null
+            val season = if (o.isNull("season")) 0 else o.optInt("season")
+            val episode = if (o.isNull("episode")) 0 else o.optInt("episode")
+            val type = if (o.optString("content_type").equals("movie", true)) "movie" else "series"
+            Progress(id, type, season, episode, (pos * 100 / dur).toInt().coerceIn(0, 100), o.optLong("last_watched"), o.optString("progress_key"))
+        }
+    }.getOrElse { Glog.w("Nuvio watch progress", it); null }
+
+    /** Takes titles out of the account's watch progress (removed from Continue Watching here, so in Nuvio too). */
+    fun removeProgress(keys: List<String>, profile: Int = 1): Boolean = runCatching {
+        if (keys.isEmpty()) return true
+        var tok = access() ?: return false
+        val body = JSONObject().put("p_keys", JSONArray(keys)).put("p_profile_id", profile).put("p_origin_client_id", clientId)
+        var c = call("/rest/v1/rpc/sync_delete_watch_progress", body, tok).first
+        if (c == 401) { tok = access(force = true) ?: return false; c = call("/rest/v1/rpc/sync_delete_watch_progress", body, tok).first }
+        if (c !in 200..299) Glog.w("Nuvio remove progress: HTTP $c")
+        c in 200..299
+    }.getOrElse { Glog.w("Nuvio remove progress", it); false }
 
     data class Saved(val id: String, val type: String, val name: String, val poster: String, val background: String,
                      val description: String, val year: String, val at: Long)

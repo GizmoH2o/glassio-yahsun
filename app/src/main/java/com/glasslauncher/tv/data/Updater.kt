@@ -20,7 +20,7 @@ import java.net.URL
 data class Release(val version: String, val notes: String, val apkUrl: String, val pageUrl: String, val size: Long)
 
 /**
- * Updates from GitHub Releases (github.com/mohammadmrh12/glassio).
+ * Updates from GitHub Releases (github.com/GizmoH2o/glassio-yahsun).
  *
  * Checks the latest release a few seconds after start and then every 12 hours. Installing downloads the
  * APK and hands it to the TV's own adb shell (the same one used for the TV screensaver), which updates
@@ -29,7 +29,7 @@ data class Release(val version: String, val notes: String, val apkUrl: String, v
  */
 class Updater(private val ctx: Context, private val scope: CoroutineScope) {
     companion object {
-        const val REPO = "mohammadmrh12/glassio"
+        const val REPO = "GizmoH2o/glassio-yahsun"
         const val REPO_URL = "https://github.com/$REPO"
         private const val API = "https://api.github.com/repos/$REPO/releases/latest"
     }
@@ -52,7 +52,7 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
         val c = URL(API).openConnection() as HttpURLConnection
         c.connectTimeout = 8000; c.readTimeout = 12000
         c.setRequestProperty("Accept", "application/vnd.github+json")
-        c.setRequestProperty("User-Agent", "GlassLauncher/$current")
+        c.setRequestProperty("User-Agent", "GlassioYahsun/$current")
         val code = c.responseCode
         if (code == 404) { c.disconnect(); "No release published yet" }
         else {
@@ -69,7 +69,7 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
             if (apk.isNotBlank() && newer(tag, current)) {
                 available.value = Release(tag, j.optString("body"), apk, j.optString("html_url"), size)
                 "Version $tag is available"
-            } else { available.value = null; "Glassio is up to date ($current)" }
+            } else { available.value = null; "Glassio Yahsun is up to date ($current)" }
         }
     } catch (e: Exception) { "Could not check: ${e.message}" }
 
@@ -109,7 +109,7 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
             c = url.openConnection() as HttpURLConnection
             c.instanceFollowRedirects = false
             c.connectTimeout = 10000; c.readTimeout = 30000
-            c.setRequestProperty("User-Agent", "GlassLauncher/$current")
+            c.setRequestProperty("User-Agent", "GlassioYahsun/$current")
             val code = c.responseCode
             if (code in 300..399 && hops++ < 5) { url = URL(url, c.getHeaderField("Location")); c.disconnect(); continue }
             check(code == 200) { "download HTTP $code" }

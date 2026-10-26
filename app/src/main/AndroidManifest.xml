@@ -9,6 +9,13 @@
     <!-- Updates from GitHub Releases (fallback path; the TV's adb shell is tried first). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
+    <!-- Live TV: reminders and recordings on time (exact alarms), again after a restart, recording in the background. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+    <!-- Live TV's past programs left before their end, in the TV's Continue Watching (Android's Watch Next). -->
+    <uses-permission android:name="com.android.providers.tv.permission.WRITE_EPG_DATA"/>
     <uses-feature android:name="android.software.leanback" android:required="false"/>
     <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
 
@@ -21,6 +28,9 @@
         <intent><action android:name="org.adw.launcher.icons.ACTION_PICK_ICON"/></intent>
         <package android:name="space.nuvio.nativelegacy"/>
         <package android:name="com.nuvioreshaped.tv"/>
+        <!-- Live TV: Open in another player (VLC, MX Player, Just Player…) -->
+        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="http" android:mimeType="video/*"/></intent>
+        <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https" android:mimeType="video/*"/></intent>
     </queries>
 
     <application
@@ -87,5 +97,60 @@
                 android:resource="@xml/accessibility_config"/>
         </service>
             <receiver android:name=".data.InstallResultReceiver" android:exported="false"/>
+        <!-- After a restart: Glassio instead of Google TV's own home screen (Settings → System). -->
+        <receiver android:name=".BootReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Live TV (IPTV): its own process (:live), so video never weighs on the home screen. Opened from the
+             home screen's Live TV page and the menu; no entry of its own in the apps. -->
+        <activity
+            android:name=".live.Live"
+            android:process=":live"
+            android:exported="false"
+            android:label="@string/live_name"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.glasslauncher.tv.live"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:theme="@style/Theme.Glass.Live"/>
+        <!-- Multiview: two to four channels at once, from Live TV (its task, its process). -->
+        <activity
+            android:name=".live.Multiview"
+            android:process=":live"
+            android:exported="false"
+            android:taskAffinity="com.glasslauncher.tv.live"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:theme="@style/Theme.Glass.Live"/>
+        <!-- Live TV's reminders: a card over whatever is on (the window around it is see-through). -->
+        <activity
+            android:name=".live.ReminderActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.glasslauncher.tv.reminder"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"/>
+        <!-- Live TV's recordings, in their own process, going on with Live TV closed. -->
+        <service
+            android:name=".live.RecordService"
+            android:process=":rec"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Records a live TV programme the person scheduled"/>
+        </service>
+        <!-- The reminders' and recordings' alarms, and setting them again after a restart (or an update). -->
+        <receiver
+            android:name=".live.ScheduleReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

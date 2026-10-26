@@ -29,6 +29,8 @@ class Library(
     /** Nuvio sign-in in progress: the page to open (QR), null when idle. */
     val nuvioUrl = MutableStateFlow<String?>(null)
     @Volatile private var nuvioJob: kotlinx.coroutines.Job? = null
+    /** Signed in to Nuvio: Continue Watching reads the account's watch progress right away. */
+    @Volatile var onNuvioConnected: () -> Unit = {}
 
     fun connectNuvio(say: (String) -> Unit) {
         if (nuvioJob?.isActive == true) return
@@ -38,7 +40,7 @@ class Library(
             val ok = runCatching { nuvio.waitForApproval(c) { nuvioJob?.isCancelled == true } }.getOrDefault(false)
             nuvioUrl.value = null
             say(if (ok) "Nuvio account connected" + (nuvio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") else "Nuvio: ${nuvio.lastError}. Try again")
-            if (ok) { settings.libraryNuvio = true; refreshNuvio() }
+            if (ok) { settings.libraryNuvio = true; onNuvioConnected(); refreshNuvio() }
         }
     }
 

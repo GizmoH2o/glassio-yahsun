@@ -1,12 +1,12 @@
-<p align="center"><img src="docs/brand/icon_512.png" width="140" alt="Glassio icon"></p>
+<p align="center"><img src="docs/brand/icon_512.png" width="140" alt="Glassio Yahsun icon"></p>
 
-# Glassio
+# Glassio Yahsun
 
 **An Apple TV–style home screen for Google TV / Android TV**, with real liquid glass, a carousel fed by your
-Nuvio add-on catalogs, Continue Watching from Nuvio Legacy, tvOS-style icons, weather, screensavers and
+Nuvio add-on catalogs, a Live TV (IPTV) player with a full guide, Following for your teams and shows, Continue Watching from Nuvio Legacy and the official Nuvio app, tvOS-style icons, weather, screensavers and
 Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Google TV Streamer (4K).
 
-[العربية — دليل الاستخدام الكامل](docs/README.ar.md) · [Discussions](https://github.com/mohammadmrh12/glassio/discussions) · [Report a bug](https://github.com/mohammadmrh12/glassio/issues/new/choose)
+[العربية — دليل الاستخدام الكامل](docs/README.ar.md) · [Discussions](https://github.com/GizmoH2o/glassio-yahsun/discussions) · [Report a bug](https://github.com/GizmoH2o/glassio-yahsun/issues/new/choose)
 
 ![Home](docs/screenshots/01-home.jpg)
 
@@ -26,6 +26,22 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 ---
 
 ## Features
+
+What changed in each release: [CHANGELOG.md](CHANGELOG.md).
+
+**New in 2.1: Live TV on the home screen**
+- **Continue Watching** now starts with Live TV: a followed match on now (with the score), the channel you watched last (what's on, with a LIVE tag) and your newest recordings. OK opens them in Live TV; hold OK takes one out of the row.
+- **Watch on Home** (Live TV's menu): the channel keeps playing in a small glass window on the home screen while you browse. Back closes it.
+- Live TV's menus, dialogs and text boxes in Glassio's dark glass (in its Glassio style); adding a playlist no longer goes to a black screen.
+
+**New in 2.0 (Glassio Yahsun): Live TV and Following**
+- **Live TV**: an IPTV player for Xtream Codes, M3U links and MAG portals, with a full guide, favorites, pause and rewind live TV, catch-up, recordings, Multiview, profiles (with a Kids one), reminders and live scores. Its default look is Glassio's own: clear glass over graphite, a white focus, round corners (Apple TV, YouTube TV, NOW, Sky, Sling, Hulu and Custom styles are still in its settings). It runs in its own process, so video never weighs on the home screen.
+- **Live TV page** (menu → Live TV): the channel you watched last, the TV guide, search, then *On now* on your favorite and recent channels, *Sports live now* and *Starting soon*.
+- **Following** (menu → Following): follow a team or a show; its next match shows in a spotlight with the live score, then what's coming up, the same match on other channels, replays and shows. A team's page lists its next 7 days with Remind and Record.
+- **Continue Watching from the official Nuvio app**: signed in to your Nuvio account (Settings → Nuvio & Home Assistant), what you're watching in the official Nuvio app joins Continue Watching (Settings → Continue Watching → *Nuvio (official app)*). Removing a title here removes it on the account too.
+- **Followed matches on the screensaver**: your team's next match (within 18 hours) on a glass card under the clock, with LIVE and the score near kick-off, in Glassio's screensaver and as the system screensaver (Settings → Screensaver → *Followed matches*).
+- **Back to Glassio after a restart** (Settings → System → *Open Glassio when the TV starts*): Google TV opens its own home screen after a restart; Glassio comes up over it through the Home-button service, or TV access (ADB).
+- Live TV is ported from [Zero](https://github.com/GizmoH2o/zero-tv) (MIT, notice kept in `app/src/main/assets/licenses/Zero-MIT.txt`). Glassio now needs Android 9 or newer.
 
 **New in 1.9.7**
 - **Focus plate**: White, Dark, Glass or Black AMOLED behind the selected icon — also in the menu's Themes page.
@@ -92,11 +108,11 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 ## Install
 
-1. Download `GlassLauncher-x.y.z.apk` from [Releases](https://github.com/mohammadmrh12/glassio/releases).
+1. Download `GlassioYahsun-x.y.z.apk` from [Releases](https://github.com/GizmoH2o/glassio-yahsun/releases).
 2. Install it on the TV: with the **Downloader** app (enter the release link), a USB stick, or from a computer:
    ```sh
    adb connect <tv-ip>:5555
-   adb install -r GlassLauncher-x.y.z.apk
+   adb install -r GlassioYahsun-x.y.z.apk
    ```
 3. Open **Glassio** from the TV's apps.
 
@@ -268,6 +284,8 @@ Releases are signed with the same key, so they install over each other.
   not included in this repository.
 - `TV=<tv-ip>:5555 tools/push_appletv_icons.sh <out>` — copies the library to the TV
   (`Android/data/com.glasslauncher.tv/files/appletv/`).
+- `tools/release.sh [--dry-run]` — builds the release APK and publishes it on GitHub with its CHANGELOG.md section as
+  the release notes (it stops when the version has none). See [Build](#build).
 - `tools/framestats.py` — summarises `adb shell dumpsys gfxinfo com.glasslauncher.tv framestats` per frame stage.
 
 Terminal helpers (`adb shell am start -n com.glasslauncher.tv/.MainActivity …`): `--ez open_folder true`,
@@ -281,6 +299,10 @@ export ANDROID_HOME=/path/to/android-sdk
 ./gradlew assembleRelease     # app/build/outputs/apk/release/app-release.apk
 ```
 
+To release: bump `versionCode` / `versionName` in `app/build.gradle.kts`, add the version's section at the top of
+[CHANGELOG.md](CHANGELOG.md), commit and push, then run `tools/release.sh` (needs the GitHub CLI, signed in). Releases are
+signed with the build computer's debug key: keep `~/.android/debug.keystore`, or installed copies can't update.
+
 ## Privacy & security
 - No accounts, analytics or ads. Settings stay on the TV (`allowBackup=false`).
 - The phone page only runs while its screen is open and every request needs the one-time token in its QR code.
@@ -288,6 +310,8 @@ export ANDROID_HOME=/path/to/android-sdk
 - The TV's adb is used only for: starting the screensaver, reading Nuvio's playback log, installing Glass updates.
 
 ## Credits
+Glassio Yahsun is a fork of [Glassio](https://github.com/mohammadmrh12/glassio) (GPL-3.0); Live TV comes from
+[Zero](https://github.com/GizmoH2o/zero-tv) (MIT). ·
 Inter typeface (SIL Open Font License) · Weather by [Open-Meteo](https://open-meteo.com) · Catalog data from your Nuvio add-ons ·
 This product uses the TMDB API but is not endorsed or certified by TMDB. · Not affiliated with Apple, Google or Nuvio.
 

@@ -11,10 +11,10 @@ android {
     compileSdk = 36
     defaultConfig {
         applicationId = "com.glasslauncher.tv"
-        minSdk = 26
+        minSdk = 28
         targetSdk = 35
-        versionCode = 30
-        versionName = "1.9.8"
+        versionCode = 34
+        versionName = "2.1.0"
         // Trakt app (PKCE, no secret). Kept in local.properties, which is not committed.
         val props = Properties().apply {
             rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
@@ -55,8 +55,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
-    implementation("androidx.media3:media3-exoplayer:1.8.0")
-    implementation("androidx.media3:media3-ui:1.8.0")
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
+    implementation("androidx.media3:media3-ui:1.11.1")
     implementation("com.google.zxing:core:3.5.3")
     implementation("dev.mobile:dadb:1.2.10")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")

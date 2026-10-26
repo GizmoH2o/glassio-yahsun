@@ -21,12 +21,19 @@ object LocalShell {
     private var conn: Dadb? = null
 
     /**
+     * A connection to the TV's adb. Reads give up after 45 s: while "Allow USB debugging?" waits for an answer the
+     * connection hangs, and without a limit it hung for good (Continue Watching, the screensaver, everything after it).
+     * The next try puts the question on screen again; "Always allow" works whenever it's answered.
+     */
+    private fun connect(ctx: Context, port: Int): Dadb = Dadb.create("127.0.0.1", port, keyPair(ctx), 5_000, 45_000)
+
+    /**
      * Copies an APK to the TV and installs it from the shell, detached, so the install survives this app
      * being stopped for the update; Glass is opened again afterwards.
      */
     @Synchronized
     fun install(ctx: Context, apk: File, port: Int = 5555): Result<Unit> = runCatching {
-        val d = conn ?: Dadb.create("127.0.0.1", port, keyPair(ctx)).also { conn = it }
+        val d = conn ?: connect(ctx, port).also { conn = it }
         val remote = "/data/local/tmp/glass-update.apk"
         d.push(apk, remote)
         val cmd = "nohup sh -c 'pm install -r -d $remote && rm -f $remote; " +
@@ -40,7 +47,7 @@ object LocalShell {
     fun run(ctx: Context, command: String, port: Int = 5555): Result<String> {
         repeat(2) { attempt ->
             val r = runCatching {
-                val d = conn ?: Dadb.create("127.0.0.1", port, keyPair(ctx)).also { conn = it }
+                val d = conn ?: connect(ctx, port).also { conn = it }
                 val res = d.shell(command)
                 check(res.exitCode == 0) { res.allOutput.trim().ifBlank { "exit ${res.exitCode}" } }
                 res.allOutput
@@ -51,4 +58,8 @@ object LocalShell {
         }
         return Result.failure(IllegalStateException())
     }
+
+    /** [run] for Live TV's Java code: true when the command ran. Blocking. */
+    @JvmStatic
+    fun runCommand(ctx: Context, command: String): Boolean = run(ctx, command).isSuccess
 }

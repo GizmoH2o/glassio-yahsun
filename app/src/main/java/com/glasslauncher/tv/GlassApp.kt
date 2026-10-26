@@ -19,7 +19,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         coil3.ImageLoader.Builder(context)
             // A fixed size by memory tier: a percentage of the (large) heap gave Coil over 100 MB on 2 GB TVs,
             // and Android then closed Glassio while you browsed.
-            .memoryCache { coil3.memory.MemoryCache.Builder().maxSizeBytes(when (settings.memTier) { 0 -> 40L; 2 -> 120L; else -> 72L } * 1024 * 1024).build() }
+            .memoryCache { coil3.memory.MemoryCache.Builder().maxSizeBytes(when (if (::settings.isInitialized) settings.memTier else 1) { 0 -> 40L; 2 -> 120L; else -> 72L } * 1024 * 1024).build() }
             .diskCache {
                 coil3.disk.DiskCache.Builder()
                     .directory(java.io.File(cacheDir, "images").absolutePath.let { okio.Path.Companion.run { it.toPath() } })
@@ -34,6 +34,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
      */
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
+        if (!::settings.isInitialized) return     // Live TV's processes keep no Glassio pictures
         if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
             com.glasslauncher.tv.data.Glog.w("Low memory (level $level): clearing picture caches")
             runCatching { coil3.SingletonImageLoader.get(this).memoryCache?.clear() }
@@ -83,6 +84,9 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
             }
             previous?.uncaughtException(t, e)
         }
+        com.glasslauncher.tv.live.LiveHome.init(this)
+        // Live TV (:live) and its recordings (:rec) run in their own processes: none of the home screen's work there.
+        if (getProcessName() != packageName) return
         settings = Settings(this)
         if (settings.perfMode == "auto") settings.applyMode("auto")
         com.glasslauncher.tv.ui.GlassCache.res = settings.glassRes
@@ -95,11 +99,16 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         weather = com.glasslauncher.tv.data.Weather(settings, http, scope).also { it.start() }
         library = com.glasslauncher.tv.data.Library(this, settings, http, cw.trakt, scope)
         catalogs.account = { library.nuvio.addons() }
+        cw.nuvio = library.nuvio
+        library.onNuvioConnected = { cw.syncNuvioNow() }
         updater = com.glasslauncher.tv.data.Updater(this, scope).also { it.start() }
         // If Glass was closed while the TV screensaver was being started, put the screen timeout back.
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()
         icons.importDropFolder(apps.apps.value.map { it.pkg })
         ensureHomeService()
+        // TCL: a restart (Open Glassio when the TV starts) and Live TV's alarms reach Glassio only once it may auto-start.
+        if (BootReceiver.TCL && (settings.bootGlassio || com.glasslauncher.tv.live.LiveHome.ready(this)))
+            Thread({ runCatching { Thread.sleep(15_000); BootReceiver.allowAutoStart(this) } }, "tcl-autostart").apply { isDaemon = true }.start()
         // Decode dock artwork once, off the main thread, so the first frames are instant.
         scope.launch { apps.apps.value.forEach { runCatching { apps.artwork(it) } } }
     }

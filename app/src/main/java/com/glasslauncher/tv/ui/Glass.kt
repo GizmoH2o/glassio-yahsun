@@ -45,14 +45,34 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+/**
+ * The pictures behind the glass right now. They change with every slide, so a glass surface reads them only while it
+ * draws (through [GlassEnv.pics]): a slide then redraws the glass instead of recomposing every surface on screen.
+ */
+data class GlassPics(
+    /** Blurred backdrop (the "Glass blur" setting). */
+    val bmp: ImageBitmap? = null,
+    /** Unblurred backdrop, for the clear "Glass like glass" look. */
+    val sharp: ImageBitmap? = null,
+    /** Heavily blurred backdrop, for the Apps folder (like tvOS). */
+    val heavy: ImageBitmap? = null,
+    /** The previous backdrop, faded out underneath while the new one fades in (same timing as the page). */
+    val prevBmp: ImageBitmap? = null,
+    val prevSharp: ImageBitmap? = null,
+    /**
+     * True when [sharp]/[prevSharp] are the full-screen page pictures themselves (scrims already baked in):
+     * the clear glass then shows the picture at full screen resolution instead of a small copy blown up
+     * (which looked pixelated and broken up behind the dock), and lines up with the page exactly.
+     */
+    val sharpIsPage: Boolean = false,
+    /** Slide animation in progress: 1 / -1 = the new picture comes in from the right / left, 0 = crossfade. */
+    val slide: Int = 0,
+)
+
 /** What every glass surface needs: the page backdrop, already blurred once for everybody. */
 data class GlassEnv(
-    /** Blurred backdrop (the "Glass blur" setting). */
-    val bmp: ImageBitmap?,
-    /** Unblurred backdrop, for the clear "Glass like glass" look. */
-    val sharp: ImageBitmap?,
-    /** Heavily blurred backdrop, for the Apps folder (like tvOS). */
-    val heavy: ImageBitmap?,
+    /** The pictures behind the glass (see [GlassPics]): read while drawing, not while composing. */
+    val pics: androidx.compose.runtime.State<GlassPics>,
     val rootW: Int, val rootH: Int,
     val tint: Int, val refractionDp: Int,
     /** 1 when "Glass like glass" surfaces may ripple; the ripple itself is read from [live]. */
@@ -62,28 +82,27 @@ data class GlassEnv(
      * glass without recomposing the screen.
      */
     val live: androidx.compose.runtime.State<Float>? = null,
-    /** The previous backdrop, faded out underneath while the new one fades in (same timing as the page). */
-    val prevBmp: ImageBitmap? = null,
-    val prevSharp: ImageBitmap? = null,
-    /** 0..1 progress of that crossfade; read only while drawing. */
+    /** 0..1 progress of the crossfade between the previous and the current pictures; read only while drawing. */
     val mix: androidx.compose.runtime.State<Float>? = null,
     /** 0..1 while the dock is open: the whole page, glass included, turns blurred and dark. */
     val veil: androidx.compose.runtime.State<Float>? = null,
-    /**
-     * True when [sharp]/[prevSharp] are the full-screen page pictures themselves (scrims already baked in):
-     * the clear glass then shows the picture at full screen resolution instead of a small copy blown up
-     * (which looked pixelated and broken up behind the dock), and lines up with the page exactly.
-     */
-    val sharpIsPage: Boolean = false,
-    /** Slide animation in progress: 1 / -1 = the new picture comes in from the right / left, 0 = crossfade. */
-    val slide: Int = 0,
     /** Which slide: [SLIDE_PUSH] (both pictures move a full screen) or [SLIDE_APPLE] (Apple TV, see [slideFrame]). */
     val slideKind: Int = SLIDE_PUSH,
     /** Page pictures were baked without the side shade (Slide animation): the glass draws it, still, on top. */
     val pageNoSideShade: Boolean = false,
     /** 0..1: the blur of the open-dock veil, which fades in once the dock has finished opening ([veil] is the dimming). */
     val blur: androidx.compose.runtime.State<Float>? = null,
-)
+) {
+    // The pictures now. Read in a draw block they only redraw it; read while composing, they recompose the caller
+    // on every slide (fine for the few that need it, such as the folder's page picture).
+    val bmp: ImageBitmap? get() = pics.value.bmp
+    val sharp: ImageBitmap? get() = pics.value.sharp
+    val heavy: ImageBitmap? get() = pics.value.heavy
+    val prevBmp: ImageBitmap? get() = pics.value.prevBmp
+    val prevSharp: ImageBitmap? get() = pics.value.prevSharp
+    val sharpIsPage: Boolean get() = pics.value.sharpIsPage
+    val slide: Int get() = pics.value.slide
+}
 
 const val SLIDE_PUSH = 1
 const val SLIDE_APPLE = 2
@@ -111,7 +130,7 @@ const val VEIL_DIM = 0.62f
 val VeilFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix(floatArrayOf(
     1f - VEIL_DIM, 0f, 0f, 0f, 0f,  0f, 1f - VEIL_DIM, 0f, 0f, 0f,  0f, 0f, 1f - VEIL_DIM, 0f, 0f,  0f, 0f, 0f, 1f, 0f)))
 
-val LocalGlassEnv = compositionLocalOf { GlassEnv(null, null, null, 0, 0, 6, 14) }
+val LocalGlassEnv = compositionLocalOf { GlassEnv(androidx.compose.runtime.mutableStateOf(GlassPics()), 0, 0, 6, 14) }
 /** 1.0 at 960dp wide (1080p TV at 2x); every size in the UI is multiplied by this. */
 val LocalScale = staticCompositionLocalOf { 1f }
 
@@ -308,16 +327,25 @@ fun LiquidSurface(
     val fPx = with(density) { refraction.toPx() }
     val still = remember(sz, rPx, bPx, fPx) { refractor.effect(sz.width.toFloat(), sz.height.toFloat(), rPx, bPx, fPx, 0f) }
     val live = env.live
+    // The pictures change with every slide: they're read in the draw and layer blocks below, so a slide redraws this
+    // glass without recomposing it. Composition only follows the few switches that change what is laid out.
+    val pics = env.pics
+    fun cur(p: GlassPics) = if (sharp) p.sharp ?: p.bmp else p.bmp
+    fun prevOf(p: GlassPics) = if (sharp) p.prevSharp ?: p.prevBmp else p.prevBmp
+    val hasPicture by remember(pics, sharp) { androidx.compose.runtime.derivedStateOf { cur(pics.value) != null } }
+    // A Slide animation under way (the page pictures move behind the glass): its own drawing, made for the move.
+    val sliding by remember(pics, sharp, slideInside) {
+        androidx.compose.runtime.derivedStateOf { slideInside && pics.value.slide != 0 && prevOf(pics.value) != null }
+    }
     Box(
         modifier
             .then(if (DebugHide.intValue and 262144 != 0) Modifier else Modifier.clip(RoundedCornerShape(radius)))
             .onGloballyPositioned { pos.value = it.positionInRoot(); if (it.size != sz) sz = it.size },
     ) {
-        val bmp = if (sharp) env.sharp ?: env.bmp else env.bmp
         // The tint is drawn inside the cached glass layers when they're used (one less pass every frame).
         var tintDone = false
         fun androidx.compose.ui.graphics.drawscope.DrawScope.tintIn(t: Color) { if (t.alpha > 0f && DebugHide.intValue and 256 == 0) drawRect(t) }
-        if (bmp != null) {
+        if (hasPicture) {
             fun isPage(b: ImageBitmap) = env.sharpIsPage && (b === env.sharp || b === env.prevSharp)
             // Page pictures carry their shades (with Slide all but the side shade); small copies carry none.
             fun androidx.compose.ui.graphics.drawscope.DrawScope.shade(b: ImageBitmap) {
@@ -338,13 +366,16 @@ fun LiquidSurface(
                     else drawRect(Color.Black.copy(alpha = v * VEIL_DIM))
                 }
             }
-            val prev = if (sharp) env.prevSharp ?: env.prevBmp else env.prevBmp
-            val dir = if (slideInside) env.slide else 0
-            if (prev != null && dir != 0 && Build.VERSION.SDK_INT >= 33) {
+            if (sliding && Build.VERSION.SDK_INT >= 33) {
                 // Slide, Android 13+: the middle of the glass is drawn like the page (two plain pictures, cheap),
                 // and only the rim band, where the refraction is, is drawn with a shader brush that reads both
                 // pictures and bends them itself. No offscreen layer is redrawn and re-refracted per frame, and
                 // the rims look exactly as when the glass is still, so nothing jumps when the move ends.
+                // (Composed per move: its shaders are made for the two pictures of this one.)
+                val p0 = pics.value
+                val bmp = cur(p0)!!
+                val prev = prevOf(p0)!!
+                val dir = p0.slide
                 val curS = remember(bmp) { PageShader(bmp) }
                 val prevS = remember(prev) { PageShader(prev) }
                 val ring = remember(sz, rPx, bPx) {
@@ -393,11 +424,14 @@ fun LiquidSurface(
                     drawPath(ring, androidx.compose.ui.graphics.ShaderBrush(sh))
                     veil()
                 }
-            } else if (prev != null && dir != 0) {
+            } else if (sliding) {
                 // Slide: both pictures move behind the glass exactly as the page does. The rim refraction stays
                 // on: switching it off for the move made the rims jump when it came back (worse the stronger it is).
                 Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = still }) {
-                    val f = slideFrame(env.slideKind, dir, env.mix?.value ?: 1f, env.rootW.toFloat())
+                    val p0 = pics.value
+                    val bmp = cur(p0) ?: return@Canvas
+                    val prev = prevOf(p0) ?: return@Canvas
+                    val f = slideFrame(env.slideKind, p0.slide, env.mix?.value ?: 1f, env.rootW.toFloat())
                     picture(prev, f.prevShift, withShade = false)
                     if (f.dim > 0f) drawRect(Color.Black.copy(alpha = f.dim))
                     val e = f.edge - pos.value.x
@@ -414,33 +448,45 @@ fun LiquidSurface(
                 // and snap back while the new one fades in on top.
                 // The open-dock veil is its own layer above (see below): only its opacity changes while it fades
                 // in, so these stay cached instead of being redrawn (picture, shades, refraction) every frame.
-                val veilPic = if (!videoBehind && DebugHide.intValue and 32768 == 0) env.heavy else null
-                val covered = { veilPic != null && (env.veil?.value ?: 0f) > 0.995f && DebugHide.intValue and 16 == 0 }
-                if (prev != null) Canvas(Modifier.matchParentSize().graphicsLayer { renderEffect = still; alpha = if (covered()) 0f else 1f }) { picture(prev, 0f); if (veilPic == null) veil(); tintIn(tint) }
+                // Both layers are always there: between slides the old one has nothing to draw, no effect and no opacity
+                // (the TV skips it), so a slide only redraws them. Adding and removing it at each crossfade recomposed
+                // every glass on screen twice a slide.
+                val heavyOn = !videoBehind && DebugHide.intValue and 32768 == 0
+                val hasVeilPic by remember(pics, heavyOn) { androidx.compose.runtime.derivedStateOf { heavyOn && pics.value.heavy != null } }
+                val covered = { hasVeilPic && (env.veil?.value ?: 0f) > 0.995f && DebugHide.intValue and 16 == 0 }
+                Canvas(Modifier.matchParentSize().graphicsLayer {
+                    val gone = prevOf(pics.value) == null
+                    renderEffect = if (gone) null else still
+                    alpha = if (gone || covered()) 0f else 1f
+                }) {
+                    val prev = prevOf(pics.value) ?: return@Canvas
+                    picture(prev, 0f); if (!hasVeilPic) veil(); tintIn(tint)
+                }
                 Canvas(Modifier.matchParentSize().graphicsLayer {
                     val w = if (wobble > 0f && live != null) live.value * wobble else 0f
                     renderEffect = if (videoBehind && DebugHide.intValue and 2048 != 0) null else if (!cache && DebugHide.intValue and 16384 != 0) null else if (w < 0.01f) still else refractor.effect(size.width, size.height, rPx, bPx, fPx, w)
-                    alpha = if (covered()) 0f else if (prev != null) (env.mix?.value ?: 1f) else 1f
+                    alpha = if (covered()) 0f else if (prevOf(pics.value) != null) (env.mix?.value ?: 1f) else 1f
                     // Rendered once into its own texture and reused while nothing behind the glass changes:
                     // moving focus over the dock then costs one copy instead of the picture and its shades again.
                     if (cache && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                 }) {
                     // A video behind: the glass shows its live frames (sharp or frosted), with the page's shades.
-                    val live = if (sharp) VideoFrames.sharp.value else VideoFrames.soft.value
-                    if (live != null) {
-                        drawBackdropRegion(live, env.rootW, env.rootH, pos.value, scrims = false)
-                    } else picture(bmp, 0f)
-                    if (veilPic == null) veil()
+                    val frame = if (sharp) VideoFrames.sharp.value else VideoFrames.soft.value
+                    if (frame != null) {
+                        drawBackdropRegion(frame, env.rootW, env.rootH, pos.value, scrims = false)
+                    } else cur(pics.value)?.let { picture(it, 0f) }
+                    if (!hasVeilPic) veil()
                     tintIn(tint)
                 }
-                if (veilPic != null && DebugHide.intValue and 16 == 0) {
+                if (hasVeilPic && DebugHide.intValue and 16 == 0) {
                     val veilOn by remember(env.veil) { androidx.compose.runtime.derivedStateOf { (env.veil?.value ?: 0f) > 0.005f } }
                     if (veilOn) Canvas(Modifier.matchParentSize().graphicsLayer {
                         alpha = env.veil?.value ?: 0f
                         renderEffect = still
                         if (cache && DebugHide.intValue and 1024 == 0) compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
                     }) {
-                        drawBackdropRegion(veilPic, env.rootW, env.rootH, pos.value, scrims = false, colorFilter = VeilFilter)
+                        val heavy = pics.value.heavy ?: return@Canvas
+                        drawBackdropRegion(heavy, env.rootW, env.rootH, pos.value, scrims = false, colorFilter = VeilFilter)
                         tintIn(tint)
                     }
                 }

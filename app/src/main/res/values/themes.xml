@@ -8,6 +8,14 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
+    <!-- Live TV: the graphite of its Glassio style already in the window, so opening it never flashes another colour. -->
+    <style name="Theme.Glass.Live" parent="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
+        <item name="android:windowBackground">@color/live_background</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:colorBackgroundCacheHint">@null</item>
+    </style>
+    <color name="live_background">#FF0E0E11</color>
     <style name="Theme.Glass.Saver" parent="Theme.Glass">
         <item name="android:windowAnimationStyle">@null</item>
     </style>

@@ -64,10 +64,11 @@ private val THEMES = listOf(
 
 /**
  * The menu at the settings button, like the Apple TV Control Center: time, date and weather on top,
- * then Library, Glassio settings, Android settings, Wi-Fi and Themes. ◀ or Back closes it.
+ * then Live TV, Following, Library, Glassio settings, Android settings, Wi-Fi and Themes. ◀ or Back closes it.
  */
 @Composable
-fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
+fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit, onLiveTv: () -> Unit, onFollowing: () -> Unit,
+             onSettings: () -> Unit, modifier: Modifier = Modifier) {
     val st = app.settings
     val ctx = LocalContext.current
     val style = st.menuStyle
@@ -162,6 +163,8 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                     }
                 } else if (!themes) {
                     val rows = buildList<Triple<String, String, () -> Unit>> {
+                        if (st.menuLive) add(Triple("live", "Live TV") { onLiveTv() })
+                        if (st.menuLive) add(Triple("following", "Following") { onFollowing() })
                         if (st.menuLibrary) add(Triple("library", "Library") { onLibrary() })
                         add(Triple("sliders", "Glassio settings") { onSettings() })
                         if (st.menuAndroid) add(Triple("gear", "Android settings") { open(ctx, android.provider.Settings.ACTION_SETTINGS) })
@@ -286,6 +289,23 @@ private fun DrawScope.glyph(kind: String, c: Color) {
             drawRoundRect(c, Offset(w * 0.36f, w * 0.10f), Size(w * 0.16f, w * 0.76f), CornerRadius(w * 0.04f), style = st)
             val p = Path().apply { moveTo(w * 0.62f, w * 0.24f); lineTo(w * 0.76f, w * 0.19f); lineTo(w * 0.94f, w * 0.80f); lineTo(w * 0.80f, w * 0.85f); close() }
             drawPath(p, c, style = st)
+        }
+        "live" -> {
+            drawRoundRect(c, Offset(w * 0.06f, w * 0.24f), Size(w * 0.88f, w * 0.62f), CornerRadius(w * 0.12f), style = st)
+            drawLine(c, Offset(w * 0.34f, w * 0.06f), Offset(w * 0.5f, w * 0.22f), w * 0.08f, StrokeCap.Round)
+            drawLine(c, Offset(w * 0.66f, w * 0.06f), Offset(w * 0.5f, w * 0.22f), w * 0.08f, StrokeCap.Round)
+            drawCircle(c, w * 0.08f, Offset(w * 0.5f, w * 0.55f))
+        }
+        "following" -> {
+            val p = Path()
+            for (i in 0 until 10) {
+                val r = if (i % 2 == 0) w * 0.46f else w * 0.2f
+                val a = Math.toRadians(-90.0 + i * 36.0)
+                val x = (w / 2 + r * Math.cos(a)).toFloat(); val y = (w * 0.54f + r * Math.sin(a)).toFloat()
+                if (i == 0) p.moveTo(x, y) else p.lineTo(x, y)
+            }
+            p.close()
+            drawPath(p, c, style = Stroke(w * 0.08f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
         }
         "sliders" -> for ((i, x) in listOf(0.3f, 0.7f, 0.45f).withIndex()) {
             val y = w * (0.22f + i * 0.28f)

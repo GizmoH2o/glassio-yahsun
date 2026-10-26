@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Glassio</string>
-    <string name="accessibility_description">Brings Glassio to the front when the Home button opens the stock launcher.</string>
+    <string name="app_name">Glassio Yahsun</string>
+    <string name="live_name">Glassio Yahsun Live TV</string>
+    <string name="accessibility_description">Brings Glassio Yahsun to the front when the Home button opens the stock launcher, and after the TV restarts.</string>
 </resources>

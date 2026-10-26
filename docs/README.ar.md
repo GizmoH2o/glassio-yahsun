@@ -8,9 +8,9 @@ Nuvio Legacy، أيقونات بأسلوب tvOS، طقس، سكرين سيفر،
 [English](../README.md)
 
 ## التثبيت
-1. نزّل `GlassLauncher-x.y.z.apk` من صفحة [Releases](https://github.com/mohammadmrh12/glassio/releases).
+1. نزّل `GlassioYahsun-x.y.z.apk` من صفحة [Releases](https://github.com/GizmoH2o/glassio-yahsun/releases).
 2. ثبّته على التلفزيون عن طريق تطبيق Downloader، أو فلاشة، أو من الكمبيوتر:
-   `adb connect <ip>:5555` ثم `adb install -r GlassLauncher-x.y.z.apk`
+   `adb connect <ip>:5555` ثم `adb install -r GlassioYahsun-x.y.z.apk`
 3. افتح Glassio من التطبيقات.
 
 ## خليه اللانشر الأساسي (زر الهوم)

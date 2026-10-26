@@ -17,13 +17,14 @@ data class CwEntry(val imdb: String, val season: Int, val episode: Int, val perc
 }
 
 /**
- * Continue Watching for Nuvio Legacy.
+ * Continue Watching for Nuvio Legacy, the official Nuvio app (through the Nuvio account) and Trakt.
  *
  * Google TV only lets privileged apps read other apps' Watch Next rows, so instead this reads what Nuvio
  * Legacy writes to its own log while you watch ("[atividade] inicio tt… T1E3 42%", "[visto] ponto gravado
  * … (63%)", "[player] saida"). The log is read through the TV's local adb shell (LocalShell), so Android's
  * "Allow access to all device logs?" prompt never appears; only the one-time "Allow USB debugging" does.
  * The list is kept on the TV, newest first; titles past 92% count as finished and leave the list.
+ * The official Nuvio app writes no such log: it saves what you watch to the Nuvio account, which this reads.
  */
 class ContinueWatching(
     private val ctx: Context,
@@ -44,6 +45,11 @@ class ContinueWatching(
     @Volatile private var access = sp.getBoolean("access", false)
     val trakt = Trakt(ctx)
     @Volatile private var traktAt = 0L
+    /** The Nuvio account (the Library's, so one sign-in and one token refresh at a time); set once the Library is made. */
+    @Volatile var nuvio: NuvioAccount? = null
+    @Volatile private var nuvioAt = 0L
+    /** Last Nuvio account sync result for Settings ("4 titles in progress", or the error). */
+    val nuvioStatus = MutableStateFlow("")
     @Volatile private var woke = false
     /** Last Trakt sync result for Settings ("12 titles", or the error). */
     val traktStatus = MutableStateFlow("")
@@ -59,21 +65,36 @@ class ContinueWatching(
         scope.launch(Dispatchers.IO) { rebuildItems() }
         thread(name = "glass-cw-log", isDaemon = true) {
             while (true) {
+                // Can wait a long time: the TV's adb waits for "Allow USB debugging" to be answered. The accounts
+                // below have their own loop, so they never wait for it.
                 if (settings.cwLegacy && settings.continueMode != "off") poll()
-                // Trakt: every 3 minutes, or right away (at most every 45 s) when Glass comes back to the front.
-                val now = System.currentTimeMillis()
-                if (settings.cwTrakt && settings.continueMode != "off" && trakt.connected &&
-                    now - traktAt > (if (woke) 45_000L else 180_000L)) { traktAt = now; syncTrakt() }
-                woke = false
                 // Every 20 s, or right away when Glass comes back to the front (pollNow).
                 runCatching { wake.tryAcquire(20, java.util.concurrent.TimeUnit.SECONDS) }
                 wake.drainPermits()
             }
         }
+        thread(name = "glass-cw-accounts", isDaemon = true) {
+            while (true) {
+                // Trakt: every 3 minutes, or right away (at most every 45 s) when Glass comes back to the front.
+                val now = System.currentTimeMillis()
+                if (settings.cwTrakt && settings.continueMode != "off" && trakt.connected &&
+                    now - traktAt > (if (woke) 45_000L else 180_000L)) { traktAt = now; syncTrakt() }
+                // The official Nuvio app, through the account: as often as Trakt.
+                val nu = nuvio
+                if (settings.cwNuvio && settings.continueMode != "off" && nu != null && nu.connected &&
+                    now - nuvioAt > (if (woke) 45_000L else 180_000L)) { nuvioAt = now; syncNuvio(nu) }
+                woke = false
+                runCatching { accountsWake.tryAcquire(20, java.util.concurrent.TimeUnit.SECONDS) }
+                accountsWake.drainPermits()
+            }
+        }
     }
 
+    /** Wakes the accounts' loop (Trakt, Nuvio) early. */
+    private val accountsWake = java.util.concurrent.Semaphore(0)
+
     /** Called when the home screen resumes, so leaving Nuvio shows up immediately. */
-    fun pollNow() { woke = true; wake.release() }
+    fun pollNow() { woke = true; wake.release(); accountsWake.release() }
 
     /** Trakt sign-in in progress: the line to show ("Go to … and enter CODE"), null when idle. */
     val traktCode = MutableStateFlow<String?>(null)
@@ -123,6 +144,42 @@ class ContinueWatching(
             sp.edit().putString("traktIds", ids.toString()).apply()
         }
         traktStatus.value = "${paused.size} paused on Trakt"
+        rebuildItems()
+    }
+
+    private fun nuvioKeys(): JSONObject = runCatching { JSONObject(sp.getString("nuvioKeys", null) ?: "{}") }.getOrDefault(JSONObject())
+
+    /** Forces a Nuvio account sync on the next round (after signing in, or turning it on). */
+    fun syncNuvioNow() { nuvioAt = 0L; pollNow() }
+
+    /**
+     * What you're watching in the official Nuvio app joins the list, as Trakt's does: a title another app saw more
+     * recently keeps that app's progress; titles no longer in progress on the account leave the list.
+     */
+    private fun syncNuvio(nu: NuvioAccount) {
+        val all = nu.watchProgress() ?: run { nuvioStatus.value = "Sync failed: ${nu.lastError.ifBlank { "offline" }}"; return }
+        // Cinemeta names the title: only IMDb ids (tt…); one entry per title, its latest episode.
+        val latest = all.filter { it.id.startsWith("tt") }.groupBy { it.id }.mapNotNull { (_, l) -> l.maxByOrNull { it.at } }
+        synchronized(this) {
+            val keys = JSONObject()
+            val list = entries.value.filterNot { it.app == "Nuvio" }.toMutableList()
+            for (p in latest) {
+                if (p.percent >= 92) continue
+                val e = CwEntry(p.id, p.season, p.episode, p.percent, p.at, "Nuvio")
+                val other = list.firstOrNull { it.imdb == p.id }
+                if (other != null && other.at >= p.at) continue
+                list.removeAll { it.imdb == p.id }
+                list.add(e)
+                keys.put(e.key, JSONArray(all.filter { it.id == p.id }.map { it.key }.filter { it.isNotBlank() }))
+            }
+            val trimmed = list.sortedByDescending { it.at }.take(30)
+            entries.value = trimmed
+            save(trimmed)
+            sp.edit().putString("nuvioKeys", keys.toString()).apply()
+        }
+        val n = latest.count { it.percent < 92 }
+        Glog.i("Nuvio watch progress: ${all.size} entries on the account, ${latest.size} titles with IMDb ids, $n in progress")
+        nuvioStatus.value = if (n == 1) "1 title in progress" else "$n titles in progress"
         rebuildItems()
     }
 
@@ -183,6 +240,12 @@ class ContinueWatching(
         if (entries.value.any { it.key == key && it.app == "Trakt" }) {
             val id = traktIds().optLong(key, 0L)
             if (id > 0) scope.launch(Dispatchers.IO) { trakt.removePlayback(id) }
+        }
+        if (entries.value.any { it.key == key && it.app == "Nuvio" }) {
+            val a = nuvioKeys().optJSONArray(key)
+            val keys = if (a == null) emptyList() else (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }
+            val nu = nuvio
+            if (keys.isNotEmpty() && nu != null) scope.launch(Dispatchers.IO) { nu.removeProgress(keys) }
         }
         val l = entries.value.filterNot { it.key == key }
         entries.value = l; save(l)

@@ -14,6 +14,11 @@ import android.view.accessibility.AccessibilityEvent
  * The old window-change reaction is kept only as a fallback for devices that don't deliver key events.
  */
 class HomeKeyService : AccessibilityService() {
+    companion object {
+        /** Bound by the system now: it can open Glassio (BootReceiver leaves the restart to it). */
+        @Volatile var connected = false
+    }
+
     private var lastLaunch = 0L
     private var homeDownAt = 0L
 
@@ -51,10 +56,19 @@ class HomeKeyService : AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        connected = true
+        // Just after the TV started, Google TV's launcher came up before this service did (it never saw it): Glassio now.
+        val app = application as? GlassApp
+        if (app != null && app.settings.bootGlassio && android.os.SystemClock.elapsedRealtime() < 5 * 60_000L) showGlass()
         // Ask for key events explicitly; some TV builds ignore the flag from the XML alone.
         serviceInfo = serviceInfo.apply {
             flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
         }
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
+        connected = false
+        return super.onUnbind(intent)
     }
 
     override fun onInterrupt() {}

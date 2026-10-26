@@ -15,6 +15,9 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -144,13 +147,63 @@ private fun SaverContent(app: GlassApp, forceSlideshow: Boolean = false) {
         } else {
             Slideshow(app)
         }
-        if (app.settings.saverClock) {
-            val t by produceState("") { while (true) { value = clockText(app.settings.clock24h); delay(15_000) } }
-            Text(
-                t, color = Color.White.copy(alpha = 0.9f), fontSize = 34.sp,
-                modifier = if (slideshow) Modifier.align(Alignment.TopEnd).padding(end = 56.dp, top = 36.dp)
-                else Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 40.dp),
-            )
+        // The clock and, under it, a followed team's next match: top right over the posters, bottom left over the videos.
+        val match = if (app.settings.saverMatch) rememberMatchDay(app) else null
+        if (app.settings.saverClock || match != null) androidx.compose.foundation.layout.Column(
+            if (slideshow) Modifier.align(Alignment.TopEnd).padding(end = 56.dp, top = 36.dp)
+            else Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 40.dp),
+            horizontalAlignment = if (slideshow) Alignment.End else Alignment.Start,
+        ) {
+            if (match != null && !slideshow) { MatchCard(match); androidx.compose.foundation.layout.Spacer(Modifier.size(14.dp)) }
+            if (app.settings.saverClock) {
+                val t by produceState("") { while (true) { value = clockText(app.settings.clock24h); delay(15_000) } }
+                Text(t, color = Color.White.copy(alpha = 0.9f), fontSize = 34.sp)
+            }
+            if (match != null && slideshow) { androidx.compose.foundation.layout.Spacer(Modifier.size(14.dp)); MatchCard(match) }
+        }
+    }
+}
+
+/**
+ * A followed team's next match (Live TV's Following), read again every half minute and whenever its live score moves.
+ */
+@Composable
+private fun rememberMatchDay(app: GlassApp): com.glasslauncher.tv.live.LiveHome.MatchDay? {
+    var bump by remember { mutableIntStateOf(0) }
+    DisposableEffect(Unit) {
+        val watching = com.glasslauncher.tv.live.LiveHome.watchScores(app) { bump++ }
+        onDispose { com.glasslauncher.tv.live.LiveHome.stopScores(app, watching) }
+    }
+    val m by produceState<com.glasslauncher.tv.live.LiveHome.MatchDay?>(null, bump) {
+        while (true) {
+            value = withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveHome.matchDay(app) }.getOrNull() }
+            delay(30_000)
+        }
+    }
+    return m
+}
+
+/** The match on a small glass card: the competition, the match (or its score), LIVE or the kick-off and the channel. */
+@Composable
+private fun MatchCard(m: com.glasslauncher.tv.live.LiveHome.MatchDay) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+    androidx.compose.foundation.layout.Column(
+        Modifier.clip(shape).background(Color.Black.copy(alpha = 0.38f))
+            .border(0.8.dp, Color.White.copy(alpha = 0.18f), shape).padding(horizontal = 20.dp, vertical = 14.dp),
+    ) {
+        Text(m.label, color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, letterSpacing = 1.2.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+        Text(m.headline, color = Color.White, fontSize = 20.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp).widthIn(max = 520.dp))
+        androidx.compose.foundation.layout.Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (m.live) {
+                Text("LIVE", color = Color.White, fontSize = 9.sp, letterSpacing = 0.8.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                        .background(Color(0xFFE5322D)).padding(horizontal = 6.dp, vertical = 2.dp))
+                androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+            }
+            // "LIVE  ·  574 MUTV": the pill says LIVE already.
+            Text(if (m.live) m.where.substringAfter("·").trim() else m.where, color = Color(0xFFB3B3B8), fontSize = 12.sp, maxLines = 1)
         }
     }
 }
