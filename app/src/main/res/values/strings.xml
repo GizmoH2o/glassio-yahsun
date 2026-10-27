@@ -2,5 +2,6 @@
 <resources>
     <string name="app_name">Glassio Yahsun</string>
     <string name="live_name">Glassio Yahsun Live TV</string>
+    <string name="live_search_hint">Search Live TV channels</string>
     <string name="accessibility_description">Brings Glassio Yahsun to the front when the Home button opens the stock launcher, and after the TV restarts.</string>
 </resources>

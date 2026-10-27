@@ -198,6 +198,10 @@ final class LiveView extends View {
 
     void setLineup(Xtream.Lineup l, String categoryId) {
         lineup = l;
+        categoryCountry = LiveCountry.categories(l);
+        final java.util.Map<String, String> forHome = categoryCountry;
+        final android.content.Context app = getContext().getApplicationContext();
+        new Thread(() -> LiveCountry.saveCategories(app, forHome), "live-countries").start();
         // Search and Recordings are pages of their own (the menu, the rail), not rows in the list.
         recordings.id = "recordings";
         recordings.name = Ui.tr("Gravações", "Recordings");
@@ -900,7 +904,7 @@ final class LiveView extends View {
                 drawMagnifier(c, tx + 12 * k, r.centerY(), 13 * k, 0xE6FFFFFF);
                 tx += 40 * k;
             }
-            c.drawText(ellipsize(cg.name, lGroup, r.right - 24 * k - tx - 20 * k - lNum.measureText(size)), tx, base, lGroup);
+            textAndTag(c, nameOfCategory(cg.name), tagOfCategory(cg.name), tx, base, lGroup, r.right - 24 * k - tx - 20 * k - lNum.measureText(size));
         }
         lGroup.setColor(0xE6FFFFFF);
         lNum.setColor(0x80FFFFFF);
@@ -964,7 +968,7 @@ final class LiveView extends View {
             float nameY = two ? r.top + 46 * rs * k : r.centerY() + Ui.halfCap(lName);     // alone: in the middle
             c.drawText(num, x, nameY, lNum);
             float nx = x + lNum.measureText(num);
-            c.drawText(ellipsize(channel.name, lName, mx + 14 * k - nx - 10 * k), nx, nameY, lName);
+            textAndTag(c, nameOf(channel), tagOf(channel), nx, nameY, lName, mx + 14 * k - nx - 10 * k);
             if (two && i == ch) listMarquee.draw(c, second, x, r.top + 86 * rs * k, right - x, lShow, k);
             else if (two) c.drawText(ellipsize(second, lShow, right - x), x, r.top + 86 * rs * k, lShow);
             if (f >= 0) {
@@ -998,8 +1002,8 @@ final class LiveView extends View {
         box.set(x0 + 24 * k, 30 * k, x0 + 124 * k, 94 * k);
         drawLogo(c, channel, box, 1);
         float tx = box.right + 22 * k;
-        c.drawText(ellipsize(channel.name, lHead, x0 + sw - 24 * k - tx), tx, 56 * k, lHead);
-        String where = channel.category == null ? "" : categoryName(channel.category);
+        textAndTag(c, nameOf(channel), tagOf(channel), tx, 56 * k, lHead, x0 + sw - 24 * k - tx);
+        String where = channel.category == null ? "" : nameOfCategory(categoryName(channel.category));
         c.drawText(ellipsize(where, lSmall, x0 + sw - 24 * k - tx), tx, 92 * k, lSmall);
         if (channel.id <= 0) return;
         long now = System.currentTimeMillis();
@@ -1061,6 +1065,55 @@ final class LiveView extends View {
     private String categoryName(String id) {
         for (Xtream.Category cg : allCategories) if (id.equals(cg.id)) return cg.name;
         return "";
+    }
+
+    // MARK: - Country tags
+
+    /** Each category's country (from its name: "US | Entertainment"), for the channels whose names don't say. */
+    private java.util.Map<String, String> categoryCountry = new java.util.HashMap<>();
+    private final Paint tagPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /** `ch`'s country tag: "" with the tags off (Live TV's settings) or none known. */
+    String tagOf(Xtream.Channel ch) {
+        return ch == null || !LiveCountry.on(getContext()) ? "" : LiveCountry.of(ch, categoryCountry);
+    }
+
+    /** `ch`'s name as shown: without its country when the tag shows it ("US: TLC" → "TLC"). */
+    String nameOf(Xtream.Channel ch) {
+        if (ch == null || ch.name == null) return "";
+        if (!LiveCountry.on(getContext())) return ch.name;
+        String n = LiveCountry.splitCached(ch.name, false).name;
+        return n.isEmpty() ? ch.name : n;
+    }
+
+    /** A category's tag and its name as shown ("US | Entertainment" → US, "Entertainment"). */
+    private String tagOfCategory(String name) {
+        return name == null || !LiveCountry.on(getContext()) ? "" : LiveCountry.splitCached(name, true).code;
+    }
+
+    private String nameOfCategory(String name) {
+        if (name == null) return "";
+        if (!LiveCountry.on(getContext())) return name;
+        String n = LiveCountry.splitCached(name, true).name;
+        return n.isEmpty() ? name : n;
+    }
+
+    /** `text` at `x`, then its tag; both within `room` (the text cut short, never the tag). Returns where they end. */
+    private float textAndTag(Canvas c, String text, String tag, float x, float base, Paint p, float room) {
+        LiveCountry.label(p, tagPaint);
+        float tagW = LiveCountry.tagWidth(tag, p, tagPaint, k);
+        String t = ellipsize(text, p, Math.max(1, room - tagW));
+        c.drawText(t, x, base, p);
+        float end = x + p.measureText(t);
+        if (tag.isEmpty()) return end;
+        return LiveCountry.drawTag(c, tag, end + 12 * k, base, p, tagPaint, k);
+    }
+
+    /** How wide textAndTag draws (its text cut to `room` as it would be). */
+    private float textAndTagWidth(String text, String tag, Paint p, float room) {
+        LiveCountry.label(p, tagPaint);
+        float tagW = LiveCountry.tagWidth(tag, p, tagPaint, k);
+        return p.measureText(ellipsize(text, p, Math.max(1, room - tagW))) + tagW;
     }
 
     /** The show's card at the right, over the video: title, times with a small bar and the minutes left, synopsis. */
@@ -3458,8 +3511,8 @@ final class LiveView extends View {
             lNum.setColor(onTile ? Ui.alpha(LiveTheme.ink, 0.6f) : 0x80FFFFFF);
             String size = String.valueOf(cg.channels.size());
             c.drawText(size, r.right - 24 * k - lNum.measureText(size), r.centerY() + Ui.halfCap(lNum), lNum);
-            c.drawText(ellipsize(cg.name, lGroup, r.width() - 80 * k - lNum.measureText(size)), r.left + 28 * k,
-                    r.centerY() + Ui.halfCap(lGroup), lGroup);
+            textAndTag(c, nameOfCategory(cg.name), tagOfCategory(cg.name), r.left + 28 * k, r.centerY() + Ui.halfCap(lGroup), lGroup,
+                    r.width() - 80 * k - lNum.measureText(size));
         }
         lGroup.setColor(0xE6FFFFFF);
         lNum.setColor(0x80FFFFFF);
@@ -3727,9 +3780,9 @@ final class LiveView extends View {
             drawLogo(c, channel, cell, 1);
             Paint np = r == gRow ? gNameOn : gName;
             np.setColor(r == gRow ? LiveTheme.onTile(LiveTheme.text, onTile) : 0xB3FFFFFF);
-            String nm = channel.name == null ? "" : channel.name, label = channel.num > 0 ? channel.num + "  " + nm : nm;
-            String name = ellipsize(label, np, right - left - 8 * k);
-            c.drawText(name, mid - np.measureText(name) / 2, y + (G_ROW_H - (compact ? 7 : 9)) * k, np);
+            String nm = nameOf(channel), label = channel.num > 0 ? channel.num + "  " + nm : nm, tag = tagOf(channel);
+            float room = right - left - 8 * k, tw = textAndTagWidth(label, tag, np, room);
+            textAndTag(c, label, tag, mid - tw / 2, y + (G_ROW_H - (compact ? 7 : 9)) * k, np, room);
             // The marks at the column's end, one over the other: ▶ the one playing, catch-up's arrow, the heart.
             int marks = (playing != null && playing.id == channel.id ? 1 : 0) + (channel.archive > 0 ? 1 : 0)
                     + (Xtream.isFavorite(lineup, channel.id) ? 1 : 0);
@@ -4098,15 +4151,16 @@ final class LiveView extends View {
             room = Math.min(room, (ART_X + 300 - G_INFO_X) * k);      // the text over the faded part
         }
         // The category at the top right (TiviMate's "provider · group").
-        String cats = gFilter != F_ALL ? filterName(gFilter) + "  ·  " + guideChannels().size()
+        String catRaw = gFilter != F_ALL ? filterName(gFilter) + "  ·  " + guideChannels().size()
                 : lineup == null || gCat >= lineup.categories.size() ? "" : lineup.categories.get(gCat).name;
-        float cw = gMeta.measureText(cats);
-        c.drawText(cats, G_INFO_R * k - cw, 60 * k, gMeta);
+        String catTag = gFilter != F_ALL ? "" : tagOfCategory(catRaw), cats = gFilter != F_ALL ? catRaw : nameOfCategory(catRaw);
+        float cw = textAndTagWidth(cats, catTag, gMeta, 900 * k);
+        textAndTag(c, cats, catTag, G_INFO_R * k - cw, 60 * k, gMeta, 900 * k);
         if (art != null) cw = 0;      // over the picture, the title has its own room
         c.translate(0, (1 - a) * 16 * k);
         if (gCol == 0) {    // on a logo: what OK does there
             c.drawText(Ui.tr("Favorito, nome, número", "Favorite, name, number"), x, 104 * k, gTitle);
-            c.drawText(ellipsize((channel.num > 0 ? channel.num + "  " : "") + channel.name, gMeta, room), x, 160 * k, gMeta);
+            textAndTag(c, (channel.num > 0 ? channel.num + "  " : "") + nameOf(channel), tagOf(channel), x, 160 * k, gMeta, room);
             gAboutPaint.setAlpha(0x99);
             c.drawText(Ui.tr("OK para pôr nos favoritos, renomear ou mudar o número (o vermelho: favorito).",
                     "OK to favorite it, rename it or change its number (red: favorite)."), x, 212 * k, gAboutPaint);
@@ -4148,8 +4202,8 @@ final class LiveView extends View {
         }
         String when = p == null ? (loading ? "" : Ui.tr("Sem guia para este canal", "No guide for this channel"))
                 : Ui.time(p.start) + " – " + Ui.time(p.end);
-        c.drawText(ellipsize((when.isEmpty() ? "" : when + "  ·  ") + (channel.num > 0 ? channel.num + "  " : "") + channel.name, gMeta, room),
-                x, 212 * k, gMeta);
+        textAndTag(c, (when.isEmpty() ? "" : when + "  ·  ") + (channel.num > 0 ? channel.num + "  " : "") + nameOf(channel), tagOf(channel),
+                x, 212 * k, gMeta, room);
         String about = p == null ? "" : p.about;
         if (!about.equals(gAboutText) || gAbout == null || gAbout.getWidth() != Math.max(1, Math.round(room))) {
             gAboutText = about;

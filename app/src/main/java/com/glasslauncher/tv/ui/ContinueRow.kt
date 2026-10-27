@@ -183,8 +183,11 @@ private fun ContinueCard(
         Spacer(Modifier.height((7 * s).dp))
         Text(item.name, color = Color.White.copy(alpha = if (focused) 0.95f else 0.8f), fontSize = (10 * s).sp,
             fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(where(item), color = AppleSecondary.copy(alpha = if (focused) 1f else 0.8f), fontSize = (8.5f * s).sp,
-            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = (1 * s).dp))
+        Row(Modifier.padding(top = (1 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(where(item), color = AppleSecondary.copy(alpha = if (focused) 1f else 0.8f), fontSize = (8.5f * s).sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+            if (item.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(item.country, s) }
+        }
     }
 }
 

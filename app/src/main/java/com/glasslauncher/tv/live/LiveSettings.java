@@ -37,7 +37,8 @@ final class LiveSettings {
             FOLLOW_ROW = 44, AGE_ROW = 45, SUBSCRIPTION_ROW = 46, HEALTH_ROW = 47, STYLE_ROW = 48, NIGHT_ROW = 49,
             CUSTOM_BG_ROW = 50, CUSTOM_ROUND_ROW = 51, CUSTOM_LAYOUT_ROW = 52, MORNING_ROW = 53, LATE_ROW = 54, CODE_ROW = 55,
             RESET_ROW = 56, MATCH_ROW = 57, MATCH_STYLE_ROW = 58, REMIND_WATCHING_ROW = 59, GUIDE_SHIFT_ROW = 60, GUIDE_SIZE_ROW = 61, SCORES_ROW = 62, GOALS_ROW = 63, RECORD_LIST_ROW = 64, RECORDINGS_ROW = 65,
-            SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, MAIN_ROWS = 69;
+            SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
+            VOICE_ROW = 70, MAIN_ROWS = 71;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
@@ -76,7 +77,8 @@ final class LiveSettings {
     private static final int[][] SECTION_ROWS = {
             {FORMAT_ROW, BUFFER_ROW, FRAME_RATE_ROW, PASSTHROUGH_ROW, AUDIO_LANG_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
                     RESET_ROW},
-            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW, RESET_ROW},
+            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, COUNTRY_ROW, VOICE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
+                    RESET_ROW},
             {GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CUSTOM_BG_ROW, CUSTOM_ROUND_ROW, CUSTOM_LAYOUT_ROW, CODE_ROW,
@@ -315,6 +317,8 @@ final class LiveSettings {
             case PREVIEW_ROW: return Ui.tr("Prévias no Início", "Previews on the home screen");
             case CHANNEL_SORT_ROW: return Ui.tr("Ordenar canais", "Sort channels");
             case CATEGORY_SORT_ROW: return Ui.tr("Ordenar categorias", "Sort categories");
+            case COUNTRY_ROW: return Ui.tr("Etiquetas de país", "Country tags");
+            case VOICE_ROW: return Ui.tr("Canais por voz e na busca da TV", "Channels by voice and TV search");
             case SCHEDULE_ROW: return Ui.tr("Lembretes marcados", "Reminders set");
             case RECORD_LIST_ROW: return Ui.tr("Gravações marcadas", "Scheduled recordings");
             case RECORDINGS_ROW: return Ui.tr("Programas gravados", "Recorded shows");
@@ -437,6 +441,8 @@ final class LiveSettings {
             }
             case TUNNELING_ROW: return onOff(LiveOptions.tunneling(c));
             case MERGE_ROW: return onOff(LiveOptions.merge(c));
+            case COUNTRY_ROW: return onOff(LiveOptions.countryTags(c));
+            case VOICE_ROW: return onOff(LiveOptions.voiceChannels(c));
             case REMIND_LEAD_ROW: {
                 int m = LiveOptions.remindLead(c);
                 return m == 0 ? Ui.tr("Na hora", "As it starts") : m + " min";
@@ -675,6 +681,10 @@ final class LiveSettings {
                             "Smoother picture and sound in step on some TVs. If video stutters, turn it off.");
                     case MERGE_ROW: return Ui.tr("HD, FHD, 4K e HEVC do mesmo nome num canal só, no melhor que a sua internet aguenta.",
                             "HD, FHD, 4K and HEVC of one name as one channel, playing the best your internet carries.");
+                    case COUNTRY_ROW: return Ui.tr("O país do canal (US, UK, CA…) numa etiqueta ao lado do nome, lido do nome ou da categoria.",
+                            "The channel's country (US, UK, CA…) on a tag beside its name, read from its name or its category.");
+                    case VOICE_ROW: return Ui.tr("\"Play TLC USA on Glassio Yahsun\" abre o canal. Os canais também podem aparecer na busca da TV.",
+                            "\"Play TLC USA on Glassio Yahsun\" opens the channel. Channels can also show in the TV's search.");
                     case GUIDE_HOURS_ROW: return Ui.tr("Quanto tempo o guia salvo de um canal vale antes de buscar de novo.",
                             "How long a channel's saved guide lasts before it's fetched again.");
                     case PAST_DAYS_ROW: return Ui.tr("Programas que já passaram ficam no guia (canais com reprise: pelo menos a reprise).",
@@ -977,7 +987,9 @@ final class LiveSettings {
         int[] ids = rowsOf(s);
         for (int i = 0; i < ids.length && y < 1010 * k; i++) {
             String lv = rowLabel(ids[i]), vv = rowValue(ids[i]);
-            c.drawText(ellipsize(vv, previewValue, width * 0.4f), x + width, y, previewValue);
+            Boolean sw = switchState(ids[i]);
+            if (sw != null) drawSwitch(c, x + width, y - Ui.halfCap(previewLabel), sw, switchUsable(ids[i]), false, 0.72f);
+            else c.drawText(ellipsize(vv, previewValue, width * 0.4f), x + width, y, previewValue);
             c.drawText(ellipsize(lv, previewLabel, width * 0.58f), x, y, previewLabel);
             y += 50 * k;
         }
@@ -994,13 +1006,82 @@ final class LiveSettings {
             rowRect(i, r);
             Paint p = ink ? labelOn : label, v = ink ? valueOn : value;
             float base = r.centerY() + Ui.halfCap(p);
-            String val = value(i);
             boolean dim = lockedOff && rowsOf(section)[i] == LOCKED_ROW;
             if (dim && !ink) p.setAlpha(0x66);
-            c.drawText(val, r.right - 22 * k, base, v);
-            c.drawText(ellipsize(label(i), p, r.width() - 80 * k - v.measureText(val)), r.left + 22 * k, base, p);
+            Boolean sw = screen == ROWS ? switchState(rowsOf(section)[i]) : null;
+            float valueW;
+            if (sw != null) {
+                valueW = drawSwitch(c, r.right - 22 * k, r.centerY(), sw, switchUsable(rowsOf(section)[i]), ink, 1);
+            } else {
+                String val = value(i);
+                c.drawText(val, r.right - 22 * k, base, v);
+                valueW = v.measureText(val);
+            }
+            c.drawText(ellipsize(label(i), p, r.width() - 80 * k - valueW), r.left + 22 * k, base, p);
             p.setAlpha(ink ? 255 : 0xCC);
         }
+    }
+
+    /** On or off, for a row that's a switch; null for the others (they show their value). */
+    private Boolean switchState(int id) {
+        Context c = context();
+        switch (id) {
+            case FRAME_RATE_ROW: return LiveOptions.frameRate(c);
+            case PASSTHROUGH_ROW: return LiveOptions.passthrough(c);
+            case TUNNELING_ROW: return LiveOptions.tunneling(c);
+            case MERGE_ROW: return LiveOptions.merge(c);
+            case GUIDE_START_ROW: return LiveOptions.guideOnStart(c);
+            case FULL_GUIDE_ROW: return LiveOptions.fullGuide(c);
+            case BOOT_ROW: return LiveOptions.startOnBoot(c);
+            case WAKE_ROW: return LiveOptions.startOnWake(c);
+            case PREVIEW_ROW: return LiveOptions.homePreviews(c);
+            case REMIND_WATCHING_ROW: return LiveOptions.remindWatching(c);
+            case SCORES_ROW: return LiveOptions.scores(c);
+            case GOALS_ROW: return LiveOptions.scores(c) && LiveOptions.goalAlerts(c);
+            case CC_ON_ROW: return LiveOptions.subtitles(c);
+            case ASK_PROFILE_ROW: return LiveOptions.askProfile(c);
+            case PIN_ROW: return LiveOptions.hasPin(c);
+            case COUNTRY_ROW: return LiveOptions.countryTags(c);
+            case VOICE_ROW: return LiveOptions.voiceChannels(c);
+            default: return null;
+        }
+    }
+
+    /** A switch that can't change now (goal alerts without live scores) shows faint. */
+    private boolean switchUsable(int id) {
+        return id != GOALS_ROW || LiveOptions.scores(context());
+    }
+
+    private final Paint switchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF switchRect = new RectF();
+    /** Glassio's switch: its purple when on, faint when off, the white knob at the side it's set to. */
+    private static final int SWITCH_ON = 0xFF7B61FF;
+
+    /**
+     * A switch with its right edge at `right`, centered on `cy`, `scale` of a row's size; returns how wide it is.
+     * `ink`: on the focus' plate.
+     */
+    private float drawSwitch(Canvas c, float right, float cy, boolean on, boolean usable, boolean ink, float scale) {
+        float w = 76 * k * scale, h = 44 * k * scale, pad = 6 * k * scale, knob = h - 2 * pad;
+        switchRect.set(right - w, cy - h / 2, right, cy + h / 2);
+        boolean lightPlate = ink && ((LiveTheme.ink >>> 16 & 255) < 128);     // dark text on the focus: a light plate
+        int off = lightPlate ? 0x33000000 : 0x38FFFFFF;
+        int track = on ? SWITCH_ON : off;
+        if (!usable) track = (track & 0x00FFFFFF) | 0x59000000;
+        switchPaint.setStyle(Paint.Style.FILL);
+        switchPaint.setColor(track);
+        c.drawRoundRect(switchRect, h / 2, h / 2, switchPaint);
+        float kx = on ? switchRect.right - pad - knob / 2 : switchRect.left + pad + knob / 2;
+        switchPaint.setColor(usable ? 0xFFFFFFFF : 0xB3FFFFFF);
+        c.drawCircle(kx, cy, knob / 2, switchPaint);
+        if (lightPlate) {        // a fine edge, so the white knob reads on the white plate
+            switchPaint.setStyle(Paint.Style.STROKE);
+            switchPaint.setStrokeWidth(Math.max(1, 1.2f * k));
+            switchPaint.setColor(0x26000000);
+            c.drawCircle(kx, cy, knob / 2, switchPaint);
+            switchPaint.setStyle(Paint.Style.FILL);
+        }
+        return w;
     }
 
     private void rowRect(float i, RectF out) {
@@ -1111,7 +1192,8 @@ final class LiveSettings {
                 || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
-                || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == GOALS_ROW;
+                || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == GOALS_ROW
+                || id == COUNTRY_ROW || id == VOICE_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -1605,6 +1687,8 @@ final class LiveSettings {
                 break;
             case 1:     // Channels and categories
                 LiveOptions.forget(c, "channelSort", "categorySort");
+                LiveOptions.setCountryTags(c, true);
+                LiveOptions.setVoiceChannels(c, true);
                 view.sortChanged();
                 break;
             case 2:     // Guide
@@ -1706,6 +1790,8 @@ final class LiveSettings {
                 return;
             case TUNNELING_ROW: LiveOptions.setTunneling(c, !LiveOptions.tunneling(c)); live.playbackChanged(); announce(); return;
             case MERGE_ROW: LiveOptions.setMerge(c, !LiveOptions.merge(c)); live.relist(); announce(); return;
+            case COUNTRY_ROW: LiveOptions.setCountryTags(c, !LiveOptions.countryTags(c)); view.invalidate(); announce(); return;
+            case VOICE_ROW: LiveOptions.setVoiceChannels(c, !LiveOptions.voiceChannels(c)); announce(); return;
             case RECORD_EARLY_ROW:
                 LiveOptions.setRecordPadding(c, LiveOptions.step(LiveOptions.RECORD_EARLY, LiveOptions.recordEarly(c), dir), LiveOptions.recordLate(c));
                 LiveSchedule.armAll(c);
@@ -1977,6 +2063,8 @@ final class LiveSettings {
             case MERGE_ROW:
             case CHANNEL_SORT_ROW:
             case CATEGORY_SORT_ROW:
+            case COUNTRY_ROW:
+            case VOICE_ROW:
             case GUIDE_HOURS_ROW:
             case PAST_DAYS_ROW:
             case GUIDE_START_ROW:

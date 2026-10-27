@@ -46,6 +46,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - **Watch on Home** is selectable: OK full screen, Up / Down change the channel, Back selects it and closes it.
 - A setup checklist on a fresh install, and Live TV's list highlight as Glassio's.
 - **Channel numbers in the TV guide**, Back in the guide goes straight back to the channel, and hold OK on a Live TV card offers **Record this show**.
+- **Country tags** beside channel names (US, UK, CA…) and **channels by voice** ("Play TLC USA on Glassio Yahsun"), each with its own switch; every on/off setting in Live TV is now a switch.
 - A **kick-off alert** when a team you follow starts playing (Watch, Small window or Not now), and a reminder in Settings when a backup is due.
 
 **New in 2.1: Live TV on the home screen**

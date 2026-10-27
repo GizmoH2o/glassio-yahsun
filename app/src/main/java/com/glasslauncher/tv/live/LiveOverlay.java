@@ -317,10 +317,17 @@ final class LiveOverlay {
         }
         if (scoreLine != null) x = drawPill(c, scoreLine, x, y, SCORE, true) + 18 * k;
         String when = shown == null ? "" : "  ·  " + Ui.time(shown.start) + " – " + Ui.time(shown.end);
-        String line = (ch.num > 0 ? ch.num + "  " : "") + ch.name + when;
+        String tag = view.tagOf(ch);
+        String line = (ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch);
         float lineW = Math.min(900 * k, (textR - 60) * k - x);
-        c.drawText(ellipsize(line, meta, lineW), x, y, meta);
-        x += Math.min(lineW, meta.measureText(line)) + 22 * k;
+        if (tag.isEmpty()) line += when;
+        float lineEnd = drawNameAndTag(c, line, tag, x, y, lineW);
+        if (!tag.isEmpty()) {
+            String rest = ellipsize(when, meta, Math.max(1, x + lineW - lineEnd));
+            c.drawText(rest, lineEnd, y, meta);
+            lineEnd += meta.measureText(rest);
+        }
+        x = lineEnd + 22 * k;
         if (shown != ratedFor || (ratedAge < 0 && up - ratedAt > 2000)) {     // its rating: the guide's, else TMDB's
             ratedFor = shown;
             ratedAt = up;
@@ -423,6 +430,18 @@ final class LiveOverlay {
     }
 
     /** A rounded tag (filled with `color`) at x, on the line at baseline y; returns where it ends. */
+    private final Paint tagLabel = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /** The channel's line, then its country tag (LiveCountry); returns where it ends. */
+    private float drawNameAndTag(Canvas c, String line, String tag, float x, float y, float room) {
+        LiveCountry.label(meta, tagLabel);
+        float tagW = LiveCountry.tagWidth(tag, meta, tagLabel, k);
+        String t = ellipsize(line, meta, Math.max(1, room - tagW));
+        c.drawText(t, x, y, meta);
+        float end = x + meta.measureText(t);
+        return tag.isEmpty() ? end : LiveCountry.drawTag(c, tag, end + 12 * k, y, meta, tagLabel, k);
+    }
+
     private float drawPill(Canvas c, String text, float x, float baseline, int color, boolean big) {
         Paint p = badge;
         float tw = p.measureText(text), ph = (big ? 34 : 30) * k, pw = tw + (big ? 26 : 20) * k;

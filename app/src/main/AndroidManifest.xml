@@ -133,6 +133,36 @@
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.Glass.Live"/>
+        <!-- A channel by voice or the TV's search: "Play TLC on Glassio Yahsun", Google TV's results (LiveVoice).
+             Nothing of its own shows; off in Live TV's settings, it's disabled (LiveVoice.apply). -->
+        <activity
+            android:name=".live.LiveVoiceActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="com.glasslauncher.tv.voice"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
+            <intent-filter>
+                <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEARCH"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="glassioyahsun" android:host="live"/>
+            </intent-filter>
+            <meta-data android:name="android.app.searchable" android:resource="@xml/live_searchable"/>
+        </activity>
+        <!-- Live TV's channels for the TV's own search: only the system's search may read it. -->
+        <provider
+            android:name=".live.LiveSearchProvider"
+            android:authorities="com.glasslauncher.tv.live.search"
+            android:exported="true"
+            android:readPermission="android.permission.GLOBAL_SEARCH"/>
         <!-- Live TV's reminders: a card over whatever is on (the window around it is see-through). -->
         <activity
             android:name=".live.ReminderActivity"

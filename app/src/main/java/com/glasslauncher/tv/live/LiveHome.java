@@ -24,6 +24,8 @@ public final class LiveHome {
     public static final class Airing {
         public int channel, number;
         public String channelName = "", logo = "", title = "", teams = "", sub = "", art = "", term = "";
+        /** The channel's country tag ("" with the tags off or none known); channelName is then without it. */
+        public String country = "";
         public long start, end;
         /** A live broadcast (the guide's mark); a reminder or a recording set for it. */
         public boolean live, remind, record;
@@ -68,7 +70,10 @@ public final class LiveHome {
     public static void init(Application app) {
         CrashLog.install(app);
         Prefs.init(app);
-        if (app.getPackageName().equals(Application.getProcessName())) LiveStart.watchWake(app);
+        if (app.getPackageName().equals(Application.getProcessName())) {
+            LiveStart.watchWake(app);
+            new Thread(() -> LiveVoice.apply(app), "live-voice-apply").start();     // the voice entry as the setting is
+        }
     }
 
     /** The home screen is showing: Live TV's "open when the TV starts". */
@@ -309,6 +314,11 @@ public final class LiveHome {
         a.channel = ch.id;
         a.number = ch.num;
         a.channelName = ch.name == null ? "" : ch.name;
+        if (LiveOptions.countryTags(c)) {       // the country on its tag, the name without it
+            a.country = LiveCountry.of(ch, LiveCountry.savedCategories(c));
+            String plain = LiveCountry.splitCached(a.channelName, false).name;
+            if (!plain.isEmpty()) a.channelName = plain;
+        }
         a.logo = ch.logo == null ? "" : ch.logo;
         if (p != null) {
             a.title = p.title;
@@ -496,6 +506,8 @@ public final class LiveHome {
         public int kind, channel;
         /** Stays the same while it's the same card (hidden with hold OK by it). */
         public String key = "", title = "", sub = "", art = "", logo = "", recording = "";
+        /** The channel's country tag ("" with the tags off or none known). */
+        public String country = "";
         /** How far into the show (0 to 1), -1: none. */
         public float progress = -1;
     }
@@ -520,7 +532,8 @@ public final class LiveHome {
             k.channel = matchChannel = m.ch.id;
             k.key = "live-match:" + m.ch.id + ":" + m.start;
             k.title = LiveMatchDay.headline(m, LiveMatchDay.score(c, m));
-            k.sub = "Following  ·  " + channelLine(m.ch);
+            k.sub = "Following  ·  " + channelLine(c, m.ch);
+            k.country = countryOf(c, m.ch);
             k.logo = m.ch.logo == null ? "" : m.ch.logo;
             k.art = LiveArt.of(c, onNow(c, m.ch, now), null);
             k.progress = progress(m.start, m.end, now);
@@ -534,8 +547,9 @@ public final class LiveHome {
             k.kind = HomeCard.CHANNEL;
             k.channel = ch.id;
             k.key = "live-channel:" + ch.id;
-            k.title = p != null && !p.title.isEmpty() ? p.title : (ch.name == null ? "" : ch.name);
-            k.sub = channelLine(ch);
+            k.title = p != null && !p.title.isEmpty() ? p.title : shownName(c, ch);
+            k.sub = channelLine(c, ch);
+            k.country = countryOf(c, ch);
             k.logo = ch.logo == null ? "" : ch.logo;
             k.art = LiveArt.of(c, p, null);
             if (p != null) k.progress = progress(p.start, p.end, now);
@@ -560,8 +574,9 @@ public final class LiveHome {
             k.channel = r.ch.id;
             k.recording = r.id;
             k.key = "live-rec:" + r.id;
-            k.title = p.title.isEmpty() ? (r.ch.name == null ? "" : r.ch.name) : p.title;
-            k.sub = "Recorded  ·  " + (r.ch.name == null ? "" : r.ch.name) + "  ·  " + day(r.start, now);
+            k.title = p.title.isEmpty() ? shownName(c, r.ch) : p.title;
+            k.sub = "Recorded  ·  " + shownName(c, r.ch) + "  ·  " + day(r.start, now);
+            k.country = countryOf(c, r.ch);
             k.logo = r.ch.logo == null ? "" : r.ch.logo;
             k.art = LiveArt.of(c, p, null);
             out.add(k);
@@ -615,8 +630,21 @@ public final class LiveHome {
         return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_RECORDING, id);
     }
 
-    private static String channelLine(Xtream.Channel ch) {
-        return (ch.num > 0 ? ch.num + "  " : "") + (ch.name == null ? "" : ch.name);
+    private static String channelLine(Context c, Xtream.Channel ch) {
+        return (ch.num > 0 ? ch.num + "  " : "") + shownName(c, ch);
+    }
+
+    /** `ch`'s name as the home screen shows it: without its country when the tags show it. */
+    private static String shownName(Context c, Xtream.Channel ch) {
+        String n = ch.name == null ? "" : ch.name;
+        if (!LiveOptions.countryTags(c)) return n;
+        String plain = LiveCountry.splitCached(n, false).name;
+        return plain.isEmpty() ? n : plain;
+    }
+
+    /** `ch`'s country tag for the home screen ("" with the tags off or none known). */
+    private static String countryOf(Context c, Xtream.Channel ch) {
+        return LiveOptions.countryTags(c) ? LiveCountry.of(ch, LiveCountry.savedCategories(c)) : "";
     }
 
     private static float progress(long start, long end, long now) {

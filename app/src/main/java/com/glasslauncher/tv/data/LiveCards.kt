@@ -35,7 +35,7 @@ object LiveCards {
                 id = if (k.kind == LiveHome.HomeCard.RECORDING) "rec:${k.recording}" else "ch:${k.channel}",
                 type = when (k.kind) { LiveHome.HomeCard.MATCH -> TYPE_MATCH; LiveHome.HomeCard.RECORDING -> TYPE_RECORDING; else -> TYPE_CHANNEL },
                 name = k.title, poster = "", background = k.art, logo = k.logo, overview = "", rating = "", year = "",
-                genres = emptyList(), platform = PLATFORM, progress = k.progress, sub = k.sub,
+                genres = emptyList(), platform = PLATFORM, progress = k.progress, sub = k.sub, country = k.country,
             )
         }
         if (list != _items.value) _items.value = list

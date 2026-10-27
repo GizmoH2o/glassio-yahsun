@@ -29,6 +29,11 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - A GitHub Actions workflow builds, tests, signs and publishes a release when a version tag is pushed (it needs the release key as repository secrets).
 - Screenshots of Live TV, Following, the styles and backup in the README.
 
+**Country tags and voice**
+- **Country tags**: a channel's country (US, UK, CA…) on a small glass pill beside its name — in the guide, the channel list, the info bar, the categories and the home screen's cards — read from the name ("US: TLC", "TLC (US)", "TLC USA", a flag) or else its category ("UK | Sky Sports"), and the name shown without it. On or off in Live TV › Settings › Channels and categories.
+- **Channels by voice**: "Play TLC USA on Glassio Yahsun", "TLC US", "channel 2340" open Live TV on that channel; a country at either end picks that country's channel, and without one the channels you watch win. Live TV's channels can also show in the TV's own search (when Google TV lists apps' results there). On or off in the same section: off, Glassio isn't offered to the TV for this at all.
+- Every setting in Live TV that's on or off is now a switch, as in Glassio's own settings (purple when on), in the sections and in their preview.
+
 **Live TV styles**
 - Six new styles (Live TV › Settings › Theme and start-up › Style): **Netflix** (near black, a red focus, nearly square corners, a big picture), **Prime Video** (deep navy, a bright blue focus), **Disney+** (royal blue into night, glass with a light edge, a blue focus), **Max** (black into deep blue, the large picture at the right), **Plex** (dark grey, an amber focus) and **Pluto TV** (black, a yellow focus, a guide with many rows). Each also works for the morning, night and late-night styles.
 - The style picker shows the 14 styles in two full rows (Custom last), so every tile is large enough to read.

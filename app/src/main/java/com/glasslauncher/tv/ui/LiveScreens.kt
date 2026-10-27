@@ -473,7 +473,9 @@ private fun FeatureCard(a: LiveHome.Airing?, s: Float, rev: Int, modifier: Modif
             Spacer(Modifier.height((4 * s).dp))
             if (a != null) Row(verticalAlignment = Alignment.CenterVertically) {
                 if (a.logo.isNotEmpty()) { Logo(a.logo, Modifier.size((30 * s).dp, (16 * s).dp)); Spacer(Modifier.width((8 * s).dp)) }
-                Text(channelLine(a), color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(channelLine(a), color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+                if (a.country.isNotEmpty()) { Spacer(Modifier.width((6 * s).dp)); CountryTag(a.country, s) }
             }
             if (a != null && a.end > a.start) {
                 Spacer(Modifier.height((8 * s).dp))
@@ -516,8 +518,12 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
         Spacer(Modifier.height((8 * s).dp))
         Text(a.title.ifEmpty { a.channelName }, color = Color.White.copy(alpha = if (focused) 0.95f else 0.75f), fontSize = (10 * s).sp,
             fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(if (now) channelLine(a) else "${LiveHome.time(a.start)} · ${LiveHome.until(a.start - System.currentTimeMillis())} · ${a.channelName}",
-            color = AppleSecondary.copy(alpha = 0.8f), fontSize = (8.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(if (now) channelLine(a) else "${LiveHome.time(a.start)} · ${LiveHome.until(a.start - System.currentTimeMillis())} · ${a.channelName}",
+                color = AppleSecondary.copy(alpha = 0.8f), fontSize = (8.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false))
+            if (a.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(a.country, s) }
+        }
     }
 }
 
@@ -587,8 +593,11 @@ private fun EventRowView(a: LiveHome.Airing, s: Float, rev: Int, actions: Boolea
                     if (a.sub.isNotEmpty()) Text(a.sub, color = AppleSecondary, fontSize = (9 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (a.logo.isNotEmpty()) { Logo(a.logo, Modifier.size((34 * s).dp, (16 * s).dp)); Spacer(Modifier.width((8 * s).dp)) }
-                Text(a.channelName, color = Color.White.copy(alpha = 0.8f), fontSize = (10 * s).sp, maxLines = 1,
-                    overflow = TextOverflow.Ellipsis, modifier = Modifier.width((130 * s).dp))
+                Row(Modifier.width((130 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(a.channelName, color = Color.White.copy(alpha = 0.8f), fontSize = (10 * s).sp, maxLines = 1,
+                        overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (a.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(a.country, s) }
+                }
                 if (on) {
                     LivePill(s)
                     if (a.score.isNotEmpty()) { Spacer(Modifier.width((8 * s).dp)); Text(a.score, color = Color.White, fontSize = (11 * s).sp, fontWeight = FontWeight.SemiBold) }

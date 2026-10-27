@@ -39,6 +39,8 @@ data class HeroItem(
     /** The add-on's own picture (before TMDB) and TMDB's highest-resolution backdrop. */
     val addonArt: String = "",
     val bestArt: String = "",
+    /** A Live TV card's channel country (US, UK…): its tag beside the line under the card; "" for the others. */
+    val country: String = "",
 )
 
 /**

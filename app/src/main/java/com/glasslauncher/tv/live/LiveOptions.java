@@ -375,6 +375,26 @@ final class LiveOptions {
     // Read by the home screen's process (it starts Live TV), so these are files rather than the preferences above.
 
     /** Live previews on the home screen's On now row (off: the file live-no-previews). */
+    /** Country tags beside channel names (LiveCountry): on unless turned off. Any process. */
+    static boolean countryTags(Context c) {
+        return !flag(c, "live-no-country-tags").exists();
+    }
+
+    static void setCountryTags(Context c, boolean on) {
+        setFlag(c, "live-no-country-tags", !on);
+        LiveCountry.changed(on);
+    }
+
+    /** "Play TLC on Glassio Yahsun" and Google TV's search open Live TV on a channel (LiveVoice): on unless off. */
+    static boolean voiceChannels(Context c) {
+        return !flag(c, "live-no-voice").exists();
+    }
+
+    static void setVoiceChannels(Context c, boolean on) {
+        setFlag(c, "live-no-voice", !on);
+        LiveVoice.apply(c);
+    }
+
     static boolean homePreviews(Context c) {
         return !flag(c, "live-no-previews").exists();
     }

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV's channels in the TV's own search (LiveSearchProvider), each opening Live TV on it (LiveVoiceActivity). -->
+<searchable xmlns:android="http://schemas.android.com/apk/res/android"
+    android:label="@string/live_name"
+    android:hint="@string/live_search_hint"
+    android:searchSuggestAuthority="com.glasslauncher.tv.live.search"
+    android:searchSuggestIntentAction="android.intent.action.VIEW"
+    android:searchSuggestIntentData="glassioyahsun://live/channel"
+    android:searchSuggestSelection=" ?"
+    android:searchSuggestThreshold="2"
+    android:includeInGlobalSearch="true"
+    android:searchSettingsDescription="@string/live_search_hint" />
