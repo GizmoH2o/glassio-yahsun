@@ -17,14 +17,16 @@ data class CwEntry(val imdb: String, val season: Int, val episode: Int, val perc
 }
 
 /**
- * Continue Watching for Nuvio Legacy, the official Nuvio app (through the Nuvio account) and Trakt.
+ * Continue Watching for Nuvio Legacy, the official Nuvio app (through the Nuvio account), Stremio (through the Stremio
+ * account) and Trakt.
  *
  * Google TV only lets privileged apps read other apps' Watch Next rows, so instead this reads what Nuvio
  * Legacy writes to its own log while you watch ("[atividade] inicio tt… T1E3 42%", "[visto] ponto gravado
  * … (63%)", "[player] saida"). The log is read through the TV's local adb shell (LocalShell), so Android's
  * "Allow access to all device logs?" prompt never appears; only the one-time "Allow USB debugging" does.
  * The list is kept on the TV, newest first; titles past 92% count as finished and leave the list.
- * The official Nuvio app writes no such log: it saves what you watch to the Nuvio account, which this reads.
+ * The official Nuvio app writes no such log: it saves what you watch to the Nuvio account, which this reads; Stremio
+ * keeps it in its account's library (each title's position), which this reads too.
  */
 class ContinueWatching(
     private val ctx: Context,
@@ -50,6 +52,11 @@ class ContinueWatching(
     @Volatile private var nuvioAt = 0L
     /** Last Nuvio account sync result for Settings ("4 titles in progress", or the error). */
     val nuvioStatus = MutableStateFlow("")
+    /** The Stremio account (the Library's); set once the Library is made. */
+    @Volatile var stremio: StremioAccount? = null
+    @Volatile private var stremioAt = 0L
+    /** Last Stremio account sync result for Settings. */
+    val stremioStatus = MutableStateFlow("")
     @Volatile private var woke = false
     /** Last Trakt sync result for Settings ("12 titles", or the error). */
     val traktStatus = MutableStateFlow("")
@@ -83,6 +90,10 @@ class ContinueWatching(
                 val nu = nuvio
                 if (settings.cwNuvio && settings.continueMode != "off" && nu != null && nu.connected &&
                     now - nuvioAt > (if (woke) 45_000L else 180_000L)) { nuvioAt = now; syncNuvio(nu) }
+                // Stremio, through the account: as often too.
+                val sa = stremio
+                if (settings.cwStremio && settings.continueMode != "off" && sa != null && sa.connected &&
+                    now - stremioAt > (if (woke) 45_000L else 180_000L)) { stremioAt = now; syncStremio(sa) }
                 woke = false
                 runCatching { accountsWake.tryAcquire(20, java.util.concurrent.TimeUnit.SECONDS) }
                 accountsWake.drainPermits()
@@ -90,7 +101,7 @@ class ContinueWatching(
         }
     }
 
-    /** Wakes the accounts' loop (Trakt, Nuvio) early. */
+    /** Wakes the accounts' loop (Trakt, Nuvio, Stremio) early. */
     private val accountsWake = java.util.concurrent.Semaphore(0)
 
     /** Called when the home screen resumes, so leaving Nuvio shows up immediately. */
@@ -183,6 +194,37 @@ class ContinueWatching(
         rebuildItems()
     }
 
+    /** Forces a Stremio account sync on the next round (after signing in, or turning it on). */
+    fun syncStremioNow() { stremioAt = 0L; pollNow() }
+
+    /**
+     * What you're watching in Stremio joins the list, as the Nuvio account's does: a title another app saw more recently
+     * keeps that app's progress; titles no longer in progress on the account leave the list.
+     */
+    private fun syncStremio(sa: StremioAccount) {
+        val all = sa.watchProgress() ?: run { stremioStatus.value = "Sync failed: ${sa.lastError.ifBlank { "offline" }}"; return }
+        // Cinemeta names the title: only IMDb ids (tt…); a series only with its episode known.
+        val latest = all.filter { it.id.startsWith("tt") && (it.type == "movie" || it.season > 0 || it.episode > 0) }
+        synchronized(this) {
+            val list = entries.value.filterNot { it.app == "Stremio" }.toMutableList()
+            for (p in latest) {
+                if (p.percent >= 92) continue
+                val e = CwEntry(p.id, if (p.type == "movie") 0 else p.season, if (p.type == "movie") 0 else p.episode, p.percent, p.at, "Stremio")
+                val other = list.firstOrNull { it.imdb == p.id }
+                if (other != null && other.at >= p.at) continue
+                list.removeAll { it.imdb == p.id }
+                list.add(e)
+            }
+            val trimmed = list.sortedByDescending { it.at }.take(30)
+            entries.value = trimmed
+            save(trimmed)
+        }
+        val n = latest.count { it.percent < 92 }
+        Glog.i("Stremio watch progress: ${all.size} titles with a position, ${latest.size} with IMDb ids, $n in progress")
+        stremioStatus.value = if (n == 1) "1 title in progress" else "$n titles in progress"
+        rebuildItems()
+    }
+
     private val epochLine = Regex("""^(\d+)\.(\d+)\s+\d+\s+\d+\s+[A-Z]\s+nuvio\s*:\s(.*)$""")
     private val startRe = Regex("""\[atividade] inicio (tt\d+) T(\d+)E(\d+) (\d+)%""")
     private val pointRe = Regex("""\[visto] ponto gravado .*?\((\d+)%\)""")
@@ -246,6 +288,10 @@ class ContinueWatching(
             val keys = if (a == null) emptyList() else (0 until a.length()).map { a.optString(it) }.filter { it.isNotBlank() }
             val nu = nuvio
             if (keys.isNotEmpty() && nu != null) scope.launch(Dispatchers.IO) { nu.removeProgress(keys) }
+        }
+        entries.value.firstOrNull { it.key == key && it.app == "Stremio" }?.let { e ->
+            val sa = stremio
+            if (sa != null) scope.launch(Dispatchers.IO) { sa.rewind(e.imdb) }
         }
         val l = entries.value.filterNot { it.key == key }
         entries.value = l; save(l)

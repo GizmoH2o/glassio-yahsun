@@ -249,7 +249,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
     private fun state(): JSONObject {
         val addons = JSONArray()
         app.catalogs.addons.sorted().forEach { addons.put(JSONObject().put("url", it).put("name", app.catalogs.addonName(it)).put("host", runCatching { java.net.URI(it).host }.getOrNull() ?: "")) }
-        app.catalogs.accountOnly().forEach { addons.put(JSONObject().put("url", it).put("name", app.catalogs.addonName(it)).put("host", runCatching { java.net.URI(it).host }.getOrNull() ?: "").put("account", true)) }
+        app.catalogs.accountOnly().forEach { addons.put(JSONObject().put("url", it).put("name", app.catalogs.addonName(it)).put("host", runCatching { java.net.URI(it).host }.getOrNull() ?: "").put("account", true).put("from", app.catalogs.accountOf(it))) }
         val apps = JSONArray()
         app.apps.ordered(includeHidden = true).forEach {
             apps.put(JSONObject().put("pkg", it.pkg).put("label", it.label).put("custom", app.icons.fileFor(it.pkg).exists()))
@@ -333,7 +333,7 @@ x.onload=function(){p.textContent='';try{var r=JSON.parse(x.responseText);say(r.
 x.onerror=function(){p.textContent='';say('Upload failed',false)};say('Uploading...',true);x.send(f)}
 var BGM=[['carousel','Title backdrops'],['image','My picture'],['video','My video'],['aerial','Screensaver']],poll=0;
 function load(){api('/api/state').then(function(d){
-var a=document.getElementById('addons');a.textContent='';d.addons.forEach(function(x){var c=el('div','card');var t=el('b','',x.name);if(x.account)t.appendChild(el('span','tag','Nuvio account'));c.appendChild(t);c.appendChild(el('small','',x.host));if(!x.account){var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/addon/remove',{url:x.url})};r.appendChild(b);c.appendChild(r)}a.appendChild(c)});
+var a=document.getElementById('addons');a.textContent='';d.addons.forEach(function(x){var c=el('div','card');var t=el('b','',x.name);if(x.account)t.appendChild(el('span','tag',(x.from||'Nuvio')+' account'));c.appendChild(t);c.appendChild(el('small','',x.host));if(!x.account){var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/addon/remove',{url:x.url})};r.appendChild(b);c.appendChild(r)}a.appendChild(c)});
 var g=d.bg,m=document.getElementById('bgm');m.textContent='';BGM.forEach(function(o){var b=el('button',g.mode==o[0]?'':'s',o[1]);b.onclick=function(){send('/api/bg/mode',{mode:o[0]})};m.appendChild(b)});
 document.getElementById('bgnow').textContent=(g.image?'Picture: '+g.image+'  ':'')+(g.video?'Video: '+g.video:'');
 var bp=document.getElementById('bgp');if(g.downloading){bp.textContent='Downloading '+g.downloading+'...';clearTimeout(poll);poll=setTimeout(load,2000)}else if(g.last&&bp.textContent.indexOf('Downloading')==0){bp.textContent=g.last}

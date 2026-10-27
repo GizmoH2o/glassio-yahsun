@@ -140,6 +140,12 @@ class Settings(private val ctx: Context) {
     /** Catalogs also come from the add-ons installed on the Nuvio account (merged with the TV's own, never twice). */
     var catalogsNuvio: Boolean get() = b("catalogsNuvio", false); set(v) = putB("catalogsNuvio", v)
     var libraryToNuvio: Boolean get() = b("libraryToNuvio", true); set(v) = putB("libraryToNuvio", v)
+    /** The Stremio account's Library (the Stremio apps' own). */
+    var libraryStremio: Boolean get() = b("libraryStremio", true); set(v) = putB("libraryStremio", v)
+    /** The + button also saves to the Stremio account's Library. */
+    var libraryToStremio: Boolean get() = b("libraryToStremio", true); set(v) = putB("libraryToStremio", v)
+    /** Catalogs also come from the add-ons installed on the Stremio account (merged with the others, never twice). */
+    var catalogsStremio: Boolean get() = b("catalogsStremio", false); set(v) = putB("catalogsStremio", v)
     var libraryToTrakt: Boolean get() = b("libraryToTrakt", true); set(v) = putB("libraryToTrakt", v)
     var libraryTitles: Boolean get() = b("libraryTitles", true); set(v) = putB("libraryTitles", v)
     /** bow (black on white) | amoled | liquid | clear | water_still | water */
@@ -186,6 +192,8 @@ class Settings(private val ctx: Context) {
     var cwLegacy: Boolean get() = b("cwLegacy", true); set(v) = putB("cwLegacy", v)
     /** Continue Watching also from the official Nuvio app, through the Nuvio account (when signed in). */
     var cwNuvio: Boolean get() = b("cwNuvio", true); set(v) = putB("cwNuvio", v)
+    /** Continue Watching also from Stremio, through the Stremio account (when signed in). */
+    var cwStremio: Boolean get() = b("cwStremio", true); set(v) = putB("cwStremio", v)
     var cwProgress: Boolean get() = b("cwProgress", true); set(v) = putB("cwProgress", v)
     /** 0.6 .. 1.0 (1.0 = full width) */
     var dockScale: Float get() = f("dockScale", 1.0f); set(v) = putF("dockScale", v.coerceIn(0.6f, 1.0f))
@@ -229,7 +237,7 @@ class Settings(private val ctx: Context) {
     var showFolder: Boolean get() = b("showFolder", true); set(v) = putB("showFolder", v)
 
     // ---- Nuvio / Home Assistant
-    /** auto (first installed: Legacy, official, Arc, Re-Shaped) | legacy | official | arc | reshaped */
+    /** auto (first installed: Legacy, official, Arc, Re-Shaped, Stremio) | legacy | official | arc | reshaped | stremio */
     var nuvioTarget: String get() = s("nuvioTarget", "auto"); set(v) = putS("nuvioTarget", v)
     var haWebhook: String get() = s("haWebhook", ""); set(v) = putS("haWebhook", v.trim())
     var haOnLaunch: Boolean get() = b("haOnLaunch", false); set(v) = putB("haOnLaunch", v)

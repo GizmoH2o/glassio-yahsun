@@ -139,7 +139,7 @@ const val DOCK_COLUMNS = 6
 const val PHONE_CATEGORY = 9
 /** Index of the "Catalogs" category in the settings list. */
 const val CATALOGS_CATEGORY = 5
-/** Index of "Nuvio & Home Assistant" and of "System" (backup, Home button, TV access) in the settings list. */
+/** Index of "Nuvio, Stremio & Home Assistant" and of "System" (backup, Home button, TV access) in the settings list. */
 const val NUVIO_CATEGORY = 7
 const val SYSTEM_CATEGORY = 10
 /** Pseudo package used by move mode for the Apps folder tile. */
@@ -1182,7 +1182,7 @@ private fun EmptyHint(
             value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 SetupState(
                     catalogs = app.catalogs.addons.isNotEmpty() || app.catalogs.accountOnly().isNotEmpty(),
-                    nuvio = app.library.nuvio.connected,
+                    nuvio = app.library.nuvio.connected || app.library.stremio.connected,
                     adb = com.glasslauncher.tv.data.LocalShell.run(ctx, "echo ok").isSuccess,
                     home = isHomeKeyOn(ctx),
                     live = runCatching { com.glasslauncher.tv.live.LiveHome.ready(ctx) }.getOrDefault(false),
@@ -1193,8 +1193,8 @@ private fun EmptyHint(
     }
     val steps = listOf(
         SetupStep("Restore a backup", "Had Glassio before? Everything back in one go", null) { onSettings(SYSTEM_CATEGORY) },
-        SetupStep("Add catalogs", "Nuvio add-ons fill the carousel", state.catalogs) { onSettings(CATALOGS_CATEGORY) },
-        SetupStep("Sign in to Nuvio", "Continue Watching and your library", state.nuvio) { onSettings(NUVIO_CATEGORY) },
+        SetupStep("Add catalogs", "Nuvio or Stremio add-ons fill the carousel", state.catalogs) { onSettings(CATALOGS_CATEGORY) },
+        SetupStep("Sign in to Nuvio or Stremio", "Continue Watching and your library", state.nuvio) { onSettings(NUVIO_CATEGORY) },
         SetupStep("Allow TV access (ADB)", "Silent updates, the screensaver, Nuvio Legacy", state.adb) { onSettings(SYSTEM_CATEGORY) },
         SetupStep("Turn on the Home button", "Home opens Glassio", state.home) { onSettings(SYSTEM_CATEGORY) },
         SetupStep("Sign in to Live TV", "Your IPTV playlist", state.live) {

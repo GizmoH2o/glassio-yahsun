@@ -75,7 +75,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - The TMDB token and the Home Assistant webhook show a green check when they work (red when TMDB refuses the token, or the API Key was pasted instead of the API Read Access Token).
 
 **Carousel**
-- Endless hero carousel from your Nuvio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like. Add-ons from your Nuvio account join the TV's own (Settings → Catalogs), never twice.
+- Endless hero carousel from your Nuvio or Stremio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like. Add-ons from your Nuvio account and your Stremio account join the TV's own (Settings → Catalogs), never twice.
 - Settings → Carousel → **Slide animation**: **Apple TV** (default: the next picture opens up from the right with parallax, from the left going back, glass included), *Slide* (pushed in) or *Fade*.
 - **Buttons**: **Play + Next** (default, like Apple TV: Right from Play selects the round Next button, Right or OK on it shows the next title, Left on Play the previous one; Play stays in place whatever the synopsis length), *Play only* or *Hidden*.
 - **Dots**: *Dots*, **Liquid glass dots** (clear glass drops on a glass capsule that stretch, join and part like water as you move), *Progress bar* or *Hidden*.
@@ -84,11 +84,12 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - **Continue Watching** from Nuvio Legacy: at the start of the carousel (1–5 slides or all) or mixed in, with progress
   (`Continue · S1 · E3 · 42%`). Back from Nuvio, the carousel opens on what you just watched. These titles are kept in
   memory, so going back to them — even after browsing far or pressing Home — never reloads.
-- **Continue Watching from the official Nuvio app**: signed in to your Nuvio account (Settings → Nuvio & Home Assistant), what you're watching there joins Continue Watching (Settings → Continue Watching → *Nuvio (official app)*). Removing a title here removes it on the account too.
+- **Continue Watching from the official Nuvio app**: signed in to your Nuvio account (Settings → Nuvio, Stremio & Home Assistant), what you're watching there joins Continue Watching (Settings → Continue Watching → *Nuvio (official app)*). Removing a title here removes it on the account too.
+- **Stremio**: signed in to your Stremio account (Settings → Nuvio, Stremio & Home Assistant → *Connect Stremio account*: a QR code, you sign in to Stremio on your phone and confirm; no password on the TV), what you're watching in Stremio joins Continue Watching (*Stremio*), its add-ons can fill the catalogs (*Add-ons from my Stremio account*), its library shows in the Library and the + button can save to it. Removing a title here removes it in Stremio too.
 - Home pressed on the home screen jumps back to the first slide.
 - Opening a title brings Nuvio forward and opens it directly (no restart, no splash when Nuvio is running).
-  Works with **Nuvio Legacy**, the **official Nuvio TV** app, **Nuvio Arc** and **Nuvio Re-Shaped**
-  (Settings → Nuvio & Home Assistant → *Open titles in*; **Auto** picks the first installed in that order).
+  Works with **Nuvio Legacy**, the **official Nuvio TV** app, **Nuvio Arc**, **Nuvio Re-Shaped** and **Stremio**
+  (Settings → Nuvio, Stremio & Home Assistant → *Open titles in*; **Auto** picks the first installed in that order).
 
 **Glass**
 - Real refraction (AGSL shader), blurred backdrop shared by every glass surface, "Glass like glass" (with or without ripple), clear, AMOLED black, black-on-white.
@@ -153,10 +154,11 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 
 ## Setup
 
-### Catalogs (Nuvio add-ons)
+### Catalogs (Nuvio and Stremio add-ons)
 - **Settings → Catalogs → Add add-ons from my phone (QR)**: scan the code with your phone (same Wi-Fi), paste manifest
   links (`https://…/manifest.json`) and, optionally, your TMDB token.
 - Or **Connect to Nuvio**: in Nuvio open *Add-ons → Manage from phone* first, then press Connect.
+- Or turn on **Add-ons from my Nuvio account** / **Add-ons from my Stremio account** (signed in to that account): its add-ons join the list; one already here isn't added twice.
 - Choose the catalogs you want; *Refresh catalogs* reloads them.
 
 ### TMDB token (logos, full-size art, synopsis language, ratings, gallery)
@@ -172,7 +174,8 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
   your phone (no password on the TV). What you pause in any app that scrobbles to Trakt — the official Nuvio app,
   Nuvio Arc, Re-Shaped, Stremio, Kodi… — then shows up too (synced every few minutes and when you come back to Glassio).
   Removing a Trakt title here removes it on Trakt as well.
-- The official Nuvio app, Nuvio Arc and Re-Shaped don't write the Legacy log, so for them use Trakt. Other apps (Netflix, YouTube…) keep their Continue Watching private on Google TV.
+- **The official Nuvio app** and **Stremio**: sign in to the same account here (Settings → Nuvio, Stremio & Home Assistant) and what you're watching there shows up, read from the account every few minutes and when you come back to Glassio.
+- Nuvio Arc and Re-Shaped don't write the Legacy log, so for them use Trakt. Other apps (Netflix, YouTube…) keep their Continue Watching private on Google TV.
 - Settings → **Continue Watching**: at the start / mixed / off, how many slides lead, open on what you just watched, progress bar, clear the list.
 - A title leaves the list when you finish it (past 92 %) or remove it.
 
@@ -273,7 +276,7 @@ actions:
 ```
 
 **2. Give Glass the URL**: `http://<home-assistant-ip>:8123/api/webhook/glass_launcher_CHANGE_ME`
-- Settings → **Nuvio & Home Assistant → Home Assistant webhook**, or paste it on the phone page (Catalogs → *Add add-ons from my phone*).
+- Settings → **Nuvio, Stremio & Home Assistant → Home Assistant webhook**, or paste it on the phone page (Catalogs → *Add add-ons from my phone*).
 - Turn on **Tell Home Assistant when a title opens**, then **Send a test event** (sends `{"event":"test"}`).
 
 Use the IP address of Home Assistant (the TV may not resolve `homeassistant.local`). `local_only: true` keeps the webhook

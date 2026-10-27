@@ -11,7 +11,7 @@ import org.json.JSONObject
 import java.io.File
 
 /**
- * Glassio Yahsun's backup: every setting of Glassio and Live TV, sign-ins included (Nuvio, Trakt, TMDB, Live TV's
+ * Glassio Yahsun's backup: every setting of Glassio and Live TV, sign-ins included (Nuvio, Stremio, Trakt, TMDB, Live TV's
  * playlists and their logins), the app icons you picked, Live TV's favorites, Following, profiles and reminders.
  * Not the recordings, nor anything that's only a copy of what's online (channel lists over [FILE_MAX], the guide).
  *

@@ -9,8 +9,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The Library: titles saved with the + button on the carousel (kept on the TV), and, when a Trakt account
- * is connected, its watchlist. Saving can also add the title to the Trakt watchlist.
+ * The Library: titles saved with the + button on the carousel (kept on the TV), and, when accounts are connected,
+ * the Nuvio account's Library, the Stremio account's Library and the Trakt watchlist. Saving can also add the title
+ * to each of them.
  */
 class Library(
     ctx: Context,
@@ -31,6 +32,48 @@ class Library(
     @Volatile private var nuvioJob: kotlinx.coroutines.Job? = null
     /** Signed in to Nuvio: Continue Watching reads the account's watch progress right away. */
     @Volatile var onNuvioConnected: () -> Unit = {}
+    /** The Stremio account's Library (the Stremio apps' own). */
+    val stremio = StremioAccount(ctx)
+    val stremioList = MutableStateFlow<List<HeroItem>>(emptyList())
+    val stremioStatus = MutableStateFlow("")
+    /** Stremio sign-in in progress: the page to open (QR), null when idle. */
+    val stremioUrl = MutableStateFlow<String?>(null)
+    @Volatile private var stremioJob: kotlinx.coroutines.Job? = null
+    /** Signed in to Stremio: Continue Watching and the catalogs read the account right away. */
+    @Volatile var onStremioConnected: () -> Unit = {}
+
+    fun connectStremio(say: (String) -> Unit) {
+        if (stremioJob?.isActive == true) return
+        stremioJob = scope.launch(Dispatchers.IO) {
+            val c = runCatching { stremio.startLogin() }.getOrElse { say("Stremio: ${it.message}"); return@launch }
+            stremioUrl.value = c.url
+            val ok = runCatching { stremio.waitForApproval(c) { stremioJob?.isCancelled == true } }.getOrDefault(false)
+            stremioUrl.value = null
+            say(if (ok) "Stremio account connected" + (stremio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") else "Stremio: ${stremio.lastError}. Try again")
+            if (ok) { settings.libraryStremio = true; onStremioConnected(); refreshStremio() }
+        }
+    }
+
+    /** Reads the Stremio account's Library. Blocking. */
+    fun refreshStremio() {
+        if (!settings.libraryStremio || !stremio.connected) { stremioList.value = emptyList(); return }
+        val list = stremio.library() ?: run { stremioStatus.value = stremio.lastError.ifBlank { "Stremio: couldn't read it" }; return }
+        stremioStatus.value = ""
+        stremioList.value = list.take(300).map { n ->
+            val type = if (n.type == "movie") "movie" else "series"
+            // Stremio keeps the poster: Cinemeta only for a title without one (IMDb titles), as the Nuvio list does.
+            (if (n.poster.isBlank() && n.id.startsWith("tt")) meta(type, n.id) else null) ?: HeroItem(
+                key = "$type:${n.id}", id = n.id, type = type, name = n.name, poster = n.poster,
+                background = n.poster, logo = "", overview = "", rating = "", year = "",
+                genres = emptyList(), platform = "",
+            )
+        }
+    }
+
+    fun removeFromStremio(item: HeroItem, done: (Boolean) -> Unit) {
+        stremioList.value = stremioList.value.filterNot { it.key == item.key }
+        scope.launch(Dispatchers.IO) { val ok = stremio.setSaved(false, item.id, item.type, item.name, item.poster); if (!ok) refreshStremio(); done(ok) }
+    }
 
     fun connectNuvio(say: (String) -> Unit) {
         if (nuvioJob?.isActive == true) return
@@ -72,6 +115,9 @@ class Library(
         saved.value = l; save(l)
         if (settings.libraryToNuvio && nuvio.connected && item.id.isNotBlank()) scope.launch(Dispatchers.IO) {
             if (nuvio.setSaved(now, item.id, item.type.lowercase(), item.name, item.poster, item.background)) refreshNuvio()
+        }
+        if (settings.libraryToStremio && stremio.connected && item.id.isNotBlank()) scope.launch(Dispatchers.IO) {
+            if (stremio.setSaved(now, item.id, item.type.lowercase(), item.name, item.poster)) refreshStremio()
         }
         if (settings.libraryToTrakt && trakt.connected && item.id.startsWith("tt")) scope.launch(Dispatchers.IO) {
             if (trakt.setWatchlist(now, item.type.lowercase(), item.id)) refreshWatchlist()

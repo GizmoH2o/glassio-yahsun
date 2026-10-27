@@ -72,30 +72,46 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     val accountAddons = MutableStateFlow(sp.getStringSet("account_addons", emptySet()) ?: emptySet())
     /** Reads the account's add-ons; set once the Library (which holds the account) exists. */
     @Volatile var account: (() -> List<String>?)? = null
+    /** Add-ons read from the Stremio account (kept apart too, so turning it off removes only them). */
+    val stremioAddons = MutableStateFlow(sp.getStringSet("stremio_addons", emptySet()) ?: emptySet())
+    /** Reads the Stremio account's add-ons; set once the Library (which holds the account) exists. */
+    @Volatile var stremioAccount: (() -> List<String>?)? = null
 
     /** One add-on, however its link is written: host without case, path without the trailing slash. */
     fun addonKey(u: String): String = normalize(u).let { n ->
         runCatching { val x = java.net.URI(n); x.host.orEmpty().lowercase() + (if (x.port > 0) ":${x.port}" else "") + x.rawPath.orEmpty().trimEnd('/') + (x.rawQuery?.let { "?$it" } ?: "") }
             .getOrDefault(n.lowercase())
     }
-    /** The TV's add-ons, then the account's ones it doesn't already have (each add-on once). */
+    /** The TV's add-ons, then the Nuvio account's, then the Stremio account's, each add-on once. */
     fun allAddons(): List<String> {
         val out = LinkedHashMap<String, String>()
         for (u in addons.sorted()) out.putIfAbsent(addonKey(u), u)
         if (settings.catalogsNuvio) for (u in accountAddons.value) out.putIfAbsent(addonKey(u), u)
+        if (settings.catalogsStremio) for (u in stremioAddons.value) out.putIfAbsent(addonKey(u), u)
         return out.values.toList()
     }
-    /** Account add-ons that aren't also on the TV's own list. */
+    /** The accounts' add-ons that aren't also on the TV's own list (each once: the Nuvio account's first). */
     fun accountOnly(): List<String> {
-        if (!settings.catalogsNuvio) return emptyList()
-        val mine = addons.map { addonKey(it) }.toSet()
-        return accountAddons.value.filter { addonKey(it) !in mine }.distinctBy { addonKey(it) }
+        val mine = addons.map { addonKey(it) }.toMutableSet()
+        val out = ArrayList<String>()
+        if (settings.catalogsNuvio) for (u in accountAddons.value) if (mine.add(addonKey(u))) out += u
+        if (settings.catalogsStremio) for (u in stremioAddons.value) if (mine.add(addonKey(u))) out += u
+        return out
+    }
+    /** Which account an add-on of [accountOnly] comes from: "Nuvio" or "Stremio". */
+    fun accountOf(u: String): String {
+        val k = addonKey(u)
+        return if (settings.catalogsNuvio && accountAddons.value.any { addonKey(it) == k }) "Nuvio" else "Stremio"
     }
     /** The link already in use for this add-on (so its selected catalogs keep their keys), else [u] itself. */
-    private fun canonical(u: String): String { val k = addonKey(u); return (addons + accountAddons.value).firstOrNull { addonKey(it) == k } ?: normalize(u) }
+    private fun canonical(u: String): String { val k = addonKey(u); return (addons + accountAddons.value + stremioAddons.value).firstOrNull { addonKey(it) == k } ?: normalize(u) }
     private fun saveAccount(list: List<String>) {
         val set = list.map { normalize(it) }.toCollection(LinkedHashSet())
         sp.edit().putStringSet("account_addons", set).apply(); accountAddons.value = set
+    }
+    private fun saveStremio(list: List<String>) {
+        val set = list.map { normalize(it) }.toCollection(LinkedHashSet())
+        sp.edit().putStringSet("stremio_addons", set).apply(); stremioAddons.value = set
     }
 
     private fun saveSelected(set: Set<String>) {
@@ -152,6 +168,7 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
         withContext(Dispatchers.IO) {
             status.value = "Loading catalogs…"
             if (settings.catalogsNuvio) account?.invoke()?.let { saveAccount(it) }
+            if (settings.catalogsStremio) stremioAccount?.invoke()?.let { saveStremio(it) }
             val urls = allAddons()
             val refs = java.util.Collections.synchronizedList(mutableListOf<CatalogRef>())
             val gate = Semaphore(4)
@@ -337,7 +354,9 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
      */
     suspend fun useAccount(on: Boolean): String = withContext(Dispatchers.IO) {
         if (!on) {
-            val only = accountOnly().toSet()
+            // The Nuvio account's alone: one the Stremio account has too stays, with its catalogs.
+            val stremioKeys = if (settings.catalogsStremio) stremioAddons.value.map { addonKey(it) }.toSet() else emptySet()
+            val only = accountOnly().filter { accountOf(it) == "Nuvio" && addonKey(it) !in stremioKeys }.toSet()
             settings.catalogsNuvio = false
             if (only.isNotEmpty()) saveSelected(selectedKeys.value.filterNot { k -> only.any { k.startsWith("$it|") } }.toSet())
             refresh(); return@withContext "Nuvio account add-ons off"
@@ -349,6 +368,27 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
         val only = accountOnly().size
         val same = list.size - only
         "${list.size} add-ons on your Nuvio account: $only new" + (if (same > 0) ", $same already here (not added twice)" else "") + ". Pick their catalogs below."
+    }
+
+    /**
+     * Turns the Stremio account's add-ons on or off, as [useAccount] does the Nuvio account's: their catalogs are
+     * listed for you to pick; turning it off takes theirs out of the carousel (one also on the TV or on the Nuvio
+     * account stays).
+     */
+    suspend fun useStremio(on: Boolean): String = withContext(Dispatchers.IO) {
+        if (!on) {
+            val only = accountOnly().filter { accountOf(it) == "Stremio" }.toSet()
+            settings.catalogsStremio = false
+            if (only.isNotEmpty()) saveSelected(selectedKeys.value.filterNot { k -> only.any { k.startsWith("$it|") } }.toSet())
+            refresh(); return@withContext "Stremio account add-ons off"
+        }
+        settings.catalogsStremio = true
+        val list = stremioAccount?.invoke() ?: run { settings.catalogsStremio = false; return@withContext "Couldn't read add-ons from your Stremio account. Connect it first (the row below)." }
+        saveStremio(list)
+        refresh()
+        val only = accountOnly().count { accountOf(it) == "Stremio" }
+        val same = list.size - only
+        "${list.size} add-ons on your Stremio account: $only new" + (if (same > 0) ", $same already here (not added twice)" else "") + ". Pick their catalogs below."
     }
 
     fun addonName(url: String) = catalogs.value.firstOrNull { it.addon == url }?.addonName ?: (runCatching { java.net.URI(url).host }.getOrNull() ?: url)

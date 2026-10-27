@@ -8,22 +8,24 @@ import org.json.JSONObject
 import kotlin.concurrent.thread
 
 /**
- * Opens a title inside a Nuvio app: Nuvio Legacy, the official Nuvio TV app, Nuvio Arc (fork) or
- * Nuvio Re-Shaped. "auto" (default) uses the first one installed, in that order.
+ * Opens a title inside a Nuvio app (Nuvio Legacy, the official Nuvio TV app, Nuvio Arc (fork), Nuvio Re-Shaped) or
+ * Stremio. "auto" (default) uses the first one installed, in that order.
  */
 object NuvioLaunch {
     const val LEGACY_PKG = "space.nuvio.nativelegacy"
     const val OFFICIAL_PKG = "com.nuvio.tv"
     const val ARC_PKG = "com.nuvio.tv.test"
     const val RESHAPED_PKG = "com.nuvioreshaped.tv"
+    /** Stremio for Android and Android TV. */
+    const val STREMIO_PKG = "com.stremio.one"
 
     /** Setting value → package, in the "auto" priority order. */
     val TARGETS = linkedMapOf(
-        "legacy" to LEGACY_PKG, "official" to OFFICIAL_PKG, "arc" to ARC_PKG, "reshaped" to RESHAPED_PKG,
+        "legacy" to LEGACY_PKG, "official" to OFFICIAL_PKG, "arc" to ARC_PKG, "reshaped" to RESHAPED_PKG, "stremio" to STREMIO_PKG,
     )
     val NAMES = mapOf(
         "auto" to "Auto", "legacy" to "Nuvio Legacy", "official" to "Nuvio (official)",
-        "arc" to "Nuvio Arc", "reshaped" to "Nuvio Re-Shaped",
+        "arc" to "Nuvio Arc", "reshaped" to "Nuvio Re-Shaped", "stremio" to "Stremio",
     )
 
     fun installed(ctx: Context, pkg: String) = runCatching { ctx.packageManager.getPackageInfo(pkg, 0) }.isSuccess
@@ -46,6 +48,9 @@ object NuvioLaunch {
         val t = if (type.equals("movie", true)) "movie" else "series"
         val uri = if (target == "legacy") {
             Uri.Builder().scheme("nuvio-legacy").authority("meta").appendPath(t).appendPath(id.trim()).build()
+        } else if (target == "stremio") {
+            // Stremio's own links: stremio:///detail/series/tt0944947 opens the title's page.
+            Uri.parse("stremio:///detail/$t/" + Uri.encode(id.trim(), ":"))
         } else {
             // Official Nuvio TV, Nuvio Arc and Re-Shaped all read nuvio://meta?type=…&id=…
             Uri.Builder().scheme("nuvio").authority("meta")

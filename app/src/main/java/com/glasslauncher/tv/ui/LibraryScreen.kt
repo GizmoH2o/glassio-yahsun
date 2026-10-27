@@ -76,13 +76,17 @@ fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
     BackHandler { onClose() }
     val nuvioAll by app.library.nuvioList.collectAsState()
     val nuvioStatus by app.library.nuvioStatus.collectAsState()
-    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.library.refreshWatchlist(); app.library.refreshNuvio() } }
+    val stremioAll by app.library.stremioList.collectAsState()
+    val stremioStatus by app.library.stremioStatus.collectAsState()
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.library.refreshWatchlist(); app.library.refreshNuvio(); app.library.refreshStremio() } }
     val savedKeys = remember(saved) { saved.map { it.key }.toSet() }
-    // The same title in several lists shows once: saved here, then Nuvio, then Trakt.
+    // The same title in several lists shows once: saved here, then Nuvio, then Stremio, then Trakt.
     val nuvio = if (st.libraryNuvio) nuvioAll.filterNot { it.key in savedKeys } else emptyList()
     val nuvioKeys = remember(nuvio) { nuvio.map { it.key }.toSet() }
-    val trakt = if (st.libraryTrakt) watch.filterNot { it.key in savedKeys || it.key in nuvioKeys } else emptyList()
-    val hasAny = saved.isNotEmpty() || trakt.isNotEmpty() || nuvio.isNotEmpty()
+    val stremio = if (st.libraryStremio) stremioAll.filterNot { it.key in savedKeys || it.key in nuvioKeys } else emptyList()
+    val stremioKeys = remember(stremio) { stremio.map { it.key }.toSet() }
+    val trakt = if (st.libraryTrakt) watch.filterNot { it.key in savedKeys || it.key in nuvioKeys || it.key in stremioKeys } else emptyList()
+    val hasAny = saved.isNotEmpty() || trakt.isNotEmpty() || nuvio.isNotEmpty() || stremio.isNotEmpty()
     LaunchedEffect(hasAny) { if (hasAny) { delay(60); runCatching { first.requestFocus() } } }
 
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF26262B))) {
@@ -127,10 +131,18 @@ fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
                         onRemove = { app.library.removeFromNuvio(it) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Nuvio library · ${it.name}" else "Nuvio: couldn't remove ${it.name}") } })
                 }
             }
+            if (st.libraryStremio && app.library.stremio.connected) {
+                item(span = { GridItemSpan(maxLineSpan) }) { Section(if (stremioStatus.isNotBlank()) "Stremio library · $stremioStatus" else "Stremio library", s) }
+                itemsIndexed(stremio, key = { _, it -> "r:" + it.key }) { i, it ->
+                    Poster(it, s, st.libraryTitles, if (i == 0 && saved.isEmpty() && nuvio.isEmpty()) Modifier.focusRequester(first) else Modifier,
+                        onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
+                        onRemove = { app.library.removeFromStremio(it) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Stremio library · ${it.name}" else "Stremio: couldn't remove ${it.name}") } })
+                }
+            }
             if (st.libraryTrakt && app.cw.trakt.connected) {
                 item(span = { GridItemSpan(maxLineSpan) }) { Section(if (status.isNotBlank()) "Trakt watchlist · $status" else "Trakt watchlist", s) }
                 itemsIndexed(trakt, key = { _, it -> "t:" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, if (i == 0 && saved.isEmpty() && nuvio.isEmpty()) Modifier.focusRequester(first) else Modifier,
+                    Poster(it, s, st.libraryTitles, if (i == 0 && saved.isEmpty() && nuvio.isEmpty() && stremio.isEmpty()) Modifier.focusRequester(first) else Modifier,
                         onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
                         onRemove = { app.library.removeFromWatchlist(it); toast(ctx, "Removed from the Trakt watchlist · ${it.name}") })
                 }

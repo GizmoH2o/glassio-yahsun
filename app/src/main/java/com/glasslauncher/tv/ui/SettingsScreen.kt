@@ -128,6 +128,10 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     // The QR dialog closes when this turns null (sign-in finished); the Nuvio code is in the QR itself.
     val nuvioShort = remember { kotlinx.coroutines.flow.MutableStateFlow<String?>(null) }
     LaunchedEffect(nuvioUrl) { nuvioShort.value = nuvioUrl?.let { "" } }
+    val stremioUrl by app.library.stremioUrl.collectAsState()
+    // The same for Stremio: its link carries the code.
+    val stremioShort = remember { kotlinx.coroutines.flow.MutableStateFlow<String?>(null) }
+    LaunchedEffect(stremioUrl) { stremioShort.value = stremioUrl?.let { "" } }
     val tvRev = remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var tmdbOk by remember { mutableStateOf<Boolean?>(null) }
     var tmdbChecking by remember { mutableStateOf(false) }
@@ -145,6 +149,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     val selected by app.catalogs.selectedKeys.collectAsState()
     val addons by app.catalogs.addonList.collectAsState()
     val accountAddons by app.catalogs.accountAddons.collectAsState()
+    val stremioAddons by app.catalogs.stremioAddons.collectAsState()
     val status by app.catalogs.status.collectAsState()
     val allApps by app.apps.apps.collectAsState()
     var dialog by remember { mutableStateOf<DialogState?>(null) }
@@ -181,7 +186,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             }
         }
     }
-    // Connect / sign out of the Nuvio account: the same row in Menu & Library, Catalogs and Nuvio & Home Assistant.
+    // Connect / sign out of the Nuvio account: the same row in Menu & Library, Catalogs and Nuvio, Stremio & Home Assistant.
     fun nuvioAccountRow(): SRow =
         if (!app.library.nuvio.connected) Act("Connect Nuvio account", "Scan a QR code with your phone and approve, like signing in to Nuvio on a TV", if (nuvioUrl != null) "Waiting…" else "") {
                         val appCtx = ctx.applicationContext
@@ -193,6 +198,20 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                                 "Scan with your phone and approve on nuvio.tv. This closes by itself once you approve.") }
                         }
                     } else Act("Nuvio account", "Signed in" + app.library.nuvio.email.takeIf { it.isNotBlank() }?.let { " as $it" }.orEmpty() + ": Library, add-ons and saving use it", "Sign out") { app.library.nuvio.signOut(); app.library.nuvioList.value = emptyList(); st.libraryNuvio = st.libraryNuvio; toast(ctx, "Signed out of Nuvio") }
+    // Connect / sign out of the Stremio account: the same row in Menu & Library, Catalogs and Nuvio, Stremio & Home Assistant.
+    fun stremioAccountRow(): SRow =
+        if (!app.library.stremio.connected) Act("Connect Stremio account", "Scan a QR code with your phone, sign in to Stremio there and confirm, like the Stremio TV app", if (stremioUrl != null) "Waiting…" else "") {
+                        val appCtx = ctx.applicationContext
+                        app.library.connectStremio { msg -> toast(appCtx, msg) }
+                        scope.launch {
+                            var n = 0
+                            while (app.library.stremioUrl.value == null && n++ < 60) kotlinx.coroutines.delay(100)
+                            app.library.stremioUrl.value?.let { u -> dialog = QrCodeDialog("Connect Stremio", u, stremioShort,
+                                "Scan with your phone, sign in to Stremio and confirm. This closes by itself once you do.") }
+                        }
+                    } else Act("Stremio account", "Signed in" + app.library.stremio.email.takeIf { it.isNotBlank() }?.let { " as $it" }.orEmpty() + ": Library, add-ons and saving use it", "Sign out") {
+                        app.library.stremio.signOut(); app.library.stremioList.value = emptyList(); st.libraryStremio = st.libraryStremio; toast(ctx, "Signed out of Stremio")
+                    }
 
 
     val categories = listOf(
@@ -368,6 +387,10 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     else "Connect your Nuvio account below", { st.libraryNuvio }, { st.libraryNuvio = it; scope.launch(Dispatchers.IO) { app.library.refreshNuvio() } }),
                 nuvioAccountRow(),
                 Toggle("Save to the Nuvio library too", "The + button also saves the title to your Nuvio account (Legacy, official Nuvio and forks see it)", { st.libraryToNuvio }, { st.libraryToNuvio = it }),
+                Toggle("Stremio library", if (app.library.stremio.connected) "From your Stremio account" + (app.library.stremio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ": the library the Stremio apps show"
+                    else "Connect your Stremio account below", { st.libraryStremio }, { st.libraryStremio = it; scope.launch(Dispatchers.IO) { app.library.refreshStremio() } }),
+                stremioAccountRow(),
+                Toggle("Save to the Stremio library too", "The + button also saves the title to your Stremio account", { st.libraryToStremio }, { st.libraryToStremio = it }),
                 Toggle("Save to the Trakt watchlist too", "The + button also adds the title on Trakt", { st.libraryToTrakt }, { st.libraryToTrakt = it }),
                 Toggle("Titles under posters", "In the Library", { st.libraryTitles }, { st.libraryTitles = it }),
                 Note("In the Library: OK opens the title like the carousel. Hold OK (or Menu) to remove it."),
@@ -375,12 +398,15 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         },
         Category("Catalogs") {
             buildList {
-                add(Act("Add add-ons from my phone (QR)", "Scan the code, paste Nuvio manifest links and your TMDB token", "") { phoneDialog = true })
+                add(Act("Add add-ons from my phone (QR)", "Scan the code, paste add-on manifest links (Nuvio or Stremio) and your TMDB token", "") { phoneDialog = true })
                 add(tmdbRow())
                 add(Act("Connect to Nuvio", "Open Nuvio > Add-ons > Manage from phone first", "") { io { app.catalogs.connectLocal() } })
                 add(Toggle("Add-ons from my Nuvio account", if (app.library.nuvio.connected) "The add-ons on your Nuvio account (${app.library.nuvio.email.ifBlank { "signed in" }}) too. One that's already here isn't added twice"
                     else "Connect your Nuvio account first (the row below)", { st.catalogsNuvio }, { on -> io { app.catalogs.useAccount(on) } }))
                 add(nuvioAccountRow())
+                add(Toggle("Add-ons from my Stremio account", if (app.library.stremio.connected) "The add-ons on your Stremio account (${app.library.stremio.email.ifBlank { "signed in" }}) too. One that's already here isn't added twice"
+                    else "Connect your Stremio account first (the row below)", { st.catalogsStremio }, { on -> io { app.catalogs.useStremio(on) } }))
+                add(stremioAccountRow())
                 add(Act("Add add-on link", "Paste a manifest link", "") {
                     dialog = TextEntry("Add-on link", "", "https://…/manifest.json or stremio://…") { u -> io { app.catalogs.addAddon(u) } }
                 })
@@ -392,10 +418,11 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         dialog = MenuDialog("Remove ${app.catalogs.addonName(u)}?", listOf("Remove add-on" to { io { app.catalogs.removeAddon(u) } }))
                     })
                 }
-                accountAddons.size.let { _ -> app.catalogs.accountOnly() }.sorted().forEach { u ->
-                    add(Act("Add-on · ${app.catalogs.addonName(u)}", "From your Nuvio account · " + hostOf(u), "") { toast(ctx, "Add or remove it in Nuvio; it updates here on the next refresh") })
+                (accountAddons.size + stremioAddons.size).let { _ -> app.catalogs.accountOnly() }.sorted().forEach { u ->
+                    val from = app.catalogs.accountOf(u)
+                    add(Act("Add-on · ${app.catalogs.addonName(u)}", "From your $from account · " + hostOf(u), "") { toast(ctx, "Add or remove it in $from; it updates here on the next refresh") })
                 }
-                if (catalogs.isEmpty()) add(Note("No catalogs yet. Connect to Nuvio or add an add-on link."))
+                if (catalogs.isEmpty()) add(Note("No catalogs yet. Connect to Nuvio or Stremio, or add an add-on link."))
                 catalogs.forEach { c ->
                     add(Toggle(c.name, "${c.addonName} · ${c.type}", { c.key in selected }, {
                         app.catalogs.toggleCatalog(c.key)
@@ -422,8 +449,15 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 if (nuvioAcct.available) add(Toggle("Nuvio (official app)",
                     if (nuvioAcct.connected) "From your Nuvio account" + (nuvioAcct.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") +
                         ": what you're watching in the official Nuvio app" + (if (nStatus.isNotBlank()) " · $nStatus" else "")
-                    else "Sign in to your Nuvio account (Settings → Nuvio & Home Assistant) to see what you're watching in the official Nuvio app",
+                    else "Sign in to your Nuvio account (Settings → Nuvio, Stremio & Home Assistant) to see what you're watching in the official Nuvio app",
                     { st.cwNuvio }, { st.cwNuvio = it; app.cw.syncNuvioNow() }))
+                val stremioAcct = app.library.stremio
+                val sStatus by app.cw.stremioStatus.collectAsState()
+                add(Toggle("Stremio",
+                    if (stremioAcct.connected) "From your Stremio account" + (stremioAcct.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") +
+                        ": what you're watching in Stremio" + (if (sStatus.isNotBlank()) " · $sStatus" else "")
+                    else "Sign in to your Stremio account (Settings → Nuvio, Stremio & Home Assistant) to see what you're watching in Stremio",
+                    { st.cwStremio }, { st.cwStremio = it; app.cw.syncStremioNow() }))
                 val trakt = app.cw.trakt
                 val tStatus by app.cw.traktStatus.collectAsState()
                 if (trakt.available) {
@@ -443,7 +477,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     else add(Act("Sign out of Trakt", trakt.user, "") { trakt.signOut(); st.cwTrakt = st.cwTrakt; toast(ctx, "Signed out of Trakt") })
                 }
                 add(Note("How it works: Nuvio Legacy writes what you play to the TV's log (title, episode, how far). Glassio reads that log through the TV's own debugging connection (ADB), so this needs ADB once: Settings → System → TV access (ADB). Nothing leaves the TV."))
-                add(Note("The official Nuvio app saves what you watch to your Nuvio account: signed in to the same account here, it shows up in Continue Watching. Nuvio Arc and Re-Shaped: connect Trakt (and turn on Trakt in that app) and what you pause there shows up here through Trakt."))
+                add(Note("The official Nuvio app saves what you watch to your Nuvio account, and Stremio to your Stremio account: signed in to the same account here, it shows up in Continue Watching (taking a title out here takes it out there too). Nuvio Arc and Re-Shaped: connect Trakt (and turn on Trakt in that app) and what you pause there shows up here through Trakt."))
                 add(Note("Other apps (YouTube, Netflix, Apple TV…) keep their Continue Watching private on Google TV; only the system launcher may read it."))
                 add(Act("Clear the list", "${cwList.size} titles", "") { app.cw.clear() })
                 cwList.forEach { e ->
@@ -451,10 +485,11 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 }
             }
         },
-        Category("Nuvio & Home Assistant") {
+        Category("Nuvio, Stremio & Home Assistant") {
             listOf(
                 nuvioAccountRow(),
-                Adjust("Open titles in", "Auto uses the first installed: Nuvio Legacy, Nuvio (official), Nuvio Arc, Nuvio Re-Shaped", {
+                stremioAccountRow(),
+                Adjust("Open titles in", "Auto uses the first installed: Nuvio Legacy, Nuvio (official), Nuvio Arc, Nuvio Re-Shaped, Stremio", {
                     val n = NuvioLaunch.NAMES[st.nuvioTarget] ?: "Auto"
                     val r = NuvioLaunch.resolve(ctx, st)
                     when {
