@@ -14,6 +14,10 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - The small window is selected as it opens: OK goes full screen in Live TV, Up / Down (or the remote's channel buttons) change the channel, Left goes back to the home screen. Back selects the window again, and Back on it closes it.
 - Its video has rounded corners, like its frame.
 
+**Live TV styles**
+- Six new styles (Live TV › Settings › Theme and start-up › Style): **Netflix** (near black, a red focus, nearly square corners, a big picture), **Prime Video** (deep navy, a bright blue focus), **Disney+** (royal blue into night, glass with a light edge, a blue focus), **Max** (black into deep blue, the large picture at the right), **Plex** (dark grey, an amber focus) and **Pluto TV** (black, a yellow focus, a guide with many rows). Each also works for the morning, night and late-night styles.
+- The style picker shows the 14 styles in two full rows (Custom last), so every tile is large enough to read.
+
 **Polish**
 - After a fresh install the home screen lists the steps to set Glassio up, each with where it stands (restore a backup, catalogs, Nuvio, TV access, the Home button, Live TV) and OK to go there.
 - Live TV's lists: the selected row is a rounded plate inside the card, as in Glassio's own lists.

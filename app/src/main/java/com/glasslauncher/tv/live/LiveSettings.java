@@ -1192,26 +1192,29 @@ final class LiveSettings {
                 // The styles; the times of day start with "the same" (the style shown before them then).
                 final boolean timed = id != STYLE_ROW;
                 final int inherit = id == LATE_ROW ? (LiveTheme.nightStyle() >= 0 ? LiveTheme.nightStyle() : LiveTheme.style()) : LiveTheme.style();
+                // In the lists' order (Custom last): place i is LiveTheme.ordered(i), after "the same" for a time of day.
                 int n = LiveTheme.STYLES + (timed ? 1 : 0);
                 String[] labels = new String[n];
                 for (int i = 0; i < n; i++) {
-                    int s = timed ? i - 1 : i;
+                    int s = timed ? (i == 0 ? -1 : LiveTheme.ordered(i - 1)) : LiveTheme.ordered(i);
                     labels[i] = s < 0 ? (id == LATE_ROW ? Ui.tr("Como à noite", "Like the night") : Ui.tr("O mesmo", "The same"))
                             : LiveTheme.styleName(s);
                 }
-                int now = id == STYLE_ROW ? LiveTheme.style() : (id == MORNING_ROW ? LiveTheme.morningStyle()
-                        : id == NIGHT_ROW ? LiveTheme.nightStyle() : LiveTheme.lateStyle()) + 1;
+                int chosen = id == STYLE_ROW ? LiveTheme.style() : id == MORNING_ROW ? LiveTheme.morningStyle()
+                        : id == NIGHT_ROW ? LiveTheme.nightStyle() : LiveTheme.lateStyle();
+                int now = timed ? (chosen < 0 ? 0 : LiveTheme.placeOf(chosen) + 1) : LiveTheme.placeOf(chosen);
                 String[] about = new String[n];
                 for (int i = 0; i < n; i++) {
-                    int s = timed ? i - 1 : i;
+                    int s = timed ? (i == 0 ? -1 : LiveTheme.ordered(i - 1)) : LiveTheme.ordered(i);
                     about[i] = s < 0 ? "" : LiveTheme.styleAbout(s);
                 }
-                LiveChooser.show(c, rowLabel(id), labels, about, now, 4, 16 / 9f, (cv, r, i) -> {
-                    int s = timed ? i - 1 : i;
+                // Full rows, so the tiles stay big: the 14 styles 7 across, a time of day's 15 (with "the same") 5 across.
+                LiveChooser.show(c, rowLabel(id), labels, about, now, timed ? 5 : 7, 16 / 9f, (cv, r, i) -> {
+                    int s = timed ? (i == 0 ? -1 : LiveTheme.ordered(i - 1)) : LiveTheme.ordered(i);
                     final int shown = s < 0 ? inherit : s;
                     LiveTheme.asStyle(shown, () -> view.drawStylePreview(cv, r.left, r.top, r.width()));
                 }, i -> {
-                    int s = timed ? i - 1 : i;
+                    int s = timed ? (i == 0 ? -1 : LiveTheme.ordered(i - 1)) : LiveTheme.ordered(i);
                     if (id == STYLE_ROW) LiveTheme.setStyle(c, s);
                     else if (id == MORNING_ROW) LiveTheme.setMorning(c, s);
                     else if (id == NIGHT_ROW) LiveTheme.setNight(c, s);
@@ -1755,7 +1758,7 @@ final class LiveSettings {
                 announce();
                 return;
             case STYLE_ROW:
-                LiveTheme.setStyle(c, (LiveTheme.style() + dir + LiveTheme.STYLES) % LiveTheme.STYLES);
+                LiveTheme.setStyle(c, LiveTheme.step(LiveTheme.style(), dir, false));
                 LiveTheme.applyFonts(c);
                 view.restyle();
                 announce();
@@ -1780,24 +1783,21 @@ final class LiveSettings {
                 announce();
                 return;
             case MORNING_ROW: {
-                int n = LiveTheme.STYLES + 1, at = LiveTheme.morningStyle() + 1;
-                LiveTheme.setMorning(c, (at + dir + n) % n - 1);
+                LiveTheme.setMorning(c, LiveTheme.step(LiveTheme.morningStyle(), dir, true));
                 LiveTheme.applyFonts(c);
                 view.restyle();
                 announce();
                 return;
             }
             case LATE_ROW: {
-                int n = LiveTheme.STYLES + 1, at = LiveTheme.lateStyle() + 1;
-                LiveTheme.setLate(c, (at + dir + n) % n - 1);
+                LiveTheme.setLate(c, LiveTheme.step(LiveTheme.lateStyle(), dir, true));
                 LiveTheme.applyFonts(c);
                 view.restyle();
                 announce();
                 return;
             }
-            case NIGHT_ROW: {       // the same, or one of the styles: -1 to STYLES - 1, round
-                int n = LiveTheme.STYLES + 1, at = LiveTheme.nightStyle() + 1;
-                LiveTheme.setNight(c, (at + dir + n) % n - 1);
+            case NIGHT_ROW: {       // the same, or one of the styles in the lists' order, round
+                LiveTheme.setNight(c, LiveTheme.step(LiveTheme.nightStyle(), dir, true));
                 LiveTheme.applyFonts(c);
                 view.restyle();
                 announce();

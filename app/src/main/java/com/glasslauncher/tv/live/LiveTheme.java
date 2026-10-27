@@ -13,7 +13,8 @@ import java.io.IOException;
 
 /**
  * Live TV's theme: its style (the design language: Glassio's own, or one like Apple TV's, YouTube TV's, NOW's, Sky's,
- * Sling's or Hulu's: the background, the tiles, the focus and the text on it, how round things are) and, in Glassio's
+ * Sling's, Hulu's, Netflix's, Prime Video's, Disney+'s, Max's, Plex's or Pluto TV's: the background, the tiles, the
+ * focus and the text on it, how round things are) and, in Glassio's
  * style, the color of the focus and the highlights. LIVE, the "now" line and recording stay red whatever the theme.
  * In a file ("color,style"), not the preferences: Live TV sets it, the main process (the reminder card) reads it too.
  */
@@ -31,8 +32,48 @@ final class LiveTheme {
     static int tile = TILES[WHITE], text = TEXTS[WHITE];
     private static int current = WHITE;
 
-    /** The styles: each one's background (top and bottom of a gradient), tiles, focus and the text on the focus. */
-    static final int ZERO = 0, APPLE = 1, YOUTUBE = 2, NOW = 3, SKY = 4, SLING = 5, HULU = 6, CUSTOM = 7, STYLES = 8;
+    /**
+     * The styles: each one's background (top and bottom of a gradient), tiles, focus and the text on the focus. The
+     * first seven have a layout of their own (the guide, the info bar, search); Custom and the ones after it borrow
+     * one (layoutOf). The number is what's saved, so a new style only ever goes at the end.
+     */
+    static final int ZERO = 0, APPLE = 1, YOUTUBE = 2, NOW = 3, SKY = 4, SLING = 5, HULU = 6, CUSTOM = 7,
+            NETFLIX = 8, PRIME = 9, DISNEY = 10, MAX = 11, PLEX = 12, PLUTO = 13, STYLES = 14;
+
+    /** The styles in the order the lists show them: Custom last. */
+    private static final int[] ORDER = {ZERO, APPLE, YOUTUBE, NOW, SKY, SLING, HULU, NETFLIX, PRIME, DISNEY, MAX, PLEX, PLUTO, CUSTOM};
+
+    /** The style at place `i` of the lists. */
+    static int ordered(int i) {
+        return ORDER[Math.max(0, Math.min(ORDER.length - 1, i))];
+    }
+
+    /** Where style `s` sits in the lists (-1: none, for "the same"). */
+    static int placeOf(int s) {
+        for (int i = 0; i < ORDER.length; i++) if (ORDER[i] == s) return i;
+        return -1;
+    }
+
+    /** The style before (-1) or after (1) `s` in the lists, round; with `orNone`, "the same" (-1) comes before the first. */
+    static int step(int s, int dir, boolean orNone) {
+        int n = ORDER.length + (orNone ? 1 : 0);
+        int at = placeOf(s) + (orNone ? 1 : 0);
+        int next = ((at + dir) % n + n) % n - (orNone ? 1 : 0);
+        return next < 0 ? -1 : ORDER[next];
+    }
+
+    /** The layout (and lettering) style `s` uses: its own for the first seven, else the one it's closest to. */
+    private static int layoutOf(int s) {
+        switch (s) {
+            case NETFLIX: return NOW;           // a big picture of what's on
+            case DISNEY: return APPLE;          // Apple TV's floating glass
+            case MAX: return HULU;              // the large picture at the right
+            case PLEX: return YOUTUBE;          // compact top, tall rows
+            case PLUTO: return SLING;           // a guide first: many rows
+            case PRIME: return ZERO;
+            default: return s;
+        }
+    }
 
     /**
      * Custom's choices: its background (the BGS below), corners (ROUNDS) and the style whose layout and lettering it
@@ -128,7 +169,7 @@ final class LiveTheme {
     /** The style whose layout and lettering show now (Custom's: the one it borrows). */
     static int layoutStyle() {
         int s = effective();
-        return s == CUSTOM ? customLayout : s;
+        return s == CUSTOM ? customLayout : layoutOf(s);
     }
 
     /** Whether the focus color picked applies (Glassio's and Custom's; the others bring their own). */
@@ -329,6 +370,12 @@ final class LiveTheme {
             case SLING: return "Sling";
             case HULU: return "Hulu";
             case CUSTOM: return Ui.tr("Personalizado", "Custom");
+            case NETFLIX: return "Netflix";
+            case PRIME: return "Prime Video";
+            case DISNEY: return "Disney+";
+            case MAX: return "Max";
+            case PLEX: return "Plex";
+            case PLUTO: return "Pluto TV";
             case -1: return Ui.tr("Desligado", "Off");
             default: return "Glassio";
         }
@@ -344,6 +391,15 @@ final class LiveTheme {
             case SKY: return Ui.tr("O azul do Sky Q, foco azul vivo, cantos retos.", "Sky Q's blue, a bright blue focus, square corners.");
             case SLING: return Ui.tr("Azul-marinho, foco amarelo.", "Navy, a yellow focus.");
             case HULU: return Ui.tr("Preto, foco verde.", "Black, a green focus.");
+            case NETFLIX: return Ui.tr("Quase preto, foco vermelho, cantos quase retos, a imagem grande.",
+                    "Near black, a red focus, nearly square corners, a big picture.");
+            case PRIME: return Ui.tr("Azul-marinho profundo, foco azul vivo.", "Deep navy, a bright blue focus.");
+            case DISNEY: return Ui.tr("Azul-real que vira noite, vidro com borda clara, foco azul, cantos redondos.",
+                    "Royal blue into night, glass with a light edge, a blue focus, round corners.");
+            case MAX: return Ui.tr("Preto que vira azul profundo, foco azul, a imagem grande à direita.",
+                    "Black into deep blue, a blue focus, the large picture at the right.");
+            case PLEX: return Ui.tr("Cinza-escuro, foco âmbar.", "Dark grey, an amber focus.");
+            case PLUTO: return Ui.tr("Preto, foco amarelo, o guia com muitas linhas.", "Black, a yellow focus, a guide with many rows.");
             case CUSTOM: return Ui.tr("O seu: fundo, cor do foco, cantos e layout nas linhas abaixo.",
                     "Yours: background, focus color, corners and layout in the rows below.");
             default: return Ui.tr("O do Glassio: vidro claro sobre grafite, o foco na cor escolhida (branco).",
@@ -571,6 +627,78 @@ final class LiveTheme {
                 ink = 0xFF0B0C0F;
                 text = 0xFF1CE783;
                 round = 1.3f;
+                break;
+            case NETFLIX:   // near black, the focus red, nearly square
+                bg = bgTop = 0xFF141414;
+                surface = 0x1AFFFFFF;
+                cellNow = 0xFF2B2B2B;
+                cellLater = 0xFF222222;
+                cellPast = 0xFF181818;
+                tile = 0xFFE50914;
+                ink = 0xFFFFFFFF;
+                text = 0xFFFF3D47;
+                round = 0.55f;
+                break;
+            case PRIME:     // deep navy, the focus bright blue
+                bgTop = 0xFF1B2733;
+                bg = 0xFF0B1118;
+                surface = 0x1F9EC4E6;
+                cellNow = 0xFF233140;
+                cellLater = 0xFF1A2632;
+                cellPast = 0xFF111A23;
+                tile = 0xFF1A98FF;
+                ink = 0xFFFFFFFF;
+                text = 0xFF5AB4FF;
+                round = 0.9f;
+                break;
+            case DISNEY:    // royal blue into night, glass with a light edge, the focus Disney's blue
+                bgTop = 0xFF14307A;
+                bg = 0xFF040714;
+                surface = 0x24FFFFFF;
+                cellNow = 0x33FFFFFF;
+                cellLater = 0x1FFFFFFF;
+                cellPast = 0x0FFFFFFF;
+                rim = 0x33FFFFFF;
+                tile = 0xFF0072D2;
+                ink = 0xFFFFFFFF;
+                text = 0xFF6FC3FF;
+                round = 1.2f;
+                break;
+            case MAX:       // black into deep blue, the focus Max's blue
+                bgTop = 0xFF0B1650;
+                bg = 0xFF02040F;
+                surface = 0x1F94A8FF;
+                cellNow = 0xFF1B2660;
+                cellLater = 0xFF141D4A;
+                cellPast = 0xFF0C1232;
+                tile = 0xFF002BE7;
+                ink = 0xFFFFFFFF;
+                text = 0xFF7D96FF;
+                round = 0.9f;
+                break;
+            case PLEX:      // dark grey, the focus amber
+                bgTop = 0xFF2A2A2A;
+                bg = 0xFF141414;
+                surface = 0x1AFFFFFF;
+                cellNow = 0xFF333333;
+                cellLater = 0xFF2A2A2A;
+                cellPast = 0xFF1E1E1E;
+                tile = 0xFFE5A00D;
+                ink = 0xFF1F1F1F;
+                text = 0xFFF0B429;
+                round = 0.7f;
+                break;
+            case PLUTO:     // black, the focus yellow
+                bgTop = 0xFF101010;
+                bg = 0xFF000000;
+                surface = 0x1AFFFFFF;
+                cellNow = 0xFF262626;
+                cellLater = 0xFF1C1C1C;
+                cellPast = 0xFF121212;
+                tile = 0xFFFFF200;
+                ink = 0xFF000000;
+                text = 0xFFFFF200;
+                round = 0.6f;
                 break;
             default:
                 break;

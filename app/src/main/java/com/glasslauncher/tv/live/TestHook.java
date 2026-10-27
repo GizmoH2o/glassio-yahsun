@@ -9,7 +9,8 @@ import android.content.IntentFilter;
  * (it needs DUMP, which the shell has and apps don't). What it changes stays in memory and goes when the app does.
  *
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --es style sky   Live TV (open) in a style (zero: Glassio's,
- *                                                                    apple, youtube, now, sky, sling, hulu, custom;
+ *                                                                    apple, youtube, now, sky, sling, hulu, custom,
+ *                                                                    netflix, prime, disney, max, plex, pluto;
  *                                                                    off: the one chosen)
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --ei remind 603  Live TV (open): a reminder card for that
  *            [--ei in 5] [--es match "Chelsea"]                      channel number, its show starting in that many
@@ -43,7 +44,8 @@ final class TestHook {
 
     /** A style's index for its name, -1 for off (or an unknown name). */
     static int style(String name) {
-        String[] names = {"zero", "apple", "youtube", "now", "sky", "sling", "hulu", "custom"};
+        String[] names = {"zero", "apple", "youtube", "now", "sky", "sling", "hulu", "custom", "netflix", "prime", "disney", "max",
+                "plex", "pluto"};
         for (int i = 0; i < names.length; i++) if (names[i].equals(name)) return i;
         return -1;
     }
