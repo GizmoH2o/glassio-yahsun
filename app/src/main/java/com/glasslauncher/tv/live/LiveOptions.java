@@ -169,6 +169,36 @@ final class LiveOptions {
     static final int[] DAYS_AHEAD = {1, 2, 3, 5, 7};
 
     /** Compact guide rows (smaller, more of them on screen) instead of the comfortable ones. */
+    /** The guide's channel column: the logo and the name at the left (true) or in the middle. */
+    static boolean guideLogosLeft(Context c) {
+        return sp(c).getBoolean("guideLogosLeft", true);
+    }
+
+    static void setGuideLogosLeft(Context c, boolean left) {
+        sp(c).edit().putBoolean("guideLogosLeft", left).apply();
+    }
+
+    /** The player's info bar: the logo in one place, centered (true), or on the text beside it (it moved with it). */
+    static boolean playerLogoSteady(Context c) {
+        return sp(c).getBoolean("playerLogoSteady", true);
+    }
+
+    static void setPlayerLogoSteady(Context c, boolean steady) {
+        sp(c).edit().putBoolean("playerLogoSteady", steady).apply();
+    }
+
+    /** Where channel logos come from first (the others fill in what it doesn't have): the provider, the guide, iptv-org. */
+    static final int LOGOS_PROVIDER = 0, LOGOS_GUIDE = 1, LOGOS_PUBLIC = 2;
+
+    static int logoSource(Context c) {
+        int v = sp(c).getInt("logoSource", LOGOS_PROVIDER);
+        return v < LOGOS_PROVIDER || v > LOGOS_PUBLIC ? LOGOS_PROVIDER : v;
+    }
+
+    static void setLogoSource(Context c, int source) {
+        sp(c).edit().putInt("logoSource", source).apply();
+    }
+
     static boolean guideCompact(Context c) {
         return sp(c).getBoolean("guideCompact", false);
     }

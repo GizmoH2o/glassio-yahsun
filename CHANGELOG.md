@@ -34,6 +34,11 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - **Channels by voice**: "Play TLC USA on Glassio Yahsun", "TLC US", "channel 2340" open Live TV on that channel; a country at either end picks that country's channel, and without one the channels you watch win. Live TV's channels can also show in the TV's own search (when Google TV lists apps' results there). On or off in the same section: off, Glassio isn't offered to the TV for this at all.
 - Every setting in Live TV that's on or off is now a switch, as in Glassio's own settings (purple when on), in the sections and in their preview.
 
+**Logos**
+- **Channel logos** (Live TV › Settings › Channels and categories): from your provider, the TV guide (EPG), or the **public database** (iptv-org: sharp logos for over 30,000 channels, found by each channel's name and country; about 14 MB fetched once a week). The other sources fill in what the chosen one doesn't have, and a logo that can't be loaded falls back to the provider's.
+- **Logos and names in the guide** (Live TV › Settings › Guide): lined up at the left of the channel column (the new default), or in the middle as before.
+- **Logo in the player** (Live TV › Settings › Theme and start-up): steady, centered in its own space, so it no longer moves when a show has little or no synopsis (the new default), or centered on the text beside it as before.
+
 **Live TV styles**
 - Six new styles (Live TV › Settings › Theme and start-up › Style): **Netflix** (near black, a red focus, nearly square corners, a big picture), **Prime Video** (deep navy, a bright blue focus), **Disney+** (royal blue into night, glass with a light edge, a blue focus), **Max** (black into deep blue, the large picture at the right), **Plex** (dark grey, an amber focus) and **Pluto TV** (black, a yellow focus, a guide with many rows). Each also works for the morning, night and late-night styles.
 - The style picker shows the 14 styles in two full rows (Custom last), so every tile is large enough to read.

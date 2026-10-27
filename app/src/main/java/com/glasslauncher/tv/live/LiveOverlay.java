@@ -365,8 +365,11 @@ final class LiveOverlay {
             about.draw(c);
             c.restore();
         }
-        // The logo, centered on the text beside it: from the title's top to the synopsis' end (or the info line's).
-        float blockTop = 680 * k - 2 * Ui.halfCap(title), blockBottom = about != null ? 752 * k + about.getHeight() : 740 * k;
+        // The logo: steady (the setting's default), in the middle of where the title and two lines of synopsis go, so it
+        // stays put whatever a show has to say; else centered on the text beside it, as it was (it moved with it).
+        float blockTop = 680 * k - 2 * Ui.halfCap(title);
+        float blockBottom = LiveOptions.playerLogoSteady(live) ? 752 * k + aboutPaint.getFontSpacing() * 2.05f
+                : about != null ? 752 * k + about.getHeight() : 740 * k;
         float logoY = (blockTop + blockBottom) / 2;
         box.set(X * k, logoY - 55 * k, (X + 196) * k, logoY + 55 * k);
         view.drawLogo(c, ch, box, 1);

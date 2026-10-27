@@ -1269,7 +1269,19 @@ final class LiveView extends View {
      * the white focus, so it gets a dark tile (a white logo would vanish). Without a logo, its first letters on a tile.
      */
     void drawLogo(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight) {
+        drawLogo(c, channel, box, alpha, onLight, false);
+    }
+
+    /** As above; `left`: at the box's left (the guide's column, set so), else in its middle. */
+    void drawLogo(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight, boolean left) {
         Bitmap b = logo(channel.logo);
+        // Another source's logo that can't be had (gone from its site): the provider's own.
+        if (b == null && LiveLogos.failed(channel.logo) && channel.providerLogo != null && !channel.providerLogo.isEmpty()
+                && !channel.providerLogo.equals(channel.logo)) b = logo(channel.providerLogo);
+        if (left && b == null) {        // its letters on a tile at the left, a logo's shape, not across the whole box
+            tileBox.set(box.left, box.top, Math.min(box.right, box.left + box.height() * 1.7f), box.bottom);
+            box = tileBox;
+        }
         fill.setShader(null);
         if (b == null || onLight) {
             // On the white focus: a dark tile (a white logo would vanish); else the style's card.
@@ -1280,7 +1292,8 @@ final class LiveView extends View {
             float pad = 6 * k, bw = box.width() - 2 * pad, bh = box.height() - 2 * pad;
             float s = Math.min(bw / b.getWidth(), bh / b.getHeight());
             float dw = b.getWidth() * s, dh = b.getHeight() * s;
-            logoRect.set(box.centerX() - dw / 2, box.centerY() - dh / 2, box.centerX() + dw / 2, box.centerY() + dh / 2);
+            float lx = left ? box.left + pad : box.centerX() - dw / 2;
+            logoRect.set(lx, box.centerY() - dh / 2, lx + dw, box.centerY() + dh / 2);
             if (!onLight && LiveLogos.isDark(b)) {      // a dark logo on a light plate, so it shows
                 markRect.set(logoRect.left - pad, logoRect.top - pad, logoRect.right + pad, logoRect.bottom + pad);
                 fill.setColor(Ui.alpha(0xE6E8E8ED, alpha));
@@ -1298,7 +1311,7 @@ final class LiveView extends View {
         pillText.setAlpha(255);
     }
 
-    private final RectF logoRect = new RectF(), markRect = new RectF();
+    private final RectF logoRect = new RectF(), markRect = new RectF(), tileBox = new RectF();
 
     private void drawStatus(Canvas c) {
         if (status.isEmpty()) return;
@@ -3776,13 +3789,14 @@ final class LiveView extends View {
             // The logo, and the channel's number and name small under it, both centered in the column (a long name is
             // cut at its end: the number always shows).
             float left = G_LOGO_X * k, right = (G_COL_R - G_MARKS_W) * k, mid = (left + right) / 2;
+            boolean atLeft = LiveOptions.guideLogosLeft(getContext());
             cell.set(left + 8 * k, y + 5 * k, right - 8 * k, y + (G_ROW_H - (compact ? 23 : 28)) * k);
-            drawLogo(c, channel, cell, 1);
+            drawLogo(c, channel, cell, 1, false, atLeft);
             Paint np = r == gRow ? gNameOn : gName;
             np.setColor(r == gRow ? LiveTheme.onTile(LiveTheme.text, onTile) : 0xB3FFFFFF);
             String nm = nameOf(channel), label = channel.num > 0 ? channel.num + "  " + nm : nm, tag = tagOf(channel);
             float room = right - left - 8 * k, tw = textAndTagWidth(label, tag, np, room);
-            textAndTag(c, label, tag, mid - tw / 2, y + (G_ROW_H - (compact ? 7 : 9)) * k, np, room);
+            textAndTag(c, label, tag, atLeft ? left + 8 * k : mid - tw / 2, y + (G_ROW_H - (compact ? 7 : 9)) * k, np, room);
             // The marks at the column's end, one over the other: ▶ the one playing, catch-up's arrow, the heart.
             int marks = (playing != null && playing.id == channel.id ? 1 : 0) + (channel.archive > 0 ? 1 : 0)
                     + (Xtream.isFavorite(lineup, channel.id) ? 1 : 0);

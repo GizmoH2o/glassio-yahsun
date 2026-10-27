@@ -624,7 +624,7 @@ public class Live extends Activity {
             });
         }
         LiveChannelEdits.apply(this, l);        // names and numbers changed by hand
-        XmltvStore.fillLogos(this, l);          // a logo from the full guide where the provider has none
+        applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
         if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(l);     // a Kids profile: the children's channels only
         lineup = l;
         SharedPreferences p = prefs();
@@ -677,6 +677,56 @@ public class Live extends Activity {
             if (plain && !profileAsked && LiveOptions.askProfile(this) && LiveProfiles.all(this).size() > 1) view.openProfiles();
             profileAsked = true;
         }
+    }
+
+    /**
+     * Each channel's logo from the source Live TV › Settings › Channel logos names, the others filling in what it
+     * doesn't have. The public database's come a moment later (it may be fetched first), then the screen redraws.
+     */
+    void applyLogos(Xtream.Lineup l) {
+        if (l == null) return;
+        final int source = LiveOptions.logoSource(this);
+        java.util.Set<Xtream.Channel> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        final List<Xtream.Channel> all = new java.util.ArrayList<>();
+        for (Xtream.Category cg : l.categories) for (Xtream.Channel ch : cg.channels) if (seen.add(ch)) all.add(ch);
+        java.util.Map<String, String> guide = LiveOptions.fullGuide(this) ? XmltvStore.logos(this) : new java.util.HashMap<>();
+        for (Xtream.Channel ch : all) {
+            if (ch.providerLogo == null) ch.providerLogo = ch.logo == null ? "" : ch.logo;
+            String fromGuide = ch.epg == null || ch.epg.isEmpty() ? null : guide.get(ch.epg.toLowerCase(java.util.Locale.ROOT));
+            String own = ch.providerLogo.isEmpty() ? null : ch.providerLogo;
+            String chosen = source == LiveOptions.LOGOS_GUIDE ? first(fromGuide, own) : first(own, fromGuide);
+            ch.logo = chosen == null ? "" : chosen;
+        }
+        if (source != LiveOptions.LOGOS_PUBLIC) return;
+        final java.util.Map<String, String> categoryCountry = LiveCountry.categories(l);
+        final Context app = getApplicationContext();
+        // Its own thread: the first time fetches the database, which mustn't hold up the channels and the guide.
+        new Thread(() -> {
+            LivePublicLogos.Index idx = LivePublicLogos.index(app);
+            if (idx == null) return;
+            final java.util.Map<Xtream.Channel, String> found = new java.util.IdentityHashMap<>();
+            for (Xtream.Channel ch : all) {
+                String name = LiveCountry.splitCached(ch.name, false).name;
+                String url = LivePublicLogos.find(idx.byName, name.isEmpty() ? ch.name : name, LiveCountry.of(ch, categoryCountry));
+                if (url != null) found.put(ch, url);
+            }
+            AppLog.w("live: public logos for " + found.size() + " of " + all.size() + " channels");
+            main.post(() -> {
+                if (LiveOptions.logoSource(this) != LiveOptions.LOGOS_PUBLIC) return;     // changed meanwhile
+                for (java.util.Map.Entry<Xtream.Channel, String> e : found.entrySet()) e.getKey().logo = e.getValue();
+                view.invalidate();
+            });
+        }, "live-public-logos").start();
+    }
+
+    private static String first(String a, String b) {
+        return a != null && !a.isEmpty() ? a : b != null && !b.isEmpty() ? b : null;
+    }
+
+    /** Channel logos' source changed (Settings): the list's logos again from it. */
+    void logoSourceChanged() {
+        applyLogos(lineup);
+        view.invalidate();
     }
 
     private Xtream.Channel find(int id) {

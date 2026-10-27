@@ -40,6 +40,8 @@ final class Xtream {
         /** Days of catch-up the provider keeps (its archive, tv_archive_duration); 0: none. */
         int archive;
         String name, logo, epg, category;
+        /** The provider's own logo, kept when another source's is shown instead (LivePublicLogos, the guide's). */
+        String providerLogo;
         /** The name as search and sorting compare it (fold): made with the list, off the screen's thread. */
         String key = "";
         /** Its picture's tier (LiveMerge.SD to UHD, from the name's tags) and whether it's HEVC. */

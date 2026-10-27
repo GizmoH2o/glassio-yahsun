@@ -57,6 +57,13 @@ final class LiveLogos {
         return null;
     }
 
+    /** Whether `url` couldn't be had (the channel's other logo, or its letters, instead). */
+    static boolean failed(String url) {
+        synchronized (MEMORY) {
+            return url != null && FAILED.contains(url);
+        }
+    }
+
     /** Logos dark on a see-through background: shown on a light plate (they would vanish on the dark tiles). */
     private static final java.util.Set<Bitmap> DARK = java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
 
