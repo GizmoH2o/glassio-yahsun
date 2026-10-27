@@ -3135,6 +3135,10 @@ final class LiveView extends View {
             });
     private StaticLayout gAbout;
     private String gAboutText = "";
+    /** The lines the details' synopsis was laid out for (one fewer under an episode). */
+    private int gAboutMax;
+    /** The episode's title in the details, beside its season and number. */
+    private Paint gEpisode;
     private final RectF preview = new RectF(), cell = new RectF();
     private Paint gTitle, gClock, gMeta, gCell, gCellOn, gTimeText, gLeft, gName, gNameOn, gBadge;
     private final RectF badgeRect = new RectF();
@@ -3147,6 +3151,7 @@ final class LiveView extends View {
         gClock = Ui.numbers(Ui.medium, 24 * k, LiveTheme.text);
         gMeta = Ui.text(Ui.regular, 27 * k, 0xB3FFFFFF);
         gAboutPaint = new TextPaint(Ui.text(Ui.regular, 27 * k, 0x99FFFFFF));
+        gEpisode = Ui.text(Ui.medium, 27 * k, 0xE6FFFFFF);
         float cs = compact ? 0.88f : 1;     // compact rows: smaller lettering in the grid
         gCell = Ui.text(Ui.regular, 26 * cs * k, 0xCCFFFFFF);
         gCellOn = Ui.text(Ui.medium, 26 * cs * k, LiveTheme.ink);      // over the focus
@@ -4045,9 +4050,12 @@ final class LiveView extends View {
             }
             if (bell) Symbols.draw(getContext(), c, "bell", tx + 9 * k, mid, 19 * k, ink ? LiveTheme.ink : 0xCCFFFFFF);
         }
-        if (two) {
+        if (two) {      // the episode: its season and number on a small chip, then its title
             Paint sp = ink ? gSubOn : gSub;
-            c.drawText(ellipsize(sub, sp, room + indent), cell.left + 16 * k, cell.centerY() + 25 * k * rs, sp);
+            LiveEpisode ep = LiveEpisode.cached(sub);
+            float sx = cell.left + 16 * k, sy = cell.centerY() + 25 * k * rs;
+            if (ep != null) LiveEpisode.draw(c, ep, sx, sy, sp, room + indent, k);
+            else c.drawText(ellipsize(sub, sp, room + indent), sx, sy, sp);
         }
     }
 
@@ -4295,15 +4303,26 @@ final class LiveView extends View {
                 : Ui.time(p.start) + " – " + Ui.time(p.end);
         textAndTag(c, (when.isEmpty() ? "" : when + "  ·  ") + (channel.num > 0 ? channel.num + "  " : "") + nameOf(channel), tagOf(channel),
                 x, 212 * k, gMeta, room);
-        String about = p == null ? "" : p.about;
-        if (!about.equals(gAboutText) || gAbout == null || gAbout.getWidth() != Math.max(1, Math.round(room))) {
+        // The episode (its season and number on a chip, then its title) first, the synopsis in the lines left.
+        LiveEpisode ep = p == null ? null : LiveEpisode.cached(p.sub);
+        String about = p == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
+        float aboutTop = 236 * k;
+        int lines = G_ABOUT_LINES;
+        if (ep != null) {
+            LiveEpisode.draw(c, ep, x, 236 * k + gEpisode.getTextSize(), gEpisode, room, k);
+            aboutTop += gEpisode.getTextSize() * 1.55f;
+            lines--;
+        }
+        if (lines <= 0) about = "";
+        if (!about.equals(gAboutText) || gAbout == null || gAbout.getWidth() != Math.max(1, Math.round(room)) || gAboutMax != lines) {
             gAboutText = about;
+            gAboutMax = lines;
             gAbout = about.isEmpty() ? null : StaticLayout.Builder.obtain(about, 0, about.length(), gAboutPaint,
-                    Math.max(1, Math.round(room))).setMaxLines(G_ABOUT_LINES).setEllipsize(TextUtils.TruncateAt.END)
+                    Math.max(1, Math.round(room))).setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END)
                     .setLineSpacing(0, 1.08f).build();
         }
         if (gAbout != null) {
-            c.translate(x, 236 * k);
+            c.translate(x, aboutTop);
             gAbout.draw(c);
         }
         c.restoreToCount(save);

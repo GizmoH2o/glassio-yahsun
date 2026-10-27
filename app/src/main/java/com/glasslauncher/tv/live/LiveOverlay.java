@@ -67,6 +67,10 @@ final class LiveOverlay {
     private Shader topShade, bottomShade;
     private StaticLayout about;
     private String aboutText = "";
+    /** How many lines the synopsis was laid out for (one under an episode, else two). */
+    private int aboutMax;
+    /** The episode's title, beside its season and number. */
+    private Paint episodePaint;
     private final RectF r = new RectF(), box = new RectF();
     private final Path path = new Path(), moonCut = new Path();
     private Shader band, side;
@@ -93,6 +97,7 @@ final class LiveOverlay {
         iconText = Ui.numbers(Ui.semibold, 20 * k, WHITE);
         iconText.setTextAlign(Paint.Align.CENTER);
         aboutPaint = new TextPaint(Ui.text(Ui.regular, 24 * k, 0xA6FFFFFF));
+        episodePaint = Ui.text(Ui.medium, 25 * k, 0xE6FFFFFF);
         fill = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         glow = new Paint(Paint.ANTI_ALIAS_FLAG);
         glow.setColor(WHITE);
@@ -357,18 +362,25 @@ final class LiveOverlay {
             }
         }
 
-        // The synopsis, two lines.
-        String text = shown == null ? "" : shown.about;
-        int aboutW = Math.max(1, Math.round((textR - TEXT_X) * k));
-        if (!text.equals(aboutText) || about == null || about.getWidth() != aboutW) {
+        // The episode (its season and number on a chip, then its title), then the synopsis: two lines in all.
+        LiveEpisode ep = shown == null ? null : LiveEpisode.cached(shown.sub);
+        String text = shown == null ? "" : ep == null ? shown.about : LiveEpisode.aboutWithout(shown.about, shown.sub);
+        float aboutTop = 752 * k;
+        if (ep != null) {
+            LiveEpisode.draw(c, ep, TEXT_X * k, 752 * k + episodePaint.getTextSize(), episodePaint, (textR - TEXT_X) * k, k);
+            aboutTop = 752 * k + episodePaint.getTextSize() * 1.55f;
+        }
+        int aboutW = Math.max(1, Math.round((textR - TEXT_X) * k)), aboutLines = ep == null ? 2 : 1;
+        if (!text.equals(aboutText) || about == null || about.getWidth() != aboutW || aboutMax != aboutLines) {
             aboutText = text;
+            aboutMax = aboutLines;
             about = text.isEmpty() ? null : StaticLayout.Builder.obtain(text, 0, text.length(), aboutPaint,
-                    aboutW).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END)
+                    aboutW).setMaxLines(aboutLines).setEllipsize(TextUtils.TruncateAt.END)
                     .setLineSpacing(0, 1.05f).build();
         }
         if (about != null) {
             c.save();
-            c.translate(TEXT_X * k, 752 * k);
+            c.translate(TEXT_X * k, aboutTop);
             about.draw(c);
             c.restore();
         }
@@ -376,7 +388,7 @@ final class LiveOverlay {
         // stays put whatever a show has to say; else centered on the text beside it, as it was (it moved with it).
         float blockTop = 680 * k - 2 * Ui.halfCap(title);
         float blockBottom = LiveOptions.playerLogoSteady(live) ? 752 * k + aboutPaint.getFontSpacing() * 2.05f
-                : about != null ? 752 * k + about.getHeight() : 740 * k;
+                : about != null ? aboutTop + about.getHeight() : ep != null ? aboutTop : 740 * k;
         float logoY = (blockTop + blockBottom) / 2;
         box.set(X * k, logoY - 55 * k, (X + 196) * k, logoY + 55 * k);
         view.drawLogo(c, ch, box, 1);

@@ -201,7 +201,7 @@ final class LiveShowPage extends Dialog {
         private final Spring in = new Spring(0.32f, 0.9f, 0), at = new Spring(0.28f, 0.9f, 0);
         private final Rect src = new Rect();
         private final RectF box = new RectF();
-        private Paint fill, image, shadeLeft, shadeBottom, kicker, title, meta, pill, star, body, label, labelOn, head, airTime, airName;
+        private Paint fill, image, shadeLeft, shadeBottom, kicker, title, meta, pill, star, body, label, labelOn, head, airTime, airName, episode;
         private TextPaint aboutPaint;
         private StaticLayout about;
         private String aboutText;
@@ -228,6 +228,7 @@ final class LiveShowPage extends Dialog {
             kicker = Ui.text(Ui.semibold, 26 * k, 0xB3FFFFFF);
             title = Ui.text(Ui.displaySemibold, 76 * k, 0xFFF5F5F7);
             meta = Ui.text(Ui.medium, 28 * k, 0xCCFFFFFF);
+            episode = Ui.text(Ui.medium, 30 * k, 0xF2FFFFFF);
             pill = Ui.text(Ui.semibold, 22 * k, 0xFFFFFFFF);
             star = Ui.text(Ui.semibold, 28 * k, 0xFFF5C518);
             aboutPaint = new TextPaint(Ui.text(Ui.regular, 28 * k, 0xD9FFFFFF));
@@ -298,9 +299,16 @@ final class LiveShowPage extends Dialog {
                 c.drawText("TMDB", px, y + 15 * k + Ui.halfCap(body), body);
             }
 
-            // The synopsis (the guide's, else TMDB's), up to five lines; the cast under it.
+            // The episode (its season and number on a chip, then its title), the synopsis (the guide's, else TMDB's) up
+            // to five lines, the cast under it.
             y += 70 * k;
-            String text = !show.about.isEmpty() ? show.about : info != null ? info.overview : "";
+            LiveEpisode ep = LiveEpisode.cached(show.sub);
+            if (ep != null) {
+                LiveEpisode.draw(c, ep, x, y + episode.getTextSize() * 0.8f, episode, TEXT_W * k, k);
+                y += episode.getTextSize() * 1.9f;
+            }
+            String own = ep == null ? show.about : LiveEpisode.aboutWithout(show.about, show.sub);
+            String text = !own.isEmpty() ? own : info != null ? info.overview : "";
             if (!text.equals(aboutText)) {
                 aboutText = text;
                 about = text.isEmpty() ? null : StaticLayout.Builder.obtain(text, 0, text.length(), aboutPaint, Math.round(TEXT_W * k))
