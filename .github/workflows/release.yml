@@ -1,9 +1,11 @@
-# A pushed version tag (v2.2.0) builds, tests and signs Glassio Yahsun on GitHub and publishes the APK as that
-# version's release, with its CHANGELOG.md section as the notes (the in-app update banner shows them). It stops when
-# the version has no CHANGELOG section, when a test fails, or when the APK isn't signed with the release key. When
-# tools/release.sh already published the version from the computer, this leaves it as it is.
+# Started by hand (Actions > Release > Run workflow, with a version tag such as v2.2.0): builds, tests and signs
+# Glassio Yahsun on GitHub and publishes the APK as that version's release, with its CHANGELOG.md section as the
+# notes (the in-app update banner shows them). It stops when the version has no CHANGELOG section, when a test fails,
+# or when the APK isn't signed with the release key. When tools/release.sh already published the version from the
+# computer, this leaves it as it is.
 #
-# Needs these repository secrets (Settings > Secrets and variables > Actions):
+# Releases are made with tools/release.sh, so the release key stays on the computer and pushed tags don't start this.
+# To use it, set these repository secrets first (Settings > Secrets and variables > Actions):
 #   RELEASE_KEYSTORE_B64    the release keystore (.jks), base64
 #   RELEASE_STORE_PASSWORD  its password (also the key's)
 #   RELEASE_KEY_ALIAS       glassio-yahsun
@@ -11,8 +13,6 @@
 name: Release
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       tag:
