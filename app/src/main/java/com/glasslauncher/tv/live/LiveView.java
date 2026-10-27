@@ -2097,12 +2097,26 @@ final class LiveView extends View {
             "the", "channel", "tv"));
 
     /**
-     * Said to search: "watch BBC One", "put on 302", "assistir Globo"… tunes the channel it names at once (the best
-     * match: the whole name, then its start, then all its words; a favorite or one watched lately first). True when
-     * it did; anything else stays a search.
+     * Said to search: "watch BBC One", "put on 302", "TLC USA", "assistir Globo"… tunes the channel it names at once
+     * (its country's when one was said, else a favorite or one watched lately first), and "add TLC to favourites" /
+     * "remove TLC from favourites" does that. Without a word like "watch", only a channel named exactly (or its
+     * number) tunes, and only with Settings › Channels by voice on. True when it did; anything else stays a search.
      */
     boolean voiceWatch(String said) {
         if (lineup == null || said == null) return false;
+        LiveVoice.Favorite fav = LiveVoice.parseFavorite(said);
+        if (fav != null) {
+            Xtream.Channel ch = voiceChannel(LiveVoice.parse(fav.channel));
+            if (ch == null) ch = bestChannel(fav.channel);
+            if (ch == null) {
+                flash(Ui.tr("Nenhum canal chamado ", "No channel called ") + fav.channel);
+                return true;
+            }
+            if (Xtream.isFavorite(lineup, ch.id) != fav.add) toggleFavorite(ch);
+            AppLog.w("live: voice " + (fav.add ? "adds " : "removes ") + ch.name + " (favorites)");
+            flash(nameOf(ch) + (fav.add ? Ui.tr(" está nos favoritos", " is in your favorites") : Ui.tr(" saiu dos favoritos", " is out of your favorites")));
+            return true;
+        }
         String q = fold(said), rest = null;
         for (String w : WATCH_WORDS) {
             String f = fold(w);
@@ -2111,15 +2125,36 @@ final class LiveView extends View {
                 break;
             }
         }
-        if (rest == null || rest.isEmpty()) return false;
+        if (rest == null) {
+            // No "watch": a channel named exactly ("TLC USA", "302") tunes; anything else is a search.
+            if (!LiveOptions.voiceChannels(getContext())) return false;
+            LiveVoice.Query query = LiveVoice.parse(said);
+            Xtream.Channel best = voiceChannel(query);
+            if (best == null || query.number < 0 && LiveVoice.fit(LiveCountry.split(best.name).name, query.name) < 95
+                    && LiveVoice.fit(best.name, query.whole) < 95) return false;
+            AppLog.w("live: voice tunes " + best.name);
+            watchFromSearch(best);
+            return true;
+        }
+        if (rest.isEmpty()) return false;
         for (String lead : new String[] {"channel ", "the ", "canal ", "o canal ", "el canal ", "kanal ", "den ", "канал "}) {
             if (rest.startsWith(lead)) rest = rest.substring(lead.length());
         }
-        Xtream.Channel best = bestChannel(rest);
+        Xtream.Channel best = voiceChannel(LiveVoice.parse(rest));
+        if (best == null) best = bestChannel(rest);
         if (best == null) return false;
         AppLog.w("live: voice tunes " + best.name);
         watchFromSearch(best);
         return true;
+    }
+
+    /** The channel `q` names (its country's first when one was said; a favorite, then one watched lately), or null. */
+    private Xtream.Channel voiceChannel(LiveVoice.Query q) {
+        final Set<Integer> favs = new HashSet<>(), lately = new HashSet<>();
+        if (!lineup.categories.isEmpty()) for (Xtream.Channel ch : lineup.categories.get(0).channels) favs.add(ch.id);
+        for (Xtream.Channel ch : history.channels) lately.add(ch.id);
+        return LiveVoice.best(lineup.all(), q, ch -> LiveCountry.of(ch, categoryCountry),
+                ch -> favs.contains(ch.id) ? 20 : lately.contains(ch.id) ? 10 : 0);
     }
 
     /** The channel `words` names best (a number: that channel), or null when none matches all of them. */
@@ -4415,6 +4450,9 @@ final class LiveView extends View {
                 : Ui.tr("Pôr nos favoritos", "Add to favorites"));
         icons.add(Xtream.isFavorite(lineup, channel.id) ? "heart_off" : "heart");
         actions.add(this::favoriteRow);
+        labels.add(Ui.tr("Logo", "Logo"));
+        icons.add("tv");
+        actions.add(() -> logoMenu(channel));
         if (channel.id > 0) {      // for a channel Glassio's player can't play
             labels.add(Ui.tr("Abrir em outro player", "Open in another player"));
             icons.add("exit");
@@ -4567,6 +4605,28 @@ final class LiveView extends View {
         channelMenu(list.get(ch), lineup.categories.get(cat) == history);
     }
 
+    /** Which logo `channel` shows: as the setting says, or its provider's, the guide's or the public database's. */
+    private void logoMenu(final Xtream.Channel channel) {
+        final android.content.Context c = getContext();
+        final int now = LiveLogoChoice.pick(c, channel.id);
+        final int[] sources = {-1, LiveOptions.LOGOS_PROVIDER, LiveOptions.LOGOS_GUIDE, LiveOptions.LOGOS_PUBLIC};
+        String[] labels = {Ui.tr("Como nos ajustes", "As in Settings"), Ui.tr("Do provedor", "Provider's"),
+                Ui.tr("Do guia (EPG)", "TV guide's (EPG)"), Ui.tr("Da base pública", "Public database's")};
+        int checked = 0;
+        for (int i = 0; i < sources.length; i++) if (sources[i] == now) checked = i;
+        LiveSheet.menu(c)
+                .setTitle(Ui.tr("Logo de ", "Logo for ") + nameOf(channel))
+                .setMessage(Ui.tr("Sem logo na escolhida, as outras completam.", "Where the one picked has none, the others fill in."))
+                .setIcons("settings", "tv", "guide", "search")
+                .setSingleChoiceItems(labels, checked, (d, which) -> {
+                    LiveLogoChoice.setPick(c, channel.id, sources[which]);
+                    live.logoSourceChanged();
+                    flash(sources[which] == LiveOptions.LOGOS_PUBLIC ? Ui.tr("Buscando o logo da base pública…", "Fetching the public database's logo…")
+                            : Ui.tr("Logo trocado", "Logo changed"));
+                })
+                .show();
+    }
+
     /** A channel's choices: favorite, rename, renumber (the provider's again), out of History. */
     private void channelMenu(final Xtream.Channel channel, final boolean inHistory) {
         final android.content.Context c = getContext();
@@ -4609,6 +4669,9 @@ final class LiveView extends View {
                 live.relist();
             });
         }
+        labels.add(Ui.tr("Logo", "Logo"));
+        icons.add("tv");
+        acts.add(() -> logoMenu(channel));
         if (inHistory) {
             labels.add(Ui.tr("Tirar do Histórico", "Remove from History"));
             icons.add("delete");

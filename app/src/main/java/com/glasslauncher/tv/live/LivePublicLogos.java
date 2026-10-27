@@ -32,7 +32,8 @@ final class LivePublicLogos {
 
     private static final String CHANNELS = "https://iptv-org.github.io/api/channels.json";
     private static final String LOGOS = "https://iptv-org.github.io/api/logos.json";
-    private static final String INDEX = "live-public-logos.tsv";
+    /** v2: with each channel's id too (guides that use iptv-org's ids, TLC.us, find it exactly). */
+    private static final String INDEX = "live-public-logos-2.tsv", OLD_INDEX = "live-public-logos.tsv";
     private static final long FRESH = 7L * 24 * 3600_000L;
 
     /** The index: a folded name to its entries, each {country, logo address}. */
@@ -49,6 +50,8 @@ final class LivePublicLogos {
      */
     static synchronized Index index(Context c) {
         File f = new File(c.getFilesDir(), INDEX);
+        //noinspection ResultOfMethodCallIgnored
+        new File(c.getFilesDir(), OLD_INDEX).delete();
         if (!f.exists() || System.currentTimeMillis() - f.lastModified() > FRESH) {
             try {
                 build(f);
@@ -149,6 +152,7 @@ final class LivePublicLogos {
                 if (url == null || name == null) continue;
                 names.add(0, name);
                 String code = LiveCountry.code(country, false);
+                w.write(ID + id.toLowerCase(java.util.Locale.ROOT) + "\t" + (code == null ? "" : code) + "\t" + url + "\n");
                 for (String n : names) {
                     String key = key(n);
                     if (key.isEmpty()) continue;
@@ -200,6 +204,28 @@ final class LivePublicLogos {
     /** A region of a channel that has others (TLC West): the same logo as the channel itself. */
     private static final java.util.Set<String> REGION = new java.util.HashSet<>(java.util.Arrays.asList("east", "west",
             "pacific", "central", "north", "south", "1", "2"));
+
+    /** An id's key in the index (a name's never starts with it: names are folded). */
+    private static final String ID = "@";
+
+    /** A guide's channel id as iptv-org writes its ids: "TLC.us" (a feed's "@East" off), lower case. */
+    static String idKey(String epg) {
+        if (epg == null) return "";
+        String e = epg.trim();
+        int at = e.indexOf('@');
+        if (at >= 0) e = e.substring(0, at);
+        return e.isEmpty() ? "" : ID + e.toLowerCase(java.util.Locale.ROOT);
+    }
+
+    /** As find(), the guide's id first: when it's iptv-org's, that channel's logo exactly. */
+    static String find(Map<String, List<String[]>> byName, String name, String country, String epg) {
+        String id = idKey(epg);
+        if (!id.isEmpty()) {
+            List<String[]> exact = byName.get(id);
+            if (exact != null && !exact.isEmpty()) return exact.get(0)[1];
+        }
+        return find(byName, name, country);
+    }
 
     /** A name as the index keeps it: folded, without the words that aren't the name. */
     static String key(String name) {

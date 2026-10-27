@@ -38,6 +38,15 @@ class LivePublicLogosTest {
         assertEquals(skyUk, LivePublicLogos.find(index, "Sky Sports Main Event (Low Latency)", "UK"))
     }
 
+    @Test fun theGuidesIdFirst() {
+        val byId = index + mapOf("@tlc.in" to listOf(arrayOf("IN", india)))
+        assertEquals("@tlc.in", LivePublicLogos.idKey("TLC.in@HD"))
+        assertEquals("", LivePublicLogos.idKey(" "))
+        assertEquals(india, LivePublicLogos.find(byId, "TLC", "US", "TLC.in"))      // the id says which TLC
+        assertEquals(wiki, LivePublicLogos.find(byId, "TLC", "US", "tlc.unknown"))  // not iptv-org's: by name
+        assertEquals(wiki, LivePublicLogos.find(byId, "TLC", "US", null))
+    }
+
     @Test fun unknownChannels() {
         assertNull(LivePublicLogos.find(index, "CNN", "US"))
         assertNull(LivePublicLogos.find(index, "TLC Kids", "US"))

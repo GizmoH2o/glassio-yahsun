@@ -52,7 +52,7 @@ final class LiveVoice {
                 {"uk", "UK"}, {"u k", "UK"}, {"britain", "UK"}, {"great britain", "UK"}, {"united kingdom", "UK"},
                 {"england", "UK"}, {"the uk", "UK"}, {"gb", "UK"}, {"canada", "CA"}, {"canadian", "CA"},
                 {"american", "US"}, {"british", "UK"}, {"jamaican", "JM"}, {"australian", "AU"}, {"irish", "IE"},
-                {"mexican", "MX"}, {"uae", "AE"}, {"emirates", "AE"}};
+                {"mexican", "MX"}, {"uae", "AE"}, {"emirates", "AE"}, {"arabic", LiveCountry.ARABIC}, {"arab", LiveCountry.ARABIC}};
         for (String[] m : more) SPOKEN.put(m[0], m[1]);
     }
 
@@ -98,6 +98,43 @@ final class LiveVoice {
         }
         q.name = s.trim();
         return q;
+    }
+
+    /** "Add TLC to favourites": the channel said (folded) and whether it goes in or out. */
+    static final class Favorite {
+        final String channel;
+        final boolean add;
+
+        Favorite(String channel, boolean add) {
+            this.channel = channel;
+            this.add = add;
+        }
+    }
+
+    private static final String FAVS = "(?:my |the )?(?:favorites|favourites|favorite|favourite|favs|favoritos|favoritas)";
+    private static final java.util.regex.Pattern[] FAV_ADD = {
+            java.util.regex.Pattern.compile("^(?:please )?(?:add|put|save) (.+) (?:to|in|into|on) " + FAVS + "(?: please)?$"),
+            java.util.regex.Pattern.compile("^(?:please )?(?:favorite|favourite|like) (.+?)(?: please)?$"),
+            java.util.regex.Pattern.compile("^(?:adicionar|adiciona|adicione|colocar|coloca|coloque|por|poe) (.+) (?:aos|nos|em|a|na) " + FAVS + "$")};
+    private static final java.util.regex.Pattern[] FAV_REMOVE = {
+            java.util.regex.Pattern.compile("^(?:please )?(?:remove|delete|take|drop) (.+?)(?: out)? (?:from|of) " + FAVS + "(?: please)?$"),
+            java.util.regex.Pattern.compile("^(?:please )?(?:unfavorite|unfavourite|unlike) (.+?)(?: please)?$"),
+            java.util.regex.Pattern.compile("^(?:tirar|tira|tire|remover|remova|remove) (.+) (?:dos|das|de) " + FAVS + "$")};
+
+    /** What was said as a favorites command ("add TLC to my favourites", "remove 302 from favorites"), else null. */
+    static Favorite parseFavorite(String said) {
+        String s = Xtream.fold(said);
+        for (int add = 0; add < 2; add++) {
+            for (java.util.regex.Pattern p : add == 0 ? FAV_ADD : FAV_REMOVE) {
+                java.util.regex.Matcher m = p.matcher(s);
+                if (!m.matches()) continue;
+                String ch = m.group(1).trim();
+                if (ch.startsWith("channel ")) ch = ch.substring(8);
+                if (ch.startsWith("the ") && ch.length() > 4) ch = ch.substring(4);
+                if (!ch.isEmpty()) return new Favorite(ch, add == 0);
+            }
+        }
+        return null;
     }
 
     private static String join(String[] w, int from, int to) {

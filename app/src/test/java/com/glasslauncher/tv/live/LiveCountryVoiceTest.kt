@@ -25,6 +25,28 @@ class LiveCountryVoiceTest {
         assertEquals("DE" to "ZDF", split("ZDF [DE]"))
     }
 
+    @Test fun arabicIsNotArgentina() {
+        assertEquals(LiveCountry.ARABIC to "beIN Sports 1", split("AR: beIN Sports 1"))
+        assertEquals(LiveCountry.ARABIC to "MBC 2", split("[AR] MBC 2"))
+        assertEquals(LiveCountry.ARABIC to "Al Jazeera", split("ARABIC | Al Jazeera"))
+        assertEquals(LiveCountry.ARABIC to "Rotana Cinema", split("[ARB] Rotana Cinema"))
+        assertEquals("AR" to "Argentina TV Publica", split("AR | Argentina TV Publica"))
+        assertEquals("" to "Arte", split("Arte"))
+    }
+
+    @Test fun favoritesByVoice() {
+        fun fav(said: String) = LiveVoice.parseFavorite(said)?.let { it.channel to it.add }
+        assertEquals("tlc" to true, fav("Add TLC to favourites"))
+        assertEquals("tlc usa" to true, fav("add TLC USA to my favorites"))
+        assertEquals("sky news" to true, fav("favourite Sky News"))
+        assertEquals("tlc" to false, fav("Remove TLC from favourites"))
+        assertEquals("302" to false, fav("take channel 302 out of my favorites"))
+        assertEquals("tlc" to false, fav("unfavorite TLC"))
+        assertEquals("globo" to true, fav("adicionar Globo aos favoritos"))
+        assertNull(fav("watch TLC"))
+        assertNull(fav("TLC"))
+    }
+
     @Test fun flags() {
         assertEquals("US" to "TLC", split("🇺🇸 TLC"))
     }

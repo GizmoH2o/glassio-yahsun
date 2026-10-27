@@ -26,6 +26,17 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
                     .maxSizeBytes(768L * 1024 * 1024)
                     .build()
             }
+            // Glassio's name to the picture hosts: Wikimedia (most public channel logos) refuses OkHttp's own (403).
+            .components {
+                add(coil3.network.okhttp.OkHttpNetworkFetcherFactory(callFactory = {
+                    okhttp3.OkHttpClient.Builder()
+                        .addInterceptor { chain ->
+                            chain.proceed(chain.request().newBuilder()
+                                .header("User-Agent", com.glasslauncher.tv.live.LiveHome.userAgent()).build())
+                        }
+                        .build()
+                }))
+            }
             .build()
 
     /**

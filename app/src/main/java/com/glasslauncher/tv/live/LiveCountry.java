@@ -55,11 +55,11 @@ final class LiveCountry {
     }
 
     private static final String SEP = "[:|\\-–—•»/]";
-    private static final Pattern BRACKET_PREFIX = Pattern.compile("^\\s*[\\[(|]\\s*([A-Za-z]{2,3})\\s*[\\])|]\\s*" + SEP + "?\\s*(.+)$");
-    private static final Pattern PUNCT_PREFIX = Pattern.compile("^\\s*([A-Za-z]{2,3})\\s*" + SEP + "\\s*(.+)$");
+    private static final Pattern BRACKET_PREFIX = Pattern.compile("^\\s*[\\[(|]\\s*([A-Za-z]{2,6})\\s*[\\])|]\\s*" + SEP + "?\\s*(.+)$");
+    private static final Pattern PUNCT_PREFIX = Pattern.compile("^\\s*([A-Za-z]{2,6})\\s*" + SEP + "\\s*(.+)$");
     private static final Pattern PLAIN_PREFIX = Pattern.compile("^\\s*([A-Z]{2,3})\\s+(.+)$");
-    private static final Pattern BRACKET_SUFFIX = Pattern.compile("^(.+?)\\s*[\\[(|]\\s*([A-Za-z]{2,3})\\s*[\\])|]?\\s*$");
-    private static final Pattern PUNCT_SUFFIX = Pattern.compile("^(.+?)\\s*" + SEP + "\\s*([A-Za-z]{2,3})\\s*$");
+    private static final Pattern BRACKET_SUFFIX = Pattern.compile("^(.+?)\\s*[\\[(|]\\s*([A-Za-z]{2,6})\\s*[\\])|]?\\s*$");
+    private static final Pattern PUNCT_SUFFIX = Pattern.compile("^(.+?)\\s*" + SEP + "\\s*([A-Za-z]{2,6})\\s*$");
     private static final Pattern PLAIN_SUFFIX = Pattern.compile("^(.+?)\\s+([A-Z]{2,3})$");
 
     /** `raw` as a country code, null when it isn't one ("USA" → "US", "GB" → "UK"). */
@@ -83,15 +83,32 @@ final class LiveCountry {
     }
 
     static Split split(String name, boolean category) {
+        Split s = read(name, category);
+        // Providers write AR (Argentina's code) for their Arabic channels: Arabic, unless the name says Argentina.
+        if ("AR".equals(s.code) && (name == null || !name.toLowerCase(Locale.ROOT).contains("argentin"))) return new Split(ARABIC, s.name);
+        return s;
+    }
+
+    /** Not a country: the tag of the channels in Arabic (written AR, ARB, ARAB or ARABIC by providers). */
+    static final String ARABIC = "ARABIC";
+    private static final java.util.Set<String> ARABIC_WORDS = new HashSet<>(java.util.Arrays.asList("ARB", "ARAB", "ARABIC"));
+
+    /** `raw` as a tag in a name: a country's code, or ARABIC; null when it's neither. */
+    private static String tag(String raw, boolean plain) {
+        if (raw != null && !plain && ARABIC_WORDS.contains(raw.toUpperCase(Locale.ROOT))) return ARABIC;
+        return code(raw, plain);
+    }
+
+    private static Split read(String name, boolean category) {
         if (name == null) return new Split("", "");
         String s = name.trim();
         String flag = flag(s);
         if (flag != null) return new Split(flag, stripFlag(s));
         Matcher m;
-        if ((m = BRACKET_PREFIX.matcher(s)).matches() && code(m.group(1), false) != null) return new Split(code(m.group(1), false), tidy(m.group(2)));
-        if ((m = PUNCT_PREFIX.matcher(s)).matches() && code(m.group(1), false) != null) return new Split(code(m.group(1), false), tidy(m.group(2)));
-        if ((m = BRACKET_SUFFIX.matcher(s)).matches() && code(m.group(2), false) != null) return new Split(code(m.group(2), false), tidy(m.group(1)));
-        if ((m = PUNCT_SUFFIX.matcher(s)).matches() && code(m.group(2), false) != null) return new Split(code(m.group(2), false), tidy(m.group(1)));
+        if ((m = BRACKET_PREFIX.matcher(s)).matches() && tag(m.group(1), false) != null) return new Split(tag(m.group(1), false), tidy(m.group(2)));
+        if ((m = PUNCT_PREFIX.matcher(s)).matches() && tag(m.group(1), false) != null) return new Split(tag(m.group(1), false), tidy(m.group(2)));
+        if ((m = BRACKET_SUFFIX.matcher(s)).matches() && tag(m.group(2), false) != null) return new Split(tag(m.group(2), false), tidy(m.group(1)));
+        if ((m = PUNCT_SUFFIX.matcher(s)).matches() && tag(m.group(2), false) != null) return new Split(tag(m.group(2), false), tidy(m.group(1)));
         if ((m = PLAIN_SUFFIX.matcher(s)).matches() && code(m.group(2), true) != null) return new Split(code(m.group(2), true), tidy(m.group(1)));
         if (category && (m = PLAIN_PREFIX.matcher(s)).matches() && code(m.group(1), true) != null) return new Split(code(m.group(1), true), tidy(m.group(2)));
         return new Split("", s);

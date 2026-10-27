@@ -41,13 +41,16 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
+**New in 2.3: country tags, voice and logos**
+- **Country tags** beside channel names (US, UK, CA, ARABIC…) and **channels by voice** ("Play TLC USA on Glassio Yahsun"; inside Live TV just "TLC USA"), each with its own switch; every on/off setting in Live TV is now a switch.
+- **Favorites by voice**: "Add TLC to favourites", "Remove TLC from favourites".
+- **Channel logos** from your provider, the TV guide or the public iptv-org database, a **logo per channel** (hold OK › Logo), the same logos on the home screen's Live TV cards, guide logos lined up at the left and a steady logo in the player.
+
 **New in 2.2: backup and restore**
 - **Back up settings** and **Restore a backup** (Settings › System, and the phone page): everything, sign-ins included, in one file locked with a code you choose. It goes to the TV's Downloads and to your phone; restoring brings it all back and restarts Glassio.
 - **Watch on Home** is selectable: OK full screen, Up / Down change the channel, Back selects it and closes it.
 - A setup checklist on a fresh install, and Live TV's list highlight as Glassio's.
 - **Channel numbers in the TV guide**, Back in the guide goes straight back to the channel, and hold OK on a Live TV card offers **Record this show**.
-- **Country tags** beside channel names (US, UK, CA…) and **channels by voice** ("Play TLC USA on Glassio Yahsun"), each with its own switch; every on/off setting in Live TV is now a switch.
-- **Channel logos** from your provider, the TV guide or the public iptv-org database, guide logos lined up at the left and a steady logo in the player, each with its own setting.
 - A **kick-off alert** when a team you follow starts playing (Watch, Small window or Not now), and a reminder in Settings when a backup is due.
 
 **New in 2.1: Live TV on the home screen**

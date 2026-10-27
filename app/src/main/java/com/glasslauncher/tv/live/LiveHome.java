@@ -319,7 +319,7 @@ public final class LiveHome {
             String plain = LiveCountry.splitCached(a.channelName, false).name;
             if (!plain.isEmpty()) a.channelName = plain;
         }
-        a.logo = ch.logo == null ? "" : ch.logo;
+        a.logo = logoOf(c, ch);
         if (p != null) {
             a.title = p.title;
             a.teams = LiveMatchDay.teams(p.title);
@@ -534,7 +534,7 @@ public final class LiveHome {
             k.title = LiveMatchDay.headline(m, LiveMatchDay.score(c, m));
             k.sub = "Following  ·  " + channelLine(c, m.ch);
             k.country = countryOf(c, m.ch);
-            k.logo = m.ch.logo == null ? "" : m.ch.logo;
+            k.logo = logoOf(c, m.ch);
             k.art = LiveArt.of(c, onNow(c, m.ch, now), null);
             k.progress = progress(m.start, m.end, now);
             out.add(k);
@@ -550,7 +550,7 @@ public final class LiveHome {
             k.title = p != null && !p.title.isEmpty() ? p.title : shownName(c, ch);
             k.sub = channelLine(c, ch);
             k.country = countryOf(c, ch);
-            k.logo = ch.logo == null ? "" : ch.logo;
+            k.logo = logoOf(c, ch);
             k.art = LiveArt.of(c, p, null);
             if (p != null) k.progress = progress(p.start, p.end, now);
             out.add(k);
@@ -577,7 +577,7 @@ public final class LiveHome {
             k.title = p.title.isEmpty() ? shownName(c, r.ch) : p.title;
             k.sub = "Recorded  ·  " + shownName(c, r.ch) + "  ·  " + day(r.start, now);
             k.country = countryOf(c, r.ch);
-            k.logo = r.ch.logo == null ? "" : r.ch.logo;
+            k.logo = logoOf(c, r.ch);
             k.art = LiveArt.of(c, p, null);
             out.add(k);
         }
@@ -632,6 +632,13 @@ public final class LiveHome {
 
     private static String channelLine(Context c, Xtream.Channel ch) {
         return (ch.num > 0 ? ch.num + "  " : "") + shownName(c, ch);
+    }
+
+    /** `ch`'s logo as Live TV shows it (the guide's, the public database's, its own pick), else the provider's. */
+    private static String logoOf(Context c, Xtream.Channel ch) {
+        String shown = LiveLogoChoice.shown(c, ch.id);
+        if (shown != null) return shown;
+        return ch.logo == null ? "" : ch.logo;
     }
 
     /** `ch`'s name as the home screen shows it: without its country when the tags show it. */

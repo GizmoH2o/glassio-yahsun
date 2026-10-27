@@ -2,6 +2,27 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 2.3.0 — 2026-10-27
+
+**Country tags and voice**
+- **Country tags**: a channel's country (US, UK, CA…) on a small glass pill beside its name — in the guide, the channel list, the info bar, the categories and the home screen's cards — read from the name ("US: TLC", "TLC (US)", "TLC USA", a flag) or else its category ("UK | Sky Sports"), and the name shown without it. On or off in Live TV › Settings › Channels and categories.
+- **Channels by voice**: "Play TLC USA on Glassio Yahsun", "TLC US", "channel 2340" open Live TV on that channel; a country at either end picks that country's channel, and without one the channels you watch win. Live TV's channels can also show in the TV's own search (when Google TV lists apps' results there). On or off in the same section: off, Glassio isn't offered to the TV for this at all.
+- **Voice inside Live TV** (the remote's mic button, or the mic in Search): "TLC USA" or "302" tunes that channel at once (with Channels by voice on), and "watch …" always does; a country said picks that country's channel.
+- **Favorites by voice**: "Add TLC to favourites", "Remove TLC from my favorites", "favourite Sky News", "unfavorite TLC" (and in Portuguese, "adicionar Globo aos favoritos").
+- **Arabic channels**: providers mark them AR, which is Argentina's code; they're now tagged ARABIC (also from ARB, ARAB, ARABIC), unless the name says Argentina. Saying "Arabic" picks them by voice.
+- Every setting in Live TV that's on or off is now a switch, as in Glassio's own settings (purple when on), in the sections and in their preview.
+
+**Logos**
+- **Channel logos** (Live TV › Settings › Channels and categories): from your provider, the TV guide (EPG), or the **public database** (iptv-org: sharp logos for over 30,000 channels, found by each channel's name and country; about 14 MB fetched once a week). The other sources fill in what the chosen one doesn't have, and a logo that can't be loaded falls back to the provider's.
+- **A logo per channel**: hold OK on a channel (in the guide, or in the channel list) › Logo: as in Settings, the provider's, the TV guide's or the public database's, for that channel alone.
+- **Better public matches**: the database's other names for each channel, and a guide that uses iptv-org's channel ids (TLC.us) gets that exact channel's logo.
+- **The home screen's Live TV cards** show the same logos as Live TV (public and guide logos included). Pictures from Wikimedia, where most public logos live, now load on the home screen (it refused Glassio's picture loader before, leaving some cards without a logo).
+- **Logos and names in the guide** (Live TV › Settings › Guide): lined up at the left of the channel column (the new default), or in the middle as before.
+- **Logo in the player** (Live TV › Settings › Theme and start-up): steady, centered in its own space, so it no longer moves when a show has little or no synopsis (the new default), or centered on the text beside it as before.
+
+**Good to know**
+- Google TV's own voice search ("Watch TLC" said to Google) treats a channel name as one of the TV's tuner channels and doesn't ask apps. Naming Glassio ("Play TLC USA on Glassio Yahsun") asks Google to pass the request to Glassio, which then tunes the channel; inside Live TV, the remote's mic button always reaches Glassio.
+
 ## 2.2.0 — 2026-10-26
 
 **Backup and restore**
@@ -28,16 +49,6 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - Tests for the backup's lock (right code, wrong code, a changed or cut-short file) and the kick-off timing run on every release; `tools/release.sh` stops when one fails.
 - A GitHub Actions workflow builds, tests, signs and publishes a release when a version tag is pushed (it needs the release key as repository secrets).
 - Screenshots of Live TV, Following, the styles and backup in the README.
-
-**Country tags and voice**
-- **Country tags**: a channel's country (US, UK, CA…) on a small glass pill beside its name — in the guide, the channel list, the info bar, the categories and the home screen's cards — read from the name ("US: TLC", "TLC (US)", "TLC USA", a flag) or else its category ("UK | Sky Sports"), and the name shown without it. On or off in Live TV › Settings › Channels and categories.
-- **Channels by voice**: "Play TLC USA on Glassio Yahsun", "TLC US", "channel 2340" open Live TV on that channel; a country at either end picks that country's channel, and without one the channels you watch win. Live TV's channels can also show in the TV's own search (when Google TV lists apps' results there). On or off in the same section: off, Glassio isn't offered to the TV for this at all.
-- Every setting in Live TV that's on or off is now a switch, as in Glassio's own settings (purple when on), in the sections and in their preview.
-
-**Logos**
-- **Channel logos** (Live TV › Settings › Channels and categories): from your provider, the TV guide (EPG), or the **public database** (iptv-org: sharp logos for over 30,000 channels, found by each channel's name and country; about 14 MB fetched once a week). The other sources fill in what the chosen one doesn't have, and a logo that can't be loaded falls back to the provider's.
-- **Logos and names in the guide** (Live TV › Settings › Guide): lined up at the left of the channel column (the new default), or in the middle as before.
-- **Logo in the player** (Live TV › Settings › Theme and start-up): steady, centered in its own space, so it no longer moves when a show has little or no synopsis (the new default), or centered on the text beside it as before.
 
 **Live TV styles**
 - Six new styles (Live TV › Settings › Theme and start-up › Style): **Netflix** (near black, a red focus, nearly square corners, a big picture), **Prime Video** (deep navy, a bright blue focus), **Disney+** (royal blue into night, glass with a light edge, a blue focus), **Max** (black into deep blue, the large picture at the right), **Plex** (dark grey, an amber focus) and **Pluto TV** (black, a yellow focus, a guide with many rows). Each also works for the morning, night and late-night styles.

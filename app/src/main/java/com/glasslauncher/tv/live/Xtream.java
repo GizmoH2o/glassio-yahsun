@@ -303,7 +303,9 @@ final class Xtream {
     }
 
     static JSONObject json(Channel ch) throws JSONException {
-        return new JSONObject().put("id", ch.id).put("num", ch.num).put("name", ch.name).put("logo", ch.logo)
+        // The provider's own logo (another source's is picked again from the setting where it's shown).
+        return new JSONObject().put("id", ch.id).put("num", ch.num).put("name", ch.name)
+                .put("logo", ch.providerLogo != null ? ch.providerLogo : ch.logo)
                 .put("epg", ch.epg).put("cat", ch.category).put("arch", ch.archive).put("url", ch.url);
     }
 
