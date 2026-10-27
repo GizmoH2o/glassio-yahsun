@@ -439,7 +439,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 if (st.continueMode == "first") add(Adjust("Slides at the start", "How many titles in progress open the carousel", {
                     if (st.cwLead <= 0) "All" else "${st.cwLead}"
                 }, { st.cwLead = cycle(listOf(1, 2, 3, 4, 5, 0), st.cwLead, it) }))
-                if (st.continueMode == "row") add(Note("Own row: a Continue Watching row above the dock, like the Apple TV app. Down from the carousel goes into it; hold OK on a title to take it out."))
+                if (st.continueMode == "row") add(Note("Own row: a Continue Watching row above the dock, like the Apple TV app. Down from the carousel goes into it; hold OK on a title to open it in your other app, mark it watched or take it out."))
                 if (st.continueMode != "row") add(Toggle("Open on what I just watched", "Back from Nuvio, the carousel shows that title first", { st.continueJump }, { st.continueJump = it }))
                 if (st.continueMode != "row") add(Toggle("Progress bar", "Shows Continue · S1 · E3 · 42% under the title", { st.cwProgress }, { st.cwProgress = it }))
                 add(Note("Apps"))

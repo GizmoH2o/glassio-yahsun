@@ -184,6 +184,18 @@ class StremioAccount(ctx: Context) {
         put(item)
     }.getOrElse { Glog.w("Stremio rewind", it); false }
 
+    /**
+     * Marks a film watched, as Stremio's own "Mark as watched" does: watched once more, now, and back to its start (so
+     * out of Continue Watching).
+     */
+    fun markWatched(id: String): Boolean = runCatching {
+        val item = items(listOf(id))?.firstOrNull { it.optString("_id") == id } ?: return false
+        val s = item.optJSONObject("state") ?: freshState().also { item.put("state", it) }
+        s.put("flaggedWatched", 1).put("timesWatched", s.optInt("timesWatched") + 1)
+            .put("lastWatched", iso(System.currentTimeMillis())).put("timeOffset", 0)
+        put(item)
+    }.getOrElse { Glog.w("Stremio mark watched", it); false }
+
     private fun freshState() = JSONObject().put("lastWatched", JSONObject.NULL).put("timeWatched", 0).put("timeOffset", 0)
         .put("overallTimeWatched", 0).put("timesWatched", 0).put("flaggedWatched", 0).put("duration", 0)
         .put("video_id", JSONObject.NULL).put("watched", JSONObject.NULL).put("noNotif", false)

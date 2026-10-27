@@ -79,7 +79,9 @@ fun ContinueRow(
     items: List<HeroItem>, s: Float, entry: FocusRequester, up: FocusRequester, down: FocusRequester,
     /** How far down the row sits now (px): with the apps waiting below the screen, it sits at the bottom of the page. */
     drop: () -> Float = { 0f },
-    onInside: (Boolean) -> Unit, onSelected: (HeroItem?) -> Unit, onOpen: (HeroItem) -> Unit, onRemove: (HeroItem) -> Unit,
+    onInside: (Boolean) -> Unit, onSelected: (HeroItem?) -> Unit, onOpen: (HeroItem) -> Unit,
+    /** Holding OK on a card: its menu (open elsewhere, mark watched, remove). */
+    onHold: (HeroItem) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var inside by remember { mutableStateOf(false) }
@@ -106,7 +108,7 @@ fun ContinueRow(
                     item, s,
                     Modifier.then(if (item.key == entryKey) Modifier.focusRequester(entry) else Modifier)
                         .focusProperties { this.up = up; this.down = down },
-                    onFocused = { last = item.key; onSelected(item) }, onOpen = { onOpen(item) }, onRemove = { onRemove(item) },
+                    onFocused = { last = item.key; onSelected(item) }, onOpen = { onOpen(item) }, onHold = { onHold(item) },
                 )
             }
         }
@@ -122,7 +124,7 @@ private const val CARD_GAP = 16f
 /** One card: the picture (16:9) with the logo and the progress bar on it, then the title and where you are. */
 @Composable
 private fun ContinueCard(
-    item: HeroItem, s: Float, modifier: Modifier, onFocused: () -> Unit, onOpen: () -> Unit, onRemove: () -> Unit,
+    item: HeroItem, s: Float, modifier: Modifier, onFocused: () -> Unit, onOpen: () -> Unit, onHold: () -> Unit,
 ) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
@@ -146,7 +148,7 @@ private fun ContinueCard(
                 .clip(shape)
                 .background(Color(0xFF2A2A2F))
                 .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
-                .tvPress(onLong = onRemove, onClick = onOpen),
+                .tvPress(onLong = onHold, onClick = onOpen),
         ) {
             val live = LiveCards.isLive(item)
             // A Live TV card with no picture of the show: the channel's logo, large, in the middle of the card.

@@ -169,6 +169,20 @@ class Trakt(ctx: Context) {
         code in 200..299
     }.getOrDefault(false)
 
+    /** Adds a film, or one episode of a show, to your Trakt history (watched now). */
+    fun markWatched(imdb: String, type: String, season: Int, episode: Int): Boolean = runCatching {
+        val title = JSONObject().put("ids", JSONObject().put("imdb", imdb))
+        val body = if (type == "movie") JSONObject().put("movies", JSONArray().put(title))
+        else {
+            val ep = JSONObject().put("number", episode)
+            val se = JSONObject().put("number", season).put("episodes", JSONArray().put(ep))
+            JSONObject().put("shows", JSONArray().put(title.put("seasons", JSONArray().put(se))))
+        }
+        val (code, text) = call("POST", "/sync/history", body, auth = true)
+        if (code !in 200..299) Glog.w("Trakt mark watched: HTTP $code $text")
+        code in 200..299
+    }.getOrDefault(false)
+
     /** Removes a paused item on Trakt too, so it doesn't come back with the next sync. */
     fun removePlayback(id: Long) { runCatching { call("DELETE", "/sync/playback/$id", auth = true) } }
 }

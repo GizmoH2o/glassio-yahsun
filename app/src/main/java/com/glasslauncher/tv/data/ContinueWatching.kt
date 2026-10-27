@@ -169,8 +169,8 @@ class ContinueWatching(
      */
     private fun syncNuvio(nu: NuvioAccount) {
         val all = nu.watchProgress() ?: run { nuvioStatus.value = "Sync failed: ${nu.lastError.ifBlank { "offline" }}"; return }
-        // Cinemeta names the title: only IMDb ids (tt…); one entry per title, its latest episode.
-        val latest = all.filter { it.id.startsWith("tt") }.groupBy { it.id }.mapNotNull { (_, l) -> l.maxByOrNull { it.at } }
+        // Cinemeta names the title: only IMDb ids (tt…).
+        val latest = onePerTitle(all.filter { it.id.startsWith("tt") })
         synchronized(this) {
             val keys = JSONObject()
             val list = entries.value.filterNot { it.app == "Nuvio" }.toMutableList()
@@ -225,6 +225,20 @@ class ContinueWatching(
         rebuildItems()
     }
 
+    companion object {
+        /**
+         * One entry per title from the Nuvio account's rows: a film's latest, a series' furthest episode (specials only
+         * when there's nothing else), as Nuvio resumes it ("Up Next From Furthest Episode", on unless turned off there),
+         * so an old episode started again doesn't stand for the series. Each is dated by its title's latest watch.
+         */
+        fun onePerTitle(rows: List<NuvioAccount.Progress>): List<NuvioAccount.Progress> = rows.groupBy { it.id }.mapNotNull { (_, l) ->
+            val pool = l.filter { it.season > 0 }.ifEmpty { l }
+            val pick = if (l.first().type == "movie") l.maxByOrNull { it.at }
+            else pool.maxWithOrNull(compareBy<NuvioAccount.Progress> { it.season }.thenBy { it.episode })
+            pick?.copy(at = l.maxOf { it.at })
+        }
+    }
+
     private val epochLine = Regex("""^(\d+)\.(\d+)\s+\d+\s+\d+\s+[A-Z]\s+nuvio\s*:\s(.*)$""")
     private val startRe = Regex("""\[atividade] inicio (tt\d+) T(\d+)E(\d+) (\d+)%""")
     private val pointRe = Regex("""\[visto] ponto gravado .*?\((\d+)%\)""")
@@ -277,6 +291,35 @@ class ContinueWatching(
     }
 
     fun clear() { entries.value = emptyList(); save(emptyList()); items.value = emptyList() }
+
+    /**
+     * Whether [markWatched] can mark this title watched in the app it came from: the Nuvio account, Trakt, or Stremio
+     * for a film (an episode there needs Stremio's own list of the series' episodes, which this doesn't keep).
+     */
+    fun canMarkWatched(key: String): Boolean {
+        val e = entries.value.firstOrNull { it.key == key } ?: return false
+        return when (e.app) {
+            "Nuvio" -> nuvio?.connected == true
+            "Trakt" -> trakt.connected
+            "Stremio" -> e.type == "movie" && stremio?.connected == true
+            else -> false
+        }
+    }
+
+    /** Marks the title (its episode) watched where it came from, then takes it out of the list as [remove] does. */
+    fun markWatched(key: String, title: String, done: (Boolean) -> Unit) {
+        val e = entries.value.firstOrNull { it.key == key } ?: return done(false)
+        scope.launch(Dispatchers.IO) {
+            val ok = when (e.app) {
+                "Nuvio" -> nuvio?.markWatched(e.imdb, e.type, title, e.season, e.episode) == true
+                "Trakt" -> trakt.markWatched(e.imdb, e.type, e.season, e.episode)
+                "Stremio" -> stremio?.markWatched(e.imdb) == true
+                else -> false
+            }
+            if (ok) remove(key)
+            done(ok)
+        }
+    }
 
     fun remove(key: String) {
         if (entries.value.any { it.key == key && it.app == "Trakt" }) {

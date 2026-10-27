@@ -90,6 +90,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - Opening a title brings Nuvio forward and opens it directly (no restart, no splash when Nuvio is running).
   Works with **Nuvio Legacy**, the **official Nuvio TV** app, **Nuvio Arc**, **Nuvio Re-Shaped** and **Stremio**
   (Settings → Nuvio, Stremio & Home Assistant → *Open titles in*; **Auto** picks the first installed in that order).
+  A title from Continue Watching or the Library's Nuvio and Stremio tabs opens in the app it came from instead.
 
 **Glass**
 - Real refraction (AGSL shader), blurred backdrop shared by every glass surface, "Glass like glass" (with or without ripple), clear, AMOLED black, black-on-white.
@@ -182,6 +183,10 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 - **The official Nuvio app** and **Stremio**: sign in to the same account here (Settings → Nuvio, Stremio & Home Assistant) and what you're watching there shows up, read from the account every few minutes and when you come back to Glassio.
 - Nuvio Arc and Re-Shaped don't write the Legacy log, so for them use Trakt. Other apps (Netflix, YouTube…) keep their Continue Watching private on Google TV.
 - Settings → **Continue Watching**: at the start / mixed / off, how many slides lead, open on what you just watched, progress bar, clear the list.
+- Each card is tagged **Nuvio** or **Stremio**, and OK opens it in that app. A series shows the furthest episode you've
+  reached, as Nuvio resumes it.
+- Hold OK on a card to open it in your other app, mark it watched (on the Nuvio account, on Trakt, or a film in
+  Stremio) or take it out of the row.
 - A title leaves the list when you finish it (past 92 %) or remove it.
 
 ### TV access (ADB) — one-time setup

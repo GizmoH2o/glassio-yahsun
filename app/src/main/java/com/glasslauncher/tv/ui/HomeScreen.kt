@@ -1124,14 +1124,26 @@ private fun HeroSection(
             drop = { away.value * (rowAbove - ROW_BOTTOM) * s * pxPerDp },
             onInside = { inRow = it; onInRow(it) }, onSelected = { rowPick = it },
             onOpen = { if (com.glasslauncher.tv.data.LiveCards.isLive(it)) com.glasslauncher.tv.data.LiveCards.open(ctx, it) else NuvioLaunch.open(ctx, settings, app.http, it) },
-            onRemove = { item ->
+            onHold = { item ->
                 val cards = com.glasslauncher.tv.data.LiveCards
                 val remove = {
                     if (cards.isLive(item)) cards.hide(ctx, item) else app.cw.remove(item.key)
                     toast(ctx, "Removed from Continue Watching · ${item.name}")
                 }
                 val channel = item.id.removePrefix("ch:").toIntOrNull()
-                if (!cards.isLive(item) || item.type == cards.TYPE_RECORDING || channel == null) remove()
+                if (!cards.isLive(item)) {
+                    // A title: open it in your other app, mark it watched where it came from, or take it out.
+                    val options = ArrayList<Pair<String, () -> Unit>>()
+                    for (t in NuvioLaunch.others(ctx, settings, item))
+                        options += "Open in ${NuvioLaunch.shortName(t)}" to { NuvioLaunch.open(ctx, settings, app.http, item, t) }
+                    if (app.cw.canMarkWatched(item.key)) options += (if (item.sub.isNotBlank()) "Mark ${item.sub} as watched" else "Mark as watched") to {
+                        app.cw.markWatched(item.key, item.name) { ok ->
+                            toast(ctx, if (ok) "Marked as watched · ${item.name}" else "Couldn't mark ${item.name} as watched. Try again")
+                        }
+                    }
+                    options += "Remove from Continue Watching" to { remove() }
+                    onDialog(MenuDialog(item.name, options))
+                } else if (item.type == cards.TYPE_RECORDING || channel == null) remove()
                 else heroScope.launch {
                     // A channel on now (the last one, a followed match): record what's on, or take the card out.
                     val recording = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

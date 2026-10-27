@@ -224,6 +224,23 @@ class NuvioAccount(ctx: Context) {
         }
     }.getOrElse { Glog.w("Nuvio watch progress", it); null }
 
+    /**
+     * Marks a film, or one episode, watched on the account, as the Nuvio apps do: the server adds (or updates) only the
+     * rows it's sent, so the rest of what's been watched stays as it is.
+     */
+    fun markWatched(id: String, type: String, title: String, season: Int, episode: Int, profile: Int = 1): Boolean = runCatching {
+        var tok = access() ?: return false
+        val movie = type == "movie"
+        val item = JSONObject().put("content_id", id).put("content_type", if (movie) "movie" else "series").put("title", title.ifBlank { id })
+            .put("season", if (movie) JSONObject.NULL else season).put("episode", if (movie) JSONObject.NULL else episode)
+            .put("watched_at", System.currentTimeMillis())
+        val body = JSONObject().put("p_items", JSONArray().put(item)).put("p_profile_id", profile).put("p_origin_client_id", clientId)
+        var c = call("/rest/v1/rpc/sync_push_watched_items", body, tok).first
+        if (c == 401) { tok = access(force = true) ?: return false; c = call("/rest/v1/rpc/sync_push_watched_items", body, tok).first }
+        if (c !in 200..299) { Glog.w("Nuvio mark watched: HTTP $c"); lastError = "Nuvio answered HTTP $c" }
+        c in 200..299
+    }.getOrElse { Glog.w("Nuvio mark watched", it); false }
+
     /** Takes titles out of the account's watch progress (removed from Continue Watching here, so in Nuvio too). */
     fun removeProgress(keys: List<String>, profile: Int = 1): Boolean = runCatching {
         if (keys.isEmpty()) return true

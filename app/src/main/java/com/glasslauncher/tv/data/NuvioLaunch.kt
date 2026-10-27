@@ -54,8 +54,17 @@ object NuvioLaunch {
         }
     }
 
-    private fun nuvio(ctx: Context, s: Settings, nuvios: Set<String>): String =
+    private fun nuvio(ctx: Context, s: Settings, nuvios: Set<String> = TARGETS.keys - "stremio"): String =
         s.nuvioTarget.takeIf { it in nuvios } ?: nuvios.firstOrNull { installed(ctx, TARGETS.getValue(it)) } ?: "legacy"
+
+    /** The other installed apps [item] can open in (your Nuvio app, Stremio), besides the one OK opens it in. */
+    fun others(ctx: Context, s: Settings, item: HeroItem): List<String> {
+        val main = resolve(ctx, s, item)
+        return listOf(nuvio(ctx, s), "stremio").filter { it != main && installed(ctx, TARGETS.getValue(it)) }
+    }
+
+    /** "Nuvio", "Nuvio Legacy", "Stremio"…: a target's short name for "Open in …". */
+    fun shortName(target: String) = if (target == "official") "Nuvio" else NAMES[target] ?: target
 
     fun intent(ctx: Context, s: Settings, type: String, id: String): Intent = intent(resolve(ctx, s), type, id)
 
@@ -78,8 +87,8 @@ object NuvioLaunch {
         return Intent(Intent.ACTION_VIEW, uri).setPackage(pkg).addFlags(flags)
     }
 
-    fun open(ctx: Context, s: Settings, http: Http, item: HeroItem) {
-        val target = resolve(ctx, s, item)
+    /** Opens [item] in the app it came from, else where "Open titles in" says; or in [target] when given. */
+    fun open(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) {
         val pkg = TARGETS.getValue(target)
         try {
             ctx.startActivity(intent(target, item.type, item.id))

@@ -62,11 +62,11 @@ class Library(
         stremioList.value = list.take(300).map { n ->
             val type = if (n.type == "movie") "movie" else "series"
             // Stremio keeps the poster: Cinemeta only for a title without one (IMDb titles), as the Nuvio list does.
-            (if (n.poster.isBlank() && n.id.startsWith("tt")) meta(type, n.id) else null) ?: HeroItem(
+            ((if (n.poster.isBlank() && n.id.startsWith("tt")) meta(type, n.id) else null) ?: HeroItem(
                 key = "$type:${n.id}", id = n.id, type = type, name = n.name, poster = n.poster,
                 background = n.poster, logo = "", overview = "", rating = "", year = "",
                 genres = emptyList(), platform = "",
-            )
+            )).copy(source = "Stremio")
         }
     }
 
@@ -95,11 +95,11 @@ class Library(
         nuvioList.value = list.filter { it.id.isNotBlank() }.take(300).map { n ->
             val type = if (n.type == "movie") "movie" else "series"
             val m = if (n.poster.isBlank() && n.id.startsWith("tt")) meta(type, n.id) else null
-            m ?: HeroItem(
+            (m ?: HeroItem(
                 key = "$type:${n.id}", id = n.id, type = type, name = n.name, poster = n.poster,
                 background = n.background.ifBlank { n.poster }, logo = "", overview = n.description, rating = "", year = n.year,
                 genres = emptyList(), platform = "",
-            )
+            )).copy(source = "Nuvio")
         }
     }
     /** "" or why the watchlist could not be read. */
