@@ -302,7 +302,7 @@ final class LiveShowPage extends Dialog {
             // The episode (its season and number on a chip, then its title), the synopsis (the guide's, else TMDB's) up
             // to five lines, the cast under it.
             y += 70 * k;
-            LiveEpisode ep = LiveEpisode.cached(show.sub);
+            LiveEpisode ep = LiveEpisode.of(getContext(), show, true, this::postInvalidate);
             if (ep != null) {
                 LiveEpisode.draw(c, ep, x, y + episode.getTextSize() * 0.8f, episode, TEXT_W * k, k);
                 y += episode.getTextSize() * 1.9f;

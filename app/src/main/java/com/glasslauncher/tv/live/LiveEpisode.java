@@ -67,6 +67,37 @@ final class LiveEpisode {
         return e == NONE ? null : e;
     }
 
+    private static final java.util.Map<String, LiveEpisode> NUMBERED_BY_TMDB = new java.util.HashMap<>();
+    /** Lines TMDB couldn't number, and what it knew then (asked again only once it knows more, or to ask). */
+    private static final java.util.Map<String, Integer> UNNUMBERED = new java.util.HashMap<>();
+
+    /**
+     * Program `p`'s episode: as its line says, with TMDB's season and number when the line is only a title (LiveTmdbEpisodes;
+     * asked in the background with `ask`, the shows on screen in focus: `found` runs when the answer comes; without, only
+     * what's known, as the guide's cells do every frame). Null without an episode line. Drawing, on the main thread.
+     */
+    static LiveEpisode of(android.content.Context c, Xtream.Program p, boolean ask, Runnable found) {
+        if (p == null) return null;
+        LiveEpisode e = cached(p.sub);
+        if (e == null || e.episode >= 0 || e.title.isEmpty()) return e;
+        String key = p.title + "\n" + p.sub;
+        LiveEpisode known = NUMBERED_BY_TMDB.get(key);
+        if (known != null) return known;
+        int stamp = LiveTmdb.changes() * 31 + LiveTmdbEpisodes.changes();
+        Integer missed = UNNUMBERED.get(key);
+        if (!ask && missed != null && missed == stamp) return e;
+        int[] se = LiveTmdbEpisodes.find(c, p.title, e.title, ask, found);
+        if (se == null) {
+            if (UNNUMBERED.size() > 2000) UNNUMBERED.clear();
+            UNNUMBERED.put(key, stamp);
+            return e;
+        }
+        if (NUMBERED_BY_TMDB.size() > 2000) NUMBERED_BY_TMDB.clear();
+        known = new LiveEpisode(se[0], se[1], e.title);
+        NUMBERED_BY_TMDB.put(key, known);
+        return known;
+    }
+
     /** The chip's words: "S5 · E8", "E12", "" without numbers. */
     String label() {
         if (episode < 0) return "";
@@ -94,25 +125,9 @@ final class LiveEpisode {
         float end = x;
         String label = e.label();
         if (!label.isEmpty()) {
-            if (chip == null) {
-                chipText = new Paint(Paint.ANTI_ALIAS_FLAG);
-                chip = new Paint(Paint.ANTI_ALIAS_FLAG);
-                box = new RectF();
-            }
-            chipText.setTypeface(Ui.semibold);
-            chipText.setTextSize(text.getTextSize() * 0.74f);
-            chipText.setLetterSpacing(0.06f);
-            int color = text.getColor();
-            boolean onLight = ((color >> 16 & 255) * 3 + (color >> 8 & 255) * 6 + (color & 255)) / 10 < 128;
-            chipText.setColor(onLight ? color | 0xFF000000 : 0xF2FFFFFF);
-            float h = Math.max(text.getTextSize() * 1.05f, 18 * k), tw = chipText.measureText(label), w = tw + h * 0.9f;
+            float w = chipWidth(label, text, k);
             if (w > room) return x;
-            float mid = baseline - Ui.halfCap(text);
-            box.set(x, mid - h / 2, x + w, mid + h / 2);
-            chip.setColor(onLight ? 0x24000000 : 0x2EFFFFFF);
-            c.drawRoundRect(box, h * 0.32f, h * 0.32f, chip);
-            c.drawText(label, x + (w - tw) / 2, mid + Ui.halfCap(chipText), chipText);
-            end = x + w + (e.title.isEmpty() ? 0 : 12 * k);
+            end = drawChip(c, label, x, baseline, text, k) + (e.title.isEmpty() ? 0 : 12 * k);
         }
         if (!e.title.isEmpty()) {
             float left = room - (end - x);
@@ -122,6 +137,44 @@ final class LiveEpisode {
             end += text.measureText(t);
         }
         return end;
+    }
+
+    /** How wide the chip of `label` is beside text in `text`. */
+    static float chipWidth(String label, Paint text, float k) {
+        pens(text);
+        float h = chipHeight(text, k);
+        return chipText.measureText(label) + h * 0.9f;
+    }
+
+    /** The chip alone (its season and number) on the line at `baseline` from `x`; returns where it ends. */
+    static float drawChip(Canvas c, String label, float x, float baseline, Paint text, float k) {
+        pens(text);
+        int color = text.getColor();
+        boolean onLight = ((color >> 16 & 255) * 3 + (color >> 8 & 255) * 6 + (color & 255)) / 10 < 128;
+        chipText.setColor(onLight ? color | 0xFF000000 : 0xF2FFFFFF);
+        float h = chipHeight(text, k), tw = chipText.measureText(label), w = tw + h * 0.9f;
+        float mid = baseline - Ui.halfCap(text);
+        box.set(x, mid - h / 2, x + w, mid + h / 2);
+        chip.setColor(onLight ? 0x24000000 : 0x2EFFFFFF);
+        c.drawRoundRect(box, h * 0.32f, h * 0.32f, chip);
+        c.drawText(label, x + (w - tw) / 2, mid + Ui.halfCap(chipText), chipText);
+        return x + w;
+    }
+
+    private static float chipHeight(Paint text, float k) {
+        return Math.max(text.getTextSize() * 1.05f, 18 * k);
+    }
+
+    /** The chip's lettering for text in `text`: smaller, semibold, spaced. */
+    private static void pens(Paint text) {
+        if (chip == null) {
+            chipText = new Paint(Paint.ANTI_ALIAS_FLAG);
+            chip = new Paint(Paint.ANTI_ALIAS_FLAG);
+            box = new RectF();
+        }
+        chipText.setTypeface(Ui.semibold);
+        chipText.setTextSize(text.getTextSize() * 0.74f);
+        chipText.setLetterSpacing(0.06f);
     }
 
     private static String ellipsize(String s, Paint p, float room) {

@@ -127,6 +127,7 @@ final class LiveView extends View {
     private Paint title, bigTitle, warn, label, labelOn, small, number, numberOn, pillText, fill, glow, spinner, line, typed;
     private Paint lName, lShow, lHead, lSmall, lNum, lGroup, lTime, lTitle;
     private TextPaint lCardTitle, lCardAbout;
+    private Paint lCardEpisode;
     private StaticLayout cardTitle, cardAbout;
     private String cardTitleText = "", cardAboutText = "";
     private final java.util.Calendar listCal = java.util.Calendar.getInstance();
@@ -808,14 +809,8 @@ final class LiveView extends View {
             c.drawRect(gx + GR_W * k - 1.5f * k, 0, gx + GR_W * k, h, fill);
             drawCategories(c, gx);
         }
-        // The channels' panel: its header (the category, how many), then the rows.
-        fill.setShader(null);
-        fill.setColor((LiveTheme.bg & 0x00FFFFFF) | 0xDE000000);
-        c.drawRect(cx, 0, cx + CH_W * k, h, fill);
-        fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xB3000000);
-        c.drawRect(cx, 0, cx + CH_W * k, C_TOP * k, fill);
-        fill.setColor(0x14FFFFFF);
-        c.drawRect(cx + CH_W * k - 1.5f * k, 0, cx + CH_W * k, h, fill);
+        // The channels' panel, as the design has it (LiveTheme.listPanel): its header (the category, how many), then the rows.
+        drawListPanel(c, cx);
         String heading = cat >= 0 && cat < lineup.categories.size() ? lineup.categories.get(cat).name : Ui.tr("Ajustes", "Settings");
         String count = list == recordings.channels
                 ? list.size() + " " + (list.size() == 1 ? Ui.tr("gravação", "recording") : Ui.tr("gravações", "recordings"))
@@ -852,6 +847,94 @@ final class LiveView extends View {
         }
     }
 
+    private Paint ringPaint;
+    private Shader listShade;
+    private final android.graphics.Matrix listShadeAt = new android.graphics.Matrix();
+
+    /**
+     * The channels' panel at `cx`: the dark slab with its header band and a fine edge; Apple TV's and Disney+'s a
+     * floating card of glass with a light edge; Sky's, Sling's, Plex's and Pluto TV's a solid band with a line of the
+     * focus color at its edge; Netflix's, Max's and Hulu's the design's dark from the left, fading out past the list.
+     */
+    private void drawListPanel(Canvas c, float cx) {
+        fill.setShader(null);
+        switch (LiveTheme.listPanel()) {
+            case LiveTheme.LIST_GLASS: {
+                r.set(cx + 6 * k, 16 * k, cx + (CH_W - 6) * k, h - 16 * k);
+                float rr = LiveTheme.panelRound(36 * k);
+                fill.setColor((LiveTheme.bg & 0x00FFFFFF) | 0xE0000000);
+                c.drawRoundRect(r, rr, rr, fill);
+                fill.setColor(LiveTheme.surface);
+                c.drawRoundRect(r, rr, rr, fill);
+                if (rimPaint == null) {
+                    rimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    rimPaint.setStyle(Paint.Style.STROKE);
+                }
+                rimPaint.setStrokeWidth(1.5f * k);
+                rimPaint.setColor(LiveTheme.rim != 0 ? LiveTheme.rim : 0x2EFFFFFF);
+                c.drawRoundRect(r, rr, rr, rimPaint);
+                break;
+            }
+            case LiveTheme.LIST_BAND:
+                fill.setColor((LiveTheme.bg & 0x00FFFFFF) | 0xF5000000);
+                c.drawRect(cx, 0, cx + CH_W * k, h, fill);
+                fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xE6000000);
+                c.drawRect(cx, 0, cx + CH_W * k, C_TOP * k, fill);
+                fill.setColor(LiveTheme.tile);
+                c.drawRect(cx + CH_W * k - 4 * k, 0, cx + CH_W * k, h, fill);
+                break;
+            case LiveTheme.LIST_SHADE: {
+                float wide = CH_W * 1.35f * k;
+                if (listShade == null) {
+                    int base = LiveTheme.bg & 0x00FFFFFF;
+                    listShade = new LinearGradient(0, 0, wide, 0, new int[] {base | 0xF2000000, base | 0xE6000000, base},
+                            new float[] {0, 0.62f, 1}, Shader.TileMode.CLAMP);
+                }
+                listShadeAt.setTranslate(cx, 0);
+                listShade.setLocalMatrix(listShadeAt);
+                fill.setShader(listShade);
+                c.drawRect(cx, 0, cx + wide, h, fill);
+                fill.setShader(null);
+                break;
+            }
+            default:
+                fill.setColor((LiveTheme.bg & 0x00FFFFFF) | 0xDE000000);
+                c.drawRect(cx, 0, cx + CH_W * k, h, fill);
+                fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xB3000000);
+                c.drawRect(cx, 0, cx + CH_W * k, C_TOP * k, fill);
+                fill.setColor(0x14FFFFFF);
+                c.drawRect(cx + CH_W * k - 1.5f * k, 0, cx + CH_W * k, h, fill);
+                break;
+        }
+    }
+
+    /**
+     * The focus on a row or a tile: filled with the focus color, or (Netflix's, Max's, Plex's: LiveTheme.ringFocus) a
+     * lit tile with a ring of it. `a` fades it.
+     */
+    void drawFocus(Canvas c, RectF at, float radius, float a) {
+        fill.setShader(null);
+        if (!LiveTheme.ringFocus()) {
+            fill.setColor(Ui.alpha(LiveTheme.tile, a));
+            c.drawRoundRect(at, radius, radius, fill);
+            return;
+        }
+        fill.setColor(Ui.alpha(0x38FFFFFF, a));
+        c.drawRoundRect(at, radius, radius, fill);
+        if (ringPaint == null) {
+            ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            ringPaint.setStyle(Paint.Style.STROKE);
+        }
+        float wdt = 3.5f * k;
+        ringPaint.setStrokeWidth(wdt);
+        ringPaint.setColor(Ui.alpha(LiveTheme.tile, a));
+        ringR.set(at);
+        ringR.inset(wdt / 2, wdt / 2);
+        c.drawRoundRect(ringR, radius, radius, ringPaint);
+    }
+
+    private final RectF ringR = new RectF();
+
     /** The list's paints (made once per size). */
     /** History's number of channels changed in the settings. */
     void historyChanged() {
@@ -862,6 +945,7 @@ final class LiveView extends View {
     /** A new theme: the paints with its color made again (on the next frame). */
     void themeChanged() {
         lName = null;
+        listShade = null;
         gTitle = null;
         invalidate();
     }
@@ -877,6 +961,7 @@ final class LiveView extends View {
         lTitle = Ui.text(Ui.regular, 27 * k, 0xE6FFFFFF);
         lCardTitle = new TextPaint(Ui.text(Ui.semibold, 38 * k, WHITE));
         lCardAbout = new TextPaint(Ui.text(Ui.regular, 26 * k, 0xB3FFFFFF));
+        lCardEpisode = Ui.text(Ui.medium, 27 * k, 0xE6FFFFFF);
         cardTitle = cardAbout = null;
         cardTitleText = cardAboutText = "";
     }
@@ -888,11 +973,16 @@ final class LiveView extends View {
         int first = Math.max(0, (int) Math.floor(top)), last = Math.min(n, first + rows + 2);
         // The focus (or, with the channels in front, the chosen category's soft tile).
         catRow(gx, lCat.value, top, focusRect);
-        fill.setColor(column == 0 ? LiveTheme.tile : LiveTheme.surface);
-        c.drawRoundRect(focusRect, 14 * k * LiveTheme.round, 14 * k * LiveTheme.round, fill);
+        if (column == 0) {
+            drawFocus(c, focusRect, 14 * k * LiveTheme.round, 1);
+        } else {
+            fill.setColor(LiveTheme.surface);
+            c.drawRoundRect(focusRect, 14 * k * LiveTheme.round, 14 * k * LiveTheme.round, fill);
+        }
+        boolean ring = LiveTheme.ringFocus();
         for (int i = first; i < last; i++) {
             catRow(gx, i, top, r);
-            boolean onTile = column == 0 && i == cat;
+            boolean onTile = column == 0 && i == cat && !ring;
             lGroup.setColor(onTile ? LiveTheme.ink : 0xE6FFFFFF);
             lNum.setColor(onTile ? Ui.alpha(LiveTheme.ink, 0.6f) : 0x80FFFFFF);
             float base = r.centerY() + Ui.halfCap(lGroup);
@@ -919,17 +1009,23 @@ final class LiveView extends View {
         int rows = chRows();
         float top = lChTop.value;
         int first = Math.max(0, (int) Math.floor(top)), last = Math.min(list.size(), first + rows + 2);
+        boolean ring = LiveTheme.ringFocus();
         if (!list.isEmpty()) {
             chRow(cx, lCh.value, top, focusRect);
-            fill.setColor(Ui.alpha(column == 2 ? 0x33FFFFFF : LiveTheme.tile, col));
-            c.drawRoundRect(focusRect, 14 * k * LiveTheme.round, 14 * k * LiveTheme.round, fill);
+            if (column == 2) {
+                fill.setShader(null);
+                fill.setColor(Ui.alpha(0x33FFFFFF, col));
+                c.drawRoundRect(focusRect, 14 * k * LiveTheme.round, 14 * k * LiveTheme.round, fill);
+            } else {
+                drawFocus(c, focusRect, 14 * k * LiveTheme.round, col);
+            }
         }
         Xtream.Channel playing = live.playing();
         long now = System.currentTimeMillis();
         for (int i = first; i < last; i++) {
             Xtream.Channel channel = list.get(i);
             chRow(cx, i, top, r);
-            float onTile = column != 2 && i == ch ? col : 0;
+            float onTile = column != 2 && i == ch && !ring ? col : 0;     // on a ring, the text stays as it is
             lName.setColor(LiveTheme.onTile(WHITE, onTile));
             lNum.setColor(LiveTheme.onTile(0x80FFFFFF, onTile));
             lShow.setColor(LiveTheme.onTile(LiveTheme.text, onTile));
@@ -1125,7 +1221,10 @@ final class LiveView extends View {
             cardTitle = StaticLayout.Builder.obtain(p.title, 0, p.title.length(), lCardTitle, Math.round(inner))
                     .setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).build();
         }
-        String about = p.about == null ? "" : p.about;
+        // The episode (its season and number on a chip, then its title) on its own line, the synopsis without it.
+        LiveEpisode ep = LiveEpisode.of(getContext(), p, true, this::postInvalidate);
+        float epH = ep == null ? 0 : 50 * k;
+        String about = p.about == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
         if (!about.equals(cardAboutText) || (cardAbout == null && !about.isEmpty()) || cardAbout != null && cardAbout.getWidth() != Math.round(inner)) {
             cardAboutText = about;
             cardAbout = about.isEmpty() ? null : StaticLayout.Builder.obtain(about, 0, about.length(), lCardAbout, Math.round(inner))
@@ -1133,7 +1232,7 @@ final class LiveView extends View {
         }
         Bitmap art = artOf(p);
         float artH = art == null ? 0 : Math.min(cw * 9 / 16, 300 * k);
-        float top = 48 * k, hgt = artH + pad + cardTitle.getHeight() + 64 * k + (cardAbout == null ? 0 : cardAbout.getHeight() + 16 * k) + pad;
+        float top = 48 * k, hgt = artH + pad + cardTitle.getHeight() + 64 * k + epH + (cardAbout == null ? 0 : cardAbout.getHeight() + 16 * k) + pad;
         r.set(x, top, x + cw, top + hgt);
         fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xEB000000);
         c.drawRoundRect(r, 18 * k * LiveTheme.round, 18 * k * LiveTheme.round, fill);
@@ -1157,12 +1256,7 @@ final class LiveView extends View {
             String when = p.end <= now ? Ui.tr("Já passou", "Ended") : d == 0 ? Ui.tr("Hoje", "Today")
                     : d == 1 ? Ui.tr("Amanhã", "Tomorrow") : dayFormat.format(new java.util.Date(p.start));
             c.drawText(when, x + pad + lTime.measureText(times) + 28 * k, y, lTime);
-            if (cardAbout != null) {
-                c.save();
-                c.translate(x + pad, y + 24 * k);
-                cardAbout.draw(c);
-                c.restore();
-            }
+            drawCardAbout(c, ep, x + pad, y, inner, epH);
             return;
         }
         float f = Ui.clamp((now - p.start) / (float) Math.max(1, p.end - p.start));
@@ -1171,12 +1265,17 @@ final class LiveView extends View {
         fill.setColor(WHITE);
         c.drawRoundRect(bx, y - 12 * k, bx + bw * f, y - 6 * k, 3 * k, 3 * k, fill);
         c.drawText(LiveView.minutesLeft((int) Math.max(1, Math.round((p.end - now) / 60_000.0))), bx + bw + 24 * k, y, lTime);
-        if (cardAbout != null) {
-            c.save();
-            c.translate(x + pad, y + 24 * k);
-            cardAbout.draw(c);
-            c.restore();
-        }
+        drawCardAbout(c, ep, x + pad, y, inner, epH);
+    }
+
+    /** The show card's episode line (when there's one) and its synopsis, under its times at `y`. */
+    private void drawCardAbout(Canvas c, LiveEpisode ep, float x, float y, float room, float epH) {
+        if (ep != null) LiveEpisode.draw(c, ep, x, y + 46 * k, lCardEpisode, room, k);
+        if (cardAbout == null) return;
+        c.save();
+        c.translate(x, y + 24 * k + epH);
+        cardAbout.draw(c);
+        c.restore();
     }
 
     // MARK: - The shows' pictures
@@ -3936,7 +4035,7 @@ final class LiveView extends View {
         if (list == null || list.isEmpty()) {
             // Still loading, or no guide for this channel: one tile with its name.
             cell.set(gridL, y, gridR - 4 * k, y2);
-            drawTile(c, list == null ? "…" : channel.name, "", ink, LiveTheme.cellLater, 0, 0, null, false, false);
+            drawTile(c, list == null ? "…" : channel.name, null, ink, LiveTheme.cellLater, 0, 0, null, false, false);
             return;
         }
         float m0 = gTimeOff.value, m1 = m0 + G_MINUTES;
@@ -3953,7 +4052,7 @@ final class LiveView extends View {
             if (score != null) tag = score.startsWith("FT") ? 5 : 4;
             if (p.end > now) {
                 String key = channel.id + ":" + p.start;
-                drawTile(c, text, p.sub, ink, p.start <= now ? LiveTheme.cellNow : LiveTheme.cellLater, 0, tag, score,
+                drawTile(c, text, p, ink, p.start <= now ? LiveTheme.cellNow : LiveTheme.cellLater, 0, tag, score,
                         recorded.contains(key), reminded.contains(key));
                 continue;
             }
@@ -3961,7 +4060,7 @@ final class LiveView extends View {
             // gone, darker.
             boolean replay = replayable(channel, p, now);
             boolean mark = replay && x2 - x1 > 70 * k;
-            drawTile(c, text, p.sub, ink, replay ? LiveTheme.cellLater : LiveTheme.cellPast, mark ? 30 * k : 0, tag == 1 ? 0 : tag, score, false, false);
+            drawTile(c, text, p, ink, replay ? LiveTheme.cellLater : LiveTheme.cellPast, mark ? 30 * k : 0, tag == 1 ? 0 : tag, score, false, false);
             if (mark) drawReplay(c, cell.left + 26 * k, mark && !p.sub.isEmpty() ? cell.centerY() - 14 * k : cell.centerY(), 12 * k,
                     ink ? LiveTheme.ink : LiveTheme.text);
         }
@@ -3994,7 +4093,7 @@ final class LiveView extends View {
      * dot and the reminder's bell, and the episode (`sub`) small under it; without one, the title alone, centered.
      * `ink`: only the text, dark, for under the focus. `indent`: room kept at the start (catch-up's arrow).
      */
-    private void drawTile(Canvas c, String title, String sub, boolean ink, int color, float indent, int tag, String score,
+    private void drawTile(Canvas c, String title, Xtream.Program p, boolean ink, int color, float indent, int tag, String score,
             boolean rec, boolean bell) {
         if (!ink) {
             fill.setShader(null);
@@ -4013,6 +4112,7 @@ final class LiveView extends View {
         if (room < 24 * k) return;
         Paint tp = ink ? gCellOn : gCell;
         float rs = cell.height() / (80 * k);       // the row's size against the comfortable one
+        String sub = p == null ? "" : p.sub;
         boolean two = !sub.isEmpty() && cell.height() >= 56 * k;
         float base = two ? cell.centerY() - 5 * k * rs : cell.centerY() + Ui.halfCap(tp);
         // The tags' room: kept only when the title still has a fair share.
@@ -4052,7 +4152,7 @@ final class LiveView extends View {
         }
         if (two) {      // the episode: its season and number on a small chip, then its title
             Paint sp = ink ? gSubOn : gSub;
-            LiveEpisode ep = LiveEpisode.cached(sub);
+            LiveEpisode ep = LiveEpisode.of(getContext(), p, false, null);      // TMDB's numbers only when known
             float sx = cell.left + 16 * k, sy = cell.centerY() + 25 * k * rs;
             if (ep != null) LiveEpisode.draw(c, ep, sx, sy, sp, room + indent, k);
             else c.drawText(ellipsize(sub, sp, room + indent), sx, sy, sp);
@@ -4304,7 +4404,7 @@ final class LiveView extends View {
         textAndTag(c, (when.isEmpty() ? "" : when + "  ·  ") + (channel.num > 0 ? channel.num + "  " : "") + nameOf(channel), tagOf(channel),
                 x, 212 * k, gMeta, room);
         // The episode (its season and number on a chip, then its title) first, the synopsis in the lines left.
-        LiveEpisode ep = p == null ? null : LiveEpisode.cached(p.sub);
+        LiveEpisode ep = LiveEpisode.of(getContext(), p, true, this::postInvalidate);
         String about = p == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
         float aboutTop = 236 * k;
         int lines = G_ABOUT_LINES;

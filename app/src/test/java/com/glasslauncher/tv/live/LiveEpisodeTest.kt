@@ -49,4 +49,12 @@ class LiveEpisodeTest {
         assertEquals("Other words.", LiveEpisode.aboutWithout("Other words.", line))
         assertEquals("S05 E08 Terror Tales of the Park III and more", LiveEpisode.aboutWithout("S05 E08 Terror Tales of the Park III and more", line))
     }
+
+    @Test fun tmdbNamesCompareWithoutPunctuationOrCase() {
+        assertEquals("the ghouls", LiveTmdbEpisodes.key("The Ghouls"))
+        assertEquals("the ghouls", LiveTmdbEpisodes.key("  the  GHOULS! "))
+        assertEquals("rick potion no 9", LiveTmdbEpisodes.key("Rick Potion No. 9"))
+        assertEquals("", LiveTmdbEpisodes.key(null))
+        assertEquals("", LiveTmdbEpisodes.key("…"))
+    }
 }

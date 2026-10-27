@@ -536,6 +536,39 @@ final class LiveTheme {
         c.restore();
     }
 
+    /** The channel list's panel: a dark slab, a floating card of glass, a solid band with a line, a shade. */
+    static final int LIST_SLAB = 0, LIST_GLASS = 1, LIST_BAND = 2, LIST_SHADE = 3;
+
+    /**
+     * The channel list's panel, with the guide's design (the list and search go with the guide): Apple TV's and
+     * Disney+'s a floating card of glass, Sky's, Sling's, Plex's and Pluto TV's a solid band with a line of the focus
+     * color at its edge, Netflix's, Max's and Hulu's a shade fading to the right; Glassio's, YouTube TV's, NOW's and
+     * Prime Video's the dark slab.
+     */
+    static int listPanel() {
+        switch (layoutStyle()) {
+            case APPLE:
+            case DISNEY: return LIST_GLASS;
+            case SKY:
+            case SLING:
+            case PLEX:
+            case PLUTO: return LIST_BAND;
+            case NETFLIX:
+            case MAX:
+            case HULU: return LIST_SHADE;
+            default: return LIST_SLAB;
+        }
+    }
+
+    /**
+     * Whether the focus in the channel list and search is a ring of the focus color around a lit tile (Netflix's,
+     * Max's and Plex's), not the tile filled with it.
+     */
+    static boolean ringFocus() {
+        int d = layoutStyle();
+        return d == NETFLIX || d == MAX || d == PLEX;
+    }
+
     /** A part's name (Custom's rows). */
     static String partName(int p) {
         switch (p) {

@@ -43,6 +43,12 @@ final class LiveTmdb {
     private static final Set<String> ASKING = new HashSet<>();
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private static boolean loaded;
+    /** Bumped each time TMDB answers with a show: what wasn't known may be now. */
+    private static volatile int changes;
+
+    static int changes() {
+        return changes;
+    }
 
     /** The age `p` is rated: the guide's, else TMDB's (asked in the background; -1 until then, or none). */
     static int age(Context c, Xtream.Program p) {
@@ -50,6 +56,16 @@ final class LiveTmdb {
         if (p.age >= 0) return p.age;
         Info i = of(c, p.title, null);
         return i == null ? -1 : i.age;
+    }
+
+    /** TMDB's facts for the show called `title` when they're already here (never asks). */
+    static Info known(Context c, String title) {
+        String name = LiveArt.name(title);
+        if (name.length() < 3) return null;
+        synchronized (FOUND) {
+            if (!loaded) load(c.getApplicationContext());
+            return FOUND.get(name);
+        }
     }
 
     /** TMDB's facts for the show called `title`, or null (not found, or asking: `found` runs when it comes). */
@@ -79,6 +95,7 @@ final class LiveTmdb {
                 if (i != null) {
                     FOUND.put(name, i);
                     AT.put(name, now);
+                    changes++;
                 } else if (answered) {
                     NONE.put(name, now);
                 }

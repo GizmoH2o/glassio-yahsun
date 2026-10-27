@@ -681,9 +681,7 @@ final class LiveSearch extends Dialog {
                     boolean on = zone == CHANNELS && i == chAt;
                     r.set(tx, y * k, tx + CH_W * k, (y + CH_H) * k);
                     if (on) r.inset(-6 * k, -6 * k);
-                    fill.setColor(on ? LiveTheme.tile : LiveTheme.surface);
-                    c.drawRoundRect(r, 18 * k * LiveTheme.round, 18 * k * LiveTheme.round, fill);
-                    if (!on) LiveTheme.rim(c, r, 18 * k * LiveTheme.round, 1.5f * k);
+                    tile(c, on);
                     logo.set(r);
                     logo.inset(28 * k, 22 * k);
                     view.drawLogo(c, channels.get(i), logo, 1);
@@ -736,9 +734,7 @@ final class LiveSearch extends Dialog {
                 Hit hit = list.get(i);
                 r.set(tx, y * k, tx + SH_W * k, (y + SH_H) * k);
                 if (on) r.inset(-6 * k, -6 * k);
-                fill.setColor(on ? LiveTheme.tile : LiveTheme.surface);
-                c.drawRoundRect(r, 18 * k * LiveTheme.round, 18 * k * LiveTheme.round, fill);
-                if (!on) LiveTheme.rim(c, r, 18 * k * LiveTheme.round, 1.5f * k);
+                tile(c, on);
                 Bitmap art = view.artOf(hit.p);
                 if (art != null) {
                     img.set(r);
@@ -760,6 +756,18 @@ final class LiveSearch extends Dialog {
                 }
             }
             c.restore();
+        }
+
+        /** Tile `r`: the design's focus on it (filled, or a ring: LiveView.drawFocus), else at rest with its glass edge. */
+        private void tile(Canvas c, boolean on) {
+            float rr = 18 * k * LiveTheme.round;
+            if (on) {
+                view.drawFocus(c, r, rr, 1);
+                return;
+            }
+            fill.setColor(LiveTheme.surface);
+            c.drawRoundRect(r, rr, rr, fill);
+            LiveTheme.rim(c, r, rr, 1.5f * k);
         }
 
         /** The row's scroll (in 1920 units) keeping tile `at` in view. */

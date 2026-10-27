@@ -363,7 +363,7 @@ final class LiveOverlay {
         }
 
         // The episode (its season and number on a chip, then its title), then the synopsis: two lines in all.
-        LiveEpisode ep = shown == null ? null : LiveEpisode.cached(shown.sub);
+        LiveEpisode ep = LiveEpisode.of(live, shown, true, view::postInvalidate);
         String text = shown == null ? "" : ep == null ? shown.about : LiveEpisode.aboutWithout(shown.about, shown.sub);
         float aboutTop = 752 * k;
         if (ep != null) {
@@ -432,10 +432,14 @@ final class LiveOverlay {
         }
         small.setTextAlign(Paint.Align.RIGHT);
         c.drawText(right, barR, barY + 36 * k, small);
-        // Up next, at the right of the buttons.
+        // Up next, at the right of the buttons; its episode's chip at the end ("S1 · E4": the next of a run).
         if (next != null && past == null) {
+            LiveEpisode nextEp = LiveEpisode.of(live, next, true, view::postInvalidate);
+            String label = nextEp == null ? "" : nextEp.label();
+            float base = ROW_Y * k + Ui.halfCap(small), chipW = label.isEmpty() ? 0 : LiveEpisode.chipWidth(label, small, k) + 14 * k;
             String upNext = Ui.tr("A seguir", "Up next") + "  ·  " + Ui.time(next.start) + "  " + next.title;
-            c.drawText(ellipsize(upNext, small, 760 * k), barR, ROW_Y * k + Ui.halfCap(small), small);
+            c.drawText(ellipsize(upNext, small, 760 * k - chipW), barR - chipW, base, small);
+            if (chipW > 0) LiveEpisode.drawChip(c, label, barR - chipW + 14 * k, base, small, k);
         }
         small.setTextAlign(Paint.Align.LEFT);
 
