@@ -721,17 +721,38 @@ public class Live extends Activity {
             return;
         }
         final java.util.Map<String, String> categoryCountry = LiveCountry.categories(l);
+        // What the last look-up matched, at once: the public logos are there as Live TV opens, and the database (14 MB)
+        // is read again only for a channel not matched yet (new, renamed) or when the database itself is new.
+        LivePublicLogos.Matches saved = LivePublicLogos.matches(app);
+        boolean complete = saved.indexAt != 0 && saved.indexAt == LivePublicLogos.indexAt(app) && !LivePublicLogos.due(app);
+        for (Xtream.Channel ch : all) {
+            if (sourceOf(ch, setting, picks) != LiveOptions.LOGOS_PUBLIC) continue;
+            String[] m = saved.byId.get(ch.id);
+            if (m == null || !m[0].equals(LivePublicLogos.signature(ch.name, LiveCountry.of(ch, categoryCountry), ch.epg))) {
+                complete = false;
+            } else if (!m[1].isEmpty()) {
+                ch.logo = m[1];
+            }
+        }
+        if (complete) {
+            AppLog.w("live: public logos from the last look-up");
+            saveShown(app, all);
+            return;
+        }
         // Its own thread: the first time fetches the database, which mustn't hold up the channels and the guide.
         new Thread(() -> {
             LivePublicLogos.Index idx = LivePublicLogos.index(app);
             final java.util.Map<Xtream.Channel, String> found = new java.util.IdentityHashMap<>();
             if (idx != null) {
+                java.util.Map<Integer, String[]> matches = new java.util.HashMap<>();
                 for (Xtream.Channel ch : all) {
                     if (sourceOf(ch, setting, picks) != LiveOptions.LOGOS_PUBLIC) continue;
-                    String name = LiveCountry.splitCached(ch.name, false).name;
-                    String url = LivePublicLogos.find(idx.byName, name.isEmpty() ? ch.name : name, LiveCountry.of(ch, categoryCountry), ch.epg);
+                    String name = LiveCountry.splitCached(ch.name, false).name, country = LiveCountry.of(ch, categoryCountry);
+                    String url = LivePublicLogos.find(idx.byName, name.isEmpty() ? ch.name : name, country, ch.epg);
                     if (url != null) found.put(ch, url);
+                    matches.put(ch.id, new String[] {LivePublicLogos.signature(ch.name, country, ch.epg), url == null ? "" : url});
                 }
+                LivePublicLogos.saveMatches(app, LivePublicLogos.indexAt(app), matches);
                 AppLog.w("live: public logos for " + found.size() + " of " + all.size() + " channels");
             }
             main.post(() -> {

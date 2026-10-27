@@ -35,6 +35,15 @@ final class LivePublicLogos {
     /** v2: with each channel's id too (guides that use iptv-org's ids, TLC.us, find it exactly). */
     private static final String INDEX = "live-public-logos-2.tsv", OLD_INDEX = "live-public-logos.tsv";
     private static final long FRESH = 7L * 24 * 3600_000L;
+    /** After a fetch that failed, how long before the next (not on every opening: it's 14 MB). */
+    private static final long RETRY = 6 * 3600_000L;
+    /** When the database was last asked for; the matches the last look-up found. */
+    private static final String TRIED = "live-public-logos.tried", MATCHES = "live-public-matches.json";
+    /**
+     * When the database was last found unchanged (the index is as current as at that time), and what its two files
+     * were said to be (ETag and Last-Modified), to ask "only if changed" next time.
+     */
+    private static final String CHECKED = "live-public-logos.checked", VALIDATORS = "live-public-logos.etag";
 
     /** The index: a folded name to its entries, each {country, logo address}. */
     static final class Index {
@@ -52,10 +61,18 @@ final class LivePublicLogos {
         File f = new File(c.getFilesDir(), INDEX);
         //noinspection ResultOfMethodCallIgnored
         new File(c.getFilesDir(), OLD_INDEX).delete();
-        if (!f.exists() || System.currentTimeMillis() - f.lastModified() > FRESH) {
+        if (due(c)) {
+            touch(new File(c.getFilesDir(), TRIED));
             try {
-                build(f);
-                AppLog.w("live: public logos: index built");
+                if (f.exists() && unchanged(c)) {       // nothing new since: no download, the index and its matches stay
+                    touch(new File(c.getFilesDir(), CHECKED));
+                    AppLog.w("live: public logos: the database hasn't changed");
+                } else {
+                    Map<String, String[]> validators = new HashMap<>();
+                    build(f, validators);
+                    saveValidators(c, validators);
+                    AppLog.w("live: public logos: index built");
+                }
             } catch (IOException | RuntimeException e) {
                 AppLog.w("live: public logos: " + e.getMessage());     // an old index (if any) still serves
             }
@@ -81,11 +98,129 @@ final class LivePublicLogos {
         return cached;
     }
 
+    /** When the index was made (its file's time), 0 without one. */
+    static long indexAt(Context c) {
+        File f = new File(c.getFilesDir(), INDEX);
+        return f.exists() ? f.lastModified() : 0;
+    }
+
+    /** Whether the database is to be fetched: no index, or a week old; not again within hours of a try that failed. */
+    static boolean due(Context c) {
+        long at = indexAt(c), now = System.currentTimeMillis();
+        if (at != 0) at = Math.max(at, new File(c.getFilesDir(), CHECKED).lastModified());
+        if (at != 0 && now - at <= FRESH) return false;
+        File tried = new File(c.getFilesDir(), TRIED);
+        return !tried.exists() || now - tried.lastModified() > RETRY;
+    }
+
+    private static void touch(File f) {
+        try {
+            if (!f.exists()) new FileOutputStream(f).close();
+            //noinspection ResultOfMethodCallIgnored
+            f.setLastModified(System.currentTimeMillis());
+        } catch (IOException ignored) {
+        }
+    }
+
+    /**
+     * What the last look-up matched, kept so the next opening has the logos at once without reading the database:
+     * each channel (its id) with what it was matched by (`signature`) and its logo ("" for none), and the index's time.
+     */
+    static final class Matches {
+        long indexAt;
+        final Map<Integer, String[]> byId = new HashMap<>();
+    }
+
+    /** A channel's name, country and guide id, as matched: a channel renamed or moved is looked up again. */
+    static String signature(String name, String country, String epg) {
+        return name + "	" + (country == null ? "" : country) + "	" + (epg == null ? "" : epg);
+    }
+
+    static synchronized Matches matches(Context c) {
+        Matches m = new Matches();
+        File f = new File(c.getFilesDir(), MATCHES);
+        if (!f.exists()) return m;
+        try (FileInputStream in = new FileInputStream(f)) {
+            org.json.JSONObject o = new org.json.JSONObject(Xtream.read(in));
+            m.indexAt = o.optLong("at");
+            org.json.JSONObject all = o.optJSONObject("m");
+            for (java.util.Iterator<String> it = all == null ? null : all.keys(); it != null && it.hasNext(); ) {
+                String id = it.next();
+                org.json.JSONArray a = all.optJSONArray(id);
+                if (a != null && a.length() == 2) m.byId.put(Integer.parseInt(id), new String[] {a.optString(0), a.optString(1)});
+            }
+        } catch (IOException | org.json.JSONException | NumberFormatException e) {
+            m.byId.clear();
+        }
+        return m;
+    }
+
+    static synchronized void saveMatches(Context c, long indexAt, Map<Integer, String[]> byId) {
+        try {
+            org.json.JSONObject all = new org.json.JSONObject();
+            for (Map.Entry<Integer, String[]> e : byId.entrySet()) {
+                all.put(String.valueOf(e.getKey()), new org.json.JSONArray().put(e.getValue()[0]).put(e.getValue()[1]));
+            }
+            Xtream.write(new File(c.getFilesDir(), MATCHES), new org.json.JSONObject().put("at", indexAt).put("m", all).toString());
+        } catch (IOException | org.json.JSONException e) {
+            AppLog.w("live: couldn't keep the public logos' matches");
+        }
+    }
+
     /** The database read into the index file: each channel's names (and other names) with its best logo. */
-    private static void build(File out) throws IOException {
+    /**
+     * Whether neither of the database's files changed since the index was made: each asked "only if changed" with what
+     * the server said of it then (ETag, Last-Modified); a 304 is that answer, without the file.
+     */
+    private static boolean unchanged(Context c) throws IOException {
+        Map<String, String[]> known = validators(c);
+        for (String url : new String[] {LOGOS, CHANNELS}) {
+            String[] v = known.get(url);
+            if (v == null || v[0].isEmpty() && v[1].isEmpty()) return false;
+            HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(30_000);
+            conn.setRequestProperty("User-Agent", Live.USER_AGENT);
+            if (!v[0].isEmpty()) conn.setRequestProperty("If-None-Match", v[0]);
+            if (!v[1].isEmpty()) conn.setRequestProperty("If-Modified-Since", v[1]);
+            try {
+                if (conn.getResponseCode() != HttpURLConnection.HTTP_NOT_MODIFIED) return false;
+            } finally {
+                conn.disconnect();
+            }
+        }
+        return true;
+    }
+
+    private static Map<String, String[]> validators(Context c) {
+        Map<String, String[]> out = new HashMap<>();
+        File f = new File(c.getFilesDir(), VALIDATORS);
+        if (!f.exists()) return out;
+        try (FileInputStream in = new FileInputStream(f)) {
+            org.json.JSONObject o = new org.json.JSONObject(Xtream.read(in));
+            for (java.util.Iterator<String> it = o.keys(); it.hasNext(); ) {
+                String url = it.next();
+                org.json.JSONArray a = o.optJSONArray(url);
+                if (a != null && a.length() == 2) out.put(url, new String[] {a.optString(0), a.optString(1)});
+            }
+        } catch (IOException | org.json.JSONException ignored) {
+        }
+        return out;
+    }
+
+    private static void saveValidators(Context c, Map<String, String[]> v) {
+        try {
+            org.json.JSONObject o = new org.json.JSONObject();
+            for (Map.Entry<String, String[]> e : v.entrySet()) o.put(e.getKey(), new org.json.JSONArray().put(e.getValue()[0]).put(e.getValue()[1]));
+            Xtream.write(new File(c.getFilesDir(), VALIDATORS), o.toString());
+        } catch (IOException | org.json.JSONException ignored) {
+        }
+    }
+
+    private static void build(File out, Map<String, String[]> validators) throws IOException {
         Map<String, String> best = new HashMap<>();
         Map<String, Integer> bestScore = new HashMap<>();
-        try (JsonReader r = open(LOGOS)) {
+        try (JsonReader r = open(LOGOS, validators)) {
             r.beginArray();
             while (r.hasNext()) {
                 String channel = null, url = null, format = null, feed = null;
@@ -122,7 +257,7 @@ final class LivePublicLogos {
         }
         File part = new File(out.getPath() + ".part");
         int rows = 0;
-        try (JsonReader r = open(CHANNELS);
+        try (JsonReader r = open(CHANNELS, validators);
              BufferedWriter w = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(part), StandardCharsets.UTF_8))) {
             r.beginArray();
             while (r.hasNext()) {
@@ -182,7 +317,8 @@ final class LivePublicLogos {
         return (mainFeed ? 10_000 : 0) + Math.min(width, 1000) + f;
     }
 
-    private static JsonReader open(String url) throws IOException {
+    /** One of the database's files, read as it comes (compressed on the way: Android asks for gzip); what the server says of it into `validators`. */
+    private static JsonReader open(String url, Map<String, String[]> validators) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
         conn.setConnectTimeout(10_000);
         conn.setReadTimeout(30_000);
@@ -191,6 +327,8 @@ final class LivePublicLogos {
             conn.disconnect();
             throw new IOException("the logo database answered " + conn.getResponseCode());
         }
+        String etag = conn.getHeaderField("ETag"), modified = conn.getHeaderField("Last-Modified");
+        validators.put(url, new String[] {etag == null ? "" : etag, modified == null ? "" : modified});
         InputStream in = conn.getInputStream();
         return new JsonReader(new InputStreamReader(new java.io.BufferedInputStream(in, 64 * 1024), StandardCharsets.UTF_8));
     }

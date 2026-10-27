@@ -18,8 +18,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Live TV's channel logos, for Live TV (LiveView) and the home screen's Live TV row: downloaded once into the cache
- * (shared by both processes), decoded small, kept in memory per process (the most recent ones), two at a time.
+ * Live TV's channel logos, for Live TV (LiveView) and the home screen's Live TV row: downloaded once into the app's
+ * files (shared by both processes, kept when the TV empties caches; 80 MB at most, the longest unused going first),
+ * decoded small, kept in memory per process (the most recent ones), two at a time.
  */
 final class LiveLogos {
     private LiveLogos() {}
@@ -91,8 +92,26 @@ final class LiveLogos {
         return seen > 8 && clear > 576 / 10 && lum / seen < 70;
     }
 
+    /** Kept in the app's own files, not its cache (which the TV empties when it's short of room): fetched once. */
+    private static final long KEEP_BYTES = 80L * 1024 * 1024;
+    private static boolean pruned;
+
     private static Bitmap load(Context c, String url) throws IOException {
-        File dir = new File(c.getCacheDir(), "live-logos"), f = new File(dir, Integer.toHexString(url.hashCode()) + ".img");
+        String name = Integer.toHexString(url.hashCode()) + ".img";
+        File dir = new File(c.getFilesDir(), "live-logos"), f = new File(dir, name);
+        if (!f.exists()) {      // one fetched before they moved: brought over, not fetched again
+            File old = new File(new File(c.getCacheDir(), "live-logos"), name);
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            if (old.exists() && !old.renameTo(f)) {
+                //noinspection ResultOfMethodCallIgnored
+                old.delete();
+            }
+        } else {
+            //noinspection ResultOfMethodCallIgnored
+            f.setLastModified(System.currentTimeMillis());      // in use: the last to go when there are too many
+        }
+        prune(dir);
         if (!f.exists()) {
             //noinspection ResultOfMethodCallIgnored
             dir.mkdirs();
@@ -118,6 +137,30 @@ final class LiveLogos {
             }
             if (!part.renameTo(f) && !f.exists()) throw new IOException("couldn't save the logo");
         }
+        return decode(f);
+    }
+
+    /** Over KEEP_BYTES of logos: the ones unused longest go (once per process, on the loading thread). */
+    private static void prune(File dir) {
+        synchronized (LiveLogos.class) {
+            if (pruned) return;
+            pruned = true;
+        }
+        File[] files = dir.listFiles((d, n) -> n.endsWith(".img"));
+        if (files == null) return;
+        long total = 0;
+        for (File x : files) total += x.length();
+        if (total <= KEEP_BYTES) return;
+        java.util.Arrays.sort(files, (a, b) -> Long.compare(a.lastModified(), b.lastModified()));
+        for (File x : files) {
+            if (total <= KEEP_BYTES * 3 / 4) break;
+            total -= x.length();
+            //noinspection ResultOfMethodCallIgnored
+            x.delete();
+        }
+    }
+
+    private static Bitmap decode(File f) throws IOException {
         BitmapFactory.Options bounds = new BitmapFactory.Options();
         bounds.inJustDecodeBounds = true;
         BitmapFactory.decodeFile(f.getPath(), bounds);

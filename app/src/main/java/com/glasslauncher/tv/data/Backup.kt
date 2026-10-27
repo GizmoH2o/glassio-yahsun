@@ -29,10 +29,12 @@ object Backup {
     private const val TOTAL_MAX = 16L * 1024 * 1024
     /**
      * Never in a backup: recordings (big, and the TV's own), what's only for now (the channel on, the last start, the
-     * small window's handover, a crash), Android's own startup-speed markers (they belong to this install), half-written files.
+     * small window's handover, a crash), Android's own startup-speed markers (they belong to this install), half-written files,
+     * and what's only a copy of what's online (Live TV's logo pictures, its logo and episode look-ups).
      */
-    private val SKIP_DIRS = setOf("recordings", "drop")
-    private val SKIP_FILES = setOf("mini_live.json", "last-crash.txt", "live-watching.txt", "live-last-boot", "profileInstalled")
+    private val SKIP_DIRS = setOf("recordings", "drop", "live-logos")
+    private val SKIP_FILES = setOf("mini_live.json", "last-crash.txt", "live-watching.txt", "live-last-boot", "profileInstalled",
+        "live-public-matches.json", "live-tmdb-episodes.json")
 
     class Restored(val settings: Int, val files: Int)
 
