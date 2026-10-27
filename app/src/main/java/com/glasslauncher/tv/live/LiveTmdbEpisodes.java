@@ -61,12 +61,106 @@ final class LiveTmdbEpisodes {
                 return null;
             }
         }
-        Integer n = eps.get(wanted);
-        if (n == null) {        // a double bill ("Sit Down; Living in a Powder Keg"): its first
-            String first = key(episode.split(";|\\s/\\s")[0]);
-            if (!first.isEmpty() && !first.equals(wanted)) n = eps.get(first);
+        String memo = info.id + "\n" + wanted;
+        int[] known = MATCHED.get(memo);
+        if (known != null) return known.length == 0 ? null : known;
+        Integer n = match(eps, episode);
+        int[] se = n == null ? new int[0] : new int[] {n / 1000, n % 1000};
+        if (MATCHED.size() > 4000) MATCHED.clear();
+        MATCHED.put(memo, se);
+        return n == null ? null : se;
+    }
+
+    /** Each episode line asked of each show, and what it matched ({} for nothing): matching runs once per line. */
+    private static final Map<String, int[]> MATCHED = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /**
+     * The episode in `eps` (names as `key` makes them, each its season × 1000 + number) that the guide's `episode`
+     * names, or null. Tried in turn, the whole line, then each part of a double bill ("Turtle Boy; Onesies; Tradies"):
+     * the same name; the same once spacing, "the"/"a"/"and" and "pt"/"part" don't count ("Turtle Boy" is TMDB's
+     * "Turtleboy"); else the one name spelt nearly the same (a letter or two in ten), with the same numbers in it and
+     * no other as close.
+     */
+    static Integer match(Map<String, Integer> eps, String episode) {
+        if (eps == null || eps.isEmpty() || episode == null) return null;
+        java.util.List<String> tries = new java.util.ArrayList<>();
+        tries.add(episode);
+        String[] parts = episode.split("[;/|]");
+        if (parts.length > 1) for (String part : parts) if (!part.trim().isEmpty()) tries.add(part);
+        // Each in turn, the first part before the next (a double bill is numbered by its first episode).
+        Map<String, Integer> loose = null;
+        for (String t : tries) {
+            Integer n = eps.get(key(t));
+            if (n != null) return n;
+            if (loose == null) {        // the names as compared loosely; one that two episodes share says nothing
+                loose = new HashMap<>();
+                for (Map.Entry<String, Integer> e : eps.entrySet()) {
+                    String l = loose(e.getKey());
+                    if (l.isEmpty()) continue;
+                    Integer had = loose.put(l, e.getValue());
+                    if (had != null && !had.equals(e.getValue())) loose.put(l, -1);
+                }
+            }
+            n = loose.get(loose(t));
+            if (n != null && n >= 0) return n;
+            n = nearest(loose, loose(t));
+            if (n != null) return n;
         }
-        return n == null ? null : new int[] {n / 1000, n % 1000};
+        return null;
+    }
+
+    /** A name as compared loosely: its key without "the", "a", "an", "and", "pt"/"part" spelt alike, nor spaces. */
+    static String loose(String name) {
+        StringBuilder out = new StringBuilder();
+        for (String w : key(name).split(" ")) {
+            if (w.isEmpty() || w.equals("the") || w.equals("a") || w.equals("an") || w.equals("and")) continue;
+            out.append(w.equals("pt") ? "part" : w);
+        }
+        return out.toString();
+    }
+
+    /** The loose name spelt nearly as `want` (at most one letter in ten off, the same numbers), when only one is. */
+    private static Integer nearest(Map<String, Integer> loose, String want) {
+        if (want.length() < 6) return null;
+        String digits = want.replaceAll("[^0-9]", "");
+        int allowed = Math.max(1, want.length() / 10), best = Integer.MAX_VALUE;
+        Integer found = null;
+        boolean tie = false;
+        for (Map.Entry<String, Integer> e : loose.entrySet()) {
+            String name = e.getKey();
+            if (e.getValue() < 0 || Math.abs(name.length() - want.length()) > allowed) continue;
+            if (!name.replaceAll("[^0-9]", "").equals(digits)) continue;
+            int d = distance(want, name, allowed);
+            if (d > allowed) continue;
+            if (d < best) {
+                best = d;
+                found = e.getValue();
+                tie = false;
+            } else if (d == best && !e.getValue().equals(found)) {
+                tie = true;
+            }
+        }
+        return tie ? null : found;
+    }
+
+    /** How many letters to change, add or drop to make `a` into `b` (stops counting past `limit`). */
+    private static int distance(String a, String b, int limit) {
+        int[] prev = new int[b.length() + 1], cur = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) prev[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            cur[0] = i;
+            int low = cur[0];
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                cur[j] = Math.min(Math.min(cur[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+                low = Math.min(low, cur[j]);
+            }
+            if (low > limit) return limit + 1;
+            int[] t = prev;
+            prev = cur;
+            cur = t;
+        }
+        return prev[b.length()];
     }
 
     /** An episode's name as compared: folded, its punctuation gone. */

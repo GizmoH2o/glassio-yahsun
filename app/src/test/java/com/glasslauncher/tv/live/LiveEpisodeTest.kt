@@ -57,4 +57,47 @@ class LiveEpisodeTest {
         assertEquals("", LiveTmdbEpisodes.key(null))
         assertEquals("", LiveTmdbEpisodes.key("…"))
     }
+
+    /** A show's episodes as TMDB names them: season × 1000 + number. */
+    private fun show(vararg eps: Pair<String, Int>) = eps.associate { LiveTmdbEpisodes.key(it.first) to it.second }
+
+    private val bluey = show("Turtleboy" to 3015, "Onesies" to 3016, "Tradies" to 3017, "Housework" to 3013,
+        "Sheepdog" to 3014, "Granny Mobile" to 2033, "The Show" to 1040, "Bin Night" to 1019)
+
+    @Test fun tmdbMatchesTheSameName() {
+        assertEquals(3013, LiveTmdbEpisodes.match(bluey, "Housework"))
+        assertEquals(1019, LiveTmdbEpisodes.match(bluey, "Bin Night!"))
+    }
+
+    @Test fun tmdbMatchesAnyPartOfADoubleBill() {
+        assertEquals(3013, LiveTmdbEpisodes.match(bluey, "Housework; Sheepdog; Explorers"))
+        assertEquals(3016, LiveTmdbEpisodes.match(bluey, "Lost Hat; Onesies; Tradies"))
+        assertEquals(2033, LiveTmdbEpisodes.match(bluey, "Granny Mobile / Space / Cubby"))
+    }
+
+    @Test fun tmdbMatchesLoosely() {
+        assertEquals(3015, LiveTmdbEpisodes.match(bluey, "Turtle Boy; Onesies; Tradies"))
+        assertEquals(1040, LiveTmdbEpisodes.match(bluey, "Show"))
+        assertEquals(2033, LiveTmdbEpisodes.match(bluey, "Granny-Mobile"))
+        val parts = show("The Return, Part 1" to 1009, "The Return, Part 2" to 1010)
+        assertEquals(1010, LiveTmdbEpisodes.match(parts, "The Return Pt. 2"))
+        assertEquals(LiveTmdbEpisodes.loose("Rock and Roll"), LiveTmdbEpisodes.loose("Rock & Roll"))
+    }
+
+    @Test fun tmdbMatchesASpellingSlip() {
+        val gumball = show("The Ghouls" to 6025, "The Pact" to 6012, "The Anybody" to 6011)
+        assertEquals(6025, LiveTmdbEpisodes.match(gumball, "The Ghoulss"))
+        assertEquals(6011, LiveTmdbEpisodes.match(gumball, "The Anybodyy"))
+    }
+
+    @Test fun tmdbDoesNotGuess() {
+        val parts = show("The Return, Part 1" to 1009, "The Return, Part 2" to 1010)
+        assertNull(LiveTmdbEpisodes.match(parts, "The Return Part 3"))      // the numbers differ
+        assertNull(LiveTmdbEpisodes.match(bluey, "Explorers"))
+        assertNull(LiveTmdbEpisodes.match(bluey, "Sheep"))                 // too short to be near
+        val close = show("Night Owls" to 1001, "Night Owl" to 1002, "Night Bowl" to 1003)
+        assertNull(LiveTmdbEpisodes.match(close, "Night Owlz"))            // two are as close
+        assertNull(LiveTmdbEpisodes.match(emptyMap(), "Housework"))
+        assertNull(LiveTmdbEpisodes.match(bluey, ""))
+    }
 }
