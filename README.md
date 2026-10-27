@@ -41,50 +41,41 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
-**New in 2.3: country tags, voice and logos**
-- **Country tags** beside channel names (US, UK, CA, ARABIC…) and **channels by voice** ("Play TLC USA on Glassio Yahsun"; inside Live TV just "TLC USA"), each with its own switch; every on/off setting in Live TV is now a switch.
-- **Favorites by voice**: "Add TLC to favourites", "Remove TLC from favourites".
-- **Channel logos** from your provider, the TV guide or the public iptv-org database, a **logo per channel** (hold OK › Logo), the same logos on the home screen's Live TV cards, guide logos lined up at the left and a steady logo in the player.
-
-**New in 2.2: backup and restore**
-- **Back up settings** and **Restore a backup** (Settings › System, and the phone page): everything, sign-ins included, in one file locked with a code you choose. It goes to the TV's Downloads and to your phone; restoring brings it all back and restarts Glassio.
-- **Watch on Home** is selectable: OK full screen, Up / Down change the channel, Back selects it and closes it.
-- A setup checklist on a fresh install, and Live TV's list highlight as Glassio's.
-- **Channel numbers in the TV guide**, Back in the guide goes straight back to the channel, and hold OK on a Live TV card offers **Record this show**.
-- A **kick-off alert** when a team you follow starts playing (Watch, Small window or Not now), and a reminder in Settings when a backup is due.
-
-**New in 2.1: Live TV on the home screen**
-- **Continue Watching** now starts with Live TV: a followed match on now (with the score), the channel you watched last (what's on, with a LIVE tag) and your newest recordings. OK opens them in Live TV; hold OK takes one out of the row.
-- **Watch on Home** (Live TV's menu): the channel keeps playing in a small glass window on the home screen while you browse. Back closes it.
-- Live TV's menus, dialogs and text boxes in Glassio's dark glass (in its Glassio style); adding a playlist no longer goes to a black screen.
-
-**New in 2.0 (Glassio Yahsun): Live TV and Following**
-- **Live TV**: an IPTV player for Xtream Codes, M3U links and MAG portals, with a full guide, favorites, pause and rewind live TV, catch-up, recordings, Multiview, profiles (with a Kids one), reminders and live scores. Its default look is Glassio's own: clear glass over graphite, a white focus, round corners (Apple TV, YouTube TV, NOW, Sky, Sling, Hulu, Netflix, Prime Video, Disney+, Max, Plex, Pluto TV and Custom styles are in its settings). It runs in its own process, so video never weighs on the home screen.
+**Live TV**
+- An IPTV player for Xtream Codes, M3U links and MAG portals, with a full guide, favorites, pause and rewind live TV, catch-up, recordings, Multiview, profiles (with a Kids one), reminders and live scores. Its default look is Glassio's own: clear glass over graphite, a white focus, round corners (Apple TV, YouTube TV, NOW, Sky, Sling, Hulu, Netflix, Prime Video, Disney+, Max, Plex, Pluto TV and Custom styles are in its settings). It runs in its own process, so video never weighs on the home screen.
 - **Live TV page** (menu → Live TV): the channel you watched last, the TV guide, search, then *On now* on your favorite and recent channels, *Sports live now* and *Starting soon*.
+- **TV guide**: each channel's number before its name; Back goes straight back to the channel, full screen.
+- **Country tags** beside channel names (US, UK, CA, ARABIC…) and **channels by voice** ("Play TLC USA on Glassio Yahsun"; inside Live TV just "TLC USA"), each with its own switch.
+- **Favorites by voice**: "Add TLC to favourites", "Remove TLC from favourites".
+- **Channel logos** from your provider, the TV guide or the public iptv-org database, or a **logo per channel** (hold OK › Logo); the home screen's Live TV cards show the same logos.
+- Live TV is ported from [Zero](https://github.com/GizmoH2o/zero-tv) (MIT, notice kept in `app/src/main/assets/licenses/Zero-MIT.txt`).
+
+**Live TV on the home screen**
+- **Continue Watching** starts with Live TV: a followed match on now (with the score), the channel you watched last (what's on, with a LIVE tag) and your newest recordings. OK opens them in Live TV; hold OK offers **Record this show** or takes the card out of the row.
+- **Watch on Home** (Live TV's menu): the channel keeps playing in a small glass window on the home screen while you browse. OK goes full screen, Up / Down change the channel, Back selects it and closes it.
+- A **kick-off alert** when a team you follow starts playing: Watch, Small window or Not now.
+
+**Following**
 - **Following** (menu → Following): follow a team or a show; its next match shows in a spotlight with the live score, then what's coming up, the same match on other channels, replays and shows. A team's page lists its next 7 days with Remind and Record.
-- **Continue Watching from the official Nuvio app**: signed in to your Nuvio account (Settings → Nuvio & Home Assistant), what you're watching in the official Nuvio app joins Continue Watching (Settings → Continue Watching → *Nuvio (official app)*). Removing a title here removes it on the account too.
 - **Followed matches on the screensaver**: your team's next match (within 18 hours) on a glass card under the clock, with LIVE and the score near kick-off, in Glassio's screensaver and as the system screensaver (Settings → Screensaver → *Followed matches*).
-- **Back to Glassio after a restart** (Settings → System → *Open Glassio when the TV starts*): Google TV opens its own home screen after a restart; Glassio comes up over it through the Home-button service, or TV access (ADB).
-- Live TV is ported from [Zero](https://github.com/GizmoH2o/zero-tv) (MIT, notice kept in `app/src/main/assets/licenses/Zero-MIT.txt`). Glassio now needs Android 9 or newer.
 
-**New in 1.9.7**
-- **Focus plate**: White, Dark, Glass or Black AMOLED behind the selected icon — also in the menu's Themes page.
-- **Add-ons from your Nuvio account** (Settings → Catalogs): merged with the TV's own, an add-on never shows up twice. The Nuvio account row is also in Catalogs and Nuvio & Home Assistant.
-- **Backgrounds from your phone** (Manage from phone): picture or video link, save a link to the TV, upload a picture or video from the phone, pick or delete files in the backgrounds folder.
-- **Aerial Views as the TV screensaver** on / off and its start time (20 s, 30 s, 1 min, 2 min) through ADB, in Settings → Screensaver. Glassio's own screensaver can start after 10 s or 30 s.
-- **TMDB token check**: a green check when the token works with TMDB, red when it's refused or when the API Key was pasted instead of the API Read Access Token. The Home Assistant webhook shows a green check when set.
-- **Smoother dock**: it opens at full frame rate (the page dims and blurs right after), moving inside the open dock is smooth, and the menu opens every time you go up to the settings button.
+**Backup and restore**
+- **Back up settings** and **Restore a backup** (Settings › System, and the phone page): everything, sign-ins included, in one file locked with a code you choose. It goes to the TV's Downloads and to your phone; restoring brings it all back and restarts Glassio. Settings marks a backup "Due" when there's none or it's over a month old.
+- A setup checklist on a fresh install (restore a backup, catalogs, Nuvio, TV access, the Home button, Live TV).
 
-**Menu, Library, themes and backgrounds (1.9.5)**
+**Menu, Library, themes and backgrounds**
 - **Menu** at the settings button, like the Apple TV Control Center: clock, date, weather (high / low, feels like, humidity, wind, city), then Library, Glassio settings, Android settings, Wi-Fi, Themes and Background. It opens when you go up to the button (or with OK, or never: Settings → Menu, Library & themes), and every part can be hidden.
 - **Library**: the **+** button between Play and Next saves the title. Grey page, five posters a row; OK opens the title, hold OK removes it. It also shows your **Nuvio account library** (Nuvio Legacy, official Nuvio and the forks that sync with the account; sign in with a QR code) and your **Trakt watchlist**; + can save to both.
-- **Themes**: Black on white, Black AMOLED, Liquid, Clear, Glass still, Glass is glass — for the dock, the icons and the menu (black ones keep a clear matte dock). *Colour on focus* is in the same list.
-- **Background**: each title's backdrop, **your picture** or **your video** (a link, or a file in the backgrounds folder shown in Settings → Clock & glass), or **the screensaver's aerials**. With your own background the page is just that (no title or buttons); the glass follows the video.
+- **Themes**: Black on white, Black AMOLED, Liquid, Clear, Glass still, Glass is glass — for the dock, the icons and the menu (black ones keep a clear matte dock). *Colour on focus* and the **focus plate** (White, Dark, Glass or Black AMOLED behind the selected icon) are in the same page.
+- **Background**: each title's backdrop, **your picture** or **your video** (a link, or a file in the backgrounds folder shown in Settings → Clock & glass, or sent from your phone through Manage from phone), or **the screensaver's aerials**. With your own background the page is just that (no title or buttons); the glass follows the video.
+
+**System**
+- **Back to Glassio after a restart** (Settings → System → *Open Glassio when the TV starts*): Google TV opens its own home screen after a restart; Glassio comes up over it through the Home-button service, or TV access (ADB).
 - **Turn the accessibility service on with ADB** from Settings → System, for TVs that grey it out (Google TV Streamer).
-- Faster and lighter: the open dock and slides cost far less GPU, about half the memory, 16-bit backdrops in Performance, logos and pictures retry when a download fails.
+- The TMDB token and the Home Assistant webhook show a green check when they work (red when TMDB refuses the token, or the API Key was pasted instead of the API Read Access Token).
 
 **Carousel**
-- Endless hero carousel from your Nuvio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like.
+- Endless hero carousel from your Nuvio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like. Add-ons from your Nuvio account join the TV's own (Settings → Catalogs), never twice.
 - Settings → Carousel → **Slide animation**: **Apple TV** (default: the next picture opens up from the right with parallax, from the left going back, glass included), *Slide* (pushed in) or *Fade*.
 - **Buttons**: **Play + Next** (default, like Apple TV: Right from Play selects the round Next button, Right or OK on it shows the next title, Left on Play the previous one; Play stays in place whatever the synopsis length), *Play only* or *Hidden*.
 - **Dots**: *Dots*, **Liquid glass dots** (clear glass drops on a glass capsule that stretch, join and part like water as you move), *Progress bar* or *Hidden*.
@@ -93,6 +84,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - **Continue Watching** from Nuvio Legacy: at the start of the carousel (1–5 slides or all) or mixed in, with progress
   (`Continue · S1 · E3 · 42%`). Back from Nuvio, the carousel opens on what you just watched. These titles are kept in
   memory, so going back to them — even after browsing far or pressing Home — never reloads.
+- **Continue Watching from the official Nuvio app**: signed in to your Nuvio account (Settings → Nuvio & Home Assistant), what you're watching there joins Continue Watching (Settings → Continue Watching → *Nuvio (official app)*). Removing a title here removes it on the account too.
 - Home pressed on the home screen jumps back to the first slide.
 - Opening a title brings Nuvio forward and opens it directly (no restart, no splash when Nuvio is running).
   Works with **Nuvio Legacy**, the **official Nuvio TV** app, **Nuvio Arc** and **Nuvio Re-Shaped**
@@ -116,6 +108,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 **Screensaver**
 - Your TV's own screensaver (for example Aerial Views) started instantly, Apple aerial videos, or posters with logos.
   Back on the home screen can start it, like Apple TV.
+- **Aerial Views as the TV screensaver** on / off and its start time (20 s, 30 s, 1 min, 2 min) through ADB, in Settings → Screensaver. Glassio's own screensaver can start after 10 s or 30 s.
 
 **Home Assistant**
 - Webhook when a title opens (title, type, id, app). See [Home Assistant](#home-assistant).
@@ -139,6 +132,8 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
    adb install -r GlassioYahsun-x.y.z.apk
    ```
 3. Open **Glassio** from the TV's apps.
+
+Glassio needs Android 9 or newer.
 
 ### Make it your home screen (Home button)
 
