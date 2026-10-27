@@ -2,6 +2,38 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 2.4.0 — 2026-10-27
+
+**Glassio Yahsun is now its own app**
+- It installs as **com.glassioyahsun.tv**, beside the original Glassio (com.glasslauncher.tv), so both can be on one TV.
+- **Moving from 2.3 or earlier:** updating installs Glassio Yahsun as a second app, without your settings, and the old one stays. To move everything over: in the old one, Settings › System › *Back up settings*; open the new one and restore that backup (Settings › System › *Restore a backup*); set the new one as the Home app if the TV asks; then uninstall the old one.
+
+**Stremio**
+- **Sign in to your Stremio account** (Settings › Nuvio, Stremio & Home Assistant › *Connect Stremio account*): a QR code, you sign in to Stremio on your phone and confirm; no password on the TV.
+- **Its add-ons** can fill the catalogs (*Add-ons from my Stremio account*), alongside the TV's and the Nuvio account's.
+- **Continue Watching** includes what's in progress in Stremio; removing a title here rewinds it in Stremio too.
+- **The Library** shows your Stremio library, and the + button can save to it.
+- **Open titles in Stremio**: a choice under *Open titles in*.
+
+**Continue Watching**
+- Each card is tagged **Nuvio** or **Stremio**, and OK opens it in that app, whatever *Open titles in* says.
+- **Hold OK on a card**: open it in your other app, mark it watched where it came from (your Nuvio account, Trakt, or a film in Stremio), or take it out of the row.
+- A Nuvio series shows the furthest episode you've reached, as Nuvio resumes it, not an old episode you happened to start again.
+
+**Library**
+- **A tab for each list** (Saved, Nuvio, Stremio, Trakt), only for the lists you use; it reopens on the tab you last had.
+- Titles in the Nuvio and Stremio tabs open in the app they came from.
+
+**Live TV**
+- **Designs instead of themes**: Apple TV, YouTube TV, NOW, Sky, Sling, Hulu, Netflix, Prime Video, Disney+, Max, Plex and Pluto TV each bring their whole look: colors, focus, corners, guide, info bar and lettering. Netflix, Prime Video, Disney+, Max, Plex and Pluto TV have guides of their own.
+- **Custom design**: pick the colors, focus, corners, guide, info bar and lettering from any design, with a picture of each choice. Your old Custom settings become the closest designs; design codes are 8 digits now.
+- The channel list and search take their look from the design too.
+- Design pickers show three a row, and **Design** and **Start-up** are separate sections in Settings.
+- The guide's country tag sits at the bottom right of the channel, under the catch-up mark.
+- **Episodes as a season and number chip** ("S5 · E8") with the title beside it, in the guide, its details, the info bar and the show's page; the synopsis no longer repeats the line.
+- **Episode numbers from TMDB** for shows the guide sends only by title (matched by the episode's name, allowing for small differences in spelling), and Up next in the info bar shows the next episode's chip.
+- **Public logos load faster**: each channel's match is kept, and the weekly check downloads the database again only when it has changed. Logo pictures are kept when the TV clears its caches (up to 80 MB), and backups leave them out.
+
 ## 2.3.0 — 2026-10-27
 
 **Country tags and voice**

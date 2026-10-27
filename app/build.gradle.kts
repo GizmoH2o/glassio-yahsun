@@ -22,8 +22,8 @@ android {
         resValue("string", "live_search_authority", "$applicationId.live.search")
         minSdk = 28
         targetSdk = 35
-        versionCode = 37
-        versionName = "2.3.0"
+        versionCode = 38
+        versionName = "2.4.0"
         // Trakt app (PKCE, no secret).
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"${localProps.getProperty("TRAKT_CLIENT_ID", "")}\"")
         buildConfigField("String", "NUVIO_ANON_KEY", "\"${localProps.getProperty("NUVIO_ANON_KEY", "")}\"")
