@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -167,6 +168,20 @@ private fun ContinueCard(
                 modifier = Modifier.align(Alignment.TopStart).padding((7 * s).dp)
                     .background(Color(0xFFE5342B), RoundedCornerShape((4 * s).dp)).padding(horizontal = (5 * s).dp, vertical = (1.5f * s).dp),
             )
+            // The app it came from, where OK opens it: Nuvio or Stremio on a dark glass tag, its colour on a dot.
+            sourceTag(item.source)?.let { (name, dot) ->
+                Row(
+                    Modifier.align(Alignment.TopStart).padding((7 * s).dp)
+                        .background(Color.Black.copy(alpha = 0.55f), RoundedCornerShape((4 * s).dp))
+                        .padding(horizontal = (5 * s).dp, vertical = (1.5f * s).dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(Modifier.size((4 * s).dp).background(dot, CircleShape))
+                    Spacer(Modifier.width((3.5f * s).dp))
+                    Text(name, color = Color.White.copy(alpha = 0.92f), fontSize = (7 * s).sp, fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (0.3f * s).sp, maxLines = 1)
+                }
+            }
             if (item.logo.isNotBlank() && !logoOnly) AsyncImage(
                 remember(item.logo) { ImageRequest.Builder(ctx).data(item.logo).size((76 * s * 2).toInt(), (24 * s * 2).toInt()).build() }, null,
                 contentScale = ContentScale.Fit, alignment = Alignment.BottomStart,
@@ -189,6 +204,13 @@ private fun ContinueCard(
             if (item.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(item.country, s) }
         }
     }
+}
+
+/** A Continue Watching card's app tag: its name and colour (Nuvio's blue, Stremio's purple), or null for none. */
+private fun sourceTag(source: String): Pair<String, Color>? = when (source) {
+    "Nuvio", "Nuvio Legacy" -> "Nuvio" to Color(0xFF4FA3FF)
+    "Stremio" -> "Stremio" to Color(0xFF8A5AF0)
+    else -> null
 }
 
 /** "S10 · E12 · 23% left" (a series), "Movie · 40% left". */

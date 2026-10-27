@@ -39,11 +39,30 @@ object NuvioLaunch {
 
     fun packageName(ctx: Context, s: Settings) = TARGETS.getValue(resolve(ctx, s))
 
-    fun intent(ctx: Context, s: Settings, type: String, id: String): Intent {
+    /**
+     * The target for a title from Continue Watching, which opens in the app it came from whatever "Open titles in" says:
+     * Stremio's in Stremio; Nuvio Legacy's in Legacy if it's there; a Nuvio account's in the chosen Nuvio app, else the
+     * first Nuvio app installed. Anything else ("" or Trakt's) goes where [resolve] says.
+     */
+    fun resolve(ctx: Context, s: Settings, item: HeroItem): String {
+        val nuvios = TARGETS.keys - "stremio"
+        return when (item.source) {
+            "Stremio" -> "stremio"
+            "Nuvio Legacy" -> if (installed(ctx, LEGACY_PKG)) "legacy" else nuvio(ctx, s, nuvios)
+            "Nuvio" -> nuvio(ctx, s, nuvios)
+            else -> resolve(ctx, s)
+        }
+    }
+
+    private fun nuvio(ctx: Context, s: Settings, nuvios: Set<String>): String =
+        s.nuvioTarget.takeIf { it in nuvios } ?: nuvios.firstOrNull { installed(ctx, TARGETS.getValue(it)) } ?: "legacy"
+
+    fun intent(ctx: Context, s: Settings, type: String, id: String): Intent = intent(resolve(ctx, s), type, id)
+
+    private fun intent(target: String, type: String, id: String): Intent {
         // No CLEAR_TASK: a running Nuvio is brought forward and opens the title at once, without
         // restarting (no splash). If Nuvio is not running it starts normally.
         val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
-        val target = resolve(ctx, s)
         val pkg = TARGETS.getValue(target)
         val t = if (type.equals("movie", true)) "movie" else "series"
         val uri = if (target == "legacy") {
@@ -60,11 +79,13 @@ object NuvioLaunch {
     }
 
     fun open(ctx: Context, s: Settings, http: Http, item: HeroItem) {
+        val target = resolve(ctx, s, item)
+        val pkg = TARGETS.getValue(target)
         try {
-            ctx.startActivity(intent(ctx, s, item.type, item.id))
+            ctx.startActivity(intent(target, item.type, item.id))
         } catch (e: Exception) {
-            Glog.w("Open ${item.type} ${item.id} in ${packageName(ctx, s)}", e)
-            Toast.makeText(ctx, "${NAMES[resolve(ctx, s)]} is not installed or can't open this title", Toast.LENGTH_LONG).show()
+            Glog.w("Open ${item.type} ${item.id} in $pkg", e)
+            Toast.makeText(ctx, "${NAMES[target]} is not installed or can't open this title", Toast.LENGTH_LONG).show()
             return
         }
         if (s.haOnLaunch && s.haWebhook.startsWith("http")) {
@@ -72,7 +93,7 @@ object NuvioLaunch {
                 runCatching {
                     http.post(s.haWebhook, JSONObject()
                         .put("event", "launch").put("title", item.name).put("type", item.type)
-                        .put("id", item.id).put("app", packageName(ctx, s)))
+                        .put("id", item.id).put("app", pkg))
                 }
             }
         }

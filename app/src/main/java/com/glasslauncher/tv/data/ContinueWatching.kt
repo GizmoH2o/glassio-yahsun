@@ -313,7 +313,7 @@ class ContinueWatching(
                     key = e.key, id = e.imdb, type = e.type, name = str("name"),
                     poster = str("poster"), background = str("background").ifBlank { str("poster") }, logo = str("logo"),
                     overview = str("description"), rating = rating, year = year, genres = genres, platform = "",
-                    progress = e.percent / 100f, sub = sub,
+                    progress = e.percent / 100f, sub = sub, source = if (e.app == "Trakt") "" else e.app,
                 )
             }.getOrNull()
         }

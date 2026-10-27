@@ -41,6 +41,11 @@ data class HeroItem(
     val bestArt: String = "",
     /** A Live TV card's channel country (US, UK…): its tag beside the line under the card; "" for the others. */
     val country: String = "",
+    /**
+     * A Continue Watching card's app: "Nuvio Legacy", "Nuvio" or "Stremio" (its tag on the card, and the app OK opens it
+     * in); "" for the others, Trakt's included (watched anywhere), which open in the app "Open titles in" picks.
+     */
+    val source: String = "",
 )
 
 /**
