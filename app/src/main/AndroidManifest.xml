@@ -120,7 +120,7 @@
             android:exported="false"
             android:label="@string/live_name"
             android:launchMode="singleTask"
-            android:taskAffinity="com.glasslauncher.tv.live"
+            android:taskAffinity="${applicationId}.live"
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.Glass.Live"/>
@@ -129,7 +129,7 @@
             android:name=".live.Multiview"
             android:process=":live"
             android:exported="false"
-            android:taskAffinity="com.glasslauncher.tv.live"
+            android:taskAffinity="${applicationId}.live"
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.Glass.Live"/>
@@ -140,7 +140,7 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:noHistory="true"
-            android:taskAffinity="com.glasslauncher.tv.voice"
+            android:taskAffinity="${applicationId}.voice"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen">
             <intent-filter>
                 <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH"/>
@@ -160,7 +160,7 @@
         <!-- Live TV's channels for the TV's own search: only the system's search may read it. -->
         <provider
             android:name=".live.LiveSearchProvider"
-            android:authorities="com.glasslauncher.tv.live.search"
+            android:authorities="${applicationId}.live.search"
             android:exported="true"
             android:readPermission="android.permission.GLOBAL_SEARCH"/>
         <!-- Live TV's reminders: a card over whatever is on (the window around it is see-through). -->
@@ -170,7 +170,7 @@
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:launchMode="singleTask"
-            android:taskAffinity="com.glasslauncher.tv.reminder"
+            android:taskAffinity="${applicationId}.reminder"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"/>
         <!-- Live TV's recordings, in their own process, going on with Live TV closed. -->

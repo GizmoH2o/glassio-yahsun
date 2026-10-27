@@ -141,7 +141,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
             val cr = contentResolver
             val cur = android.provider.Settings.Secure.getString(cr, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES).orEmpty()
             val parts = cur.split(':').filter { it.isNotBlank() }
-            val mine = parts.any { it == me || it == "$packageName/.HomeKeyService" }
+            // The class's full name: the app's id isn't the code's package, so "<app>/.HomeKeyService" isn't it.
+            val mine = parts.any { android.content.ComponentName.unflattenFromString(it)?.let { c -> c.packageName == packageName && c.className == HomeKeyService::class.java.name } == true }
             if (!mine) android.provider.Settings.Secure.putString(cr, android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES, (parts + me).joinToString(":"))
             android.provider.Settings.Secure.putString(cr, android.provider.Settings.Secure.ACCESSIBILITY_ENABLED, "1")
         }

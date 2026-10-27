@@ -37,7 +37,7 @@ object LocalShell {
         val remote = "/data/local/tmp/glass-update.apk"
         d.push(apk, remote)
         val cmd = "nohup sh -c 'pm install -r -d $remote && rm -f $remote; " +
-            "am start -n ${ctx.packageName}/.MainActivity' >/dev/null 2>&1 &"
+            "am start -n ${ctx.packageName}/${com.glasslauncher.tv.MainActivity::class.java.name}' >/dev/null 2>&1 &"
         val r = d.shell(cmd)
         check(r.exitCode == 0) { r.allOutput.trim().ifBlank { "exit ${r.exitCode}" } }
     }.onFailure { runCatching { conn?.close() }; conn = null }

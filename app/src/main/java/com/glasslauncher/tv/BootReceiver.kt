@@ -45,7 +45,7 @@ class BootReceiver : BroadcastReceiver() {
                         Glog.i("Boot: the Home-button service opens Glassio")
                         return@thread
                     }
-                    val r = LocalShell.run(app, "am start -a android.intent.action.MAIN -c android.intent.category.HOME -n ${app.packageName}/.MainActivity")
+                    val r = LocalShell.run(app, "am start -a android.intent.action.MAIN -c android.intent.category.HOME -n ${app.packageName}/${MainActivity::class.java.name}")
                     if (r.isSuccess) {
                         Glog.i("Boot: Glassio opened through the TV's adb (attempt ${attempt + 1})")
                         return@thread

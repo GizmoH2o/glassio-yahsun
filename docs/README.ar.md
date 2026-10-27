@@ -17,7 +17,7 @@ Nuvio Legacy، أيقونات بأسلوب tvOS، طقس، سكرين سيفر،
 كوكل تي في دائماً يوجّه زر الهوم للانشر مالته، فاللانشر يستخدم خدمة إمكانية الوصول:
 1. الإعدادات ← **System** ← *Turn on the accessibility service* ← Glassio ← تشغيل.
 2. مُستحسن (حتى تبقى الخدمة شغالة بعد التحديثات): من الكمبيوتر مرة وحدة
-   `adb shell pm grant com.glasslauncher.tv android.permission.WRITE_SECURE_SETTINGS`
+   `adb shell pm grant com.glassioyahsun.tv android.permission.WRITE_SECURE_SETTINGS`
 3. أول مرة يستخدم اللانشر adb مال التلفزيون (سكرين سيفر التلفزيون، متابعة المشاهدة، التحديث الصامت) تطلع رسالة
    **Allow USB debugging** — فعّل **Always allow** واضغط **Allow**. لازم *Network debugging* يكون مفعّل من خيارات المطور.
 

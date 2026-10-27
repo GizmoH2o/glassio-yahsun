@@ -3,7 +3,7 @@
 <searchable xmlns:android="http://schemas.android.com/apk/res/android"
     android:label="@string/live_name"
     android:hint="@string/live_search_hint"
-    android:searchSuggestAuthority="com.glasslauncher.tv.live.search"
+    android:searchSuggestAuthority="@string/live_search_authority"
     android:searchSuggestIntentAction="android.intent.action.VIEW"
     android:searchSuggestIntentData="glassioyahsun://live/channel"
     android:searchSuggestSelection=" ?"

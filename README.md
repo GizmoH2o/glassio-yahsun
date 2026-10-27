@@ -136,6 +136,11 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
 Glassio needs Android 9 or newer.
 
+Glassio Yahsun installs as **com.glassioyahsun.tv**, its own app beside the original Glassio (com.glasslauncher.tv), so
+both can be on one TV. Versions up to 2.3 used the original's name: moving from one of those, make a backup there
+(Settings → System → *Back up settings*), install this one, restore the backup in it (Settings → System → *Restore a
+backup*), then uninstall the old one.
+
 ### Make it your home screen (Home button)
 
 Google TV always sends the Home button to its own launcher, so Glass uses an accessibility service to catch it.
@@ -144,7 +149,7 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 2. Recommended — so Android keeps the service on after updates, and so Glass can start the TV screensaver and read Nuvio's
    progress, run once from a computer:
    ```sh
-   adb shell pm grant com.glasslauncher.tv android.permission.WRITE_SECURE_SETTINGS
+   adb shell pm grant com.glassioyahsun.tv android.permission.WRITE_SECURE_SETTINGS
    ```
 3. The first time Glass uses the TV's own adb (TV screensaver, Continue Watching, silent updates) the TV asks
    **"Allow USB debugging?"** for Glassio: tick **Always allow** and choose **Allow**. *Network debugging* must be
@@ -297,7 +302,7 @@ Releases from 2.1.1 on are signed with the same key, so they install over each o
 ## Troubleshooting
 - Everything that fails quietly (network, Trakt, the TV's adb, opening a title in Nuvio) is logged under one tag:
   `adb logcat -s Glassio`.
-- Settings snapshot: `adb shell am start -n com.glasslauncher.tv/.MainActivity --ez dump_settings true`, then `adb logcat -s GlassSettings`.
+- Settings snapshot: `adb shell am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity --ez dump_settings true`, then `adb logcat -s GlassSettings`.
 - Continue Watching from Nuvio Legacy, the Aerial Views button and silent updates need TV access (ADB): Settings → System.
 
 ## Tools
@@ -305,12 +310,12 @@ Releases from 2.1.1 on are signed with the same key, so they install over each o
   home-screen icon of each app, 1280×768) and renders dark / white / clear looks. The icons belong to their owners and are
   not included in this repository.
 - `TV=<tv-ip>:5555 tools/push_appletv_icons.sh <out>` — copies the library to the TV
-  (`Android/data/com.glasslauncher.tv/files/appletv/`).
+  (`Android/data/com.glassioyahsun.tv/files/appletv/`).
 - `tools/release.sh [--dry-run]` — builds the release APK and publishes it on GitHub with its CHANGELOG.md section as
   the release notes (it stops when the version has none). See [Build](#build).
-- `tools/framestats.py` — summarises `adb shell dumpsys gfxinfo com.glasslauncher.tv framestats` per frame stage.
+- `tools/framestats.py` — summarises `adb shell dumpsys gfxinfo com.glassioyahsun.tv framestats` per frame stage.
 
-Terminal helpers (`adb shell am start -n com.glasslauncher.tv/.MainActivity …`): `--ez open_folder true`,
+Terminal helpers (`adb shell am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity …`): `--ez open_folder true`,
 `--ei open_settings <tab>`, `--es icon_pack <pkg|none>`, `--es tile_style …`, `--es dock_style …`, `--ei blur <n>`,
 `--es saver_mode aerial|slideshow|system`, `--ez start_saver true`, `--ez show_setup true|false`, `--es continue_mode first|mixed|off`, `--ez dump_settings true`.
 

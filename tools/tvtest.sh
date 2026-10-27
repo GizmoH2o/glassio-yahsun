@@ -11,8 +11,8 @@ if [[ "$1" == "build" ]]; then
   ./gradlew :app:assembleRelease --no-daemon --console=plain > /tmp/gb.log 2>&1; grep -E "^e: |BUILD" /tmp/gb.log
   adb connect $D >/dev/null
   adb -s $D install -r app/build/outputs/apk/release/app-release.apk | tail -1
-  adb -s $D shell am force-stop com.glasslauncher.tv
-  adb -s $D shell am start -n com.glasslauncher.tv/.MainActivity >/dev/null 2>&1
+  adb -s $D shell am force-stop com.glassioyahsun.tv
+  adb -s $D shell am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity >/dev/null 2>&1
   sleep 9
 fi
 mkdir -p ~/liquid-shots; rm -f ~/liquid-shots/t*.png

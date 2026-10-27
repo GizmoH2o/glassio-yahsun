@@ -8,19 +8,19 @@ import android.content.IntentFilter;
  * For checking looks on the TV from a computer, without touching anyone's settings: a broadcast only adb can send
  * (it needs DUMP, which the shell has and apps don't). What it changes stays in memory and goes when the app does.
  *
- *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --es style sky   Live TV (open) in a style (zero: Glassio's,
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es style sky   Live TV (open) in a style (zero: Glassio's,
  *                                                                    apple, youtube, now, sky, sling, hulu, custom,
  *                                                                    netflix, prime, disney, max, plex, pluto;
  *                                                                    off: the one chosen)
- *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --ei remind 603  Live TV (open): a reminder card for that
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ei remind 603  Live TV (open): a reminder card for that
  *            [--ei in 5] [--es match "Chelsea"]                      channel number, its show starting in that many
  *                                                                    seconds (60); with match, a match alert for that team
- *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --es follow "Arsenal"    Live TV (open): follows it, as
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es follow "Arsenal"    Live TV (open): follows it, as
  *                                                                    Follow… does
- *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --es unfollow "Arsenal"  and stops following it
- *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --es recproblem missed   Live TV (open): a missed recording
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es unfollow "Arsenal"  and stops following it
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es recproblem missed   Live TV (open): a missed recording
  *                                                                    of the channel on, told as a real one is (off: deleted)
- *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST --es scores URL          Live TV (open): live scores from a
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es scores URL          Live TV (open): live scores from a
  *                                                                    stand-in (URL/soccer/all/scoreboard, …: ESPN's
  *                                                                    layout; off: ESPN's)
  */

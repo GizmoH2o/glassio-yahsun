@@ -96,7 +96,7 @@ class MainActivity : ComponentActivity() {
         Thread { runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) } }.start()
     }
 
-    /** Terminal helper: am start -n com.glasslauncher.tv/.MainActivity --es icon_pack <package> ("none" clears it). */
+    /** Terminal helper: am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity --es icon_pack <package> ("none" clears it). */
     private fun handleExtras(i: Intent?) {
         val app = application as GlassApp
         i?.getStringExtra("reset_icon")?.let { app.icons.reset(it) }

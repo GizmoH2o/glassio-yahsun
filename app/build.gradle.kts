@@ -12,10 +12,14 @@ val localProps = Properties().apply {
 }
 
 android {
+    // The code's package; the app installs as its own (applicationId), apart from the original Glassio
+    // (com.glasslauncher.tv), so both can be on one TV.
     namespace = "com.glasslauncher.tv"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.glasslauncher.tv"
+        applicationId = "com.glassioyahsun.tv"
+        // Live TV's channels in the TV's search: a name of the app's own (two installed apps can't share one).
+        resValue("string", "live_search_authority", "$applicationId.live.search")
         minSdk = 28
         targetSdk = 35
         versionCode = 37

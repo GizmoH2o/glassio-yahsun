@@ -18,7 +18,7 @@ import java.util.Locale;
 /**
  * What went wrong, kept for afterwards (the TV's own log is tiny and lost on a restart): a crash in any process, and
  * Live TV's screen not answering for a while (a freeze), with the threads' stacks. In the app's external files
- * folder, which adb can read (adb shell cat /sdcard/Android/data/com.glasslauncher.tv/files/problems.txt). Web addresses are
+ * folder, which adb can read (adb shell cat /sdcard/Android/data/com.glassioyahsun.tv/files/problems.txt). Web addresses are
  * taken out (a stream's carries the login); the newest problems are kept, the file stays small.
  */
 final class CrashLog {
