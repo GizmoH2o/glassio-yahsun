@@ -170,6 +170,9 @@ public final class LiveHome {
         public String where = "";
         public boolean live;
         public int channel;
+        /** When it starts (wall clock), and the same key while it's the same match (the home screen's kick-off alert). */
+        public long start;
+        public String key = "";
     }
 
     /**
@@ -188,6 +191,8 @@ public final class LiveHome {
         out.where = LiveMatchDay.where(m, now);
         out.live = now >= m.start;
         out.channel = m.ch.id;
+        out.start = m.start;
+        out.key = m.ch.id + ":" + m.start;
         return out;
     }
 
@@ -564,6 +569,47 @@ public final class LiveHome {
         return out;
     }
 
+    /** Whether what's on now on `channel` is being recorded (the home card's menu: Record or Stop recording). Blocking. */
+    public static boolean recordingNow(Context c, int channel) {
+        Xtream.Channel ch = channelOf(c, channel);
+        Xtream.Program p = ch == null ? null : onNow(c, ch, System.currentTimeMillis());
+        return p != null && LiveRecordings.recording(c, ch.id, p.start);
+    }
+
+    /**
+     * From the home card: records what's on now on `channel` until it ends (as Live TV's Record button), or stops the
+     * recording when it already is. Returns what to tell the person. Blocking.
+     */
+    public static String recordNow(Context c, int channel) {
+        Xtream.Channel ch = channelOf(c, channel);
+        if (ch == null) return "That channel isn't in your list any more";
+        Xtream.Program p = onNow(c, ch, System.currentTimeMillis());
+        if (p == null) return "No guide for this channel: there's no telling when the show ends";
+        if (LiveRecordings.recording(c, ch.id, p.start)) {
+            RecordService.stop(c, LiveRecordings.idOf(ch.id, p.start));
+            return "Recording stopped";
+        }
+        LiveSchedule.Item it = new LiveSchedule.Item();
+        it.kind = LiveSchedule.RECORD;
+        it.ch = ch;
+        it.start = p.start;
+        it.end = p.end;
+        it.title = p.title;
+        it.about = p.about;
+        RecordService.start(c, it);
+        return "Recording " + (p.title.isEmpty() ? ch.name : p.title) + " until " + Ui.time(p.end);
+    }
+
+    /** `channel` from the saved list (the one kept for the small window when it's there). */
+    private static Xtream.Channel channelOf(Context c, int channel) {
+        Xtream.Lineup l;
+        synchronized (LiveHome.class) {
+            l = miniLineup;
+        }
+        if (l == null) l = Xtream.saved(c);
+        return l == null ? null : l.find(channel);
+    }
+
     /** Live TV playing a finished recording (from its card). */
     public static Intent openRecording(Context c, String id) {
         return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_RECORDING, id);
@@ -657,25 +703,74 @@ public final class LiveHome {
         for (int step = 1; step < list.size(); step++) {
             Xtream.Channel ch = list.get(Math.floorMod(at + dir * step, list.size()));
             if (LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
-            Xtream.Channel src = ch.sources != null && !ch.sources.isEmpty() ? ch.sources.get(0) : ch;
-            String format = LiveOptions.format(c);
-            if (format.equals(LiveOptions.AUTO)) format = l.format;
-            try {
-                String url = Xtream.resolve(c, Xtream.streamUrl(c, src, format));
-                Mini m = new Mini();
-                m.url = url;
-                m.mime = Xtream.mime(c, url, format);
-                if (m.mime == null) m.mime = "";
-                m.name = ch.name == null ? "" : ch.name;
-                m.logo = ch.logo == null ? "" : ch.logo;
-                m.channel = ch.id;
-                return m;
-            } catch (java.io.IOException e) {
-                AppLog.w("live: the small window couldn't get the next channel's address");
-                return null;
-            }
+            return miniOf(c, l, ch);
         }
         return null;
+    }
+
+    /**
+     * `channel` for the small window (the kick-off alert's Small window): null when it isn't in the list, is locked
+     * behind the parental PIN, or its address can't be had. Blocking.
+     */
+    public static Mini miniFor(Context c, int channel) {
+        Xtream.Lineup l = Xtream.saved(c);
+        if (l != null && LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(l);
+        Xtream.Channel ch = l == null ? null : l.find(channel);
+        if (ch == null || LiveOptions.isLockedAnyProcess(c, ch.category)) return null;
+        return miniOf(c, l, ch);
+    }
+
+    /** `ch`'s address asked for now (a MAG portal's), for the small window; null when it can't be had. */
+    private static Mini miniOf(Context c, Xtream.Lineup l, Xtream.Channel ch) {
+        Xtream.Channel src = ch.sources != null && !ch.sources.isEmpty() ? ch.sources.get(0) : ch;
+        String format = LiveOptions.format(c);
+        if (format.equals(LiveOptions.AUTO)) format = l.format;
+        try {
+            String url = Xtream.resolve(c, Xtream.streamUrl(c, src, format));
+            Mini m = new Mini();
+            m.url = url;
+            m.mime = Xtream.mime(c, url, format);
+            if (m.mime == null) m.mime = "";
+            m.name = ch.name == null ? "" : ch.name;
+            m.logo = ch.logo == null ? "" : ch.logo;
+            m.channel = ch.id;
+            return m;
+        } catch (java.io.IOException e) {
+            AppLog.w("live: the small window couldn't get the channel's address");
+            return null;
+        }
+    }
+
+    /** The channel the small window changed to, for Live TV's next start (Live.show reads it once, then it's gone). */
+    static final String NEXT_CHANNEL_FILE = "live-next-channel.txt";
+
+    /**
+     * The small window went to `channel`: it's the one watched last now (History, the home screen's Live TV card) and the
+     * one Live TV opens on next. Blocking.
+     */
+    public static void miniWatched(Context c, int channel) {
+        Xtream.Channel ch = channelOf(c, channel);
+        if (ch == null) return;
+        Xtream.watched(c, ch);
+        try {
+            Xtream.write(new java.io.File(c.getFilesDir(), NEXT_CHANNEL_FILE), String.valueOf(ch.id));
+        } catch (java.io.IOException e) {
+            AppLog.w("live: couldn't keep the small window's channel");
+        }
+    }
+
+    /** Live TV's side: the channel the small window left on (-1: none), read once. */
+    static int takeNextChannel(Context c) {
+        java.io.File f = new java.io.File(c.getFilesDir(), NEXT_CHANNEL_FILE);
+        if (!f.exists()) return -1;
+        try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+            return Integer.parseInt(Xtream.read(in).trim());
+        } catch (java.io.IOException | NumberFormatException e) {
+            return -1;
+        } finally {
+            //noinspection ResultOfMethodCallIgnored
+            f.delete();
+        }
     }
 
     /** The user agent Live TV's own player sends (some providers only answer it). */

@@ -39,8 +39,10 @@ import java.util.concurrent.Executors;
  *    channel buttons change channel; ◀ the channel list, ▶ the last channel; on the player's bar (OK) ◀ ▶ seek
  *    (◀ live: back into the catch-up), ↓ its buttons; Back the guide; held: OK the menu, ↑ History, ↓ Search;
  *  - the guide (Back): the category's channels as rows, their programs along a time line, the playing channel in a
- *    window at the top right; ◀ held goes into the catch-up (Back: now again); Back (or ◀ from now) brings the menu
- *    rail and the groups beside it (TiviMate's), and Back twice there leaves Live TV; held Back, back to the video;
+ *    window at the top right; ◀ held goes into the catch-up (Back: now again); Back goes back to the channel full
+ *    screen (before anything plays, it brings the categories); ◀ from now brings the menu
+ *    rail and the groups beside it (TiviMate's), and Back there goes back to the guide (with nothing playing, twice
+ *    leaves Live TV); held Back, back to the video;
  *  - the channel list (←), TiviMate's: the channels with what's on now, the focused one's schedule and show beside
  *    them, ← the categories; Search (or the remote's Search key) finds channels by name or number;
  *  - the number keys tune a channel by its number (a box at the top right shows which, as you type);
@@ -141,7 +143,7 @@ final class LiveView extends View {
     private boolean pressLong, backLong;
     /** With the focus in the schedule (column 2, → from a channel): the focused program's place in its programs. */
     private int sIdx;
-    // The guide's groups (Back in the guide, TiviMate's): the menu rail and the categories beside the guide, which
+    // The guide's groups (◀ in the guide, TiviMate's): the menu rail and the categories beside the guide, which
     // moves over; ↑ ↓ pick the category (the guide follows), ← the rail, → or OK back to the guide.
     private static final float GP_RAIL = 110, GP_W = 600;
     private boolean gGroups, gRail;
@@ -1308,8 +1310,9 @@ final class LiveView extends View {
                 live.backToLive();
                 return true;
             }
-            if (mode == GUIDE && gGroups) {      // the guide's groups: twice, out of Live TV
-                exitPress();
+            if (mode == GUIDE && gGroups) {      // the guide's groups: back to the guide (nothing playing: twice, out)
+                if (live.playing() != null) closeGuideGroups(); else exitPress();
+                invalidate();
                 return true;
             }
             // In the guide's past: Back comes to now first.
@@ -1327,7 +1330,11 @@ final class LiveView extends View {
                 listBack();
                 return true;
             }
-            if (mode == GUIDE && lineup != null) {      // the groups beside the guide (TiviMate's)
+            if (mode == GUIDE && live.playing() != null) {      // the guide: back to the channel, full screen
+                closeGuide();
+                return true;
+            }
+            if (mode == GUIDE && lineup != null) {      // nothing playing yet: the groups beside the guide (TiviMate's)
                 openGuideGroups();
                 return true;
             }
@@ -3506,7 +3513,7 @@ final class LiveView extends View {
         return (660 + (i - 4) * 340) * k;
     }
 
-    /** Back in the guide: the rail and the categories beside it, the focus on the guide's category. */
+    /** ◀ in the guide (or Back before anything plays): the rail and the categories beside it, the focus on the guide's category. */
     private void openGuideGroups() {
         panelCats.clear();
         for (int i = 0; i < lineup.categories.size(); i++) {
@@ -3713,13 +3720,15 @@ final class LiveView extends View {
             Xtream.Channel channel = rows.get(r);
             float y = rowY(r, 0), cy = y + G_ROW_H / 2 * k;
             float onTile = r == gRow ? 1 - col : 0;
-            // The logo, and the channel's name small under it, both centered in the column.
+            // The logo, and the channel's number and name small under it, both centered in the column (a long name is
+            // cut at its end: the number always shows).
             float left = G_LOGO_X * k, right = (G_COL_R - G_MARKS_W) * k, mid = (left + right) / 2;
             cell.set(left + 8 * k, y + 5 * k, right - 8 * k, y + (G_ROW_H - (compact ? 23 : 28)) * k);
             drawLogo(c, channel, cell, 1);
             Paint np = r == gRow ? gNameOn : gName;
             np.setColor(r == gRow ? LiveTheme.onTile(LiveTheme.text, onTile) : 0xB3FFFFFF);
-            String name = ellipsize(channel.name, np, right - left - 8 * k);
+            String nm = channel.name == null ? "" : channel.name, label = channel.num > 0 ? channel.num + "  " + nm : nm;
+            String name = ellipsize(label, np, right - left - 8 * k);
             c.drawText(name, mid - np.measureText(name) / 2, y + (G_ROW_H - (compact ? 7 : 9)) * k, np);
             // The marks at the column's end, one over the other: ▶ the one playing, catch-up's arrow, the heart.
             int marks = (playing != null && playing.id == channel.id ? 1 : 0) + (channel.archive > 0 ? 1 : 0)

@@ -92,7 +92,14 @@ object MiniLive {
             val next = runCatching { LiveHome.miniStep(ctx.applicationContext, m.channel, dir) }.getOrNull()
             android.os.Handler(android.os.Looper.getMainLooper()).post {
                 changing.value = false
-                if (next != null && now.value != null) now.value = next
+                if (next != null && now.value != null) {
+                    now.value = next
+                    // The one watched last from now on: the home screen's Live TV card, History, Live TV's next start.
+                    Thread({
+                        runCatching { LiveHome.miniWatched(ctx.applicationContext, next.channel) }
+                        runCatching { com.glasslauncher.tv.data.LiveCards.refresh(ctx.applicationContext) }
+                    }, "mini-live-watched").start()
+                }
                 else if (next == null && now.value != null) toast(ctx, "No other channel to go to")
             }
         }, "mini-live-step").start()

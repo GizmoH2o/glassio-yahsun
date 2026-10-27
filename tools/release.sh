@@ -37,7 +37,8 @@ if [ "$DRY" = 0 ]; then
   fi
 fi
 
-./gradlew assembleRelease
+# The tests first (the backup's lock): no release when one fails.
+./gradlew testReleaseUnitTest assembleRelease
 # The signing key: Glassio Yahsun's release key, not the debug one (a build without local.properties' key gets that).
 SDK=${ANDROID_HOME:-$(sed -n 's/^sdk.dir=//p' local.properties | sed -e 's#\\:#:#' -e 's#\\\\#/#g')}
 BT=$(ls -d "$SDK"/build-tools/* | sort -V | tail -1)

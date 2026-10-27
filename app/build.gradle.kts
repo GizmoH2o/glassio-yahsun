@@ -74,4 +74,6 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("dev.mobile:dadb:1.2.10")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
+    // The backup's lock, checked on the computer: ./gradlew testReleaseUnitTest (tools/release.sh runs it).
+    testImplementation("junit:junit:4.13.2")
 }

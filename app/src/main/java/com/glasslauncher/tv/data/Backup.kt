@@ -8,18 +8,7 @@ import android.provider.MediaStore
 import android.util.Base64
 import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.security.SecureRandom
-import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
-import javax.crypto.AEADBadTagException
-import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * Glassio Yahsun's backup: every setting of Glassio and Live TV, sign-ins included (Nuvio, Trakt, TMDB, Live TV's
@@ -34,7 +23,7 @@ object Backup {
     const val NAME = "Glassio Yahsun backup.json"
     const val MIN_CODE = 6
     private const val FORMAT = "glassio-yahsun-backup"
-    private const val ITERATIONS = 150_000
+    private const val ITERATIONS = BackupCrypto.ITERATIONS
     /** One file bigger than this stays out (a provider's whole channel list: Live TV reads it again); all together. */
     private const val FILE_MAX = 4L * 1024 * 1024
     private const val TOTAL_MAX = 16L * 1024 * 1024
@@ -46,6 +35,27 @@ object Backup {
     private val SKIP_FILES = setOf("mini_live.json", "last-crash.txt", "live-watching.txt", "live-last-boot", "profileInstalled")
 
     class Restored(val settings: Int, val files: Int)
+
+    /** A backup older than this, or none at all: Settings suggests making one. */
+    const val REMIND_AFTER_DAYS = 30
+    private const val NOTE = "glass_backup"
+
+    /** When the last backup was made on this TV (0: never), for Settings' reminder. */
+    fun lastMade(ctx: Context): Long = ctx.getSharedPreferences(NOTE, Context.MODE_PRIVATE).getLong("made", 0L)
+
+    private fun noteMade(ctx: Context, at: Long) {
+        ctx.getSharedPreferences(NOTE, Context.MODE_PRIVATE).edit().putLong("made", at).apply()
+    }
+
+    /** Settings' line under Back up settings: when the last one was, or a nudge when there's none or it's old. */
+    fun reminder(ctx: Context, now: Long = System.currentTimeMillis()): String {
+        val at = lastMade(ctx)
+        if (at <= 0L) return "No backup yet: make one, so a reset or a new TV takes a minute"
+        val days = ((now - at) / 86_400_000L).toInt()
+        val day = java.text.SimpleDateFormat("d MMM yyyy", java.util.Locale.getDefault()).format(java.util.Date(at))
+        return if (days >= REMIND_AFTER_DAYS) "Last backup $day, $days days ago: time for a new one"
+        else "Last backup $day. Locked with a code; saved in Downloads, and to your phone from Manage from phone"
+    }
 
     /** The backup locked with [code]. Blocking (a second or two: the key is slow to make on purpose). */
     fun make(ctx: Context, code: String): ByteArray {
@@ -68,15 +78,13 @@ object Backup {
             files.put(rel, Base64.encodeToString(f.readBytes(), Base64.NO_WRAP))
         }
         val payload = JSONObject().put("prefs", prefs).put("files", files).toString().toByteArray(Charsets.UTF_8)
-        val gz = ByteArrayOutputStream().also { o -> GZIPOutputStream(o).use { it.write(payload) } }.toByteArray()
-        val rnd = SecureRandom()
-        val salt = ByteArray(16).also(rnd::nextBytes)
-        val iv = ByteArray(12).also(rnd::nextBytes)
-        val c = Cipher.getInstance("AES/GCM/NoPadding").apply { init(Cipher.ENCRYPT_MODE, key(code, salt, ITERATIONS), GCMParameterSpec(128, iv)) }
+        val sealed = BackupCrypto.seal(payload, code, ITERATIONS)
         val version = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty()
-        return JSONObject().put("format", FORMAT).put("version", 1).put("app", version).put("made", System.currentTimeMillis())
+        val made = System.currentTimeMillis()
+        noteMade(ctx, made)
+        return JSONObject().put("format", FORMAT).put("version", 1).put("app", version).put("made", made)
             .put("kdf", "PBKDF2WithHmacSHA256").put("iterations", ITERATIONS)
-            .put("salt", b64(salt)).put("iv", b64(iv)).put("data", b64(c.doFinal(gz)))
+            .put("salt", b64(sealed.salt)).put("iv", b64(sealed.iv)).put("data", b64(sealed.data))
             .toString().toByteArray(Charsets.UTF_8)
     }
 
@@ -89,14 +97,13 @@ object Backup {
      */
     fun restore(ctx: Context, bytes: ByteArray, code: String): Restored {
         val h = header(bytes)
-        val gz = try {
-            Cipher.getInstance("AES/GCM/NoPadding").apply {
-                init(Cipher.DECRYPT_MODE, key(code, unb64(h.getString("salt")), h.optInt("iterations", ITERATIONS)), GCMParameterSpec(128, unb64(h.getString("iv"))))
-            }.doFinal(unb64(h.getString("data")))
-        } catch (e: AEADBadTagException) {
+        val sealed = BackupCrypto.Sealed(unb64(h.getString("salt")), unb64(h.getString("iv")), unb64(h.getString("data")))
+        val opened = try {
+            BackupCrypto.open(sealed, code, h.optInt("iterations", ITERATIONS))
+        } catch (e: BackupCrypto.WrongCode) {
             error("Wrong code")
         }
-        val payload = JSONObject(GZIPInputStream(ByteArrayInputStream(gz)).use { it.readBytes() }.toString(Charsets.UTF_8))
+        val payload = JSONObject(opened.toString(Charsets.UTF_8))
         stopOtherProcesses(ctx)
         var settings = 0
         val prefs = payload.optJSONObject("prefs") ?: JSONObject()
@@ -222,13 +229,6 @@ object Backup {
         val h = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)) }.getOrNull()
         require(h != null && h.optString("format") == FORMAT) { "Not a Glassio Yahsun backup" }
         return h
-    }
-
-    private fun key(code: String, salt: ByteArray, iterations: Int): SecretKeySpec {
-        val spec = PBEKeySpec(code.toCharArray(), salt, iterations, 256)
-        try {
-            return SecretKeySpec(SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded, "AES")
-        } finally { spec.clearPassword() }
     }
 
     private fun b64(b: ByteArray) = Base64.encodeToString(b, Base64.NO_WRAP)

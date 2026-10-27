@@ -23,6 +23,18 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 | ![Background](docs/screenshots/42-menu-background.jpg) | ![Library](docs/screenshots/43-library.jpg) |
 | ![Screensaver as background](docs/screenshots/44-screensaver-background.jpg) | ![Black on white](docs/screenshots/45-theme-black-on-white.jpg) |
 
+**Live TV, Following and backup (Glassio Yahsun)**
+
+| | |
+|---|---|
+| ![Continue Watching with Live TV](docs/screenshots/50-live-continue-watching.jpg) | ![Record from the home screen](docs/screenshots/51-live-card-record.jpg) |
+| ![Watch on Home](docs/screenshots/52-watch-on-home.jpg) | ![Live TV page](docs/screenshots/53-live-tv-page.jpg) |
+| ![Following](docs/screenshots/54-following.jpg) | ![TV guide with channel numbers](docs/screenshots/55-guide-channel-numbers.jpg) |
+| ![Guide in the Glassio style](docs/screenshots/56-guide-style-glassio.jpg) | ![Guide in the Netflix style](docs/screenshots/57-guide-style-netflix.jpg) |
+| ![Guide in the Max style](docs/screenshots/58-guide-style-max.jpg) | ![Live TV styles](docs/screenshots/59-live-style-picker.jpg) |
+| ![Live TV settings](docs/screenshots/60-live-settings-theme.jpg) | ![Live TV menu](docs/screenshots/61-live-menu.jpg) |
+| ![Backup in Settings](docs/screenshots/62-settings-backup.jpg) | ![Setup checklist](docs/screenshots/63-setup-checklist.jpg) |
+
 ---
 
 ## Features
@@ -33,6 +45,8 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - **Back up settings** and **Restore a backup** (Settings › System, and the phone page): everything, sign-ins included, in one file locked with a code you choose. It goes to the TV's Downloads and to your phone; restoring brings it all back and restarts Glassio.
 - **Watch on Home** is selectable: OK full screen, Up / Down change the channel, Back selects it and closes it.
 - A setup checklist on a fresh install, and Live TV's list highlight as Glassio's.
+- **Channel numbers in the TV guide**, Back in the guide goes straight back to the channel, and hold OK on a Live TV card offers **Record this show**.
+- A **kick-off alert** when a team you follow starts playing (Watch, Small window or Not now), and a reminder in Settings when a backup is due.
 
 **New in 2.1: Live TV on the home screen**
 - **Continue Watching** now starts with Live TV: a followed match on now (with the score), the channel you watched last (what's on, with a LIVE tag) and your newest recordings. OK opens them in Live TV; hold OK takes one out of the row.

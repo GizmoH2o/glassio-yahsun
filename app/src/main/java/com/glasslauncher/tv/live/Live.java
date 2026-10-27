@@ -629,6 +629,12 @@ public class Live extends Activity {
         lineup = l;
         SharedPreferences p = prefs();
         int last = p.getInt("channel", -1);
+        // The small window on the home screen changed channel since: that one (and from now on).
+        int fromMini = LiveHome.takeNextChannel(this);
+        if (fromMini >= 0 && l.find(fromMini) != null) {
+            last = fromMini;
+            p.edit().putInt("channel", fromMini).apply();
+        }
         String category = p.getString("category", "");
         view.setLineup(l, category);
         updateGuide(false);

@@ -1,0 +1,98 @@
+# A pushed version tag (v2.2.0) builds, tests and signs Glassio Yahsun on GitHub and publishes the APK as that
+# version's release, with its CHANGELOG.md section as the notes (the in-app update banner shows them). It stops when
+# the version has no CHANGELOG section, when a test fails, or when the APK isn't signed with the release key. When
+# tools/release.sh already published the version from the computer, this leaves it as it is.
+#
+# Needs these repository secrets (Settings > Secrets and variables > Actions):
+#   RELEASE_KEYSTORE_B64    the release keystore (.jks), base64
+#   RELEASE_STORE_PASSWORD  its password (also the key's)
+#   RELEASE_KEY_ALIAS       glassio-yahsun
+#   NUVIO_ANON_KEY, TRAKT_CLIENT_ID   as in local.properties (optional: without them, those sign-ins are off)
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build and release (v2.2.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      # The release key's certificate (SHA-256), public: as in tools/release.sh.
+      RELEASE_CERT: 99a1d555c070a447a4e5d5e592425024e15523bee73f3da2705be0883ae94dda
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Version, tag and changelog agree
+        run: |
+          VERSION=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
+          [ "v$VERSION" = "$TAG" ] || { echo "::error::$TAG doesn't match versionName $VERSION"; exit 1; }
+          awk -v v="$VERSION" '
+            /^## / { if (on) exit; if ($2 == v) { on = 1; next } }
+            on { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' > notes.md
+          grep -q '[^[:space:]]' notes.md || { echo "::error::CHANGELOG.md has no section for $VERSION"; exit 1; }
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Signing key and keys from the secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          NUVIO_ANON_KEY: ${{ secrets.NUVIO_ANON_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+        run: |
+          [ -n "$KEYSTORE_B64" ] && [ -n "$STORE_PASSWORD" ] && [ -n "$KEY_ALIAS" ] || {
+            echo "::error::The release key's secrets aren't set (RELEASE_KEYSTORE_B64, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS)"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          {
+            echo "sdk.dir=$ANDROID_HOME"
+            echo "RELEASE_STORE_FILE=$RUNNER_TEMP/release.jks"
+            echo "RELEASE_STORE_PASSWORD=$STORE_PASSWORD"
+            echo "RELEASE_KEY_ALIAS=$KEY_ALIAS"
+            echo "RELEASE_KEY_PASSWORD=$STORE_PASSWORD"
+            echo "NUVIO_ANON_KEY=$NUVIO_ANON_KEY"
+            echo "TRAKT_CLIENT_ID=$TRAKT_CLIENT_ID"
+          } > local.properties
+
+      - name: Test and build
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon testReleaseUnitTest assembleRelease
+
+      - name: Signed with the release key
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          CERT=$("$BT/apksigner" verify --print-certs app/build/outputs/apk/release/app-release.apk \
+            | sed -n 's/^.*[Ss]igner.* certificate SHA-256 digest: //p' | sort -u)
+          [ "$CERT" = "$RELEASE_CERT" ] || { echo "::error::The APK isn't signed with the release key (got ${CERT:-none})"; exit 1; }
+          cp app/build/outputs/apk/release/app-release.apk "GlassioYahsun-$VERSION.apk"
+
+      - name: Publish
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already released (tools/release.sh): left as it is."
+            exit 0
+          fi
+          gh release create "$TAG" "GlassioYahsun-$VERSION.apk" --title "Glassio Yahsun $VERSION" --notes-file notes.md --verify-tag
+
+      - name: Clean up the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks" local.properties

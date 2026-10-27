@@ -59,14 +59,21 @@ class MainActivity : ComponentActivity() {
                 }
             }
             com.glasslauncher.tv.ui.GlassType { com.glasslauncher.tv.ui.QuietSemantics { HomeScreen(app, screen) { screen = it } } }
-            // Watch on Home: over everything, last.
+            // Watch on Home and the kick-off alert: over everything, last.
             com.glasslauncher.tv.ui.MiniLiveWindow()
+            com.glasslauncher.tv.ui.KickOffCard()
         }
         // Live TV's cards in Continue Watching: read again every minute while the home screen is in front.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 while (true) {
                     withContext(kotlinx.coroutines.Dispatchers.IO) { com.glasslauncher.tv.data.LiveCards.refresh(this@MainActivity) }
+                    // A team you follow just kicked off (and nothing's in the small window): the alert.
+                    val kick = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching { com.glasslauncher.tv.live.LiveHome.matchDay(this@MainActivity) }.getOrNull()
+                            ?.takeIf { com.glasslauncher.tv.ui.MiniLive.now.value == null && com.glasslauncher.tv.ui.KickOff.shouldTell(this@MainActivity, it) }
+                    }
+                    if (kick != null) com.glasslauncher.tv.ui.KickOff.now.value = kick
                     delay(60_000)
                 }
             }
@@ -172,6 +179,10 @@ class MainActivity : ComponentActivity() {
     // Watch on Home: Back goes to the small window (selects it), and Back on it closes it, before the home screen sees
     // it (its own keys take Back too).
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && com.glasslauncher.tv.ui.KickOff.now.value != null) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) com.glasslauncher.tv.ui.KickOff.close()
+            return true
+        }
         val mini = com.glasslauncher.tv.ui.MiniLive
         if (event.keyCode == KeyEvent.KEYCODE_BACK && mini.now.value != null) {
             if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) {

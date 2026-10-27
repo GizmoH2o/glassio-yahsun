@@ -550,7 +550,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
                 // A backup: everything in one file locked with a code (Backup), in the TV's Downloads and via the phone page.
-                Act("Back up settings", "Everything, sign-ins included, locked with a code. Saved in Downloads; to your phone from Manage from phone", "") {
+                Act("Back up settings", Backup.reminder(ctx), if (Backup.lastMade(ctx) <= 0L || System.currentTimeMillis() - Backup.lastMade(ctx) >= Backup.REMIND_AFTER_DAYS * 86_400_000L) "Due" else "") {
                     dialog = TextEntry("Backup code", "", "At least ${Backup.MIN_CODE} characters. You need it to restore: keep it somewhere safe", secret = true) { code ->
                         if (code.length < Backup.MIN_CODE) { toast(ctx, "The code needs at least ${Backup.MIN_CODE} characters"); return@TextEntry }
                         // (after this dialog has closed: it clears the dialog as it goes)

@@ -70,7 +70,8 @@ import com.glasslauncher.tv.data.LiveCards
  * scrolls up to show them), Up back to the carousel.
  *
  * OK opens the title in Nuvio; hold OK (or Menu) takes it out of Continue Watching. Live TV's cards lead the row (a
- * followed match on now, the channel last watched, new recordings): OK opens Live TV on them.
+ * followed match on now, the channel last watched, new recordings): OK opens Live TV on them; hold OK on a channel's
+ * card offers Record this show (or Stop recording) and Remove.
  */
 @Composable
 fun ContinueRow(

@@ -14,6 +14,21 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - The small window is selected as it opens: OK goes full screen in Live TV, Up / Down (or the remote's channel buttons) change the channel, Left goes back to the home screen. Back selects the window again, and Back on it closes it.
 - Its video has rounded corners, like its frame.
 
+**Live TV**
+- The TV guide shows each channel's number before its name ("2340  TLC").
+- Back in the guide goes straight back to the channel, full screen (before anything plays, it still opens the categories). Back in the categories goes back to the guide.
+- A channel changed in the small window (Watch on Home) is the one watched last from then on: the home screen's Live TV card, History, and Live TV's next start follow it.
+- **Record from the home screen**: hold OK on a Live TV card for Record this show (or Stop recording) and Remove from Continue Watching.
+- **Kick-off alert**: when a team you follow starts playing while the home screen is in front, a glass card under the weather offers Watch, Small window or Not now. Once per match; it goes after half a minute.
+
+**Backup**
+- Settings › System says when the last backup was made, and marks Back up settings "Due" when there's none or it's over a month old.
+
+**For developers**
+- Tests for the backup's lock (right code, wrong code, a changed or cut-short file) and the kick-off timing run on every release; `tools/release.sh` stops when one fails.
+- A GitHub Actions workflow builds, tests, signs and publishes a release when a version tag is pushed (it needs the release key as repository secrets).
+- Screenshots of Live TV, Following, the styles and backup in the README.
+
 **Live TV styles**
 - Six new styles (Live TV › Settings › Theme and start-up › Style): **Netflix** (near black, a red focus, nearly square corners, a big picture), **Prime Video** (deep navy, a bright blue focus), **Disney+** (royal blue into night, glass with a light edge, a blue focus), **Max** (black into deep blue, the large picture at the right), **Plex** (dark grey, an amber focus) and **Pluto TV** (black, a yellow focus, a guide with many rows). Each also works for the morning, night and late-night styles.
 - The style picker shows the 14 styles in two full rows (Custom last), so every tile is large enough to read.

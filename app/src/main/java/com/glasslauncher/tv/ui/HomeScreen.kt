@@ -524,6 +524,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                     HeroSection(app, s, hidden = expanded || folderOpen, paused = screen != Screen.Home, metrics = metrics, shownUrl = shownUrl,
                         heroFocus = heroFocus, firstTile = firstTile, rowFocus = rowFocus, rowOn = rowOn, inDock = inDock, away = away, awayDp = awayDp,
                         onInRow = { inRow = it }, onHeroFocus = { onHero = it }, onBackdrop = { backdrop = it },
+                        onDialog = { dialog = it },
                         onCustomUp = {
                             if (settings.menuMode == "auto") { menuClosedAt = 0L; menuOpen = true }
                             else scope.launch { delay(16); runCatching { gearReq.requestFocus() } }
@@ -846,8 +847,11 @@ private fun HeroSection(
     onHeroFocus: (Boolean) -> Unit, onBackdrop: (String?) -> Unit,
     shownUrl: androidx.compose.runtime.State<String?> = androidx.compose.runtime.mutableStateOf(null),
     onCustomUp: () -> Unit = {},
+    /** A menu to show over the home screen (hold OK on a Live TV card). */
+    onDialog: (DialogState) -> Unit = {},
 ) {
     val settings = app.settings
+    val heroScope = rememberCoroutineScope()
     val ctx = LocalContext.current
     val catalogItems by app.catalogs.items.collectAsState()
     val cwItems by app.cw.items.collectAsState()
@@ -1120,9 +1124,32 @@ private fun HeroSection(
             drop = { away.value * (rowAbove - ROW_BOTTOM) * s * pxPerDp },
             onInside = { inRow = it; onInRow(it) }, onSelected = { rowPick = it },
             onOpen = { if (com.glasslauncher.tv.data.LiveCards.isLive(it)) com.glasslauncher.tv.data.LiveCards.open(ctx, it) else NuvioLaunch.open(ctx, settings, app.http, it) },
-            onRemove = {
-                if (com.glasslauncher.tv.data.LiveCards.isLive(it)) com.glasslauncher.tv.data.LiveCards.hide(ctx, it) else app.cw.remove(it.key)
-                toast(ctx, "Removed from Continue Watching · ${it.name}")
+            onRemove = { item ->
+                val cards = com.glasslauncher.tv.data.LiveCards
+                val remove = {
+                    if (cards.isLive(item)) cards.hide(ctx, item) else app.cw.remove(item.key)
+                    toast(ctx, "Removed from Continue Watching · ${item.name}")
+                }
+                val channel = item.id.removePrefix("ch:").toIntOrNull()
+                if (!cards.isLive(item) || item.type == cards.TYPE_RECORDING || channel == null) remove()
+                else heroScope.launch {
+                    // A channel on now (the last one, a followed match): record what's on, or take the card out.
+                    val recording = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching { com.glasslauncher.tv.live.LiveHome.recordingNow(ctx, channel) }.getOrDefault(false)
+                    }
+                    onDialog(MenuDialog(item.name, listOf(
+                        (if (recording) "Stop recording" else "Record this show") to {
+                            heroScope.launch {
+                                val said = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    runCatching { com.glasslauncher.tv.live.LiveHome.recordNow(ctx, channel) }.getOrElse { "Couldn't record: ${it.message}" }
+                                }
+                                toast(ctx, said)
+                            }
+                            Unit
+                        },
+                        "Remove from Continue Watching" to { remove() },
+                    )))
+                }
             },
             modifier = Modifier.align(Alignment.BottomStart).padding(bottom = (rowAbove * s).dp),
         )
