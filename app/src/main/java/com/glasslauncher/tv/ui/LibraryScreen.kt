@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,6 +43,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -61,7 +63,8 @@ import kotlinx.coroutines.withContext
 
 /**
  * The Library, like the Apple TV app's: a calm grey page, posters five to a row with a soft shadow.
- * First what you saved with +, then your Trakt watchlist. OK opens the title, hold OK (or Menu) removes it.
+ * Its lists in tabs (what you saved with +, the Nuvio and Stremio libraries, the Trakt watchlist), shown when in use.
+ * OK opens the title, hold OK (or Menu) removes it.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -79,14 +82,26 @@ fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
     val stremioAll by app.library.stremioList.collectAsState()
     val stremioStatus by app.library.stremioStatus.collectAsState()
     LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.library.refreshWatchlist(); app.library.refreshNuvio(); app.library.refreshStremio() } }
-    val savedKeys = remember(saved) { saved.map { it.key }.toSet() }
-    // The same title in several lists shows once: saved here, then Nuvio, then Stremio, then Trakt.
-    val nuvio = if (st.libraryNuvio) nuvioAll.filterNot { it.key in savedKeys } else emptyList()
-    val nuvioKeys = remember(nuvio) { nuvio.map { it.key }.toSet() }
-    val stremio = if (st.libraryStremio) stremioAll.filterNot { it.key in savedKeys || it.key in nuvioKeys } else emptyList()
-    val stremioKeys = remember(stremio) { stremio.map { it.key }.toSet() }
-    val trakt = if (st.libraryTrakt) watch.filterNot { it.key in savedKeys || it.key in nuvioKeys || it.key in stremioKeys } else emptyList()
-    val hasAny = saved.isNotEmpty() || trakt.isNotEmpty() || nuvio.isNotEmpty() || stremio.isNotEmpty()
+    // One tab per list in use: what you saved here, the Nuvio account's library, the Stremio account's, the Trakt
+    // watchlist. Each shows its whole list.
+    val tabs = buildList {
+        if (saved.isNotEmpty()) add(LibraryTab("saved", "Saved", saved, "") { it: HeroItem ->
+            app.library.remove(it.key); toast(ctx, "Removed · ${it.name}")
+        })
+        if (st.libraryNuvio && app.library.nuvio.connected) add(LibraryTab("nuvio", "Nuvio", nuvioAll, nuvioStatus) { it: HeroItem ->
+            app.library.removeFromNuvio(it) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Nuvio library · ${it.name}" else "Nuvio: couldn't remove ${it.name}") }
+        })
+        if (st.libraryStremio && app.library.stremio.connected) add(LibraryTab("stremio", "Stremio", stremioAll, stremioStatus) { it: HeroItem ->
+            app.library.removeFromStremio(it) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Stremio library · ${it.name}" else "Stremio: couldn't remove ${it.name}") }
+        })
+        if (st.libraryTrakt && app.cw.trakt.connected) add(LibraryTab("trakt", "Trakt", watch, status) { it: HeroItem ->
+            app.library.removeFromWatchlist(it); toast(ctx, "Removed from the Trakt watchlist · ${it.name}")
+        })
+    }
+    var tabKey by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.firstOrNull()
+    val shown = tab?.items.orEmpty()
+    val hasAny = tabs.any { it.items.isNotEmpty() }
     LaunchedEffect(hasAny) { if (hasAny) { delay(60); runCatching { first.requestFocus() } } }
 
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF26262B))) {
@@ -113,42 +128,54 @@ fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
                         if (hasAny) "OK opens · hold OK to remove" else "Nothing here yet. On the home screen, press + next to Play to save a title.",
                         color = Color.White.copy(alpha = 0.55f), fontSize = (10 * s).sp,
                     )
+                    // The tabs: moving onto one shows its list (as the Apple TV app's tabs do); Down goes into it.
+                    if (tabs.size > 1) {
+                        Spacer(Modifier.height((14 * s).dp))
+                        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+                            tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, i == tabs.lastIndex, s) { tabKey = t.key } }
+                        }
+                    }
                 }
             }
-            if (saved.isNotEmpty()) {
-                item(span = { GridItemSpan(maxLineSpan) }) { Section("Saved", s) }
-                itemsIndexed(saved, key = { _, it -> "s:" + it.key }) { i, it ->
+            if (tab != null) {
+                if (tab.status.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) { Section(tab.status, s) }
+                if (tab.items.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
+                    Text("Nothing in this list yet.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
+                }
+                itemsIndexed(shown, key = { _, it -> tab.key + ":" + it.key }) { i, it ->
                     Poster(it, s, st.libraryTitles, if (i == 0) Modifier.focusRequester(first) else Modifier,
                         onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
-                        onRemove = { app.library.remove(it.key); toast(ctx, "Removed · ${it.name}") })
-                }
-            }
-            if (st.libraryNuvio && app.library.nuvio.connected) {
-                item(span = { GridItemSpan(maxLineSpan) }) { Section(if (nuvioStatus.isNotBlank()) "Nuvio library · $nuvioStatus" else "Nuvio library", s) }
-                itemsIndexed(nuvio, key = { _, it -> "n:" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, if (i == 0 && saved.isEmpty()) Modifier.focusRequester(first) else Modifier,
-                        onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
-                        onRemove = { app.library.removeFromNuvio(it) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Nuvio library · ${it.name}" else "Nuvio: couldn't remove ${it.name}") } })
-                }
-            }
-            if (st.libraryStremio && app.library.stremio.connected) {
-                item(span = { GridItemSpan(maxLineSpan) }) { Section(if (stremioStatus.isNotBlank()) "Stremio library · $stremioStatus" else "Stremio library", s) }
-                itemsIndexed(stremio, key = { _, it -> "r:" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, if (i == 0 && saved.isEmpty() && nuvio.isEmpty()) Modifier.focusRequester(first) else Modifier,
-                        onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
-                        onRemove = { app.library.removeFromStremio(it) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Stremio library · ${it.name}" else "Stremio: couldn't remove ${it.name}") } })
-                }
-            }
-            if (st.libraryTrakt && app.cw.trakt.connected) {
-                item(span = { GridItemSpan(maxLineSpan) }) { Section(if (status.isNotBlank()) "Trakt watchlist · $status" else "Trakt watchlist", s) }
-                itemsIndexed(trakt, key = { _, it -> "t:" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, if (i == 0 && saved.isEmpty() && nuvio.isEmpty() && stremio.isEmpty()) Modifier.focusRequester(first) else Modifier,
-                        onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
-                        onRemove = { app.library.removeFromWatchlist(it); toast(ctx, "Removed from the Trakt watchlist · ${it.name}") })
+                        onRemove = { tab.remove(it) })
                 }
             }
         }
         }
+    }
+}
+
+/** One of the Library's lists: its tab, its titles, why it couldn't be read ("" when it could), how a title leaves it. */
+private class LibraryTab(val key: String, val label: String, val items: List<HeroItem>, val status: String, val remove: (HeroItem) -> Unit)
+
+/**
+ * A tab: a pill, lit when it's the list shown, white when the focus is on it; the focus coming onto it shows its list.
+ * Left on the first and Right on the last stay put (the TV would otherwise drop into the posters below).
+ */
+@Composable
+private fun TabPill(label: String, selected: Boolean, first: Boolean, last: Boolean, s: Float, onFocused: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .onPreviewKeyEvent { e ->
+                e.type == KeyEventType.KeyDown && (first && e.key == Key.DirectionLeft || last && e.key == Key.DirectionRight)
+            }
+            .clip(RoundedCornerShape(50))
+            .background(when { focused -> Color.White; selected -> Color.White.copy(alpha = 0.18f); else -> Color.Transparent })
+            .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
+            .focusable()
+            .padding(horizontal = (16 * s).dp, vertical = (6 * s).dp),
+    ) {
+        Text(label, color = if (focused) Color(0xFF1C1C1E) else Color.White.copy(alpha = if (selected) 1f else 0.6f),
+            fontSize = (12 * s).sp, fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Medium)
     }
 }
 
