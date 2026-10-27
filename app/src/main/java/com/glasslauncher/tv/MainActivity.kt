@@ -24,8 +24,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
+    private companion object {
+        /** The extras that ask for a page or a window. */
+        val REQUESTS = listOf("open_settings", "open_menu", "open_library", "open_live", "open_following", "open_folder", "mini_live")
+        /** How long a page asked for holds against Home from the launcher fallback. */
+        const val REQUEST_HOLD_MS = 3_000L
+    }
+
     private var screen by mutableStateOf(Screen.Home)
     @Volatile private var lastInput = System.currentTimeMillis()
+    /** When a page was last asked for by an intent (open_settings, open_live, Watch on Home…), uptime ms; 0: never. */
+    private var requestedAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +94,7 @@ class MainActivity : ComponentActivity() {
         val app = application as GlassApp
         i?.getStringExtra("reset_icon")?.let { app.icons.reset(it) }
         if (i?.getBooleanExtra("open_folder", false) == true) app.requestFolder.value = true
+        if (i != null && REQUESTS.any { i.hasExtra(it) }) requestedAt = android.os.SystemClock.uptimeMillis()
         if (i?.hasExtra("show_setup") == true) app.showSetup.value = i.getBooleanExtra("show_setup", false)
         // Watch on Home (Live TV's menu): the channel it handed over, in the small window. Read from the app's own file,
         // so nothing outside the app can put a stream here.
@@ -141,10 +151,15 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleExtras(intent)
-        // Home pressed while we are already in front: go back to the plain home view.
+        // Home pressed while we are already in front: go back to the plain home view. Not when Google TV's launcher was
+        // only seen coming up (HomeKeyService's fallback) just after a page was asked for: Glassio starting (after an
+        // update, say) briefly shows that launcher, and its late Home closed the page that had just opened.
         if (intent.hasCategory(Intent.CATEGORY_HOME)) {
-            screen = Screen.Home
-            (application as GlassApp).homeRev.intValue++
+            val byKey = intent.getBooleanExtra(HomeKeyService.EXTRA_BY_KEY, true)
+            if (byKey || android.os.SystemClock.uptimeMillis() - requestedAt > REQUEST_HOLD_MS) {
+                screen = Screen.Home
+                (application as GlassApp).homeRev.intValue++
+            }
         }
         lastInput = System.currentTimeMillis()
     }

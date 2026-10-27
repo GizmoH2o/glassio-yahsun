@@ -18,6 +18,7 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - After a fresh install the home screen lists the steps to set Glassio up, each with where it stands (restore a backup, catalogs, Nuvio, TV access, the Home button, Live TV) and OK to go there.
 - Live TV's lists: the selected row is a rounded plate inside the card, as in Glassio's own lists.
 - Codes typed in Glassio's own dialogs (a backup's) show as dots.
+- Fixed: a page asked for as Glassio started (after an update, say) could close again by itself. Google TV's own home screen shows for a moment while Glassio starts, and the Home-button service's fallback answered it with Home a split second later.
 
 ## 2.1.1 — 2026-10-26
 

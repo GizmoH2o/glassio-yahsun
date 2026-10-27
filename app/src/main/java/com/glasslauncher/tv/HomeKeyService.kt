@@ -17,6 +17,12 @@ class HomeKeyService : AccessibilityService() {
     companion object {
         /** Bound by the system now: it can open Glassio (BootReceiver leaves the restart to it). */
         @Volatile var connected = false
+        /**
+         * On the intent that brings Glassio forward: true when the Home button was pressed, false when Google TV's own
+         * launcher was seen coming up (the fallback below, or just after the TV started). MainActivity lets only the
+         * latter give way to a page that was asked for a moment before.
+         */
+        const val EXTRA_BY_KEY = "com.glasslauncher.tv.extra.HOME_BY_KEY"
     }
 
     private var lastLaunch = 0L
@@ -24,7 +30,7 @@ class HomeKeyService : AccessibilityService() {
 
     private fun enabled(): Boolean = (application as? GlassApp)?.settings?.interceptHome == true
 
-    private fun showGlass() {
+    private fun showGlass(byKey: Boolean) {
         val now = System.currentTimeMillis()
         if (now - lastLaunch < 1000) return
         lastLaunch = now
@@ -32,6 +38,7 @@ class HomeKeyService : AccessibilityService() {
             Intent(this, MainActivity::class.java)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_HOME)
+                .putExtra(EXTRA_BY_KEY, byKey)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         )
     }
@@ -40,7 +47,7 @@ class HomeKeyService : AccessibilityService() {
         if (event.keyCode != KeyEvent.KEYCODE_HOME || !enabled()) return false
         when (event.action) {
             KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) homeDownAt = System.currentTimeMillis()
-            KeyEvent.ACTION_UP -> showGlass()
+            KeyEvent.ACTION_UP -> showGlass(byKey = true)
         }
         return true
     }
@@ -51,7 +58,7 @@ class HomeKeyService : AccessibilityService() {
         if (pkg != "com.google.android.apps.tv.launcherx" && pkg != "com.google.android.tvlauncher") return
         // Only reached when the Home key was not filtered above (e.g. Home from the Google TV remote app).
         if (System.currentTimeMillis() - homeDownAt < 1500) return
-        showGlass()
+        showGlass(byKey = false)
     }
 
     override fun onServiceConnected() {
@@ -59,7 +66,7 @@ class HomeKeyService : AccessibilityService() {
         connected = true
         // Just after the TV started, Google TV's launcher came up before this service did (it never saw it): Glassio now.
         val app = application as? GlassApp
-        if (app != null && app.settings.bootGlassio && android.os.SystemClock.elapsedRealtime() < 5 * 60_000L) showGlass()
+        if (app != null && app.settings.bootGlassio && android.os.SystemClock.elapsedRealtime() < 5 * 60_000L) showGlass(byKey = false)
         // Ask for key events explicitly; some TV builds ignore the flag from the XML alone.
         serviceInfo = serviceInfo.apply {
             flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
