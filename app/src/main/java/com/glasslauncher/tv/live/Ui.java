@@ -67,6 +67,19 @@ final class Ui {
         loaded = true;
     }
 
+    /** A design's face for a picture of it (`family` as in restyle, at `weight`), made once. */
+    static synchronized Typeface sample(Context c, String family, int weight) {
+        String key = family + "/" + weight;
+        Typeface t = SAMPLES.get(key);
+        if (t == null) {
+            t = face(c.getAssets(), family, 32, weight);
+            SAMPLES.put(key, t);
+        }
+        return t;
+    }
+
+    private static final java.util.Map<String, Typeface> SAMPLES = new java.util.HashMap<>();
+
     private static Typeface face(AssetManager a, String family, int opticalSize, int weight) {
         weight = Math.max(100, Math.min(900, weight));
         if (family == null) return font(a, opticalSize, weight);

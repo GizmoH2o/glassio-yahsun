@@ -2933,9 +2933,11 @@ final class LiveView extends View {
     private static boolean G_ART = true;
 
     /**
-     * The guide's layout for the style on screen: where the video is and how big, the details beside it, how tall
+     * The guide's layout for the design on screen: where the video is and how big, the details beside it, how tall
      * the rows are, how many show and how many hours across (Sky Q's video at the right and slim rows, YouTube TV's
-     * compact top and tall rows, NOW's big picture, Sling's small one, Hulu's large one at the right).
+     * compact top and tall rows, NOW's big picture, Sling's small one, Hulu's, Max's and Netflix's large ones at the
+     * right, Disney+'s at the right with tall rows, Prime Video's at the left with the show's picture, Plex's small one
+     * and three hours, Pluto TV's slim rows and an hour and a half).
      */
     /** Compact guide rows (Settings > Guide > Guide size): set before applyLayout. */
     static boolean compact;
@@ -2964,6 +2966,24 @@ final class LiveView extends View {
                 px = 1152; pw = 736; ph = 414; infoX = 32; infoR = 1120; lines = 4; chipY = 386; times = 492; top = 520;
                 rowH = 84; step = 92; art = false;
                 break;
+            case LiveTheme.NETFLIX:     // the biggest picture, at the right, the details beside it
+                px = 1040; pw = 848; ph = 477; infoX = 32; infoR = 1000; lines = 4; chipY = 386; art = false;
+                break;
+            case LiveTheme.PRIME:       // the video at the left with the show's picture, slim rows
+                pw = 576; ph = 324; infoX = 640; lines = 2; chipY = 312; rowH = 72; artX = 1240; artH = 360;
+                break;
+            case LiveTheme.DISNEY:      // the video at the right, tall rows
+                px = 1184; pw = 704; ph = 396; infoX = 32; infoR = 1152; chipY = 350; rowH = 84; art = false;
+                break;
+            case LiveTheme.MAX:         // the large picture at the right, 2½ hours across
+                px = 1120; pw = 768; ph = 432; infoX = 32; infoR = 1088; chipY = 350; rowH = 76; minutes = 150; art = false;
+                break;
+            case LiveTheme.PLEX:        // a small video, 3 hours across and many rows
+                pw = 432; ph = 243; infoX = 496; lines = 1; chipY = 286; rowH = 66; minutes = 180; artX = 1300; artH = 300;
+                break;
+            case LiveTheme.PLUTO:       // a guide first: slim rows, 1½ hours across
+                pw = 592; ph = 333; infoX = 656; lines = 2; chipY = 312; rowH = 64; minutes = 90; art = false;
+                break;
             default:
                 break;
         }
@@ -2989,9 +3009,13 @@ final class LiveView extends View {
         G_ART = art;
         switch (LiveTheme.layoutStyle()) {
             case LiveTheme.YOUTUBE: CH_W = 680; C_STEP = 144; break;
-            case LiveTheme.HULU: CH_W = 640; C_STEP = 134; break;
+            case LiveTheme.HULU:
+            case LiveTheme.DISNEY:
+            case LiveTheme.MAX: CH_W = 640; C_STEP = 134; break;
             case LiveTheme.SKY:
-            case LiveTheme.SLING: CH_W = 560; C_STEP = 104; break;
+            case LiveTheme.SLING:
+            case LiveTheme.PLEX:
+            case LiveTheme.PLUTO: CH_W = 560; C_STEP = 104; break;
             default: CH_W = 600; C_STEP = 126; break;
         }
         ART_X = artX;
@@ -3830,21 +3854,39 @@ final class LiveView extends View {
             Paint np = r == gRow ? gNameOn : gName;
             np.setColor(r == gRow ? LiveTheme.onTile(LiveTheme.text, onTile) : 0xB3FFFFFF);
             String nm = nameOf(channel), label = channel.num > 0 ? channel.num + "  " + nm : nm, tag = tagOf(channel);
-            float room = right - left - 8 * k, tw = textAndTagWidth(label, tag, np, room);
-            textAndTag(c, label, tag, atLeft ? left + 8 * k : mid - tw / 2, y + (G_ROW_H - (compact ? 7 : 9)) * k, np, room);
-            // The marks at the column's end, one over the other: ▶ the one playing, catch-up's arrow, the heart.
+            // The country tag at the column's bottom right, under the marks; the name keeps clear of it.
+            float base = y + (G_ROW_H - (compact ? 7 : 9)) * k, tagTop = y + G_ROW_H * k;
+            if (!tag.isEmpty()) {
+                LiveCountry.label(np, tagPaint);
+                float tagW = LiveCountry.tagWidth(tag, np, tagPaint, k) - 12 * k;
+                float tagX = (G_COL_R - 4) * k - tagW;
+                LiveCountry.drawTag(c, tag, tagX, base, np, tagPaint, k);
+                tagTop = LiveCountry.tagTop(np, base, k);
+                right = Math.min(right, tagX - 8 * k);
+                mid = (left + right) / 2;
+            }
+            float room = right - left - 8 * k, tw = textAndTagWidth(label, "", np, room);
+            textAndTag(c, label, "", atLeft ? left + 8 * k : mid - tw / 2, base, np, room);
+            // The marks at the column's end, one over the other: ▶ the one playing, catch-up's arrow, the heart; above
+            // the tag when there's one (smaller when three don't fit there).
             int marks = (playing != null && playing.id == channel.id ? 1 : 0) + (channel.archive > 0 ? 1 : 0)
                     + (Xtream.isFavorite(lineup, channel.id) ? 1 : 0);
-            float mx = (G_COL_R - G_MARKS_W / 2 - 4) * k, my = cy - (marks - 1) * 12 * k;
+            float mx = (G_COL_R - G_MARKS_W / 2 - 4) * k, gap = 24 * k, my = cy - (marks - 1) * 12 * k, ms = 1;
+            if (!tag.isEmpty() && marks > 0) {
+                float top = y + 4 * k, bottom = tagTop - 3 * k;
+                ms = Math.min(1, (bottom - top) / (marks * gap));
+                gap *= ms;
+                my = (top + bottom) / 2 - (marks - 1) * gap / 2;
+            }
             if (playing != null && playing.id == channel.id) {
-                drawPlayMark(c, mx, my, 10 * k, LiveTheme.onTile(LiveTheme.text, onTile));
-                my += 24 * k;
+                drawPlayMark(c, mx, my, 10 * k * ms, LiveTheme.onTile(LiveTheme.text, onTile));
+                my += gap;
             }
             if (channel.archive > 0) {
-                drawReplay(c, mx, my, 10 * k, LiveTheme.onTile(0xCCFFFFFF, onTile));
-                my += 24 * k;
+                drawReplay(c, mx, my, 10 * k * ms, LiveTheme.onTile(0xCCFFFFFF, onTile));
+                my += gap;
             }
-            if (Xtream.isFavorite(lineup, channel.id)) drawHeart(c, mx, my, 17 * k, LIVE_RED);
+            if (Xtream.isFavorite(lineup, channel.id)) drawHeart(c, mx, my, 17 * k * ms, LIVE_RED);
             drawRowCells(c, channel, y, now, false);
         }
         // The programs' focus: one white tile gliding along the row and between rows, a little bigger, raised.

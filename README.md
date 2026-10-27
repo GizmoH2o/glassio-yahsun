@@ -30,8 +30,8 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 | ![Continue Watching with Live TV](docs/screenshots/50-live-continue-watching.jpg) | ![Record from the home screen](docs/screenshots/51-live-card-record.jpg) |
 | ![Watch on Home](docs/screenshots/52-watch-on-home.jpg) | ![Live TV page](docs/screenshots/53-live-tv-page.jpg) |
 | ![Following](docs/screenshots/54-following.jpg) | ![TV guide with channel numbers](docs/screenshots/55-guide-channel-numbers.jpg) |
-| ![Guide in the Glassio style](docs/screenshots/56-guide-style-glassio.jpg) | ![Guide in the Netflix style](docs/screenshots/57-guide-style-netflix.jpg) |
-| ![Guide in the Max style](docs/screenshots/58-guide-style-max.jpg) | ![Live TV styles](docs/screenshots/59-live-style-picker.jpg) |
+| ![Guide in the Glassio design](docs/screenshots/56-guide-style-glassio.jpg) | ![Guide in the Netflix design](docs/screenshots/57-guide-style-netflix.jpg) |
+| ![Guide in the Max design](docs/screenshots/58-guide-style-max.jpg) | ![Live TV designs](docs/screenshots/59-live-style-picker.jpg) |
 | ![Live TV settings](docs/screenshots/60-live-settings-theme.jpg) | ![Live TV menu](docs/screenshots/61-live-menu.jpg) |
 | ![Backup in Settings](docs/screenshots/62-settings-backup.jpg) | ![Setup checklist](docs/screenshots/63-setup-checklist.jpg) |
 
@@ -42,10 +42,10 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
 **Live TV**
-- An IPTV player for Xtream Codes, M3U links and MAG portals, with a full guide, favorites, pause and rewind live TV, catch-up, recordings, Multiview, profiles (with a Kids one), reminders and live scores. Its default look is Glassio's own: clear glass over graphite, a white focus, round corners (Apple TV, YouTube TV, NOW, Sky, Sling, Hulu, Netflix, Prime Video, Disney+, Max, Plex, Pluto TV and Custom styles are in its settings). It runs in its own process, so video never weighs on the home screen.
+- An IPTV player for Xtream Codes, M3U links and MAG portals, with a full guide, favorites, pause and rewind live TV, catch-up, recordings, Multiview, profiles (with a Kids one), reminders and live scores. Its default design is Glassio's own: clear glass over graphite, a white focus, round corners. **Designs** (Live TV › Settings › Design) change the whole look to match Apple TV, YouTube TV, NOW, Sky, Sling, Hulu, Netflix, Prime Video, Disney+, Max, Plex or Pluto TV: the colors, the focus, the corners, the guide's layout, the info bar and the lettering. **Custom** takes each of those parts from any design. It runs in its own process, so video never weighs on the home screen.
 - **Live TV page** (menu → Live TV): the channel you watched last, the TV guide, search, then *On now* on your favorite and recent channels, *Sports live now* and *Starting soon*.
 - **TV guide**: each channel's number before its name; Back goes straight back to the channel, full screen.
-- **Country tags** beside channel names (US, UK, CA, ARABIC…) and **channels by voice** ("Play TLC USA on Glassio Yahsun"; inside Live TV just "TLC USA"), each with its own switch.
+- **Country tags** beside channel names (US, UK, CA, ARABIC…; in the guide at the bottom right, under the catch-up mark) and **channels by voice** ("Play TLC USA on Glassio Yahsun"; inside Live TV just "TLC USA"), each with its own switch.
 - **Favorites by voice**: "Add TLC to favourites", "Remove TLC from favourites".
 - **Channel logos** from your provider, the TV guide or the public iptv-org database, or a **logo per channel** (hold OK › Logo); the home screen's Live TV cards show the same logos.
 - Live TV is ported from [Zero](https://github.com/GizmoH2o/zero-tv) (MIT, notice kept in `app/src/main/assets/licenses/Zero-MIT.txt`).

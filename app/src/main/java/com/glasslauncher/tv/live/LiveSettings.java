@@ -38,23 +38,25 @@ final class LiveSettings {
             CUSTOM_BG_ROW = 50, CUSTOM_ROUND_ROW = 51, CUSTOM_LAYOUT_ROW = 52, MORNING_ROW = 53, LATE_ROW = 54, CODE_ROW = 55,
             RESET_ROW = 56, MATCH_ROW = 57, MATCH_STYLE_ROW = 58, REMIND_WATCHING_ROW = 59, GUIDE_SHIFT_ROW = 60, GUIDE_SIZE_ROW = 61, SCORES_ROW = 62, GOALS_ROW = 63, RECORD_LIST_ROW = 64, RECORDINGS_ROW = 65,
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
-            VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73, MAIN_ROWS = 74;
+            VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
+            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, MAIN_ROWS = 77;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
-    private static final float RAIL_X = 72, RAIL_R = 660, RAIL_TOP = 236, RAIL_H = 70, RAIL_STEP = 78;
-    private static final String[] SECTION_ICONS = {"play", "list", "guide", "sparkles", "gamepad", "bell", "recordings", "lock", "account",
-            "captions"};
-    private static final int REMINDERS_SECTION = 5, RECORDINGS_SECTION = 6, CAPTIONS_SECTION = 9;
+    private static final float RAIL_X = 72, RAIL_R = 660, RAIL_TOP = 236, RAIL_H = 64, RAIL_STEP = 72;     // eleven sections in the column
+    private static final String[] SECTION_ICONS = {"play", "list", "guide", "sparkles", "power", "gamepad", "bell", "recordings", "lock",
+            "account", "captions"};
+    private static final int DESIGN_SECTION = 3, STARTUP_SECTION = 4, REMINDERS_SECTION = 6, RECORDINGS_SECTION = 7,
+            PARENTAL_SECTION = 8, PROFILES_SECTION = 9, CAPTIONS_SECTION = 10;
     private static final int INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7;
     private static final String[] FORMATS = {LiveOptions.AUTO, LiveOptions.TS, LiveOptions.HLS};
     /** Each section's settings (the remote's buttons have their own list). */
-    private static final int KEYS_SECTION = 4;
-    /** Theme and start-up without Custom's own rows (the style isn't Custom). */
+    private static final int KEYS_SECTION = 5;
+    /** Design without Custom's own rows (the design isn't Custom). */
     private static final int[] THEME_PLAIN = {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CODE_ROW, OPACITY_ROW,
-            PLAYER_LOGO_ROW, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW};
+            PLAYER_LOGO_ROW, RESET_ROW};
 
-    /** A section's rows (Custom's background, corners and layout only while Custom is the style). */
+    /** A section's rows (Custom's parts only while Custom is the design). */
     /** An M3U or MAG playlist in use: no subscription to show (set as the settings open). */
     private static boolean noSubscription;
     private static int[] withoutSubscription;
@@ -70,8 +72,22 @@ final class LiveSettings {
         return rows;
     }
 
+    /** Whether the focus color picked shows: the design's focus is Glassio's (Glassio, or Custom with Glassio's focus). */
     private static boolean ownColor() {
-        return LiveTheme.style() == LiveTheme.ZERO || LiveTheme.style() == LiveTheme.CUSTOM;
+        return LiveTheme.style() == LiveTheme.ZERO || LiveTheme.style() == LiveTheme.CUSTOM && LiveTheme.customPart(LiveTheme.FOCUS) == LiveTheme.ZERO;
+    }
+
+    /** The part of Custom row `id` picks (LiveTheme.COLORS…), -1: not one of them. */
+    private static int partOf(int id) {
+        switch (id) {
+            case CUSTOM_BG_ROW: return LiveTheme.COLORS;
+            case CUSTOM_FOCUS_ROW: return LiveTheme.FOCUS;
+            case CUSTOM_ROUND_ROW: return LiveTheme.CORNERS;
+            case CUSTOM_LAYOUT_ROW: return LiveTheme.GUIDE;
+            case CUSTOM_INFO_ROW: return LiveTheme.INFO;
+            case CUSTOM_FONT_ROW: return LiveTheme.LETTERS;
+            default: return -1;
+        }
     }
 
     private static final int[][] SECTION_ROWS = {
@@ -81,8 +97,9 @@ final class LiveSettings {
                     RESET_ROW},
             {GUIDE_SIZE_ROW, GUIDE_ALIGN_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
-            {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CUSTOM_BG_ROW, CUSTOM_ROUND_ROW, CUSTOM_LAYOUT_ROW, CODE_ROW,
-                    OPACITY_ROW, PLAYER_LOGO_ROW, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
+            {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
+                    CUSTOM_LAYOUT_ROW, CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, PLAYER_LOGO_ROW, RESET_ROW},
+            {BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, SCORES_ROW, GOALS_ROW,
                     RESET_ROW},
@@ -163,7 +180,7 @@ final class LiveSettings {
         opacity = LiveOptions.panelOpacity(context());
         noSubscription = !Xtream.kind(context()).equals(Xtream.XTREAM);
         android.content.SharedPreferences p = context().getSharedPreferences("live-ui", Context.MODE_PRIVATE);
-        int sec = p.getInt("settingsSection", 0), at = p.getInt("settingsRow", -1);
+        int sec = p.getInt("settingsPage", 0), at = p.getInt("settingsRow", -1);
         if (at >= 0 && at != RESET_ROW) {       // (Reset is in every section: its section alone says where)
             showRow(at);
         } else {
@@ -182,7 +199,7 @@ final class LiveSettings {
     void closed() {
         int sec = screen == MAIN ? focus : marked();
         context().getSharedPreferences("live-ui", Context.MODE_PRIVATE).edit()
-                .putInt("settingsSection", sec).putInt("settingsRow", screen == ROWS ? id() : -1).apply();
+                .putInt("settingsPage", sec).putInt("settingsRow", screen == ROWS ? id() : -1).apply();
     }
 
     boolean step(float dt) {
@@ -282,11 +299,12 @@ final class LiveSettings {
             case 0: return Ui.tr("Reprodução", "Playback");
             case 1: return Ui.tr("Canais e categorias", "Channels and categories");
             case 2: return Ui.tr("Guia", "Guide");
-            case 3: return Ui.tr("Tema e abertura", "Theme and start-up");
+            case DESIGN_SECTION: return Ui.tr("Design", "Design");
+            case STARTUP_SECTION: return Ui.tr("Abertura", "Start-up");
             case KEYS_SECTION: return Ui.tr("Botões do controle", "Remote buttons");
             case REMINDERS_SECTION: return Ui.tr("Lembretes", "Reminders");
             case RECORDINGS_SECTION: return Ui.tr("Gravações", "Recordings");
-            case 7: return Ui.tr("Controle dos pais", "Parental controls");
+            case PARENTAL_SECTION: return Ui.tr("Controle dos pais", "Parental controls");
             case CAPTIONS_SECTION: return Ui.tr("Legendas", "Captions");
             default: return Ui.tr("Perfis e conta", "Profiles and account");
         }
@@ -337,15 +355,18 @@ final class LiveSettings {
             case SCORES_ROW: return Ui.tr("Placar ao vivo", "Live scores");
             case GOALS_ROW: return Ui.tr("Avisos de gol", "Goal alerts");
             case THEME_ROW: return Ui.tr("Cor do foco", "Focus color");
-            case STYLE_ROW: return Ui.tr("Estilo", "Style");
-            case NIGHT_ROW: return Ui.tr("Estilo à noite", "Style at night");
-            case MORNING_ROW: return Ui.tr("Estilo de manhã", "Style in the morning");
-            case LATE_ROW: return Ui.tr("Estilo de madrugada", "Style late at night");
-            case CODE_ROW: return Ui.tr("Código do estilo", "Style code");
+            case STYLE_ROW: return Ui.tr("Design", "Design");
+            case NIGHT_ROW: return Ui.tr("Design à noite", "Design at night");
+            case MORNING_ROW: return Ui.tr("Design de manhã", "Design in the morning");
+            case LATE_ROW: return Ui.tr("Design de madrugada", "Design late at night");
+            case CODE_ROW: return Ui.tr("Código do design", "Design code");
             case RESET_ROW: return Ui.tr("Voltar ao padrão desta seção", "Reset this section");
-            case CUSTOM_BG_ROW: return Ui.tr("Fundo", "Background");
-            case CUSTOM_ROUND_ROW: return Ui.tr("Cantos", "Corners");
-            case CUSTOM_LAYOUT_ROW: return Ui.tr("Layout", "Layout");
+            case CUSTOM_BG_ROW:
+            case CUSTOM_FOCUS_ROW:
+            case CUSTOM_ROUND_ROW:
+            case CUSTOM_LAYOUT_ROW:
+            case CUSTOM_INFO_ROW:
+            case CUSTOM_FONT_ROW: return LiveTheme.partName(partOf(i));
             case OPACITY_ROW: return Ui.tr("Fundo dos ajustes", "Settings background");
             case CC_ON_ROW: return Ui.tr("Legendas", "Captions");
             case CC_SIZE_ROW: return Ui.tr("Tamanho", "Size");
@@ -513,10 +534,13 @@ final class LiveSettings {
                 return n + "  ·  " + (bytes >= 1L << 30 ? String.format(Ui.locale(), "%.1f GB", bytes / (double) (1L << 30))
                         : (bytes >> 20) + " MB");
             }
-            case THEME_ROW: return ownColor() ? LiveTheme.name(LiveTheme.current()) : Ui.tr("Do estilo", "From the style");
-            case CUSTOM_BG_ROW: return LiveTheme.bgName(LiveTheme.customBg());
-            case CUSTOM_ROUND_ROW: return LiveTheme.roundName(LiveTheme.customRound());
-            case CUSTOM_LAYOUT_ROW: return LiveTheme.styleName(LiveTheme.customLayout());
+            case THEME_ROW: return ownColor() ? LiveTheme.name(LiveTheme.current()) : Ui.tr("Do design", "From the design");
+            case CUSTOM_BG_ROW:
+            case CUSTOM_FOCUS_ROW:
+            case CUSTOM_ROUND_ROW:
+            case CUSTOM_LAYOUT_ROW:
+            case CUSTOM_INFO_ROW:
+            case CUSTOM_FONT_ROW: return LiveTheme.styleName(LiveTheme.customPart(partOf(i)));
             case STYLE_ROW: return LiveTheme.styleName(LiveTheme.style());
             case NIGHT_ROW: return LiveTheme.nightStyle() < 0 ? Ui.tr("O mesmo", "The same") : LiveTheme.styleName(LiveTheme.nightStyle());
             case MORNING_ROW: return LiveTheme.morningStyle() < 0 ? Ui.tr("O mesmo", "The same") : LiveTheme.styleName(LiveTheme.morningStyle());
@@ -615,11 +639,29 @@ final class LiveSettings {
         return (t.isEmpty() ? "" : t + " ") + Ui.tr("OK mostra as opções.", "OK shows the choices.");
     }
 
+    /** Design `d`'s lettering in `r`: a big "Aa" and a line of a guide, on the background in use. */
+    private static void drawLettering(Context c, android.graphics.Canvas cv, android.graphics.RectF r, int d, android.graphics.Paint p) {
+        p.setShader(null);
+        p.setColor(LiveTheme.bg);
+        cv.drawRect(r, p);
+        String family = LiveTheme.family(d);
+        p.setColor(0xFFF5F5F7);
+        p.setTypeface(Ui.sample(c, family, 600 + LiveTheme.bolder(d)));
+        p.setTextSize(r.height() * 0.34f);
+        cv.drawText("Aa", r.left + r.width() * 0.08f, r.top + r.height() * 0.5f, p);
+        p.setColor(0xB3FFFFFF);
+        p.setTypeface(Ui.sample(c, family, 400 + LiveTheme.bolder(d)));
+        p.setTextSize(r.height() * 0.13f);
+        cv.drawText(Ui.time(System.currentTimeMillis()) + "  " + Ui.tr("Notícias", "News"), r.left + r.width() * 0.08f,
+                r.top + r.height() * 0.78f, p);
+        p.setTypeface(null);
+    }
+
     /** Whether OK on row `id` opens a picker (choose / words). */
     private boolean pickable(int id) {
         switch (id) {
             case STYLE_ROW: case MORNING_ROW: case NIGHT_ROW: case LATE_ROW: case CUSTOM_LAYOUT_ROW: case CUSTOM_BG_ROW:
-            case CUSTOM_ROUND_ROW: case CC_SIZE_ROW: case CC_STYLE_ROW: case CC_COLOR_ROW: case FORMAT_ROW: case BUFFER_ROW:
+            case CUSTOM_ROUND_ROW: case CUSTOM_FOCUS_ROW: case CUSTOM_INFO_ROW: case CUSTOM_FONT_ROW: case CC_SIZE_ROW: case CC_STYLE_ROW: case CC_COLOR_ROW: case FORMAT_ROW: case BUFFER_ROW:
             case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_HOURS_ROW:
             case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW:
             case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW:
@@ -656,14 +698,16 @@ final class LiveSettings {
                     case 0: return Ui.tr("Formato, buffer, taxa de quadros, áudio, canais juntados.", "Format, buffer, frame rate, sound, merged channels.");
                     case 1: return Ui.tr("A ordem dos canais e categorias, as ocultas, os favoritos.", "The order of channels and categories, hidden ones, favorites.");
                     case 2: return Ui.tr("Quando o guia atualiza, quantos dias, o guia completo.", "When the guide updates, how many days, the full guide.");
-                    case 3: return Ui.tr("A cor da TV ao vivo, abrir sozinha ao ligar ou acordar, as prévias no Início.",
-                            "Live TV's color, opening by itself on start or wake, previews on the home screen.");
+                    case DESIGN_SECTION: return Ui.tr("A aparência da TV ao vivo: o design (até por hora do dia), o fundo dos ajustes, o logo no player.",
+                            "How Live TV looks: its design (by time of day too), the settings' background, the logo in the player.");
+                    case STARTUP_SECTION: return Ui.tr("Abrir sozinha quando a TV liga ou acorda, as prévias no Início.",
+                            "Opening by itself when the TV starts or wakes up, previews on the home screen.");
                     case KEYS_SECTION: return Ui.tr("O que cada botão faz enquanto você assiste.", "What each button does while you watch.");
                     case REMINDERS_SECTION: return Ui.tr("Os lembretes, os times e programas seguidos, os alertas de jogo e o placar ao vivo.",
                             "Reminders, the teams and shows you follow, match alerts and live scores.");
                     case RECORDINGS_SECTION: return Ui.tr("O que vai ser gravado, as séries gravadas e o que já foi gravado.",
                             "What's set to record, series recordings, and what's been recorded.");
-                    case 7: return Ui.tr("Um PIN e as categorias que ele bloqueia.", "A PIN and the categories it locks.");
+                    case PARENTAL_SECTION: return Ui.tr("Um PIN e as categorias que ele bloqueia.", "A PIN and the categories it locks.");
                     case CAPTIONS_SECTION: return Ui.tr("Legendas ligadas ou não, o tamanho, o fundo e a cor delas.",
                             "Captions on or off, their size, background and color.");
                     default: return Ui.tr("Perfis, suas listas e sair do seu provedor de IPTV.", "Profiles, your playlists, and signing out of your IPTV provider.");
@@ -770,30 +814,30 @@ final class LiveSettings {
                             "← → to change it; the sample below shows how they look.");
                     case OPACITY_ROW: return Ui.tr("Quanto o canal aparece atrás: menos é mais transparente (← → para trocar).",
                             "How much the channel shows through: lower is clearer (← → to change it).");
-                    case CUSTOM_BG_ROW: return Ui.tr("O fundo e as cores do guia do Personalizado (← → para trocar).",
-                            "Custom's background and guide colors (← → to change it).");
-                    case CUSTOM_ROUND_ROW: return Ui.tr("Quanto os blocos e o foco são redondos (← → para trocar).",
-                            "How round the tiles and the focus are (← → to change it).");
-                    case CUSTOM_LAYOUT_ROW: return Ui.tr("De qual estilo o Personalizado usa o layout do guia e as letras (← →).",
-                            "Whose guide layout and lettering Custom uses (← → to change it).");
+                    case CUSTOM_BG_ROW:
+                    case CUSTOM_FOCUS_ROW:
+                    case CUSTOM_ROUND_ROW:
+                    case CUSTOM_LAYOUT_ROW:
+                    case CUSTOM_INFO_ROW:
+                    case CUSTOM_FONT_ROW: return LiveTheme.partAbout(partOf(id()));
                     case THEME_ROW: return ownColor()
                             ? Ui.tr("A cor do foco e dos destaques na TV ao vivo (← → para trocar).",
                                     "The color of the focus and the highlights in Live TV (← → to change it).")
-                            : Ui.tr("Os outros estilos têm as cores deles; escolha Glassio ou Personalizado para escolher uma.",
-                                    "The other styles bring their own colors; pick Glassio or Custom to choose one.");
+                            : Ui.tr("Os outros designs têm o foco deles; o do Glassio (ou o Personalizado com o foco do Glassio) tem a cor que você escolhe.",
+                                    "The other designs bring their own focus; Glassio's (or Custom with Glassio's focus) takes the color you pick.");
                     case STYLE_ROW: return LiveTheme.styleAbout(LiveTheme.style());
-                    case NIGHT_ROW: return Ui.tr("Do pôr do sol ao nascer do sol, outro estilo (← → para trocar).",
-                            "From sunset to sunrise, another style (← → to change it).");
-                    case MORNING_ROW: return Ui.tr("Do nascer do sol ao meio-dia, outro estilo (← → para trocar).",
-                            "From sunrise to noon, another style (← → to change it).");
-                    case LATE_ROW: return Ui.tr("Da meia-noite ao nascer do sol, outro estilo (← → para trocar).",
-                            "From midnight to sunrise, another style (← → to change it).");
+                    case NIGHT_ROW: return Ui.tr("Do pôr do sol ao nascer do sol, outro design (← → para trocar).",
+                            "From sunset to sunrise, another design (← → to change it).");
+                    case MORNING_ROW: return Ui.tr("Do nascer do sol ao meio-dia, outro design (← → para trocar).",
+                            "From sunrise to noon, another design (← → to change it).");
+                    case LATE_ROW: return Ui.tr("Da meia-noite ao nascer do sol, outro design (← → para trocar).",
+                            "From midnight to sunrise, another design (← → to change it).");
                     case RESET_ROW: return Ui.tr("Os ajustes desta seção como eram no começo (o PIN, as contas e as listas ficam).",
                             "This section's settings as they first were (your PIN, accounts and lists stay).");
                     case CODE_ROW: return LiveTheme.style() == LiveTheme.CUSTOM
                             ? Ui.tr("O código do seu Personalizado: digite-o em outra TV para ter o mesmo. OK para digitar um.",
-                                    "Your Custom style's code: type it on another TV to get the same. OK to type one in.")
-                            : Ui.tr("OK para digitar o código de estilo de outra TV.", "OK to type a style code from another TV.");
+                                    "Your Custom design's code: type it on another TV to get the same. OK to type one in.")
+                            : Ui.tr("OK para digitar o código de design de outra TV.", "OK to type a design code from another TV.");
                     case MATCH_ROW: return Ui.tr("Quando o que você segue tem lembrete: só quando passa ao vivo, ou também nas reprises.",
                             "When what you follow gets a reminder: only when it's on live, or for replays too.");
                     case MATCH_STYLE_ROW: return Ui.tr("Quando um time seguido começa: um painel com todos os canais que mostram o jogo, ou um aviso só.",
@@ -876,10 +920,10 @@ final class LiveSettings {
         c.restore();
         String text = n == 0 ? Ui.tr("Nada aqui ainda.", "Nothing here yet.") : hint();
         int id = id();
-        if (id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= CODE_ROW) {
-            // The guide in miniature as the style draws it, its words beside it.
+        if (id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= CODE_ROW || partOf(id) >= 0) {
+            // The guide in miniature as the design draws it, its words beside it.
             float py = TOP + Math.min(n, rows) * STEP + 16, ph = Math.min(216, 1080 - 24 - py), pw = ph * 16 / 9;
-            // The style being changed: the night one on its row (the day's when it's "the same"), else the day's.
+            // The design being changed: the night one on its row (the day's when it's "the same"), else the day's.
             int shown = id == NIGHT_ROW ? LiveTheme.styleAt(LiveTheme.EVENING) : id == MORNING_ROW ? LiveTheme.styleAt(LiveTheme.MORNING)
                     : id == LATE_ROW ? LiveTheme.styleAt(LiveTheme.LATE) : LiveTheme.style();
             final float px0 = (X + 22) * k, py0 = py * k, pw0 = pw * k;
@@ -1204,7 +1248,7 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW
-                || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW
+                || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == GOALS_ROW
                 || id == COUNTRY_ROW || id == VOICE_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW;
@@ -1304,8 +1348,8 @@ final class LiveSettings {
                     int s = timed ? (i == 0 ? -1 : LiveTheme.ordered(i - 1)) : LiveTheme.ordered(i);
                     about[i] = s < 0 ? "" : LiveTheme.styleAbout(s);
                 }
-                // Full rows, so the tiles stay big: the 14 styles 7 across, a time of day's 15 (with "the same") 5 across.
-                LiveChooser.show(c, rowLabel(id), labels, about, now, timed ? 5 : 7, 16 / 9f, (cv, r, i) -> {
+                // Three designs a row, big enough to see each one's guide; the rows scroll.
+                LiveChooser.show(c, rowLabel(id), labels, about, now, 3, 16 / 9f, (cv, r, i) -> {
                     int s = timed ? (i == 0 ? -1 : LiveTheme.ordered(i - 1)) : LiveTheme.ordered(i);
                     final int shown = s < 0 ? inherit : s;
                     LiveTheme.asStyle(shown, () -> view.drawStylePreview(cv, r.left, r.top, r.width()));
@@ -1319,13 +1363,25 @@ final class LiveSettings {
                 });
                 return true;
             }
-            case CUSTOM_LAYOUT_ROW: {
-                String[] labels = new String[LiveTheme.CUSTOM];
-                for (int i = 0; i < labels.length; i++) labels[i] = LiveTheme.styleName(i);
-                LiveChooser.show(c, rowLabel(id), labels, LiveTheme.customLayout(), 4, 16 / 9f,
-                        (cv, r, i) -> LiveTheme.asStyle(i, () -> view.drawStylePreview(cv, r.left, r.top, r.width())),
+            case CUSTOM_BG_ROW:
+            case CUSTOM_FOCUS_ROW:
+            case CUSTOM_ROUND_ROW:
+            case CUSTOM_LAYOUT_ROW:
+            case CUSTOM_INFO_ROW:
+            case CUSTOM_FONT_ROW: {
+                // Every design for that part, each picture Custom with it: the guide (colors, focus, corners, guide),
+                // the info bar over a picture, or a line of the lettering.
+                final int part = partOf(id);
+                String[] labels = new String[LiveTheme.SOURCES.length];
+                for (int i = 0; i < labels.length; i++) labels[i] = LiveTheme.styleName(LiveTheme.SOURCES[i]);
+                LiveChooser.show(c, rowLabel(id), labels, LiveTheme.sourceIndex(LiveTheme.customPart(part)), 3, 16 / 9f,
+                        (cv, r, i) -> LiveTheme.asCustomPart(part, LiveTheme.SOURCES[i], () -> {
+                            if (part == LiveTheme.INFO) LiveTheme.drawInfoSample(cv, r, p);
+                            else if (part == LiveTheme.LETTERS) drawLettering(c, cv, r, LiveTheme.SOURCES[i], p);
+                            else view.drawStylePreview(cv, r.left, r.top, r.width());
+                        }),
                         i -> {
-                            LiveTheme.setCustom(c, LiveTheme.customBg(), LiveTheme.customRound(), i);
+                            LiveTheme.setCustomPart(c, part, LiveTheme.SOURCES[i]);
                             restyled(c);
                         });
                 return true;
@@ -1350,34 +1406,6 @@ final class LiveSettings {
                     }
                 }, i -> {
                     LiveTheme.set(c, i);
-                    restyled(c);
-                });
-                return true;
-            }
-            case CUSTOM_BG_ROW: {
-                String[] labels = new String[LiveTheme.BG_COUNT];
-                for (int i = 0; i < labels.length; i++) labels[i] = LiveTheme.bgName(i);
-                LiveChooser.show(c, rowLabel(id), labels, LiveTheme.customBg(), 3, 16 / 9f,
-                        (cv, r, i) -> LiveTheme.drawBgSample(cv, r, i, p),
-                        i -> {
-                            LiveTheme.setCustom(c, i, LiveTheme.customRound(), LiveTheme.customLayout());
-                            restyled(c);
-                        });
-                return true;
-            }
-            case CUSTOM_ROUND_ROW: {
-                String[] labels = new String[LiveTheme.ROUND_COUNT];
-                for (int i = 0; i < labels.length; i++) labels[i] = LiveTheme.roundName(i);
-                LiveChooser.show(c, rowLabel(id), labels, LiveTheme.customRound(), 3, 16 / 9f, (cv, r, i) -> {
-                    p.setColor(LiveTheme.bg);
-                    cv.drawRect(r, p);
-                    float u = r.width() / 10, rad = 10 * LiveTheme.roundOf(i) * r.width() / 480;
-                    p.setColor(LiveTheme.surface);
-                    cv.drawRoundRect(r.left + u, r.top + u, r.left + u * 4.6f, r.bottom - u, rad, rad, p);
-                    p.setColor(LiveTheme.tile);
-                    cv.drawRoundRect(r.left + u * 5.4f, r.top + u, r.right - u, r.bottom - u, rad, rad, p);
-                }, i -> {
-                    LiveTheme.setCustom(c, LiveTheme.customBg(), i, LiveTheme.customLayout());
                     restyled(c);
                 });
                 return true;
@@ -1754,15 +1782,18 @@ final class LiveSettings {
                 if (LiveOptions.guideCompact(c)) sizeGuide(c, false);
                 view.guideReplaced();
                 break;
-            case 3:     // Theme and start-up
+            case DESIGN_SECTION:
                 LiveTheme.resetAll(c);
-                LiveOptions.forget(c, "panelOpacity", "homeOnStart", "playerLogoSteady");
-                LiveOptions.setStartOnBoot(c, false);
-                LiveOptions.setStartOnWake(c, false);
-                LiveOptions.setHomePreviews(c, true);
+                LiveOptions.forget(c, "panelOpacity", "playerLogoSteady");
                 opacity = LiveOptions.panelOpacity(c);
                 LiveTheme.applyFonts(c);
                 view.restyle();
+                break;
+            case STARTUP_SECTION:
+                LiveOptions.forget(c, "homeOnStart");
+                LiveOptions.setStartOnBoot(c, false);
+                LiveOptions.setStartOnWake(c, false);
+                LiveOptions.setHomePreviews(c, true);
                 break;
             case REMINDERS_SECTION:
                 LiveOptions.setRemind(c, 1, false);
@@ -1777,10 +1808,10 @@ final class LiveSettings {
                 LiveOptions.setRecordPadding(c, 0, 2);
                 LiveSchedule.armAll(c);
                 break;
-            case 7:     // Parental controls: the age lock (never the PIN)
+            case PARENTAL_SECTION:     // the age lock (never the PIN)
                 LiveOptions.forget(c, "ageLock");
                 break;
-            case 8:     // Profiles and account: only the options
+            case PROFILES_SECTION:     // only the options
                 LiveOptions.forget(c, "askProfile", "historyMax");
                 view.historyChanged();
                 break;
@@ -1896,7 +1927,8 @@ final class LiveSettings {
                 return;
             case THEME_ROW:
                 if (!ownColor()) {
-                    view.flash(Ui.tr("Escolha o estilo Glassio ou Personalizado para escolher uma cor", "Pick the Glassio or Custom style to choose a color"));
+                    view.flash(Ui.tr("Escolha o design Glassio, ou o foco do Glassio no Personalizado, para escolher uma cor",
+                            "Pick the Glassio design, or Glassio's focus in Custom, to choose a color"));
                     return;
                 }
                 LiveTheme.set(c, (LiveTheme.current() + dir + LiveTheme.COUNT) % LiveTheme.COUNT);
@@ -1910,24 +1942,16 @@ final class LiveSettings {
                 announce();
                 return;
             case CUSTOM_BG_ROW:
-                LiveTheme.setCustom(c, (LiveTheme.customBg() + dir + LiveTheme.BG_COUNT) % LiveTheme.BG_COUNT,
-                        LiveTheme.customRound(), LiveTheme.customLayout());
-                view.restyle();
-                announce();
-                return;
+            case CUSTOM_FOCUS_ROW:
             case CUSTOM_ROUND_ROW:
-                LiveTheme.setCustom(c, LiveTheme.customBg(), (LiveTheme.customRound() + dir + LiveTheme.ROUND_COUNT) % LiveTheme.ROUND_COUNT,
-                        LiveTheme.customLayout());
-                view.restyle();
-                announce();
-                return;
             case CUSTOM_LAYOUT_ROW:
-                LiveTheme.setCustom(c, LiveTheme.customBg(), LiveTheme.customRound(),
-                        (LiveTheme.customLayout() + dir + LiveTheme.CUSTOM) % LiveTheme.CUSTOM);
-                LiveTheme.applyFonts(c);
-                view.restyle();
-                announce();
+            case CUSTOM_INFO_ROW:
+            case CUSTOM_FONT_ROW: {     // the next design for that part, in the lists' order, round
+                int part = partOf(focus), n = LiveTheme.SOURCES.length;
+                LiveTheme.setCustomPart(c, part, LiveTheme.SOURCES[(LiveTheme.sourceIndex(LiveTheme.customPart(part)) + dir + n) % n]);
+                restyled(c);
                 return;
+            }
             case MORNING_ROW: {
                 LiveTheme.setMorning(c, LiveTheme.step(LiveTheme.morningStyle(), dir, true));
                 LiveTheme.applyFonts(c);
@@ -1942,7 +1966,7 @@ final class LiveSettings {
                 announce();
                 return;
             }
-            case NIGHT_ROW: {       // the same, or one of the styles in the lists' order, round
+            case NIGHT_ROW: {       // the same, or one of the designs in the lists' order, round
                 LiveTheme.setNight(c, LiveTheme.step(LiveTheme.nightStyle(), dir, true));
                 LiveTheme.applyFonts(c);
                 view.restyle();
@@ -2153,8 +2177,11 @@ final class LiveSettings {
             case STYLE_ROW:
             case NIGHT_ROW:
             case CUSTOM_BG_ROW:
+            case CUSTOM_FOCUS_ROW:
             case CUSTOM_ROUND_ROW:
             case CUSTOM_LAYOUT_ROW:
+            case CUSTOM_INFO_ROW:
+            case CUSTOM_FONT_ROW:
             case MORNING_ROW:
             case LATE_ROW:
             case OPACITY_ROW:
@@ -2298,13 +2325,13 @@ final class LiveSettings {
             case RESET_ROW:
                 askReset(c, section);
                 break;
-            case CODE_ROW:      // another TV's style, by its code
-                LivePinPad.askNumber(c, Ui.tr("Código do estilo", "Style code"), Ui.tr("Os 4 números de outra TV", "The 4 digits from another TV"), typed -> {
+            case CODE_ROW:      // another TV's design, by its code
+                LivePinPad.askNumber(c, Ui.tr("Código do design", "Design code"), Ui.tr("Os 8 números de outra TV", "The 8 digits from another TV"), typed -> {
                     if (!LiveTheme.useCode(c, typed)) return false;
                     LiveTheme.applyFonts(c);
                     view.restyle();
                     showRow(CODE_ROW);      // Custom's rows came in above it: the focus stays on it
-                    view.flash(Ui.tr("Estilo da outra TV aplicado", "The other TV's style is on"));
+                    view.flash(Ui.tr("Design da outra TV aplicado", "The other TV's design is on"));
                     return true;
                 });
                 break;

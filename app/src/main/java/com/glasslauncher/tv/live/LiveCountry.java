@@ -258,6 +258,11 @@ final class LiveCountry {
         return out;
     }
 
+    /** Where a tag on the line at `baseline` starts at the top. */
+    static float tagTop(Paint text, float baseline, float k) {
+        return baseline - Ui.halfCap(text) - height(text, k) / 2;
+    }
+
     private static float height(Paint text, float k) {
         return Math.max(text.getTextSize() * 0.9f, 20 * k);
     }

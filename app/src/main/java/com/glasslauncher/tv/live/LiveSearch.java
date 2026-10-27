@@ -487,12 +487,18 @@ final class LiveSearch extends Dialog {
             super(c);
             in.target = 1;
             switch (LiveTheme.layoutStyle()) {
-                case LiveTheme.APPLE: SH_W = 352; break;
+                case LiveTheme.APPLE:
+                case LiveTheme.DISNEY: SH_W = 352; break;
                 case LiveTheme.YOUTUBE: SH_W = 368; break;
-                case LiveTheme.NOW: SH_W = 320; break;
+                case LiveTheme.NOW:
+                case LiveTheme.NETFLIX: SH_W = 320; break;
                 case LiveTheme.SKY: SH_W = 272; break;
-                case LiveTheme.SLING: SH_W = 288; break;
-                case LiveTheme.HULU: SH_W = 336; break;
+                case LiveTheme.SLING:
+                case LiveTheme.PLEX:
+                case LiveTheme.PLUTO: SH_W = 288; break;
+                case LiveTheme.HULU:
+                case LiveTheme.MAX:
+                case LiveTheme.PRIME: SH_W = 336; break;
                 default: break;
             }
             SH_H = SH_W * 9 / 16;

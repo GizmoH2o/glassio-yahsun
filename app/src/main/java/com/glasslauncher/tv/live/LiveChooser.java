@@ -203,12 +203,13 @@ final class LiveChooser extends Dialog {
             long up = SystemClock.uptimeMillis();
             float dt = last == 0 ? 1 / 60f : Math.min(0.05f, (up - last) / 1000f);
             last = up;
-            // The tiles as big as fit: across the width, and every row on the screen (then the grid in the middle).
+            // The tiles as big as fit: across the width, and two rows on the screen at most (more scroll; then the grid in
+            // the middle).
             int row = focus / perRow, rows = (labels.length + perRow - 1) / perRow;
             float room = 1080 - TOP - 40;
             float tw = (1920 - 2 * X - (perRow - 1) * GAP) / perRow;
             float labelRoom = picture == null ? 0 : LABEL + (details != null ? 64 : 0);
-            tw = Math.min(tw, (room / rows - labelRoom - GAP) * aspect);
+            tw = Math.min(tw, (room / Math.min(rows, 2) - labelRoom - GAP) * aspect);
             float th = tw / aspect, step = th + labelRoom + GAP, x0 = (1920 - perRow * tw - (perRow - 1) * GAP) / 2;
             scroll.target = Math.max(0, Math.min(row * step - (room - step) / 2, rows * step - room));
             boolean moving = in.step(dt) | at.step(dt) | scroll.step(dt);

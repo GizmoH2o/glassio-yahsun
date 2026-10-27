@@ -69,7 +69,7 @@ final class LiveOverlay {
     private String aboutText = "";
     private final RectF r = new RectF(), box = new RectF();
     private final Path path = new Path(), moonCut = new Path();
-    private Shader band;
+    private Shader band, side;
     private final android.graphics.RectF panel = new android.graphics.RectF();
 
     LiveOverlay(LiveView view, Live live) {
@@ -109,6 +109,13 @@ final class LiveOverlay {
         // Sky Q's band: the style's blue, solid from just above the title.
         band = new LinearGradient(0, 590 * k, 0, h, (LiveTheme.bgTop & 0x00FFFFFF) | 0xF0000000,
                 (LiveTheme.bg & 0x00FFFFFF) | 0xFA000000, Shader.TileMode.CLAMP);
+        // Netflix's shade: the design's background from the left, so the text there reads over any picture; it fades
+        // in from the top as the fade under the text does.
+        side = new android.graphics.ComposeShader(
+                new LinearGradient(0, 0, w * 0.62f, 0, (LiveTheme.bg & 0x00FFFFFF) | 0xE6000000, LiveTheme.bg & 0x00FFFFFF,
+                        Shader.TileMode.CLAMP),
+                new LinearGradient(0, 480 * k, 0, 720 * k, 0x00000000, 0xFF000000, Shader.TileMode.CLAMP),
+                android.graphics.PorterDuff.Mode.DST_IN);
         about = null;
         aboutText = "";
     }
@@ -457,26 +464,43 @@ final class LiveOverlay {
     }
 
     /**
-     * The style's panel behind the text and the buttons: Apple TV's a floating card of glass with a light edge, Sky
-     * Q's a solid band across the bottom with a line of its blue on top; the others only the fade.
+     * The design's panel behind the text and the buttons: Apple TV's and Disney+'s a floating card of glass with a
+     * light edge (Disney+'s less round, its edge in its blue), Sky Q's and Pluto TV's a solid band across the bottom
+     * with a line of the focus color on top, Plex's the band alone, Netflix's a shade from the left; the others only
+     * the fade.
      */
     private void drawPanel(Canvas c) {
-        int style = LiveTheme.layoutStyle();
-        if (style == LiveTheme.APPLE) {
-            panel.set((X - 40) * k, 596 * k, (1920 - X + 40) * k, 1044 * k);
-            fill.setColor((LiveTheme.bgTop & 0x00FFFFFF) | 0x8C000000);      // glass tinted by the style's own color
-            c.drawRoundRect(panel, 44 * k, 44 * k, fill);
-            fill.setColor(0x1AFFFFFF);
-            c.drawRoundRect(panel, 44 * k, 44 * k, fill);
-            stroke.setStrokeWidth(2 * k);
-            stroke.setColor(0x40FFFFFF);
-            c.drawRoundRect(panel, 44 * k, 44 * k, stroke);
-        } else if (style == LiveTheme.SKY) {
-            fill.setShader(band);
-            c.drawRect(0, 590 * k, w, h, fill);
-            fill.setShader(null);
-            fill.setColor(LiveTheme.tile);
-            c.drawRect(0, 590 * k, w, 594 * k, fill);
+        switch (LiveTheme.infoBar()) {
+            case LiveTheme.BAR_CARD: {
+                boolean apple = LiveTheme.infoStyle() != LiveTheme.DISNEY;
+                float rr = (apple ? 44 : 28) * k;
+                panel.set((X - 40) * k, 596 * k, (1920 - X + 40) * k, 1044 * k);
+                fill.setColor((LiveTheme.bgTop & 0x00FFFFFF) | 0x8C000000);      // glass tinted by the design's own color
+                c.drawRoundRect(panel, rr, rr, fill);
+                fill.setColor(0x1AFFFFFF);
+                c.drawRoundRect(panel, rr, rr, fill);
+                stroke.setStrokeWidth(2 * k);
+                stroke.setColor(apple ? 0x40FFFFFF : (LiveTheme.text & 0x00FFFFFF) | 0x66000000);
+                c.drawRoundRect(panel, rr, rr, stroke);
+                break;
+            }
+            case LiveTheme.BAR_BAND_LINE:
+            case LiveTheme.BAR_BAND:
+                fill.setShader(band);
+                c.drawRect(0, 590 * k, w, h, fill);
+                fill.setShader(null);
+                if (LiveTheme.infoBar() == LiveTheme.BAR_BAND_LINE) {
+                    fill.setColor(LiveTheme.tile);
+                    c.drawRect(0, 590 * k, w, 594 * k, fill);
+                }
+                break;
+            case LiveTheme.BAR_SIDE:
+                fill.setShader(side);
+                c.drawRect(0, 480 * k, w * 0.62f, h, fill);
+                fill.setShader(null);
+                break;
+            default:
+                break;
         }
     }
 
@@ -495,7 +519,7 @@ final class LiveOverlay {
             float bx = buttonX(i) * k, bw = buttonW(i) * k;
             boolean on = buttonsFocused && i == focus && Math.abs(focusX.value - buttonX(i)) < BTN / 2;
             if (!on) {
-                fill.setColor(LiveTheme.style() == LiveTheme.ZERO ? 0x2EFFFFFF : (LiveTheme.surface | 0x14000000));
+                fill.setColor(LiveTheme.glassio() ? 0x2EFFFFFF : (LiveTheme.surface | 0x14000000));
                 r.set(bx, cy - rad, bx + bw, cy + rad);
                 c.drawRoundRect(r, rad * Math.min(1, LiveTheme.round), rad * Math.min(1, LiveTheme.round), fill);
             }
