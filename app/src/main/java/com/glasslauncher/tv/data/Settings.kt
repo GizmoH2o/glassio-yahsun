@@ -181,6 +181,17 @@ class Settings(private val ctx: Context) {
     var cornerRadius: Int get() = i("cornerRadius", 18); set(v) = putI("cornerRadius", v.coerceIn(0, 40))
     /** Index of the Apps folder among the dock apps; -1 = after the last app. */
     var folderPos: Int get() = i("folderPos", -1); set(v) = putI("folderPos", v)
+    /** The home screen's library rows (Airing this week, Movies, Series): both | nuvio | stremio, with what's saved here. */
+    var homeSource: String get() = s("homeSource", "both"); set(v) = putS("homeSource", v)
+    /** The home screen's "Airing this week" row: new episodes of the series in your library. */
+    var homeAiring: Boolean get() = b("homeAiring", true); set(v) = putB("homeAiring", v)
+    /** The home screen's "Movies in your library" and "Series in your library" rows. */
+    var homeMovies: Boolean get() = b("homeMovies", true); set(v) = putB("homeMovies", v)
+    var homeSeries: Boolean get() = b("homeSeries", true); set(v) = putB("homeSeries", v)
+    /** A poster rested on opens up into a wide card (picture, logo, details). */
+    var homeExpand: Boolean get() = b("homeExpand", true); set(v) = putB("homeExpand", v)
+    /** The big picture at the top follows the title selected in the rows. */
+    var homeFollow: Boolean get() = b("homeFollow", true); set(v) = putB("homeFollow", v)
     /** Continue Watching: row (its own row, Apple TV's) | first (at the start of the carousel) | mixed (among the catalogs) | off */
     var continueMode: String get() = s("continueMode", "row"); set(v) = putS("continueMode", v)
     /** Continue Watching also from the Trakt account (when one is connected). */

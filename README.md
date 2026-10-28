@@ -2,8 +2,8 @@
 
 # Glassio Yahsun
 
-**An Apple TV–style home screen for Google TV / Android TV**, with real liquid glass, a carousel fed by your
-Nuvio add-on catalogs, a Live TV (IPTV) player with a full guide, Following for your teams and shows, Continue Watching from Nuvio Legacy and the official Nuvio app, tvOS-style icons, weather, screensavers and
+**A streaming-style home screen for Google TV / Android TV**: a big picture fed by your Nuvio or Stremio add-on
+catalogs, rows of your library (Airing this week, Continue watching, Movies, Series) and your apps, a Live TV (IPTV) player with a full guide, Following for your teams and shows, Continue Watching from Nuvio Legacy and the official Nuvio app, tvOS-style icons, weather, screensavers and
 Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Google TV Streamer (4K).
 
 [العربية — دليل الاستخدام الكامل](docs/README.ar.md) · [Discussions](https://github.com/GizmoH2o/glassio-yahsun/discussions) · [Report a bug](https://github.com/GizmoH2o/glassio-yahsun/issues/new/choose)
@@ -63,30 +63,25 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - **Back up settings** and **Restore a backup** (Settings › System, and the phone page): everything, sign-ins included, in one file locked with a code you choose. It goes to the TV's Downloads and to your phone; restoring brings it all back and restarts Glassio. Settings marks a backup "Due" when there's none or it's over a month old.
 - A setup checklist on a fresh install (restore a backup, catalogs, Nuvio, TV access, the Home button, Live TV).
 
-**Menu, Library, themes and backgrounds**
-- **Menu** at the settings button, like the Apple TV Control Center: clock, date, weather (high / low, feels like, humidity, wind, city), then Library, Glassio settings, Android settings, Wi-Fi, Themes and Background. It opens when you go up to the button (or with OK, or never: Settings → Menu, Library & themes), and every part can be hidden.
-- **Library**: the **+** button between Play and Next saves the title. Grey page, five posters a row; OK opens the title, hold OK removes it. It also shows your **Nuvio account library** (Nuvio Legacy, official Nuvio and the forks that sync with the account; sign in with a QR code) and your **Trakt watchlist**; + can save to both.
-- **Themes**: Black on white, Black AMOLED, Liquid, Clear, Glass still, Glass is glass — for the dock, the icons and the menu (black ones keep a clear matte dock). *Colour on focus* and the **focus plate** (White, Dark, Glass or Black AMOLED behind the selected icon) are in the same page.
-- **Background**: each title's backdrop, **your picture** or **your video** (a link, or a file in the backgrounds folder shown in Settings → Clock & glass, or sent from your phone through Manage from phone), or **the screensaver's aerials**. With your own background the page is just that (no title or buttons); the glass follows the video.
+**Menu, Library and themes**
+- **Menu** at the settings button, like the Apple TV Control Center: clock, date, weather (high / low, feels like, humidity, wind, city), then Library, Glassio settings, Android settings, Wi-Fi and Themes. It opens when you go up to the button (or with OK, or never: Settings → Menu, Library & themes), and every part can be hidden.
+- **Library**: **My Library** on the big picture saves the title. Grey page, five posters a row; OK opens the title, hold OK removes it. It also shows your **Nuvio account library** (Nuvio Legacy, official Nuvio and the forks that sync with the account; sign in with a QR code) and your **Trakt watchlist**; + can save to both.
+- **Themes**: Black on white, Black AMOLED, Liquid, Clear, Glass still, Glass is glass — for the Apps folder, its icons and the menu. *Colour on focus* and the **focus plate** (White, Dark, Glass or Black AMOLED behind the selected icon) are in the same page.
 
 **System**
 - **Back to Glassio after a restart** (Settings → System → *Open Glassio when the TV starts*): Google TV opens its own home screen after a restart; Glassio comes up over it through the Home-button service, or TV access (ADB).
 - **Turn the accessibility service on with ADB** from Settings → System, for TVs that grey it out (Google TV Streamer).
 - The TMDB token and the Home Assistant webhook show a green check when they work (red when TMDB refuses the token, or the API Key was pasted instead of the API Read Access Token).
 
-**Carousel**
-- Endless hero carousel from your Nuvio or Stremio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like. Add-ons from your Nuvio account and your Stremio account join the TV's own (Settings → Catalogs), never twice.
-- Settings → Carousel → **Slide animation**: **Apple TV** (default: the next picture opens up from the right with parallax, from the left going back, glass included), *Slide* (pushed in) or *Fade*.
-- **Buttons**: **Play + Next** (default, like Apple TV: Right from Play selects the round Next button, Right or OK on it shows the next title, Left on Play the previous one; Play stays in place whatever the synopsis length), *Play only* or *Hidden*.
-- **Dots**: *Dots*, **Liquid glass dots** (clear glass drops on a glass capsule that stretch, join and part like water as you move), *Progress bar* or *Hidden*.
-- Title logo (sizes evened out), rating / year / platform chips, genres, synopsis in Apple's grey, Play button when selected.
-- **Backdrop gallery** like the Apple TV app: each title shows several of its pictures before the carousel moves on.
-- **Continue Watching** from Nuvio Legacy: at the start of the carousel (1–5 slides or all) or mixed in, with progress
-  (`Continue · S1 · E3 · 42%`). Back from Nuvio, the carousel opens on what you just watched. These titles are kept in
-  memory, so going back to them — even after browsing far or pressing Home — never reloads.
+**Home**
+- **The big picture**: a title's backdrop across the page, its logo, IMDb rating, year, runtime, genres and synopsis, with **Play** and **My Library**. Titles come from your Nuvio or Stremio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like, and change on their own while it's selected (Settings → Home → *Auto-play*); ◀ on Play and ▶ on My Library go to the previous and next one. Add-ons from your Nuvio account and your Stremio account join the TV's own (Settings → Catalogs), never twice.
+- **Rows** under it: **Airing this week** (new episodes of the series in your library: NEW, the episode, *Out now* or *in 21h 47m*), **Continue watching**, **Movies in your library**, **Series in your library**, then **your apps**. The library rows come from your Nuvio library, your Stremio library or both (Settings → Home → *Library on Home*), with what you saved in Glassio; each can be turned off.
+- The page moves up just enough to show the row you're in, and the big picture follows the title selected in a row (Settings → Home → *Big picture follows the selection*). Rest on a poster and it **opens up** into a wide card with its picture, logo, rating, year, runtime and genres.
+- Each row remembers where you were; **Back** goes to the first row, then to the big picture. **Hold OK** on a title for its menu (open it in your other app, save it to or take it out of your Library), on Continue watching to mark it watched or take it out, on an app for App info, Move, Change icon and Hide.
+- **Continue watching**: wide cards with the logo, the progress bar and the app the title came from; **+N** and **NEW EPISODE** when episodes came out since you last watched. Live TV's cards (a followed match, the last channel, new recordings) lead the row.
 - **Continue Watching from the official Nuvio app**: signed in to your Nuvio account (Settings → Nuvio, Stremio & Home Assistant), what you're watching there joins Continue Watching (Settings → Continue Watching → *Nuvio (official app)*). Removing a title here removes it on the account too.
 - **Stremio**: signed in to your Stremio account (Settings → Nuvio, Stremio & Home Assistant → *Connect Stremio account*: a QR code, you sign in to Stremio on your phone and confirm; no password on the TV), what you're watching in Stremio joins Continue Watching (*Stremio*), its add-ons can fill the catalogs (*Add-ons from my Stremio account*), its library shows in the Library and the + button can save to it. Removing a title here removes it in Stremio too.
-- Home pressed on the home screen jumps back to the first slide.
+- Home pressed on the home screen jumps back to the first title of the big picture.
 - Opening a title brings Nuvio forward and opens it directly (no restart, no splash when Nuvio is running).
   Works with **Nuvio Legacy**, the **official Nuvio TV** app, **Nuvio Arc**, **Nuvio Re-Shaped** and **Stremio**
   (Settings → Nuvio, Stremio & Home Assistant → *Open titles in*; **Auto** picks the first installed in that order).
@@ -94,12 +89,11 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
 **Glass**
 - Real refraction (AGSL shader), blurred backdrop shared by every glass surface, "Glass like glass" (with or without ripple), clear, AMOLED black, black-on-white.
-- The page blurs and dims when you move down into the apps, glass included.
 - Backdrop and glass always change in the same frame.
 
-**Dock & icons**
-- 6 apps per row, Apps folder with every app (hidden ones too), move / hide / change icon / app info (hold OK).
-- tvOS behaviour: the selected icon lifts, **colour on focus** (icons white at rest, coloured on a light or dark plate),
+**Apps & icons**
+- Your apps in one row at the bottom of the home screen; the **Apps folder** (*All apps*) holds every app, hidden ones too. Move / hide / change icon / app info: hold OK.
+- In the Apps folder, tvOS behaviour: the selected icon lifts, **colour on focus** (icons white at rest, coloured on a light or dark plate),
   rubber-band **bounce at the edges**.
 - Icons from icon packs (Projectivy, Blueprint, Nova, ADW), a link, the TV's photos, your phone, or the **Apple TV icon
   library** (default, dark, white and clear looks, see [tools](#tools)).
@@ -170,7 +164,7 @@ Google TV always sends the Home button to its own launcher, so Glass uses an acc
 ### TMDB token (logos, full-size art, synopsis language, ratings, gallery)
 1. Create a free account at [themoviedb.org](https://www.themoviedb.org/) → Settings → API → copy the **API Read Access Token**.
 2. Settings → Catalogs → **TMDB token** (or paste it on the phone page).
-3. Settings → Carousel → **Synopsis language**: 24 languages (English, Arabic, French, Spanish, German, Italian,
+3. Settings → Home → **Synopsis language**: 24 languages (English, Arabic, French, Spanish, German, Italian,
    Portuguese, Turkish, Russian, Persian, Hindi, Japanese, Korean, Chinese …). English is used when a title has no text in that language.
 
 ### Continue Watching
@@ -205,16 +199,16 @@ The rows show what is already done (Developer options on, USB debugging on, Glas
 
 **Icon packs (all apps at once)**
 1. Install an Android TV / Projectivy icon pack from Google Play
-   (Settings → Dock & icons → *Find icon packs on Google Play* opens the search). ADW / Nova / Blueprint packs work too.
-2. Settings → Dock & icons → **Icon pack** → choose it. Every app takes the pack's icon; single apps can still be changed.
+   (Settings → Apps & icons → *Find icon packs on Google Play* opens the search). ADW / Nova / Blueprint packs work too.
+2. Settings → Apps & icons → **Icon pack** → choose it. Every app takes the pack's icon; single apps can still be changed.
 
 **Many icons from files**
 - Copy `<package>.png` files (for example `com.netflix.ninja.png`) into the icon folder shown in
-  Settings → Dock & icons, then press **Import icons from the icon folder**.
+  Settings → Apps & icons, then press **Import icons from the icon folder**.
 
-**Apps folder**: Settings → Dock & icons → *Show Apps folder* (or hold OK on the folder → *Hide from the dock*).
+**Apps folder**: Settings → Apps & icons → *Show Apps folder* (or hold OK on it → *Hide from the apps row*).
 
-Look: Settings → Dock & icons (dock size, dock and settings background, icon style) and
+Its look: Settings → Apps & icons (folder and settings background, icon style) and
 Settings → Clock & glass (colour on focus, plate light/dark, bounce, lift).
 
 ### Weather
@@ -238,24 +232,21 @@ Settings → **Performance** → *Mode*: **Auto** (default: picked for the TV fr
 e.g. a 2 GB TCL gets Performance, a Google TV Streamer gets Balanced), *Performance*, *Balanced*, *Quality*.
 Each setting can be changed on its own (the mode then shows *Custom*):
 - **Glass detail**: resolution of the picture the glass bends (480 px, or 720 px for crisper glass).
-- Picture quality, prepare ahead, slide transition, glass refraction, backdrop gallery.
-
-The clear dock and tiles show the page picture itself (half screen resolution), so the glass lines up with the
-backdrop and stays sharp at any *Glass detail*.
+- Picture quality, slide transition, glass refraction.
 
 In Settings, rows changed with ◀ ▶ (and app order) only change after you press **OK** on them; OK or Back
 again when done. Moving down the list never changes a value by accident.
 
 ### Artwork
-Settings → Carousel → **Artwork**: Main (TMDB), Second picture, Highest resolution, or the add-on's own picture.
-For one title: on the carousel **hold OK** (or press Menu) to switch to its next picture; Glassio remembers it
+Settings → Home → **Artwork**: Main (TMDB), Second picture, Highest resolution, or the add-on's own picture.
+For one title: on the big picture **hold OK** on Play (or press Menu) to switch to its next picture; Glassio remembers it
 (*Reset pictures picked per title* undoes all of them).
 
 ---
 
 ## Home Assistant
 
-Glass posts JSON to a Home Assistant **webhook** every time you open a title from the carousel:
+Glass posts JSON to a Home Assistant **webhook** every time you open a title from the home screen:
 
 ```json
 { "event": "launch", "title": "Severance", "type": "series", "id": "tt11280740", "app": "space.nuvio.nativelegacy" }

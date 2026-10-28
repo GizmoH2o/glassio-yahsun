@@ -231,46 +231,33 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Glass detail", "Resolution of the picture the glass bends (higher = crisper glass, more memory)", {
                     when (st.glassRes) { 720 -> "Sharp (720 px)"; else -> "Standard (480 px)" }
                 }, { st.glassRes = cycle(listOf(480, 720), st.glassRes, it); custom() }),
-                Adjust("Picture quality", "Carousel backdrops", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
+                Adjust("Picture quality", "The home screen's big picture", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
                     { st.imageQuality = cycle(listOf("high", "max"), st.imageQuality, it); custom() }),
-                Adjust("Prepare ahead", "Slides loaded before you get to them", { "${st.prefetchDepth}" }, { st.prefetchDepth += it; custom() }),
                 Adjust("Slide transition", "", { "${st.transitionMs} ms" }, { st.transitionMs += it * 50; custom() }),
                 Adjust("Glass refraction", "0 = flat glass (lightest)", { "${st.refraction}" }, { st.refraction += it * 2; custom() }),
-                Toggle("Backdrop gallery", "Several pictures per title", { st.heroGallery }, { st.heroGallery = it; custom() }),
             )
         },
-        Category("Carousel") {
+        Category("Home") {
             listOf(
-                Toggle("Auto-play", "Slides change on their own", { st.heroAutoplay }, { st.heroAutoplay = it }),
-                Adjust("Slide time", "Seconds before the next title", { "${st.heroIntervalSec} s" }, { st.heroIntervalSec += it }),
-                Adjust("Transition speed", "Fade between slides (lower = faster)", { "${st.transitionMs} ms" }, { st.transitionMs += it * 100 }),
-                Adjust("Slide animation", "Apple TV: the next picture opens up from the right (from the left going back) · Slide: pushed in · Fade",
-                    { when (st.slideAnim) { "apple" -> "Apple TV"; "slide" -> "Slide"; else -> "Fade" } },
-                    { st.slideAnim = cycle(listOf("apple", "slide", "fade"), st.slideAnim, it) }),
-                Adjust("Buttons", "Play + Next: like Apple TV, Right or OK on the round button shows the next title, Left on Play the previous one",
-                    { when (st.heroButtons) { "apple" -> "Play + Next"; "play" -> "Play only"; else -> "Hidden" } },
-                    { st.heroButtons = cycle(listOf("apple", "play", "hidden"), st.heroButtons, it) }),
-                Toggle("Dots auto-hide", "Show them only when the carousel is selected", { st.dotsAutoHide }, { st.dotsAutoHide = it }),
+                Adjust("Library on Home", "Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here", {
+                    when (st.homeSource) { "nuvio" -> "Nuvio"; "stremio" -> "Stremio"; else -> "Nuvio and Stremio" }
+                }, { st.homeSource = cycle(listOf("both", "nuvio", "stremio"), st.homeSource, it); app.shelf.rebuild() }),
+                Toggle("Airing this week", "New episodes of the series in your library: out now, or when they come out", { st.homeAiring }, { st.homeAiring = it }),
+                Toggle("Movies in your library", "", { st.homeMovies }, { st.homeMovies = it }),
+                Toggle("Series in your library", "", { st.homeSeries }, { st.homeSeries = it }),
+                Toggle("Posters open up when selected", "Rest on a poster: it opens into a wide card with its picture, rating, year and genres", { st.homeExpand }, { st.homeExpand = it }),
+                Toggle("Big picture follows the selection", "The title selected in a row fills the top of the page", { st.homeFollow }, { st.homeFollow = it }),
+                Note("The big picture: titles from your catalogs (Settings → Catalogs). Play opens one; My Library saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play for its next picture."),
+                Toggle("Auto-play", "Titles change on their own while the big picture is selected", { st.heroAutoplay }, { st.heroAutoplay = it }),
+                Adjust("Title time", "Seconds before the next title", { "${st.heroIntervalSec} s" }, { st.heroIntervalSec += it }),
+                Adjust("Transition speed", "Fade between titles (lower = faster)", { "${st.transitionMs} ms" }, { st.transitionMs += it * 100 }),
                 Adjust("Title style", "Logo image, plain text, or nothing", {
                     when (st.titleMode) { "logo" -> "Logo"; "text" -> "Text"; else -> "Hidden" }
                 }, { st.titleMode = cycle(listOf("logo", "text", "hidden"), st.titleMode, it) }),
                 Adjust("Logo / title size", "Logos are evened out so wide and tall ones look the same size", { pct(st.titleScale) }, { st.titleScale = tenth(st.titleScale, it) }),
-                Adjust("Rating, year, platform size", "", { pct(st.metaScale) }, { st.metaScale = tenth(st.metaScale, it) }),
-                Adjust("Genres size", "", { pct(st.genresScale) }, { st.genresScale = tenth(st.genresScale, it) }),
-                Toggle("Rating, year, platform", "The chips under the title", { st.showMeta }, { st.showMeta = it }),
-                Toggle("Genres line", "", { st.showGenres }, { st.showGenres = it }),
-                Toggle("Synopsis", "", { st.showSynopsis }, { st.showSynopsis = it }),
-                Toggle("Synopsis only when the carousel is selected", "Hidden while you browse the apps", { st.synopsisOnFocus }, { st.synopsisOnFocus = it }),
-                Adjust("Synopsis size", "", { pct(st.synopsisScale) }, { st.synopsisScale = tenth(st.synopsisScale, it) }),
                 Adjust("Synopsis lines", "", { "${st.synopsisLines}" }, { st.synopsisLines += it }),
-                Adjust("Dots style", "", {
-                    when (st.dotsMode) { "window" -> "Dots"; "liquid" -> "Liquid glass dots"; "progress" -> "Progress bar"; else -> "Hidden" }
-                }, { st.dotsMode = cycle(listOf("window", "liquid", "progress", "hidden"), st.dotsMode, it) }),
-                Adjust("Dots per group", "", { "${st.dotsMax}" }, { st.dotsMax += it }),
                 Adjust("Titles per catalog", "Reload to apply", { "${st.perCatalog}" }, { st.perCatalog += it * 5 }),
                 Adjust("Total titles", "0 = every title, endless loop", { if (st.maxItems == 0) "Unlimited" else "${st.maxItems}" }, { st.maxItems = (st.maxItems + it * 10).coerceAtLeast(0) }),
-                Toggle("Backdrop gallery", "Like Apple TV: each title shows several of its pictures (needs the TMDB token)", { st.heroGallery }, { st.heroGallery = it }),
-                Adjust("Pictures per title", "", { "${st.galleryShots}" }, { st.galleryShots = (st.galleryShots + it).coerceIn(2, 6) }),
                 Toggle("Shuffle all catalogs", "Random order across every catalog, a new mix each time the list loads", { st.shuffle }, { st.shuffle = it }),
                 Adjust("Synopsis language", "Needs a TMDB token. English is used when a title has no text in this language", { com.glasslauncher.tv.data.LANG_NAMES[st.descLang] ?: "English" }, {
                     st.descLang = cycle(com.glasslauncher.tv.data.TMDB_LANGS.keys.toList(), st.descLang, it); app.catalogs.clearEnrichment()
@@ -278,33 +265,12 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Artwork", "Which picture each title uses", {
                     when (st.artChoice) { "second" -> "Second picture"; "best" -> "Highest resolution"; "addon" -> "Add-on picture"; else -> "Main (TMDB)" }
                 }, { st.artChoice = cycle(listOf("main", "second", "best", "addon"), st.artChoice, it) }),
-                Note("One title: on the carousel hold OK (or press Menu) to switch to its next picture. Glassio remembers it."),
                 Act("Reset pictures picked per title", "", "") { st.clearArtPicks(); toast(ctx, "Every title is back to the Artwork setting") },
-                Act("Reload carousel now", "") { io { app.catalogs.refresh(); app.catalogs.status.value } },
+                Act("Reload titles now", "") { io { app.catalogs.refresh(); app.catalogs.status.value } },
             )
         },
         Category("Clock & glass") {
-            val bgFolder = CustomBackground.folder(ctx).absolutePath
-            fun pick(video: Boolean) {
-                val files = CustomBackground.files(ctx, video)
-                if (files.isEmpty()) { toast(ctx, "No ${if (video) "videos" else "pictures"} yet. Copy them to: $bgFolder"); return }
-                dialog = MenuDialog(if (video) "Videos in the folder" else "Pictures in the folder", files.map { f ->
-                    f.name to { if (video) { st.bgVideo = f.absolutePath; st.bgMode = "video" } else { st.bgImage = f.absolutePath; st.bgMode = "image" } }
-                })
-            }
             listOf(
-                Adjust("Background", "Each title's own picture, or yours: a picture or a video, from a link or the folder below",
-                    { when (st.bgMode) { "image" -> "My picture"; "video" -> "My video"; "aerial" -> "Screensaver (aerials)"; else -> "Title backdrops" } },
-                    { st.bgMode = cycle(listOf("carousel", "image", "video", "aerial"), st.bgMode, it) }),
-                Act("Picture from a link", st.bgImage.ifBlank { "https://… (jpg, png, webp)" }, "") {
-                    dialog = TextEntry("Picture link", st.bgImage.takeIf { it.startsWith("http") }.orEmpty(), "https://…") { v -> if (v.isNotBlank()) { st.bgImage = v.trim(); st.bgMode = "image" } }
-                },
-                Act("Picture from the folder", "", "") { pick(false) },
-                Act("Video from a link", st.bgVideo.ifBlank { "https://… (mp4, webm, mkv); plays muted, on a loop" }, "") {
-                    dialog = TextEntry("Video link", st.bgVideo.takeIf { it.startsWith("http") }.orEmpty(), "https://…") { v -> if (v.isNotBlank()) { st.bgVideo = v.trim(); st.bgMode = "video" } }
-                },
-                Act("Video from the folder", "", "") { pick(true) },
-                Note("Folder for your pictures and videos: $bgFolder (copy with adb push, a file manager or a USB stick). The glass shows the picture; with a video it shows one frame of it."),
                 Toggle("Show clock", "", { st.showClock }, { st.showClock = it }),
                 Toggle("24-hour clock", "", { st.clock24h }, { st.clock24h = it }),
                 Toggle("Show date", "Under the clock, like Apple TV", { st.showDate }, { st.showDate = it }),
@@ -319,32 +285,31 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Fahrenheit", "", { st.weatherF }, { st.weatherF = it }),
                 Toggle("Auto-hide clock and settings button", "Hidden while you browse; they appear when you go up to the settings button", { st.topAutoHide }, { st.topAutoHide = it }),
                 Adjust("Shown at start for", "Then hidden until you go up to them", { "${st.topHideSec} s" }, { st.topHideSec += it }),
-                Adjust("Corner radius", "Dock and app tiles (0 = square)", { "${st.cornerRadius}" }, { st.cornerRadius += it * 2 }),
+                Adjust("Corner radius", "The Apps folder and its tiles (0 = square)", { "${st.cornerRadius}" }, { st.cornerRadius += it * 2 }),
                 Adjust("Glass blur", "0 turns blur off", { "${st.blurRadius}" }, { st.blurRadius += it * 4 }),
                 Adjust("Glass refraction", "How much the rim bends what is behind it (0 = flat)", { "${st.refraction}" }, { st.refraction += it * 2 }),
                 Adjust("Glass brightness", "", { "${st.glassTint}" }, { st.glassTint += it * 2 }),
-                Toggle("Colour on focus", "Like tvOS: icons stay white, the selected one shows its colours on a light plate", { st.focusColor }, { st.focusColor = it }),
-                Adjust("Selected icon plate", "With Colour on focus", { PLATE_NAMES[st.focusPlate] ?: "Dark" },
+                Toggle("Colour on focus", "In the Apps folder, like tvOS: icons stay white, the selected one shows its colours on a light plate", { st.focusColor }, { st.focusColor = it }),
+                Adjust("Selected icon plate", "In the Apps folder, with Colour on focus", { PLATE_NAMES[st.focusPlate] ?: "Dark" },
                     { st.focusPlate = cycle(PLATES, st.focusPlate, it) }),
-                Toggle("Bounce at the edges", "Pressing past the first or last icon nudges it, like tvOS", { st.edgeBounce }, { st.edgeBounce = it }),
-                Toggle("Lift selected icon", "The selected icon rises a little, glass and all", { st.tileLift }, { st.tileLift = it }),
+                Toggle("Bounce at the edges", "In the Apps folder: pressing past the first or last icon nudges it, like tvOS", { st.edgeBounce }, { st.edgeBounce = it }),
+                Toggle("Lift selected icon", "In the Apps folder: the selected icon rises a little, glass and all", { st.tileLift }, { st.tileLift = it }),
                 Toggle("Show phone apps too", "Apps without a TV launcher entry", { st.showMobileApps }, { st.showMobileApps = it; app.apps.reload() }),
             )
         },
-        Category("Dock & icons") {
+        Category("Apps & icons") {
             val imported = st.dockOrder.size // read for recomposition on reorder
             @Suppress("UNUSED_VARIABLE") val unused = imported + allApps.size
             buildList {
                 add(Adjust("Icon pack", "Projectivy / Blueprint / Nova packs installed on this TV",
                     { if (st.iconPack.isEmpty()) "None (original icons)" else (packLabels[st.iconPack] ?: st.iconPack) },
                     { st.iconPack = cycle(packList, st.iconPack, it) }))
-                add(Toggle("Show Apps folder", "The folder with all your apps, in the dock. Hidden apps stay listed below", { st.showFolder }, { st.showFolder = it }))
-                add(Adjust("Dock size", "Smaller makes the dock and its icons narrower", { pct(st.dockScale) }, { st.dockScale = ((st.dockScale * 20).roundToInt() + it) / 20f }))
-                add(Adjust("Dock background", "Behind the apps row and the Apps folder", { styleName(st.dockStyle) },
+                add(Toggle("Show Apps folder", "All apps (hidden ones too), as a tile in the apps row. Hidden apps stay listed below", { st.showFolder }, { st.showFolder = it }))
+                add(Adjust("Apps folder background", "Behind the apps in the Apps folder", { styleName(st.dockStyle) },
                     { st.dockStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.dockStyle, it); st.theme = "" }))
                 add(Adjust("Settings background", "Behind settings and the icon picker", { styleName(st.panelStyle) },
                     { st.panelStyle = cycle(listOf("liquid", "clear", "amoled"), st.panelStyle, it) }))
-                add(Adjust("Icon style", "How the plate behind every icon looks", {
+                add(Adjust("Icon style in the Apps folder", "How the plate behind every icon looks there", {
                     styleName(st.tileStyle)
                 }, { st.tileStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.tileStyle, it); st.theme = "" }))
                 add(Note("Change one icon: on the home screen hold OK on the app → Change icon. Pick from an icon pack, the Apple TV icons, a photo on the TV, a link to a PNG, or send one from your phone (Manage from phone)."))
@@ -364,7 +329,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         Category("Menu, Library & themes") {
             val themes = listOf("bow", "amoled", "liquid", "clear", "water_still", "water")
             listOf(
-                Adjust("Theme", "One look for the dock, the icons and the menu. Black ones keep the dock clear (matte)",
+                Adjust("Theme", "One look for the Apps folder, its icons and the menu",
                     { if (st.theme.isBlank()) "Custom" else themeName(st.theme) }, { st.applyTheme(cycle(themes, st.theme.ifBlank { "liquid" }, it)) }),
                 Adjust("Menu", "The Apple TV-style menu at the settings button",
                     { when (st.menuMode) { "auto" -> "Opens when you go up to it"; "manual" -> "Opens with OK"; else -> "Off (OK opens Settings)" } },
@@ -380,8 +345,6 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Android settings in the menu", "", { st.menuAndroid }, { st.menuAndroid = it }),
                 Toggle("Wi-Fi in the menu", "", { st.menuWifi }, { st.menuWifi = it }),
                 Toggle("Themes in the menu", "", { st.menuThemes }, { st.menuThemes = it }),
-                Toggle("Background in the menu", "Switch between title backdrops, your picture, your video and the screensaver", { st.menuBackground }, { st.menuBackground = it }),
-                Toggle("+ button on the carousel", "Between Play and Next: saves the title to your Library", { st.heroPlus }, { st.heroPlus = it }),
                 Toggle("Trakt watchlist in the Library", "Needs Trakt (Continue Watching)", { st.libraryTrakt }, { st.libraryTrakt = it; scope.launch(Dispatchers.IO) { app.library.refreshWatchlist() } }),
                 Toggle("Nuvio library", if (app.library.nuvio.connected) "From your Nuvio account" + (app.library.nuvio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ": Nuvio Legacy, the official Nuvio app and forks that sync with it"
                     else "Connect your Nuvio account below", { st.libraryNuvio }, { st.libraryNuvio = it; scope.launch(Dispatchers.IO) { app.library.refreshNuvio() } }),
@@ -433,15 +396,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         Category("Continue Watching") {
             val cwList by app.cw.entries.collectAsState()
             buildList {
-                add(Adjust("Show Continue Watching", "Where titles you are watching appear", {
-                    when (st.continueMode) { "off" -> "Off"; "mixed" -> "Mixed with catalogs"; "first" -> "At the start of the carousel"; else -> "Own row" }
-                }, { st.continueMode = cycle(listOf("row", "first", "mixed", "off"), st.continueMode, it) }))
-                if (st.continueMode == "first") add(Adjust("Slides at the start", "How many titles in progress open the carousel", {
-                    if (st.cwLead <= 0) "All" else "${st.cwLead}"
-                }, { st.cwLead = cycle(listOf(1, 2, 3, 4, 5, 0), st.cwLead, it) }))
-                if (st.continueMode == "row") add(Note("Own row: a Continue Watching row above the dock, like the Apple TV app. Down from the carousel goes into it; hold OK on a title to open it in your other app, mark it watched or take it out."))
-                if (st.continueMode != "row") add(Toggle("Open on what I just watched", "Back from Nuvio, the carousel shows that title first", { st.continueJump }, { st.continueJump = it }))
-                if (st.continueMode != "row") add(Toggle("Progress bar", "Shows Continue · S1 · E3 · 42% under the title", { st.cwProgress }, { st.cwProgress = it }))
+                add(Toggle("Continue watching on Home", "Its row under the big picture: OK opens a title in the app it came from; hold OK to open it in your other app, mark it watched or take it out. Live TV's cards stay either way",
+                    { st.continueMode != "off" }, { st.continueMode = if (it) "row" else "off" }))
                 add(Note("Apps"))
                 add(Toggle("Nuvio Legacy", if (app.cw.hasLogAccess()) "Reading what you watch in Nuvio Legacy" else "Allow USB debugging for Glassio when the TV asks", { st.cwLegacy }, { st.cwLegacy = it }))
                 val nuvioAcct = app.library.nuvio

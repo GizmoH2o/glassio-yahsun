@@ -295,12 +295,12 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 <div id="msg"></div>
 <h2>Add-ons</h2><div id="addons"></div>
 <input type="text" id="au" placeholder="https://.../manifest.json  or  stremio://..."><button onclick="addAddon()">Add add-on</button>
-<h2>Background</h2><p>What's behind the home screen. Your pictures and videos live in Glassio's backgrounds folder on the TV.</p>
+<div style="display:none"><h2>Background</h2><p>What's behind the home screen. Your pictures and videos live in Glassio's backgrounds folder on the TV.</p>
 <div class="row" id="bgm"></div><p id="bgnow"></p>
 <input type="text" id="bi" placeholder="Picture link: https://.../photo.jpg"><div class="row"><button onclick="bgLink('image','bi')">Use picture link</button><button class="s" onclick="bgSave('bi')">Save to the TV</button></div>
 <input type="text" id="bv" placeholder="Video link: https://.../video.mp4" style="margin-top:12px"><div class="row"><button onclick="bgLink('video','bv')">Use video link</button><button class="s" onclick="bgSave('bv')">Save to the TV</button></div>
 <div class="row" style="margin-top:12px"><input type="file" id="bf" accept="image/*,video/*" style="display:none" onchange="bgUp()"><button onclick="document.getElementById('bf').click()">Upload a picture or video from this phone</button></div>
-<p id="bgp"></p><div id="bgfiles"></div>
+<p id="bgp"></p><div id="bgfiles"></div></div>
 <h2>App icons</h2><p>Pick an app, then paste an image link or upload an image from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>

@@ -143,7 +143,7 @@ const val CATALOGS_CATEGORY = 5
 const val NUVIO_CATEGORY = 7
 const val SYSTEM_CATEGORY = 10
 /** Pseudo package used by move mode for the Apps folder tile. */
-private const val FOLDER = "__apps_folder__"
+private const val FOLDER = FOLDER_KEY
 
 /** Backdrops are decoded at the size they are prepared at (2/3 of the screen in Performance). */
 @Volatile private var backdropScale = 1f
@@ -181,25 +181,13 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     val scope = rememberCoroutineScope()
     val backdropS = remember { mutableStateOf<String?>(null) }
     var backdrop by backdropS
-    var expanded by remember { mutableStateOf(false) }
     var movingPkg by remember { mutableStateOf<String?>(null) }
     var dialog by remember { mutableStateOf<DialogState?>(null) }
     var settingsCat by remember { mutableIntStateOf(0) }
-    val firstTile = remember { FocusRequester() }
+    /** The big picture's Play button, and the apps row: where the page starts, and where the apps are. */
     val heroFocus = remember { FocusRequester() }
-    /** Continue Watching's own row (Settings → Continue Watching → Own row), between the carousel and the dock. */
-    val rowFocus = remember { FocusRequester() }
-    val cwRowItems by app.cw.items.collectAsState()
-    val ownBackground = when (settings.bgMode) { "image" -> settings.bgImage.isNotBlank(); "video" -> settings.bgVideo.isNotBlank(); "aerial" -> true; else -> false }
-    val liveRowItems by com.glasslauncher.tv.data.LiveCards.items.collectAsState()
-    val rowOn = settings.continueMode == "row" && (cwRowItems.isNotEmpty() || liveRowItems.isNotEmpty()) && !ownBackground
-    // The page scrolls, as Apple TV's does: the carousel on top, Continue Watching under it, the apps under that. Where
-    // the focus is decides how far down the page is: on the carousel the apps wait below the screen.
-    var inDock by remember { mutableStateOf(false) }
-    var inRow by remember { mutableStateOf(false) }
+    val appsFocus = remember { FocusRequester() }
     var onHero by remember { mutableStateOf(false) }
-    /** A carousel (or its hint) to scroll back up to; with your own background there's none and the apps stay put. */
-    val heroPage = !ownBackground
     val folderFocus = remember { FocusRequester() }
     var pickerFor by remember { mutableStateOf<AppEntry?>(null) }
     var folderOpen by remember { mutableStateOf(false) }
@@ -209,6 +197,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     var menuClosedAt by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     var folderMoving by remember { mutableStateOf<String?>(null) }
     val tileFocus = remember { HashMap<String, FocusRequester>() }
+    /** How far down the home page is (0..1): the clock, weather and settings button fade out under the rows. */
+    val pageDown = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
 
     // The current backdrop as a small bitmap: every glass surface refracts it. The page backdrop only
     // switches once the glass copy is ready, and both crossfade together, so the glass never lags behind.
@@ -240,7 +230,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             backdrop565 = settings.memTier == 0
             GlassCache.limit(settings.memTier)
             // Your own picture / video: it replaces every title's backdrop (one picture, so nothing changes per slide).
-            val custom = CustomBackground.still(ctx, settings)
+            val custom: String? = null
             val u = custom ?: backdrop ?: return@collectLatest
             if (custom != null && shownUrl.value == custom && backImgs != null) return@collectLatest
             // Wait for both the full picture and its glass copy, then switch them in the same frame.
@@ -282,11 +272,11 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             }
             if (fullBmp == null) return@collectLatest
             val first = backImgs == null
-            fadeMs = if (app.browsing()) (when (settings.slideAnim) { "apple" -> 560; "slide" -> 420; else -> 220 }) else settings.transitionMs
+            fadeMs = if (app.browsing()) 260 else settings.transitionMs
             val dm = ctx.resources.displayMetrics
             val src = fullBmp
             // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
-            val slide = settings.slideAnim != "fade"
+            val slide = false
             val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier
             val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide) }.also { BakeCache.put(bk, src, it) }
             if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
@@ -322,16 +312,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             } }
         }
     }
-    // Glass like glass: a short ripple after every move in the dock.
-    val wobble = remember { androidx.compose.animation.core.Animatable(0f) }
-    val kick: () -> Unit = {
-        if (settings.dockStyle == "water" || settings.tileStyle == "water") scope.launch {
-            wobble.snapTo(1f)
-            wobble.animateTo(0f, tween(700, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
-        }
-    }
     LaunchedEffect(app.homeRev.intValue) {
-        folderOpen = false; folderMoving = null; pickerFor = null; dialog = null; movingPkg = null; expanded = false
+        folderOpen = false; folderMoving = null; pickerFor = null; dialog = null; movingPkg = null
         if (app.homeRev.intValue > 0) menuOpen = false
     }
     LaunchedEffect(app.requestSettingsRev.intValue) {
@@ -347,44 +329,37 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
     // The menu opened: Live TV's and Following's pages read ahead, so either opens at once.
     LaunchedEffect(menuOpen) { if (menuOpen && settings.menuLive) prefetchLive(app) }
     LaunchedEffect(app.requestFolder.value) { if (app.requestFolder.value) { folderOpen = true; app.requestFolder.value = false } }
+    // Back on the home screen: the library rows read again (at most once a minute).
+    LaunchedEffect(screen) { if (screen == Screen.Home) withContext(Dispatchers.IO) { app.shelf.refreshLists() } }
 
     LaunchedEffect(screen) {
-        // The top of the page first (the carousel); the apps when there's no carousel to show. Tried for a few seconds:
-        // on a cold start the carousel (or its hint) comes a moment after the screen.
-        // As it starts, the system may hand the focus to the first thing on screen (the settings button) a moment later:
+        // The big picture first. Tried for a few seconds: on a cold start it comes a moment after the screen. As it
+        // starts, the system may hand the focus to the first thing on screen (the settings button) a moment later:
         // done once it has stayed where it belongs for half a second.
         if (screen == Screen.Home) {
             delay(400)
-            val target = if (heroPage) heroFocus else firstTile
             var held = 0
             repeat(50) {
-                if (if (heroPage) onHero else inDock) { if (++held >= 5) return@LaunchedEffect }
-                else { held = 0; runCatching { target.requestFocus() } }
+                if (onHero) { if (++held >= 5) return@LaunchedEffect }
+                else { held = 0; runCatching { heroFocus.requestFocus() } }
                 delay(100)
             }
         }
     }
     BackHandler(enabled = screen == Screen.Home && movingPkg != null) { movingPkg = null }
-    BackHandler(enabled = screen == Screen.Home && movingPkg == null && expanded && !folderOpen) { runCatching { firstTile.requestFocus() } }
-    BackHandler(enabled = settings.backSaver && screen == Screen.Home && movingPkg == null && !expanded && !folderOpen && pickerFor == null) {
+    BackHandler(enabled = settings.backSaver && screen == Screen.Home && movingPkg == null && !folderOpen && pickerFor == null && onHero) {
         runCatching { ctx.startActivity(android.content.Intent(ctx, com.glasslauncher.tv.saver.ScreensaverActivity::class.java)) }
     }
-    // Back further down the page (Continue Watching, the apps' first row): to the top, the carousel.
-    BackHandler(enabled = screen == Screen.Home && heroPage && (inRow || inDock) && movingPkg == null && !expanded && !folderOpen && pickerFor == null) {
-        runCatching { heroFocus.requestFocus() }
-    }
 
+    // Moving an app along its row: ◀ ▶ carry it, OK puts it down.
     val onMoveKey: (KeyEvent) -> Boolean = { ev ->
         val p = movingPkg
         if (p == null) false
         else when {
             ev.isSelect -> { if (ev.type == KeyEventType.KeyUp) movingPkg = null; true }
-            ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight || ev.key == Key.DirectionUp || ev.key == Key.DirectionDown -> {
+            ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight -> {
                 if (ev.type == KeyEventType.KeyDown) {
-                    val delta = when (ev.key) {
-                        Key.DirectionLeft -> -1; Key.DirectionRight -> 1
-                        Key.DirectionUp -> -DOCK_COLUMNS; else -> DOCK_COLUMNS
-                    }
+                    val delta = if (ev.key == Key.DirectionLeft) -1 else 1
                     if (p == FOLDER) {
                         val n = app.apps.ordered().size
                         val cur = settings.folderPos.let { if (it < 0 || it > n) n else it }
@@ -393,6 +368,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                 }
                 true
             }
+            ev.key == Key.DirectionUp || ev.key == Key.DirectionDown -> true
             else -> false
         }
     }
@@ -411,16 +387,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         val rootH = with(density) { maxHeight.roundToPx() }
         val s = maxWidth.value / 960f
         val screenHdp = maxHeight.value
-        // The veil (the page blurred and dark) comes once the dock has (almost) opened: animating both at once
-        // doubled what the TV GPU drew per frame and the dock opened at about 30 fps.
-        val veilIn = expanded && !folderOpen
-        val veil = animateFloatAsState(if (veilIn) 1f else 0f, if (veilIn) tween(140, delayMillis = 130) else tween(100), label = "veil")
-        val blur = veil
-        // Where the open (and settled) dock covers the page; empty while it moves.
-        val dockCover = remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
-        // The pictures behind the glass, worked out from the slide's states (and again only when they change).
-        // Clear glass shows the page picture itself (full resolution, scrims included); the small
-        // GlassCache copy is only the fallback before the first picture is on screen.
+        val still = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+        // The pictures behind the glass (the menu, the folder, panels), from the page's picture.
         val pics = remember {
             androidx.compose.runtime.derivedStateOf {
                 val b = backImgsS.value; val p = prevImgsS.value
@@ -430,88 +398,14 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                     sharpIsPage = pageSharp != null, slide = slideDirS.intValue)
             }
         }
-        // The same value from one slide to the next (the pictures are behind [pics]): no glass recomposes for a slide.
-        val env = GlassEnv(pics, rootW, rootH, settings.glassTint, settings.refraction, 1f, wobble.asState(), mix.asState(), veil,
-            slideKind = if (settings.slideAnim == "apple") SLIDE_APPLE else SLIDE_PUSH,
-            pageNoSideShade = settings.slideAnim != "fade", blur = blur)
+        val env = GlassEnv(pics, rootW, rootH, settings.glassTint, settings.refraction, 1f, still, mix.asState(), still,
+            slideKind = SLIDE_PUSH, pageNoSideShade = false, blur = still)
         val radius = settings.cornerRadius
         val metrics = remember(s, maxWidth, settings.dockScale) { DockMetrics(s, maxWidth.value, settings.dockScale) }
-        // On the carousel and in Continue Watching the apps wait below the screen (1); on the apps they're up (0).
-        val appsAway = heroPage && screen == Screen.Home && !inDock && !expanded && !folderOpen && movingPkg == null && pickerFor == null
-        val away = animateFloatAsState(if (appsAway) 1f else 0f, tween(320, easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "appsAway")
-        val awayDp = metrics.collapsedH + metrics.bottomMargin + 12 * s
 
         CompositionLocalProvider(LocalGlassEnv provides env, LocalScale provides s) {
-            // Nothing under the folder is drawn: it covers the whole screen (the TV GPU is the bottleneck).
-            // Backdrop and scrims are flattened into one cached GPU layer: moving focus in the dock then
-            // composites a single texture instead of redrawing the photo and both gradients every frame.
-            // The scrims are baked into the picture (bakeBackdrop): a slide change draws two flat pictures and
-            // nothing else, which keeps the crossfade smooth on TV graphics chips.
-            // Under the fully open veil (an opaque picture) the backdrop isn't drawn at all.
-            if (!folderOpen && DebugHide.intValue and 1 == 0 && !VideoFrames.showing.value)
-                PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, settings.slideAnim, { backImgsS.value?.third != null && blur.value > 0.995f })
-            // Screensaver as background: one of its aerial videos (your links and / or Apple's feed).
-            LaunchedEffect(settings.bgMode) {
-                if (settings.bgMode == "aerial" && CustomBackground.aerial.value == null)
-                    CustomBackground.aerial.value = withContext(Dispatchers.IO) {
-                        runCatching { com.glasslauncher.tv.saver.AerialSource.playlist(app).also { CustomBackground.aerials = it }.let { CustomBackground.firstLive(it) } }.getOrNull()
-                    }
-                        .also { com.glasslauncher.tv.data.Glog.i("Screensaver background: ${it ?: "no aerial videos (screensaver links / Apple feed)"}") }
-            }
-            val videoSrc = when (settings.bgMode) { "video" -> settings.bgVideo.ifBlank { null }; "aerial" -> CustomBackground.aerial.value; else -> null }
-            if (videoSrc != null && !folderOpen) {
-                val life = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-                val state by life.currentStateFlow.collectAsState()
-                // Back from the system screensaver / another app: a fresh player and surface (the old surface
-                // came back black).
-                var resumes by remember { mutableIntStateOf(0) }
-                androidx.compose.runtime.DisposableEffect(life) {
-                    // Only a real return (after ON_STOP): adding the observer replays ON_START too.
-                    var stopped = false
-                    val o = androidx.lifecycle.LifecycleEventObserver { _, e ->
-                        if (e == androidx.lifecycle.Lifecycle.Event.ON_STOP) stopped = true
-                        if (e == androidx.lifecycle.Lifecycle.Event.ON_START && stopped) { stopped = false; resumes++ }
-                    }
-                    life.addObserver(o); onDispose { life.removeObserver(o) }
-                }
-                androidx.compose.runtime.key(videoSrc, resumes) {
-                    VideoBackground(videoSrc, playing = screen == Screen.Home && state.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED) && DebugHide.intValue and 4096 == 0,
-                        onError = { if (settings.bgMode == "aerial") CustomBackground.nextAerial() },
-                        busy = { System.currentTimeMillis() - app.interaction.longValue < 600 })
-                }
-            }
-            // Dock open: the whole page blurs and darkens (the glass draws the same veil, see LiquidSurface).
-            val veilOn by remember { androidx.compose.runtime.derivedStateOf { veil.value > 0.01f } }
-            if (veilOn && !folderOpen && DebugHide.intValue and 32 == 0) {
-                // With a video behind, the open dock only darkens it (a still blurred frame over it looked frozen).
-                // One pass: the blurred picture comes already darkened (a black layer on top cost the TV GPU a
-                // whole extra screen every frame of the opening).
-                // Dimming first (a flat colour, cheap), then the darkened blurred picture over it once the dock is open;
-                // fully blurred, the dimming and the backdrop under it aren't drawn at all.
-                val img = if (!VideoFrames.showing.value && DebugHide.intValue and 32768 == 0) backImgs?.third else null
-                if (img == null) Box(Modifier.fillMaxSize().graphicsLayer { alpha = veil.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }.background(Color.Black.copy(alpha = VEIL_DIM)))
-                // Not drawn where the open dock covers it (its glass is opaque): on the TV GPU every pixel drawn twice counts.
-                if (img != null) {
-                    val brush = remember(img, rootW, rootH) {
-                        val bw = img.width.toFloat(); val bh = img.height.toFloat()
-                        val sc = maxOf(rootW / bw, rootH / bh)
-                        val sh = android.graphics.BitmapShader(img.asAndroidBitmap(), android.graphics.Shader.TileMode.CLAMP, android.graphics.Shader.TileMode.CLAMP)
-                        sh.setLocalMatrix(android.graphics.Matrix().apply { setScale(sc, sc); postTranslate((rootW - bw * sc) / 2f, (rootH - bh * sc) / 2f) })
-                        androidx.compose.ui.graphics.ShaderBrush(sh)
-                    }
-                    val cornerPx = with(density) { (radius * s).dp.toPx() }
-                    androidx.compose.foundation.Canvas(Modifier.fillMaxSize().graphicsLayer { alpha = blur.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }) {
-                        val d = dockCover.value
-                        fun part(l: Float, t: Float, r: Float, b: Float) { if (r > l && b > t) drawRect(brush, androidx.compose.ui.geometry.Offset(l, t), androidx.compose.ui.geometry.Size(r - l, b - t), colorFilter = VeilFilter) }
-                        if (d.isEmpty || DebugHide.intValue and 524288 != 0) part(0f, 0f, size.width, size.height)
-                        else {
-                            val t = d.top + cornerPx; val b = d.bottom - cornerPx
-                            part(0f, 0f, size.width, t); part(0f, b, size.width, size.height)
-                            part(0f, t, d.left, b); part(d.right, t, size.width, b)
-                        }
-                    }
-                }
-            }
+            // The page's picture: the title's backdrop, the side and bottom shades painted in (bakeBackdrop).
+            if (!folderOpen && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade") { false }
 
             // Fully covered by settings or the folder: stop drawing it at all.
             val homeAlphaState = animateFloatAsState(if (screen == Screen.Home && !folderOpen) 1f else 0f, tween(180), label = "homeAlpha")
@@ -520,53 +414,28 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                 Modifier.fillMaxSize().graphicsLayer { alpha = homeAlphaState.value }
                     .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen }
             ) {
-                Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (DebugHide.intValue and 2 != 0) 0f else 1f }) {
-                    HeroSection(app, s, hidden = expanded || folderOpen, paused = screen != Screen.Home, metrics = metrics, shownUrl = shownUrl,
-                        heroFocus = heroFocus, firstTile = firstTile, rowFocus = rowFocus, rowOn = rowOn, inDock = inDock, away = away, awayDp = awayDp,
-                        onInRow = { inRow = it }, onHeroFocus = { onHero = it }, onBackdrop = { backdrop = it },
-                        onDialog = { dialog = it },
-                        onCustomUp = {
-                            if (settings.menuMode == "auto") { menuClosedAt = 0L; menuOpen = true }
-                            else scope.launch { delay(16); runCatching { gearReq.requestFocus() } }
-                        })
-                }
-                if (DebugHide.intValue and 4 == 0) TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed ->
-                    if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
-                }, modifier = Modifier.fillMaxWidth().align(Alignment.TopStart))
-                Dock(
-                    app = app, s = s, metrics = metrics, screenH = screenHdp, radius = radius,
-                    expanded = expanded, onExpanded = { expanded = it },
-                    movingPkg = movingPkg, onMoveKey = onMoveKey, firstTile = firstTile, heroFocus = if (rowOn) rowFocus else heroFocus,
-                    folderFocus = folderFocus, tileFocus = tileFocus, onMove = kick,
-                    onMenu = { showMenu(it, false) },
+                HomePage(
+                    app, s, screenHdp, visible = screen == Screen.Home && !folderOpen, paused = screen != Screen.Home,
+                    heroFocus = heroFocus, appsFocus = appsFocus, folderFocus = folderFocus, tileFocus = tileFocus,
+                    movingPkg = movingPkg, onMoveKey = onMoveKey, shownUrl = shownUrl, onBackdrop = { backdrop = it },
+                    onHeroFocus = { onHero = it }, onDialog = { dialog = it },
+                    onAppMenu = { showMenu(it, false) },
                     onFolder = { folderOpen = true },
                     onFolderMenu = { dialog = MenuDialog("Apps", listOf(
                         "Move" to { movingPkg = FOLDER },
-                        "Hide from the dock" to {
+                        "Hide from the apps row" to {
                             settings.showFolder = false
-                            scope.launch { delay(80); runCatching { firstTile.requestFocus() } }
-                            android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings → Dock & icons", android.widget.Toast.LENGTH_LONG).show()
+                            scope.launch { delay(80); runCatching { appsFocus.requestFocus() } }
+                            android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings → Apps & icons", android.widget.Toast.LENGTH_LONG).show()
                         },
                     )) },
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                        .graphicsLayer { alpha = if (DebugHide.intValue and 8 != 0) 0f else 1f; translationY = away.value * awayDp * this.density }
-                        // Before the group it watches: the focus is on one of the apps (or the folder).
-                        .onFocusChanged { inDock = it.hasFocus }
-                        .focusGroup(),
-                    onCover = { dockCover.value = it },
+                    onLibrary = { onScreen(Screen.Library) },
+                    down = pageDown,
                 )
-                // No Continue Watching row: the apps' name peeks at the bottom while they wait below.
-                if (heroPage && !rowOn) androidx.compose.foundation.layout.Row(
-                    Modifier.align(Alignment.BottomStart).padding(start = (56 * s).dp, bottom = (18 * s).dp)
-                        .graphicsLayer { this.alpha = away.value; translationY = (1f - away.value) * 20 * s * this.density },
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Apps", color = Color.White.copy(alpha = 0.72f), fontSize = (13 * s).sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.width((6 * s).dp))
-                    androidx.compose.foundation.Canvas(Modifier.size((9 * s).dp)) {
-                        val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.15f, size.height * 0.32f); lineTo(size.width * 0.5f, size.height * 0.7f); lineTo(size.width * 0.85f, size.height * 0.32f) }
-                        drawPath(p, Color.White.copy(alpha = 0.7f), style = androidx.compose.ui.graphics.drawscope.Stroke(size.width * 0.16f, cap = androidx.compose.ui.graphics.StrokeCap.Round))
-                    }
+                if (DebugHide.intValue and 4 == 0) Box(Modifier.fillMaxWidth().align(Alignment.TopStart).graphicsLayer { alpha = 1f - pageDown.floatValue }) {
+                    TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed ->
+                        if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
+                    }, modifier = Modifier.fillMaxWidth())
                 }
             }
             if (folderOpen) {
@@ -587,10 +456,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                 onClose = {
                     menuClosedAt = android.os.SystemClock.uptimeMillis()
                     menuOpen = false
-                    // With your own background there is no carousel to go back to (its stand-in passes focus up to
-                    // the settings button, which opened the menu again): back to the dock.
-                    val custom = when (settings.bgMode) { "image" -> settings.bgImage.isNotBlank(); "video" -> settings.bgVideo.isNotBlank(); "aerial" -> true; else -> false }
-                    scope.launch { delay(30); runCatching { (if (custom) firstTile else heroFocus).requestFocus() } }
+                    scope.launch { delay(30); runCatching { heroFocus.requestFocus() } }
                 },
                 onLibrary = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Library) },
                 onLiveTv = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.LiveTv) },
@@ -606,7 +472,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                     app, e,
                     onPhone = { settingsCat = PHONE_CATEGORY; onScreen(Screen.Settings) },
                     onClose = {
-                        val back = tileFocus[e.pkg] ?: firstTile
+                        val back = tileFocus[e.pkg] ?: appsFocus
                         pickerFor = null
                         scope.launch { delay(200); runCatching { back.requestFocus() } }
                     },
@@ -639,7 +505,7 @@ private fun appMenu(
 }
 
 /** The picture a title shows: the Settings choice, or the one picked for it with a long press. */
-private fun withArtwork(i: HeroItem, choice: String, pick: String?): HeroItem {
+internal fun withArtwork(i: HeroItem, choice: String, pick: String?): HeroItem {
     val chosen = pick?.takeIf { it.isNotBlank() } ?: when (choice) {
         "second" -> i.gallery.getOrNull(1)
         "best" -> i.bestArt.takeIf { it.isNotBlank() }
@@ -651,12 +517,12 @@ private fun withArtwork(i: HeroItem, choice: String, pick: String?): HeroItem {
 }
 
 /** Every picture a long press cycles through: TMDB backdrops, the highest-resolution one, the add-on's own. */
-private fun artOptions(i: HeroItem): List<String> =
+internal fun artOptions(i: HeroItem): List<String> =
     (listOf(i.background) + i.gallery + listOf(i.bestArt, i.addonArt)).filter { it.isNotBlank() }.distinct()
 
 /** Play triangle drawn as a path: crisp at any size, optically centred. */
 @Composable
-private fun PlayGlyph(modifier: Modifier, color: Color) {
+internal fun PlayGlyph(modifier: Modifier, color: Color) {
     androidx.compose.foundation.Canvas(modifier) {
         val w = size.width; val h = size.height
         val path = androidx.compose.ui.graphics.Path().apply {
@@ -818,372 +684,12 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
 // ───────────────────────────── hero / carousel ─────────────────────────────
 
 /**
- * The shade behind Continue Watching while the page is down at the apps: clear down to [TOP] of the screen, then darker
- * to the bottom. Painted once, small and dithered, and drawn scaled (as the page's other shades are, see Scrims).
- */
-private object RowShade {
-    const val TOP = 0.3f
-    val picture: ImageBitmap by lazy {
-        val w = 64; val h = 189     // the lower 70% of a 270-high screen picture
-        val b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
-        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
-        // The same stops as before, measured from the top of the screen: 0.3 clear, 0.62 at 45%, 1.0 at 75%.
-        p.shader = android.graphics.LinearGradient(0f, 0f, 0f, h.toFloat(), intArrayOf(0, 0x73000000, 0xBF000000.toInt()),
-            floatArrayOf(0f, (0.62f - TOP) / (1f - TOP), 1f), android.graphics.Shader.TileMode.CLAMP)
-        android.graphics.Canvas(b).drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
-        b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap()
-    }
-}
-
-/** Continue Watching's row at rest: its bottom this far above the page's (dp at 960 wide), the dots this far above that. */
-private const val ROW_BOTTOM = 12f
-private const val ROW_DOTS = 142f
-
-@Composable
-private fun HeroSection(
-    app: GlassApp, s: Float, hidden: Boolean, paused: Boolean, metrics: DockMetrics,
-    heroFocus: FocusRequester, firstTile: FocusRequester, rowFocus: FocusRequester, rowOn: Boolean,
-    inDock: Boolean, away: androidx.compose.runtime.State<Float>, awayDp: Float, onInRow: (Boolean) -> Unit,
-    onHeroFocus: (Boolean) -> Unit, onBackdrop: (String?) -> Unit,
-    shownUrl: androidx.compose.runtime.State<String?> = androidx.compose.runtime.mutableStateOf(null),
-    onCustomUp: () -> Unit = {},
-    /** A menu to show over the home screen (hold OK on a Live TV card). */
-    onDialog: (DialogState) -> Unit = {},
-) {
-    val settings = app.settings
-    val heroScope = rememberCoroutineScope()
-    val ctx = LocalContext.current
-    val catalogItems by app.catalogs.items.collectAsState()
-    val cwItems by app.cw.items.collectAsState()
-    val enrichedRaw by app.catalogs.enrichedItems.collectAsState()
-    val status by app.catalogs.status.collectAsState()
-    var index by remember { mutableIntStateOf(0) }
-    var focused by remember { mutableStateOf(false) }
-    val mode = settings.continueMode
-    val lead = settings.cwLead
-    val items = remember(catalogItems, cwItems, mode, lead) {
-        val cw = if (mode == "off" || mode == "row") emptyList() else cwItems
-        val keys = cwItems.map { it.key }.toSet()
-        val rest = catalogItems.filterNot { it.key in keys }
-        when {
-            mode == "row" -> rest
-            cw.isEmpty() -> catalogItems
-            else -> buildList {
-                // "At the start": the first [lead] titles open the carousel, the others follow one after
-                // every four catalog titles. "Mixed": all of them spread that way.
-                val head = if (mode == "mixed") 0 else if (lead <= 0) cw.size else lead.coerceAtMost(cw.size)
-                addAll(cw.take(head))
-                var c = head
-                rest.forEachIndexed { i, it -> if (i % 4 == 3 && c < cw.size) add(cw[c++]); add(it) }
-                while (c < cw.size) add(cw[c++])
-            }
-        }
-    }
-    // TMDB enrichment is cached per title; keep the progress of Continue Watching items on top of it.
-    val enriched = enrichedRaw
-    // Back from Nuvio: open the carousel on what was just watched.
-    val lifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
-    val lifeState by lifecycle.currentStateFlow.collectAsState()
-    val resumed = lifeState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
-    val jumpRev by app.cw.jumpRev.collectAsState()
-    var jumpedRev by remember { mutableIntStateOf(jumpRev) }
-    LaunchedEffect(resumed, jumpRev, items) {
-        if (resumed && jumpRev != jumpedRev && settings.continueJump && mode != "off" && mode != "row") {
-            val k = app.cw.lastWatched.value
-            val i = items.indexOfFirst { it.key == k }
-            if (i >= 0) index = i
-            jumpedRev = jumpRev
-        }
-    }
-
-    val raw = if (items.isEmpty()) null else items[index.mod(items.size)]
-    val target = raw?.let { r -> enriched[r.key]?.copy(progress = r.progress, sub = r.sub) ?: r }
-        ?.let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }
-
-    // The slide changes once its backdrop and logo are decoded (usually instant: prefetched). While you are
-    // browsing with the remote it never waits long, so the text keeps up with every press.
-    var item by remember { mutableStateOf<HeroItem?>(null) }
-    LaunchedEffect(target?.key, target?.background, target?.logo) {
-        val t = target
-        if (t == null) { item = null; return@LaunchedEffect }
-        if (item != null) {
-            val loader = SingletonImageLoader.get(ctx)
-            // Browsing: the text follows every press at once; the picture follows as soon as it is ready.
-            if (!app.browsing()) kotlinx.coroutines.withTimeoutOrNull(2500L) {
-                kotlinx.coroutines.coroutineScope {
-                    if (t.background.isNotBlank()) launch { loader.execute(imgReq(ctx, t.background)) }
-                    if (t.background.isNotBlank()) launch { GlassCache.get(ctx, t.background, settings.blurRadius) }
-                    if (t.logo.isNotBlank()) launch { loader.execute(imgReq(ctx, t.logo, 1000, 400)) }
-                }
-            }
-        }
-        item = t
-    }
-    // Continue Watching's row: in it (the carousel's text steps aside and waits), and the card selected there.
-    var inRow by remember { mutableStateOf(false) }
-    var rowPick by remember { mutableStateOf<HeroItem?>(null) }
-    LaunchedEffect(rowOn) { if (!rowOn) { inRow = false; rowPick = null; onInRow(false) } }
-    /** The page scrolled down to the apps: the row moves up over the carousel's place, so its text steps aside. */
-    val below = rowOn && inDock
-    // Apple TV style gallery: the title stays, its pictures change.
-    val gallery = item?.let { i -> if (settings.heroGallery) i.gallery.take(settings.galleryShots) else emptyList() }.orEmpty()
-    var shot by remember { mutableIntStateOf(0) }
-    LaunchedEffect(item?.key) { shot = 0 }
-    val shotMs = (settings.heroIntervalSec * 1000L).coerceAtLeast(4000L)
-    LaunchedEffect(item?.key, gallery.size, hidden, paused, resumed, inRow) {
-        if (gallery.size < 2 || hidden || paused || !resumed || inRow) return@LaunchedEffect
-        val loader = SingletonImageLoader.get(ctx)
-        while (true) {
-            val next = gallery[(shot + 1).mod(gallery.size)]
-            loader.enqueue(imgReq(ctx, next)); launch { GlassCache.get(ctx, next, settings.blurRadius) }
-            delay(shotMs)
-            if (shot + 1 >= gallery.size) break
-            SlideDir.dir = 1
-            shot++
-        }
-    }
-    val shownBg = gallery.getOrNull(shot) ?: item?.background
-    LaunchedEffect(shownBg, hidden) { onBackdrop(shownBg?.takeIf { it.isNotBlank() }) }
-    // The text of a slide appears together with its picture (browsing with the remote: at once).
-    var textItem by remember { mutableStateOf<HeroItem?>(null) }
-    LaunchedEffect(item?.key, item?.logo) {
-        val it0 = item
-        if (it0 == null || textItem == null || app.browsing() || it0.background.isBlank()) { textItem = it0; return@LaunchedEffect }
-        if (textItem?.key == it0.key) { textItem = it0; return@LaunchedEffect }
-        kotlinx.coroutines.withTimeoutOrNull(1500) {
-            androidx.compose.runtime.snapshotFlow { shownUrl.value }.first { u -> u == it0.background || u in it0.gallery }
-        }
-        textItem = it0
-    }
-    LaunchedEffect(index, items.size, settings.tmdbToken) {
-        if (items.isEmpty()) return@LaunchedEffect
-        val d = settings.prefetchDepth
-        for (k in listOf(0) + (1..d + 1).flatMap { listOf(it, -it) }.take(d * 2)) app.catalogs.enrich(items[(index + k).mod(items.size)])
-    }
-    LaunchedEffect(index, items.size, enriched.size, settings.artChoice) {
-        if (items.size < 2) return@LaunchedEffect
-        val loader = SingletonImageLoader.get(ctx)
-        // Wait until you stop on a slide: while you hold Right, preparing the slides around each one passed only
-        // filled the download queue, and the picture you landed on waited behind them. Everything below runs in
-        // this effect, so moving on cancels it and frees the downloads for the slide on screen.
-        delay(if (app.browsing()) 350 else 60)
-        // Both directions, a few slides deep, glass copies included.
-        val depth = settings.prefetchDepth
-        val ahead = (1..depth).flatMap { if (it <= (depth + 1) / 2) listOf(it, -it) else listOf(it) }
-        // Downloads only, further ahead: fast browsing finds the pictures on disk. The disk keeps the whole file
-        // whatever size it's decoded at, so it's decoded tiny (a full 1280 px decode thrown away cost the TV a
-        // few hundredths of a second of CPU and 3.5 MB of memory for each one).
-        launch {
-            delay(400)
-            for (k in depth + 1..depth + 2) {
-                val n = items[(index + k).mod(items.size)].let { withArtwork(enriched[it.key] ?: it, settings.artChoice, settings.artPick(it.key)) }
-                if (n.background.isNotBlank()) loader.execute(imgReq(ctx, sized(n.background, if (settings.imageQuality == "high") "w1280" else "original"), 64, 36)
-                    .newBuilder().memoryCachePolicy(coil3.request.CachePolicy.DISABLED).build())
-            }
-        }
-        for (k in ahead) {
-            val n = items[(index + k).mod(items.size)].let { withArtwork(enriched[it.key] ?: it, settings.artChoice, settings.artPick(it.key)) }
-            if (n.background.isNotBlank()) {
-                launch { loader.execute(imgReq(ctx, sized(n.background, "w1280"))) }
-                if (kotlin.math.abs(k) <= 1 && settings.memTier > 0) launch {
-                    val u = n.background
-                    val r = loader.execute(imgReq(ctx, if (settings.imageQuality == "high") sized(u, "w1280") else u))
-                    val b = (r as? SuccessResult)?.image?.toBitmap()?.asImageBitmap() ?: return@launch
-                    val slide = settings.slideAnim != "fade"
-                    val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier
-                    if (BakeCache.get(bk, b) == null) {
-                        val dm = ctx.resources.displayMetrics
-                        val baked = withContext(Dispatchers.Default) { bakeBackdrop(b, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide) }
-                        BakeCache.put(bk, b, baked)
-                        withContext(Dispatchers.Default) { GlassHalf.of(baked) }
-                    }
-                }
-                launch { GlassCache.get(ctx, n.background, settings.blurRadius) }
-            }
-            // Logos decoded into memory ahead, so a title's name appears in the same frame as its picture.
-            if (n.logo.isNotBlank() && GlassCache.logos.get(n.logo) == null && GlassCache.pinnedLogo[n.logo] == null) launch {
-                (loader.execute(imgReq(ctx, n.logo, 1000, 400)) as? SuccessResult)?.image?.toBitmap()?.asImageBitmap()?.let { GlassCache.logos.put(n.logo, it) }
-            }
-        }
-    }
-    // Continue Watching stays in memory (picture, logo, glass) for as long as the title is in the list:
-    // going back to it — even after browsing far, or with Home — never reloads anything.
-    val cwKeys = remember(cwItems) { cwItems.map { it.key } }
-    LaunchedEffect(cwKeys) { cwItems.forEach { app.catalogs.enrich(it) } }
-    val artPicks = cwItems.map { settings.artPick(it.key) }
-    // Keyed on these titles' own details only: every other title enriched while browsing left the row as it was.
-    val cwEnriched = cwItems.map { enriched[it.key] }
-    val cwShown = remember(cwItems, cwEnriched, settings.artChoice, artPicks) {
-        cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) } }
-    }
-    // Live TV's cards (a followed match on now, the channel last watched, new recordings) lead the row.
-    val liveCards by com.glasslauncher.tv.data.LiveCards.items.collectAsState()
-    val rowItems = remember(liveCards, cwShown) { liveCards + cwShown }
-    LaunchedEffect(cwShown.map { it.background + it.logo }, settings.imageQuality, settings.blurRadius, rowOn) {
-        // In their own row, these titles are never slides: nothing of theirs to keep ready for the carousel.
-        if (rowOn) { GlassCache.keepOnly(emptySet()); return@LaunchedEffect }
-        val loader = SingletonImageLoader.get(ctx)
-        val high = settings.imageQuality == "high"
-        val keep = mutableSetOf<String>()
-        // Kept in memory: the first few only on smaller TVs (each full picture is a few MB).
-        for (c in cwShown.take(when (settings.memTier) { 0 -> 2; 2 -> 10; else -> 5 })) {
-            val bg = c.background
-            if (bg.isNotBlank()) {
-                keep += bg
-                if (GlassCache.pinnedFull[bg] == null) (loader.execute(imgReq(ctx, if (high) sized(bg, "w1280") else bg)) as? SuccessResult)
-                    ?.image?.toBitmap()?.asImageBitmap()?.let { GlassCache.pinnedFull[bg] = it }
-                GlassCache.pin(ctx, bg, settings.blurRadius)
-            }
-            if (c.logo.isNotBlank()) {
-                keep += c.logo
-                if (GlassCache.pinnedLogo[c.logo] == null) (loader.execute(imgReq(ctx, c.logo, 1000, 400)) as? SuccessResult)
-                    ?.image?.toBitmap()?.asImageBitmap()?.let { GlassCache.pinnedLogo[c.logo] = it }
-            }
-        }
-        GlassCache.keepOnly(keep)
-    }
-    // Home pressed while on the home screen: back to the first slide (Continue Watching).
-    val homeRev = app.homeRev.intValue
-    var seenHome by remember { mutableIntStateOf(homeRev) }
-    LaunchedEffect(homeRev) {
-        if (homeRev != seenHome) {
-            seenHome = homeRev
-            index = 0
-            delay(120); runCatching { heroFocus.requestFocus() }
-        }
-    }
-    // Keeps playing while the carousel is selected; any Left/Right restarts the timer (index changes).
-    LaunchedEffect(index, items.size, settings.heroAutoplay, settings.heroIntervalSec, hidden, paused, resumed, inRow) {
-        if (settings.heroAutoplay && !hidden && !paused && resumed && items.size > 1 && !inRow) {
-            val shots = item?.let { i -> if (settings.heroGallery) i.gallery.take(settings.galleryShots).size else 0 } ?: 0
-            delay(settings.heroIntervalSec * 1000L * shots.coerceAtLeast(1))
-            SlideDir.dir = 1
-            index++
-        }
-    }
-
-    val alpha by animateFloatAsState(if (hidden) 0f else 1f, tween(if (hidden) 150 else 220), label = "heroAlpha")
-    val dotsOn = items.size > 1 && settings.dotsMode != "hidden" && (!settings.dotsAutoHide || focused) && !below
-    val heroTextState = animateFloatAsState(if (below) 0f else 1f, tween(if (below) 180 else 260), label = "heroText")
-    val dotsAlpha by animateFloatAsState(if (dotsOn) 1f else 0f, tween(300), label = "dotsAlpha")
-
-    // Your own picture / video / the screensaver behind: the page is just that, no title, details or buttons.
-    val customBg = when (settings.bgMode) { "image" -> settings.bgImage.isNotBlank(); "video" -> settings.bgVideo.isNotBlank(); "aerial" -> true; else -> false }
-    // ModulateAlpha: no full-screen off-screen pass while it fades (the dock opening); the pieces barely overlap.
-    Box(Modifier.fillMaxSize().graphicsLayer { this.alpha = alpha; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha }) {
-        val shown = textItem
-        if (customBg) {
-            // Holds the dock's Up: opens the menu (or selects the settings button) straight away.
-            Box(Modifier.align(Alignment.TopStart).padding(start = (48 * s).dp, top = (300 * s).dp).size(1.dp)
-                .focusRequester(heroFocus)
-                .onFocusChanged { if (it.isFocused) onCustomUp() }
-                .focusable())
-        } else if (shown != null && !app.showSetup.value) {
-            HeroInfo(
-                item = shown, app = app, s = s, focused = focused, heroFocus = heroFocus, firstTile = if (rowOn) rowFocus else firstTile,
-                onFocus = { focused = it; onHeroFocus(it) },
-                onPrev = { app.navAt = System.currentTimeMillis(); SlideDir.dir = -1; index-- }, onNext = { app.navAt = System.currentTimeMillis(); SlideDir.dir = 1; index++ },
-                onOpen = { NuvioLaunch.open(ctx, settings, app.http, shown) },
-                onLong = {
-                    val base = enriched[shown.key] ?: shown
-                    val options = artOptions(base)
-                    if (options.size < 2) toast(ctx, "No other pictures for ${shown.name} (add a TMDB token for more)")
-                    else {
-                        val cur = options.indexOf(shown.background).coerceAtLeast(0)
-                        val next = options[(cur + 1) % options.size]
-                        settings.setArtPick(shown.key, next)
-                        toast(ctx, "Picture ${(cur + 1) % options.size + 1} of ${options.size} · ${shown.name}  (hold OK again for the next)")
-                    }
-                },
-                modifier = Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value; translationY = (1f - heroTextState.value) * -20 * s * density },
-            )
-        } else {
-            EmptyHint(app, status, s, heroFocus, if (rowOn) rowFocus else firstTile, Modifier.align(Alignment.TopStart).graphicsLayer { this.alpha = heroTextState.value }, onHeroFocus) { cat ->
-                app.requestSettings.intValue = cat; app.requestSettingsRev.intValue++
-            }
-        }
-        // Scrolled down to the apps: the page darkens behind the row, so its titles read where the carousel's text was.
-        // Not there at all on the carousel (a full-screen layer, even see-through, is work for the TV's GPU).
-        val shadeOn by remember { androidx.compose.runtime.derivedStateOf { heroTextState.value < 0.999f } }
-        // A small pre-painted picture scaled to the screen, only over the part it darkens: as a live full-screen gradient
-        // it cost the TV's GPU about 26 ms a frame.
-        if (rowOn && shadeOn && DebugHide.intValue and 1048576 == 0) androidx.compose.foundation.Canvas(Modifier.fillMaxSize().graphicsLayer {
-            this.alpha = 1f - heroTextState.value; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
-        }) {
-            val top = (size.height * RowShade.TOP).toInt()
-            drawImage(RowShade.picture, dstOffset = androidx.compose.ui.unit.IntOffset(0, top),
-                dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt() - top),
-                filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
-        }
-        val pxPerDp = LocalDensity.current.density
-        // The row's bottom, just above the dock (dp at 960 wide, before the scale).
-        val rowAbove = (metrics.collapsedH + metrics.bottomMargin) / s + 8
-        if (rowOn && DebugHide.intValue and 2097152 == 0) ContinueRow(
-            items = rowItems, s = s, entry = rowFocus, up = heroFocus, down = firstTile,
-            // At rest (the apps below the screen) along the bottom of the page, as Apple TV's Up Next.
-            drop = { away.value * (rowAbove - ROW_BOTTOM) * s * pxPerDp },
-            onInside = { inRow = it; onInRow(it) }, onSelected = { rowPick = it },
-            onOpen = { if (com.glasslauncher.tv.data.LiveCards.isLive(it)) com.glasslauncher.tv.data.LiveCards.open(ctx, it) else NuvioLaunch.open(ctx, settings, app.http, it) },
-            onHold = { item ->
-                val cards = com.glasslauncher.tv.data.LiveCards
-                val remove = {
-                    if (cards.isLive(item)) cards.hide(ctx, item) else app.cw.remove(item.key)
-                    toast(ctx, "Removed from Continue Watching · ${item.name}")
-                }
-                val channel = item.id.removePrefix("ch:").toIntOrNull()
-                if (!cards.isLive(item)) {
-                    // A title: open it in your other app, mark it watched where it came from, or take it out.
-                    val options = ArrayList<Pair<String, () -> Unit>>()
-                    for (t in NuvioLaunch.others(ctx, settings, item))
-                        options += "Open in ${NuvioLaunch.shortName(t)}" to { NuvioLaunch.open(ctx, settings, app.http, item, t) }
-                    if (app.cw.canMarkWatched(item.key)) options += (if (item.sub.isNotBlank()) "Mark ${item.sub} as watched" else "Mark as watched") to {
-                        app.cw.markWatched(item.key, item.name) { ok ->
-                            toast(ctx, if (ok) "Marked as watched · ${item.name}" else "Couldn't mark ${item.name} as watched. Try again")
-                        }
-                    }
-                    options += "Remove from Continue Watching" to { remove() }
-                    onDialog(MenuDialog(item.name, options))
-                } else if (item.type == cards.TYPE_RECORDING || channel == null) remove()
-                else heroScope.launch {
-                    // A channel on now (the last one, a followed match): record what's on, or take the card out.
-                    val recording = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        runCatching { com.glasslauncher.tv.live.LiveHome.recordingNow(ctx, channel) }.getOrDefault(false)
-                    }
-                    onDialog(MenuDialog(item.name, listOf(
-                        (if (recording) "Stop recording" else "Record this show") to {
-                            heroScope.launch {
-                                val said = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                    runCatching { com.glasslauncher.tv.live.LiveHome.recordNow(ctx, channel) }.getOrElse { "Couldn't record: ${it.message}" }
-                                }
-                                toast(ctx, said)
-                            }
-                            Unit
-                        },
-                        "Remove from Continue Watching" to { remove() },
-                    )))
-                }
-            },
-            modifier = Modifier.align(Alignment.BottomStart).padding(bottom = (rowAbove * s).dp),
-        )
-        if (!customBg && items.size > 1 && settings.dotsMode != "hidden") {
-            Dots(
-                total = items.size, current = index.mod(items.size), mode = settings.dotsMode, max = settings.dotsMax, s = s,
-                modifier = Modifier.align(Alignment.BottomCenter)
-                    // With the row, just above its name (Apple TV's); without, at the bottom of the page.
-                    .padding(bottom = (if (rowOn) ROW_BOTTOM + ROW_DOTS else metrics.collapsedH / s + metrics.bottomMargin / s + 10).let { (it * s).dp })
-                    .graphicsLayer { this.alpha = dotsAlpha; translationY = if (rowOn) 0f else away.value * (awayDp - 30 * s) * this.density },
-            )
-        }
-    }
-}
-
-/**
  * Shown while the carousel has nothing: after a fresh install, the steps to set Glassio Yahsun up, each with where it
  * stands and OK to go there. Its first row holds [heroFocus]: the dock's first row points Up at it, and without a
  * focus target there Up did nothing, so Settings could not be reached from the dock.
  */
 @Composable
-private fun EmptyHint(
+internal fun EmptyHint(
     app: GlassApp, status: String, s: Float, heroFocus: FocusRequester, firstTile: FocusRequester,
     modifier: Modifier, onFocus: (Boolean) -> Unit, onSettings: (category: Int) -> Unit,
 ) {
@@ -1292,155 +798,13 @@ private fun SetupRow(step: SetupStep, s: Float, modifier: Modifier, onFocus: (Bo
     }
 }
 
-@Composable
-private fun HeroInfo(
-    item: HeroItem, app: GlassApp, s: Float, focused: Boolean, heroFocus: FocusRequester, firstTile: FocusRequester,
-    onFocus: (Boolean) -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onOpen: () -> Unit, onLong: () -> Unit,
-    modifier: Modifier,
-) {
-    val settings = app.settings
-    val ms = settings.transitionMs
-    var heroDown by remember { mutableStateOf(false) }
-    var heroLong by remember { mutableStateOf(false) }
-    // Apple TV buttons: 0 = Play, 1 = the round Next button. The block stays one focus target; Left/Right
-    // move between the two and past them change the title, so holding a direction keeps browsing.
-    val nextBtn = settings.heroButtons == "apple"
-    // 0 = Play, 1 = + (save to Library), 2 = Next.
-    val order = if (settings.heroPlus) listOf(0, 1, 2) else listOf(0, 2)
-    var btn by remember { mutableIntStateOf(0) }
-    val savedList by app.library.saved.collectAsState()
-    val isSaved = savedList.any { it.key == item.key }
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    // The block itself is the focus target (invisible): Left/Right change slide, OK opens the title.
-    Box(
-        modifier
-            .padding(start = (48 * s).dp, top = ((if (settings.heroButtons == "apple") 78 else 96) * s).dp)
-            .width((440 * s).dp)
-            .focusRequester(heroFocus)
-            .focusProperties { down = firstTile }
-            .onKeyEvent { ev ->
-                when {
-                    ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown -> {
-                        val i = order.indexOf(btn); if (nextBtn && i in 0 until order.size - 1) btn = order[i + 1] else onNext(); true
-                    }
-                    ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown -> {
-                        val i = order.indexOf(btn); if (nextBtn && i > 0) btn = order[i - 1] else onPrev(); true
-                    }
-                    ev.isSelect && nextBtn && btn == 2 -> { if (ev.type == KeyEventType.KeyDown) onNext(); true }
-                    ev.isSelect && nextBtn && btn == 1 -> {
-                        if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) {
-                            val now = app.library.toggle(item)
-                            toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
-                        }
-                        true
-                    }
-                    ev.isSelect -> {
-                        if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) { heroDown = true; heroLong = false }
-                        // Hold OK: next picture of this title.
-                        if (ev.type == KeyEventType.KeyDown && heroDown && !heroLong && ev.nativeKeyEvent.repeatCount >= 1) { heroLong = true; onLong() }
-                        if (ev.type == KeyEventType.KeyUp && heroDown) { heroDown = false; if (!heroLong) onOpen(); heroLong = false }
-                        true
-                    }
-                    ev.key == Key.Menu -> { if (ev.type == KeyEventType.KeyDown) onLong(); true }
-                    else -> false
-                }
-            }
-            .onFocusChanged { if (it.isFocused) btn = 0; onFocus(it.isFocused) }
-            .focusable()
-            .padding((8 * s).dp),
-    ) {
-      Column {
-        // With the Apple TV buttons the text sits in a fixed-height area: logo and details stay where they always
-        // were (top), the synopsis takes what is left (its own line setting), and the buttons below never move.
-        val fixed = nextBtn
-        Box(if (fixed) Modifier.height((240 * s).dp).clipToBounds() else Modifier, contentAlignment = Alignment.TopStart) {
-        AnimatedContent(
-            targetState = item,
-            transitionSpec = { fadeIn(tween(ms)) togetherWith fadeOut(tween((ms * 0.4f).toInt())) },
-            contentKey = { it.key },
-            label = "hero",
-        ) { it ->
-            val m = settings.metaScale
-            var headW by remember { mutableIntStateOf(0) }
-            val density = LocalDensity.current
-            Column {
-              Column(Modifier.onSizeChanged { sz -> headW = sz.width }) {
-                Title(it, settings.titleMode, settings.titleScale, s)
-                if (settings.showMeta) {
-                    Spacer(Modifier.height((16 * s).dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy((6 * s * m).dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (it.rating.isNotBlank()) Chip("★ ${it.rating}", s * m)
-                        if (it.year.isNotBlank()) Chip(it.year, s * m)
-                        if (it.platform.isNotBlank()) Chip(it.platform, s * m)
-                    }
-                }
-                if (it.progress >= 0f && settings.cwProgress) {
-                    Spacer(Modifier.height((10 * s).dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            listOfNotNull("Continue", it.sub.takeIf { x -> x.isNotBlank() }, "${(it.progress * 100).toInt()}%").joinToString("  ·  "),
-                            color = Color.White, fontSize = (10.5f * s * m).sp, fontWeight = FontWeight.Medium,
-                        )
-                        Spacer(Modifier.width((8 * s).dp))
-                        Box(Modifier.width((90 * s).dp).height((3 * s).dp).clipR((2 * s).dp).background(Color.White.copy(alpha = 0.25f))) {
-                            Box(Modifier.fillMaxWidth(it.progress.coerceIn(0f, 1f)).height((3 * s).dp).background(Color.White))
-                        }
-                    }
-                }
-                if (settings.showGenres) {
-                    val kind = if (it.type.equals("movie", true)) "Movie" else "Series"
-                    Spacer(Modifier.height((8 * s).dp))
-                    Text(
-                        (listOf(kind) + it.genres).joinToString("  ·  "),
-                        color = AppleSecondary, fontWeight = FontWeight.Medium, fontSize = (11 * s * settings.genresScale).sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    )
-                }
-              }
-                if (settings.showSynopsis && it.overview.isNotBlank()) {
-                    AnimatedVisibility(visible = !settings.synopsisOnFocus || focused, enter = fadeIn(tween(200)), exit = fadeOut(tween(150))) {
-                        Column {
-                            Spacer(Modifier.height((10 * s).dp))
-                            Text(
-                                it.overview, color = AppleSecondary, fontWeight = FontWeight.Medium,
-                                fontSize = (11.5f * s * settings.synopsisScale).sp, lineHeight = (16 * s * settings.synopsisScale).sp,
-                                maxLines = settings.synopsisLines, overflow = TextOverflow.Ellipsis,
-                                modifier = if (headW > 0) Modifier.width(with(density) { headW.toDp() }) else Modifier,
-                            )
-                        }
-                    }
-                }
-                // Simple Play button: only shows while the carousel is selected.
-                if (settings.heroButtons == "play") AnimatedVisibility(visible = focused, enter = fadeIn(tween(180)), exit = fadeOut(tween(140))) {
-                    Column {
-                        Spacer(Modifier.height((14 * s).dp))
-                        Row(
-                            Modifier.clipR((settings.cornerRadius * 0.7f * s).dp).background(Color.White.copy(alpha = 0.94f))
-                                .padding(horizontal = (16 * s).dp, vertical = (7 * s).dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            PlayGlyph(Modifier.size((10 * s).dp), Color.Black)
-                            Spacer(Modifier.width((7 * s).dp))
-                            Text("Play", color = Color.Black, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
-                        }
-                    }
-                }
-            }
-        }
-        }
-        // Apple TV buttons stay put while the title changes; only the text above fades.
-        if (nextBtn) HeroButtons(focused, btn, s, settings.cornerRadius, settings.heroPlus, isSaved)
-      }
-    }
-}
-
 /**
  * Logos come in every shape: very wide word marks and almost square stacked ones. Sizing them by a
  * fixed height made wide logos tiny and tall ones huge, so every logo gets the same visual *area*,
  * then is capped in width and height.
  */
 @Composable
-private fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
+internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
     if (mode == "hidden") return
     @Composable fun asText() = Text(
         item.name, color = Color.White, fontSize = (30 * s * scale).sp, fontWeight = FontWeight.Light,
@@ -1486,41 +850,6 @@ private fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
         },
         modifier = Modifier.size(w.dp, h.dp).alpha(if (ratio == null) 0f else 1f),
     )
-}
-
-@Composable
-private fun Chip(text: String, s: Float) {
-    Text(
-        text, color = Color.White.copy(alpha = 0.92f), fontSize = (10.5f * s).sp,
-        modifier = Modifier.border(1.dp, Color.White.copy(alpha = 0.55f), RoundedCornerShape((3 * s).dp))
-            .padding(horizontal = (6 * s).dp, vertical = (1.5f * s).dp),
-    )
-}
-
-@Composable
-private fun Dots(total: Int, current: Int, mode: String, max: Int, s: Float, modifier: Modifier) {
-    if (mode == "liquid") { LiquidDots(total, current, max, s, modifier); return }
-    Box(
-        modifier.clipR((8 * s).dp).background(Color.Black.copy(alpha = 0.34f))
-            .padding(horizontal = (8 * s).dp, vertical = (5 * s).dp),
-    ) {
-        if (mode == "progress") {
-            Box(Modifier.width((120 * s).dp).height((3 * s).dp).clipR((2 * s).dp).background(Color.White.copy(alpha = 0.25f))) {
-                Box(Modifier.fillMaxWidth(((current + 1f) / total).coerceIn(0f, 1f)).height((3 * s).dp).clipR((2 * s).dp).background(Color.White))
-            }
-        } else {
-            val page = current / max
-            val start = page * max
-            val count = minOf(max, total - start)
-            Row(horizontalArrangement = Arrangement.spacedBy((4.5f * s).dp), verticalAlignment = Alignment.CenterVertically) {
-                for (i in 0 until count) {
-                    val active = start + i == current
-                    val w by animateDpAsState(if (active) (17 * s).dp else (4.5f * s).dp, spring(Spring.DampingRatioMediumBouncy, 500f), label = "dot")
-                    Box(Modifier.width(w).height((4.5f * s).dp).clipR((3 * s).dp).background(Color.White.copy(alpha = if (active) 1f else 0.45f)))
-                }
-            }
-        }
-    }
 }
 
 // ───────────────────────────── top bar ─────────────────────────────
@@ -1744,109 +1073,6 @@ private fun GearGlyph(modifier: Modifier, color: Color) {
 
 // ───────────────────────────── dock ─────────────────────────────
 
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-private fun Dock(
-    app: GlassApp, s: Float, metrics: DockMetrics, screenH: Float, radius: Int,
-    expanded: Boolean, onExpanded: (Boolean) -> Unit,
-    movingPkg: String?, onMoveKey: (KeyEvent) -> Boolean, firstTile: FocusRequester, heroFocus: FocusRequester,
-    folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>, onMove: () -> Unit,
-    onMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit, modifier: Modifier,
-    onCover: (androidx.compose.ui.geometry.Rect) -> Unit = {},
-) {
-    val ctx = LocalContext.current
-    val settings = app.settings
-    val allApps by app.apps.apps.collectAsState()
-    val apps = remember(allApps, settings.dockOrder, settings.hiddenApps, settings.showMobileApps) { app.apps.ordered() }
-    // null marks where the Apps folder sits.
-    val showFolder = settings.showFolder
-    val items: List<AppEntry?> = remember(apps, settings.folderPos, showFolder) {
-        val p = settings.folderPos.let { if (it < 0 || it > apps.size) apps.size else it }
-        apps.toMutableList<AppEntry?>().apply { if (showFolder) add(p, null) }
-    }
-    val rows = remember(items) { items.chunked(DOCK_COLUMNS) }
-    // Move mode: a moved tile is laid out again in its new slot and loses focus, which then fell to the
-    // carousel. Keep focus on the app being moved after every step.
-    LaunchedEffect(items, movingPkg) {
-        val p = movingPkg ?: return@LaunchedEffect
-        delay(30)
-        runCatching { (if (p == FOLDER) folderFocus else tileFocus[p])?.requestFocus() }
-    }
-    val fullH = metrics.padTop + rows.size * metrics.cellH + (rows.size - 1).coerceAtLeast(0) * metrics.gap + metrics.padBottom + 8 * s
-    val expandedH = minOf(fullH, screenH * 0.72f).coerceAtLeast(metrics.collapsedH)
-    val targetH = if (expanded) expandedH else metrics.collapsedH
-    val hState = animateDpAsState(targetH.dp, tween(170, easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "dockH")
-    // While the dock grows or shrinks its glass is flat (no off-screen layer resized every frame).
-    // The height is applied in the layout phase, so the dock is not recomposed on every animation frame.
-    val still by remember(targetH) { androidx.compose.runtime.derivedStateOf { kotlin.math.abs(hState.value.value - targetH) < 0.5f } }
-    val scroll = rememberScrollState()
-    LaunchedEffect(expanded) { if (!expanded) scroll.animateScrollTo(0) }
-
-    GlassPanel(
-        modifier = modifier.padding(horizontal = metrics.sideMargin.dp).padding(bottom = metrics.bottomMargin.dp).fillMaxWidth().layout { m, c ->
-            val px = hState.value.roundToPx()
-            val p = m.measure(c.copy(minHeight = px, maxHeight = px))
-            layout(p.width, px) { p.place(0, 0) }
-        }.onGloballyPositioned { c -> onCover(if (still && expanded && settings.dockStyle != "amoled" && settings.dockStyle != "bow") c.boundsInRoot() else androidx.compose.ui.geometry.Rect.Zero) },
-        radius = (radius * s).dp,
-        style = settings.dockStyle,
-        // The rims stay on while the dock opens: switching them off for the move made them blink.
-        refract = true,
-        cache = still || DebugHide.intValue and 131072 != 0,
-    ) {
-        // Plain rows instead of a lazy grid: about twenty apps, and focus moves in and out predictably.
-        // When every row fits in the open dock nothing scrolls: scrolling to the second row while the dock was
-        // still growing pushed the first row out and back (a jump at every open).
-        val fits = fullH <= expandedH + 1f
-        androidx.compose.runtime.CompositionLocalProvider(
-            androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides (if (fits) NoScroll else androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current),
-        ) {
-        Column(
-            Modifier.fillMaxWidth().graphicsLayer { alpha = if (DebugHide.intValue and 65536 != 0) 0f else 1f }.verticalScroll(scroll)
-                .padding(start = metrics.padH.dp, end = metrics.padH.dp, top = metrics.padTop.dp, bottom = metrics.padBottom.dp),
-            verticalArrangement = Arrangement.spacedBy(metrics.gap.dp),
-        ) {
-            rows.forEachIndexed { r, row ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(metrics.gap.dp)) {
-                    row.forEachIndexed { c, e ->
-                        val idx = r * DOCK_COLUMNS + c
-                        val edges = gridEdges(c, row.size, r, rows.size, allowUp = true)
-                        val base = Modifier.weight(1f)
-                            .then(if (idx == 0) Modifier.focusRequester(firstTile) else Modifier)
-                            .then(if (r == 0) Modifier.focusProperties { up = heroFocus } else Modifier)
-                        if (e == null) {
-                            key(FOLDER) {
-                                FolderTile(
-                                    app, s, radius, moving = movingPkg == FOLDER,
-                                    modifier = base.focusRequester(folderFocus),
-                                    onFocus = { f -> if (f) { onExpanded(r > 0); onMove() } },
-                                    onMoveKey = onMoveKey, onClick = onFolder, onLong = onFolderMenu, edges = edges,
-                                )
-                            }
-                        } else key(e.pkg) {
-                            DockTile(
-                                entry = e, app = app, s = s, radius = radius, moving = movingPkg == e.pkg,
-                                modifier = base.focusRequester(tileFocus.getOrPut(e.pkg) { FocusRequester() }),
-                                onFocus = { f -> if (f) { onExpanded(r > 0); onMove() } },
-                                onMoveKey = onMoveKey,
-                                onClick = { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } },
-                                onLong = { onMenu(e) }, edges = edges,
-                            )
-                        }
-                    }
-                    repeat(DOCK_COLUMNS - row.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-        }
-        }
-    }
-}
-
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private object NoScroll : androidx.compose.foundation.gestures.BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = 0f
-}
-
 /** Which arrows lead out of a grid cell (left of the first column, right of the last, below the last row …). */
 private fun gridEdges(col: Int, rowSize: Int, row: Int, rows: Int, allowUp: Boolean): Set<androidx.compose.ui.focus.FocusDirection> = buildSet {
     if (col == 0) add(androidx.compose.ui.focus.FocusDirection.Left)
@@ -1941,7 +1167,7 @@ private fun FocusColorArt(art: Art?, label: String, s: Float, litState: androidx
 
 /** The icon itself; in "black on white" glyph icons turn black and full banners turn grey. */
 @Composable
-private fun IconArt(art: Art?, label: String, style: String, s: Float) {
+internal fun IconArt(art: Art?, label: String, style: String, s: Float) {
     if (art == null) {
         Text(label, color = if (style == "bow") Color.Black else Color.White, fontSize = (11 * s).sp, maxLines = 2, textAlign = TextAlign.Center)
         return
@@ -2073,36 +1299,6 @@ private fun DockTile(
     }
 }
 
-/** Apple-style folder: a 3x2 preview of the apps inside. */
-@Composable
-private fun FolderTile(
-    app: GlassApp, s: Float, radius: Int, moving: Boolean, modifier: Modifier,
-    onFocus: (Boolean) -> Unit, onMoveKey: (KeyEvent) -> Boolean, onClick: () -> Unit, onLong: () -> Unit,
-    edges: Set<androidx.compose.ui.focus.FocusDirection> = emptySet(),
-) {
-    val style = app.settings.tileStyle
-    val all by app.apps.apps.collectAsState()
-    val preview = remember(all, app.settings.dockOrder) { app.apps.ordered(includeHidden = true).take(6) }
-    TileFrame(s, radius, moving, "Apps", false, modifier, onFocus, onMoveKey, onClick, onLong, style == "amoled" || style == "bow", app.settings.tileLift, app.settings.edgeBounce, edges) { focused, r ->
-        TilePlate(style, focused, s, r) {
-            Column(Modifier.fillMaxSize().padding((7 * s).dp), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
-                preview.chunked(3).forEach { row ->
-                    Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy((4 * s).dp)) {
-                        row.forEach { e ->
-                            val art by produceState(app.apps.cachedArtwork(e), e.pkg, app.settings.iconPack, app.icons.rev.intValue) { value = app.apps.artwork(e) }
-                            Box(Modifier.weight(1f).fillMaxHeight().clipR((4 * s).dp)
-                                .background(if (style == "bow") Color(0xFFE2E2E6) else Color.White.copy(alpha = 0.06f))) {
-                                IconArt(art, "", style, s * 0.35f)
-                            }
-                        }
-                        repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-                    }
-                }
-            }
-        }
-    }
-}
-
 /** Every app, hidden ones included, in a glass folder like tvOS. */
 @Composable
 private fun FolderOverlay(
@@ -2189,105 +1385,4 @@ private fun FolderOverlay(
         }
     }
 }
-}
-
-/**
- * Liquid glass page dots (tvOS / iOS 26 style): white drops with no pill behind them. The selected drop is a
- * longer capsule whose front and back follow with different springs, so moving stretches it like a drop of
- * water, and the dots it passes swell and merge into it before it settles.
- */
-@Composable
-private fun LiquidDots(total: Int, current: Int, max: Int, s: Float, modifier: Modifier) {
-    val page = current / max
-    val start = page * max
-    val count = minOf(max, total - start)
-    val li = (current - start).toFloat()
-    val head = remember { androidx.compose.animation.core.Animatable(li) }
-    val tail = remember { androidx.compose.animation.core.Animatable(li) }
-    var lastPage by remember { mutableIntStateOf(page) }
-    LaunchedEffect(li, page) {
-        if (page != lastPage) { lastPage = page; head.snapTo(li); tail.snapTo(li); return@LaunchedEffect }
-        // The front races ahead and the back follows slowly: the drop stretches into the next dot, then
-        // its back pulls away from the old one until the bridge snaps.
-        launch { head.animateTo(li, spring(dampingRatio = 0.72f, stiffness = 1100f)) }
-        launch { tail.animateTo(li, spring(dampingRatio = 0.86f, stiffness = 380f)) }
-    }
-    // On a small liquid-glass capsule, the same glass as the dock.
-    val st = LocalGlassEnv.current
-    GlassPanel(modifier, radius = (11 * s).dp, style = "water_still", refract = st.refractionDp > 0) {
-        GlassDots(count, { head.value }, { tail.value }, s, Modifier.padding(horizontal = (3 * s).dp, vertical = (2 * s).dp))
-    }
-}
-
-
-/**
- * Play and Next, drawn like the Apple TV app: grey glass when not selected, white with a dark glyph when
- * selected, the selected one a little larger.
- */
-@Composable
-private fun HeroButtons(focused: Boolean, btn: Int, s: Float, corner: Int, plus: Boolean = false, saved: Boolean = false) {
-    val h = (30 * s).dp
-    Column {
-        Spacer(Modifier.height((14 * s).dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            val playOn = focused && btn == 0
-            val nextOn = focused && btn == 2
-            val plusOn = focused && btn == 1
-            val pScale by animateFloatAsState(if (playOn) 1.06f else 1f, spring(0.7f, 700f), label = "playScale")
-            val nScale by animateFloatAsState(if (nextOn) 1.12f else 1f, spring(0.7f, 700f), label = "nextScale")
-            // Dark when not selected, white when selected.
-            val pBg by androidx.compose.animation.animateColorAsState(if (playOn) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.55f), tween(140), label = "playBg")
-            val nBg by androidx.compose.animation.animateColorAsState(if (nextOn) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.55f), tween(140), label = "nextBg")
-            val pFg = if (playOn) Color.Black else Color.White
-            val nFg = if (nextOn) Color.Black else Color.White
-            Row(
-                Modifier.graphicsLayer { scaleX = pScale; scaleY = pScale }.height(h)
-                    .clipR((corner * 0.7f * s).dp.coerceAtLeast(h / 2)).background(pBg)
-                    .padding(horizontal = (16 * s).dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PlayGlyph(Modifier.size((10 * s).dp), pFg)
-                Spacer(Modifier.width((7 * s).dp))
-                Text("Play", color = pFg, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold)
-            }
-            Spacer(Modifier.width((10 * s).dp))
-            if (plus) {
-                RoundHeroButton(h, plusOn) { fg ->
-                    Canvas(Modifier.size((11 * s).dp)) {
-                        val w = size.width; val hh = size.height
-                        val st = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.15f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
-                        val p = androidx.compose.ui.graphics.Path()
-                        if (saved) { p.moveTo(w * 0.16f, hh * 0.52f); p.lineTo(w * 0.42f, hh * 0.78f); p.lineTo(w * 0.86f, hh * 0.24f) }
-                        else { p.moveTo(w * 0.5f, hh * 0.12f); p.lineTo(w * 0.5f, hh * 0.88f); p.moveTo(w * 0.12f, hh * 0.5f); p.lineTo(w * 0.88f, hh * 0.5f) }
-                        drawPath(p, fg, style = st)
-                    }
-                }
-                Spacer(Modifier.width((10 * s).dp))
-            }
-            Box(
-                Modifier.graphicsLayer { scaleX = nScale; scaleY = nScale }.size(h).clip(androidx.compose.foundation.shape.CircleShape).background(nBg),
-                contentAlignment = Alignment.Center,
-            ) {
-                Canvas(Modifier.size((11 * s).dp)) {
-                    val w = size.width; val hh = size.height
-                    val path = androidx.compose.ui.graphics.Path().apply {
-                        moveTo(w * 0.36f, hh * 0.16f); lineTo(w * 0.70f, hh * 0.5f); lineTo(w * 0.36f, hh * 0.84f)
-                    }
-                    drawPath(path, nFg, style = androidx.compose.ui.graphics.drawscope.Stroke(
-                        width = w * 0.17f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
-                }
-            }
-        }
-    }
-}
-
-/** A round hero button (the + / ✓ one): dark, white with a dark glyph when selected. */
-@Composable
-private fun RoundHeroButton(h: Dp, on: Boolean, glyph: @Composable (Color) -> Unit) {
-    val sc by animateFloatAsState(if (on) 1.12f else 1f, spring(0.7f, 700f), label = "roundScale")
-    val bg by androidx.compose.animation.animateColorAsState(if (on) Color.White.copy(alpha = 0.95f) else Color.Black.copy(alpha = 0.55f), tween(140), label = "roundBg")
-    Box(
-        Modifier.graphicsLayer { scaleX = sc; scaleY = sc }.size(h).clip(androidx.compose.foundation.shape.CircleShape).background(bg),
-        contentAlignment = Alignment.Center,
-    ) { glyph(if (on) Color.Black else Color.White) }
 }
