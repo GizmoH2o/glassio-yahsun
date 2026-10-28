@@ -186,7 +186,12 @@ final class LiveOverlay {
 
     /** The show the peek is on (on now, or a later one with ◀ ▶), or null. */
     Xtream.Program peekProgram() {
-        if (!showing || peek == null) return null;
+        return showing ? peekShow() : null;
+    }
+
+    /** The peek's show, also while it fades out (what's drawn until it's gone). */
+    private Xtream.Program peekShow() {
+        if (peek == null) return null;
         List<Xtream.Program> list = view.programsOf(peek);
         int now = nowIndex(list);
         return now < 0 || now + peekAhead >= list.size() ? null : list.get(now + peekAhead);
@@ -210,7 +215,8 @@ final class LiveOverlay {
     }
 
     void hide() {
-        peek = null;
+        // The peek stays until it has faded out (step): cleared now, the fade showed what's playing instead, its
+        // buttons and all, turning see-through over the show you were reading.
         showing = false;
         appear.target = 0;
         view.invalidate();
@@ -222,7 +228,12 @@ final class LiveOverlay {
 
     boolean step(float dt) {
         if (showing && SystemClock.uptimeMillis() - lastKey > HIDE_MS && !((live.catchup() != null || live.shifted()) && live.paused())) hide();
-        return appear.step(dt) | focusX.step(dt) | focusW.step(dt);
+        boolean moving = appear.step(dt) | focusX.step(dt) | focusW.step(dt);
+        if (!showing && !moving && appear.value <= 0.004f) {     // gone (settled, not on a bounce): the peek with it
+            peek = null;
+            peekAhead = 0;
+        }
+        return moving;
     }
 
     /** The buttons for what's playing: a past program's first, then the rest (audio and subtitles when there's a choice). */
@@ -287,7 +298,7 @@ final class LiveOverlay {
         }
         Xtream.Program shown = past != null ? past : onNow;
         // The peek on a later show (◀ ▶): that one, and the one after it as up next.
-        Xtream.Program later = peek != null && peekAhead > 0 ? peekProgram() : null;
+        Xtream.Program later = peek != null && peekAhead > 0 ? peekShow() : null;
         if (later != null) {
             shown = later;
             int at = list.indexOf(later);

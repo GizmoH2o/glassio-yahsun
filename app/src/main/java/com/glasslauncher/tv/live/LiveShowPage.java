@@ -40,12 +40,19 @@ final class LiveShowPage extends Dialog {
         void open(Xtream.Channel channel, Xtream.Program p);
     }
 
+    /** A channel as Live TV shows it: its name without the country, and that country's tag ("" for none, or tags off). */
+    interface Names {
+        String name(Xtream.Channel ch);
+        String tag(Xtream.Channel ch);
+    }
+
     private static final int MAX_AIRINGS = 6;
     private final Xtream.Channel channel;
     private final Xtream.Program show;
     private final List<String> labels, icons;
     private final List<Runnable> actions;
     private final Airing airing;
+    private final Names names;
     private final Page page;
     private final List<Xtream.Channel> airChannels = new ArrayList<>();
     private final List<Xtream.Program> airShows = new ArrayList<>();
@@ -55,7 +62,7 @@ final class LiveShowPage extends Dialog {
     private int row, button;
 
     LiveShowPage(Context c, Xtream.Lineup lineup, Xtream.Channel channel, Xtream.Program show, List<String> labels,
-            List<String> icons, List<Runnable> actions, Airing airing) {
+            List<String> icons, List<Runnable> actions, Names names, Airing airing) {
         super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
         this.channel = channel;
         this.show = show;
@@ -63,6 +70,7 @@ final class LiveShowPage extends Dialog {
         this.icons = icons;
         this.actions = actions;
         this.airing = airing;
+        this.names = names;
         page = new Page(c);
         info = LiveTmdb.of(c, show.title, () -> page.post(() -> {
             info = LiveTmdb.of(getContext(), show.title, null);
@@ -98,6 +106,9 @@ final class LiveShowPage extends Dialog {
             long now = System.currentTimeMillis();
             List<XmltvStore.Found> found = XmltvStore.findAll(app, folded.split(" "), now, now + 7 * 24 * 3600_000L, 200);
             Map<String, Xtream.Channel> byEpg = new HashMap<>();
+            // This channel first: another one with the same guide (the same feed, in another category) would list this
+            // very airing as another, under the other's number.
+            if (channel.epg != null && !channel.epg.isEmpty()) byEpg.put(channel.epg.toLowerCase(Locale.ROOT), channel);
             for (Xtream.Channel ch : lineup.all()) {
                 if (ch.epg == null || ch.epg.isEmpty()) continue;
                 String id = ch.epg.toLowerCase(Locale.ROOT);
@@ -179,7 +190,7 @@ final class LiveShowPage extends Dialog {
 
     private String airingLine(int i) {
         Xtream.Program p = airShows.get(i);
-        return day(p.start) + "  " + Ui.time(p.start) + "  ·  " + airChannels.get(i).name;
+        return day(p.start) + "  " + Ui.time(p.start) + "  ·  " + names.name(airChannels.get(i));
     }
 
     /** Today, Tomorrow, else the weekday. */
@@ -201,6 +212,7 @@ final class LiveShowPage extends Dialog {
         private final Spring in = new Spring(0.32f, 0.9f, 0), at = new Spring(0.28f, 0.9f, 0);
         private final Rect src = new Rect();
         private final RectF box = new RectF();
+        private final Paint tagPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private Paint fill, image, shadeLeft, shadeBottom, kicker, title, meta, pill, star, body, label, labelOn, head, airTime, airName, episode;
         private TextPaint aboutPaint;
         private StaticLayout about;
@@ -271,7 +283,11 @@ final class LiveShowPage extends Dialog {
             float x = LEFT * k, y = 150 * k;
             boolean onNow = show.start <= now && show.end > now, past = show.end <= now;
             String when = (onNow ? Ui.tr("Agora", "Now") : day(show.start)) + "  ·  " + Ui.time(show.start) + " – " + Ui.time(show.end);
-            c.drawText(ellipsize((channel.num > 0 ? channel.num + "  " : "") + channel.name + "  ·  " + when, kicker, TEXT_W * k), x, y, kicker);
+            // The channel and its country tag, then when: the name cut short first, never the tag or the time.
+            String rest = "  ·  " + when;
+            float lineEnd = textAndTag(c, (channel.num > 0 ? channel.num + "  " : "") + names.name(channel), names.tag(channel), x, y, kicker,
+                    TEXT_W * k - kicker.measureText(rest));
+            c.drawText(ellipsize(rest, kicker, x + TEXT_W * k - lineEnd), lineEnd, y, kicker);
             y += 92 * k;
             String name = show.title.isEmpty() ? channel.name : show.title;
             c.drawText(ellipsize(name, title, 1500 * k), x, y, title);
@@ -368,7 +384,7 @@ final class LiveShowPage extends Dialog {
                 String t = day(p.start) + "  " + Ui.time(p.start);
                 c.drawText(t, x, ty, airTime);
                 Xtream.Channel ch = airChannels.get(i);
-                c.drawText(ellipsize((ch.num > 0 ? ch.num + "  " : "") + ch.name, airName, 560 * k), x + 360 * k, ty, airName);
+                textAndTag(c, (ch.num > 0 ? ch.num + "  " : "") + names.name(ch), names.tag(ch), x + 360 * k, ty, airName, 560 * k);
             }
             c.restore();
             if (moving) postInvalidateOnAnimation(); else last = 0;
@@ -381,6 +397,16 @@ final class LiveShowPage extends Dialog {
             c.drawRoundRect(x, y, x + pw, y + ph, 8 * k, 8 * k, fill);
             c.drawText(text, x + 13 * k, y + ph / 2 + Ui.halfCap(pill), pill);
             return x + pw;
+        }
+
+        /** `text` at `x`, then its country tag; both within `room` (the text cut short, never the tag). Returns where they end. */
+        private float textAndTag(Canvas c, String text, String tag, float x, float base, Paint p, float room) {
+            LiveCountry.label(p, tagPaint);
+            float tagW = LiveCountry.tagWidth(tag, p, tagPaint, k);
+            String t = ellipsize(text, p, Math.max(1, room - tagW));
+            c.drawText(t, x, base, p);
+            float end = x + p.measureText(t);
+            return tag.isEmpty() ? end : LiveCountry.drawTag(c, tag, end + 12 * k, base, p, tagPaint, k);
         }
 
         private String ellipsize(String s, Paint p, float width) {

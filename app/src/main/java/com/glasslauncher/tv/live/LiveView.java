@@ -2844,7 +2844,11 @@ final class LiveView extends View {
 
     /** A show's own page; another airing on it opens that one's choices (on now: watched). */
     private void openShowPage(Xtream.Channel channel, Xtream.Program p, List<String> labels, List<String> icons, List<Runnable> actions) {
-        new LiveShowPage(getContext(), lineup, channel, p, labels, icons, actions, (ch, show) -> {
+        LiveShowPage.Names names = new LiveShowPage.Names() {
+            @Override public String name(Xtream.Channel ch) { return nameOf(ch); }
+            @Override public String tag(Xtream.Channel ch) { return tagOf(ch); }
+        };
+        new LiveShowPage(getContext(), lineup, channel, p, labels, icons, actions, names, (ch, show) -> {
             long now = System.currentTimeMillis();
             Runnable watch = () -> {
                 if (mode == GUIDE) closeGuide();
