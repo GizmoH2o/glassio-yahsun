@@ -258,6 +258,29 @@ final class LiveCountry {
         return out;
     }
 
+    /**
+     * The tag inside a line of text (a menu's message: "12:00 AM – 12:30 AM · Cartoon Network West US"), drawn as
+     * [drawTag] beside the name before it; `k` the screen's scale.
+     */
+    static final class Span extends android.text.style.ReplacementSpan {
+        private final String code;
+        private final float k;
+        private final Paint label = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        Span(String code, float k) {
+            this.code = code;
+            this.k = k;
+        }
+
+        @Override public int getSize(Paint p, CharSequence text, int start, int end, Paint.FontMetricsInt fm) {
+            return Math.round(tagWidth(code, p, label(p, label), k));
+        }
+
+        @Override public void draw(Canvas c, CharSequence text, int start, int end, float x, int top, int y, int bottom, Paint p) {
+            drawTag(c, code, x + 12 * k, y, p, label(p, label), k);
+        }
+    }
+
     /** Where a tag on the line at `baseline` starts at the top. */
     static float tagTop(Paint text, float baseline, float k) {
         return baseline - Ui.halfCap(text) - height(text, k) / 2;

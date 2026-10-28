@@ -121,6 +121,7 @@ final class LiveShowPage extends Dialog {
                 Xtream.Channel ch = f.epg == null ? null : byEpg.get(f.epg.toLowerCase(Locale.ROOT));
                 if (ch == null || !Xtream.fold(LiveArt.name(f.title)).equals(folded)) continue;
                 if (ch.id == channel.id && f.start == show.start) continue;        // this one
+                if (f.end <= now) continue;                                         // over already
                 Xtream.Program p = new Xtream.Program();
                 p.title = f.title;
                 p.start = f.start;
@@ -190,7 +191,13 @@ final class LiveShowPage extends Dialog {
 
     private String airingLine(int i) {
         Xtream.Program p = airShows.get(i);
-        return day(p.start) + "  " + Ui.time(p.start) + "  ·  " + names.name(airChannels.get(i));
+        return when(p) + "  ·  " + names.name(airChannels.get(i));
+    }
+
+    /** An airing's day and time ("Tomorrow  12:10 AM"), or "On now" (OK watches it). */
+    private static String when(Xtream.Program p) {
+        long now = System.currentTimeMillis();
+        return p.start <= now && p.end > now ? Ui.tr("Passando agora", "On now") : day(p.start) + "  " + Ui.time(p.start);
     }
 
     /** Today, Tomorrow, else the weekday. */
@@ -381,8 +388,7 @@ final class LiveShowPage extends Dialog {
                 }
                 Xtream.Program p = airShows.get(i);
                 float ty = ry + (rh - 6 * k) / 2 + Ui.halfCap(airTime);
-                String t = day(p.start) + "  " + Ui.time(p.start);
-                c.drawText(t, x, ty, airTime);
+                c.drawText(when(p), x, ty, airTime);
                 Xtream.Channel ch = airChannels.get(i);
                 textAndTag(c, (ch.num > 0 ? ch.num + "  " : "") + names.name(ch), names.tag(ch), x + 360 * k, ty, airName, 560 * k);
             }

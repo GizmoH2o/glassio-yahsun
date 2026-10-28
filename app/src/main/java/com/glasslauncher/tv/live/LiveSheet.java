@@ -297,8 +297,8 @@ final class LiveSheet extends Dialog {
             c.drawColor(Ui.alpha(0x99000000, a));       // the video behind, dimmed
             float inner = (RIGHT - LEFT - 2 * PAD) * k;
             if (layout == null) {
-                String m = message.toString();
-                layout = m.isEmpty() ? null : new StaticLayout(m, messagePaint, Math.max(1, Math.round(inner)),
+                CharSequence m = message;      // as it came: a country tag in it is a span (LiveCountry.Span)
+                layout = m.length() == 0 ? null : new StaticLayout(m, messagePaint, Math.max(1, Math.round(inner)),
                         Layout.Alignment.ALIGN_NORMAL, 1.1f, 0, false);
             }
             boolean icons = withIcons();

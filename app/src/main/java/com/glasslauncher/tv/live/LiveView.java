@@ -1174,6 +1174,14 @@ final class LiveView extends View {
         return ch == null || !LiveCountry.on(getContext()) ? "" : LiveCountry.of(ch, categoryCountry);
     }
 
+    /** `text` with a country tag at its end (a menu's line), or as it is with none. */
+    private CharSequence withTag(String text, String tag) {
+        if (tag.isEmpty()) return text;
+        android.text.SpannableStringBuilder b = new android.text.SpannableStringBuilder(text).append('￼');
+        b.setSpan(new LiveCountry.Span(tag, k), text.length(), b.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return b;
+    }
+
     /** `ch`'s name as shown: without its country when the tag shows it ("US: TLC" → "TLC"). */
     String nameOf(Xtream.Channel ch) {
         if (ch == null || ch.name == null) return "";
@@ -2708,7 +2716,7 @@ final class LiveView extends View {
                 Ui.tr("Sobre o programa", "About the show")};
         LiveSheet.menu(c)
                 .setTitle(p.title.isEmpty() ? channel.name : p.title)
-                .setMessage(Ui.time(p.start) + " – " + Ui.time(p.end) + "  ·  " + channel.name)
+                .setMessage(withTag(Ui.time(p.start) + " – " + Ui.time(p.end) + "  ·  " + nameOf(channel), tagOf(channel)))
                 .setIcons(remind ? "close" : "bell", record ? "stop" : "record", "series", "add", "play", "info")
                 .setItems(items, (d, which) -> {
                     if (which == 5) {       // its page, with these same choices as buttons

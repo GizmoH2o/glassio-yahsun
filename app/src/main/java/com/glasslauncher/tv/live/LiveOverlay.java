@@ -27,6 +27,8 @@ import java.util.List;
 final class LiveOverlay {
     private static final int GUIDE = 0, PLAY = 1, LIVE = 4, START_OVER = 5, FAVORITE = 6, AUDIO = 7,
             SUBTITLES = 8, PICTURE = 9, SOURCE = 10, RECORD = 11, SLEEP = 12, ABOUT = 13;
+    /** On a later show (◀ ▶ in the peek) it stays up longer, to read it (Back closes it). */
+    private static final long PEEK_LATER_MS = 20_000;
     private static final long HIDE_MS = 6000, SKIP_BACK = 10_000, SKIP_AHEAD = 30_000;
     private static final float X = 96, R = 1824, BTN = 72, GAP = 20, ROW_Y = 956, LIVE_W = 136;
     /** The text column, right of the logo (196 × 110). */
@@ -227,7 +229,8 @@ final class LiveOverlay {
     }
 
     boolean step(float dt) {
-        if (showing && SystemClock.uptimeMillis() - lastKey > HIDE_MS && !((live.catchup() != null || live.shifted()) && live.paused())) hide();
+        long hold = peek != null && peekAhead > 0 ? PEEK_LATER_MS : HIDE_MS;
+        if (showing && SystemClock.uptimeMillis() - lastKey > hold && !((live.catchup() != null || live.shifted()) && live.paused())) hide();
         boolean moving = appear.step(dt) | focusX.step(dt) | focusW.step(dt);
         if (!showing && !moving && appear.value <= 0.004f) {     // gone (settled, not on a bounce): the peek with it
             peek = null;
@@ -416,9 +419,8 @@ final class LiveOverlay {
             f = length > 0 ? Ui.clamp(at / (float) length) : 0;
             right = live.paused() && live.behind() < 2000 ? Ui.tr("Pausado", "Paused")
                     : "−" + LiveView.clock(live.behind()) + Ui.tr(" do ao vivo", " behind live");
-        } else if (later != null) {      // a later show: how long until it starts
-            long in = Math.max(1, Math.round((later.start - now) / 60_000.0));
-            right = Ui.tr("Começa em ", "Starts in ") + (in >= 60 ? in / 60 + " h " + (in % 60 > 0 ? in % 60 + " min" : "") : in + " min");
+        } else if (later != null) {      // a later show: when it starts
+            right = startsIn(later.start, now);
         } else if (onNow != null) {
             f = Ui.clamp((now - onNow.start) / (float) (onNow.end - onNow.start));
             right = LiveView.minutesLeft((int) Math.max(1, Math.round((onNow.end - now) / 60_000.0)));
@@ -464,6 +466,25 @@ final class LiveOverlay {
         c.restoreToCount(save);
         if (showing) view.postInvalidateDelayed(1000 - now % 1000);
         return false;
+    }
+
+    /**
+     * When a later show starts: "Starts in 25 min", "Starts in 1 h 5 min" (under 2 h), else the time ("Starts at
+     * 3:00 AM" today, "Tomorrow  1:00 AM", "Sat  9:00 PM").
+     */
+    static String startsIn(long start, long now) {
+        long in = Math.max(1, Math.round((start - now) / 60_000.0));
+        if (in < 60) return Ui.tr("Começa em ", "Starts in ") + in + " min";
+        if (in < 120) return Ui.tr("Começa em ", "Starts in ") + "1 h" + (in % 60 > 0 ? " " + in % 60 + " min" : "");
+        java.util.Calendar a = java.util.Calendar.getInstance(), b = java.util.Calendar.getInstance();
+        a.setTimeInMillis(now);
+        b.setTimeInMillis(start);
+        if (a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) && a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR))
+            return Ui.tr("Começa às ", "Starts at ") + Ui.time(start);
+        a.add(java.util.Calendar.DAY_OF_YEAR, 1);
+        boolean tomorrow = a.get(java.util.Calendar.YEAR) == b.get(java.util.Calendar.YEAR) && a.get(java.util.Calendar.DAY_OF_YEAR) == b.get(java.util.Calendar.DAY_OF_YEAR);
+        String day = tomorrow ? Ui.tr("Amanhã", "Tomorrow") : new java.text.SimpleDateFormat("EEE", Ui.locale()).format(new java.util.Date(start));
+        return day + "  " + Ui.time(start);
     }
 
     /** A rounded tag (filled with `color`) at x, on the line at baseline y; returns where it ends. */
