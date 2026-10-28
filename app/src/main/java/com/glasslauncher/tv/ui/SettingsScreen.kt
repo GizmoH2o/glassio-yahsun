@@ -304,7 +304,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Adjust("Icon pack", "Projectivy / Blueprint / Nova packs installed on this TV",
                     { if (st.iconPack.isEmpty()) "None (original icons)" else (packLabels[st.iconPack] ?: st.iconPack) },
                     { st.iconPack = cycle(packList, st.iconPack, it) }))
-                add(Toggle("Show Apps folder", "All apps (hidden ones too), as a tile in the apps row. Hidden apps stay listed below", { st.showFolder }, { st.showFolder = it }))
+                add(Adjust("Apps per row", "The apps on the home screen, in a grid", { "${st.appsPerRow}" }, { st.appsPerRow += it }))
+                add(Toggle("Show Apps folder", "All apps (hidden ones too), as a tile among your apps. Hidden apps stay listed below", { st.showFolder }, { st.showFolder = it }))
                 add(Adjust("Apps folder background", "Behind the apps in the Apps folder", { styleName(st.dockStyle) },
                     { st.dockStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.dockStyle, it); st.theme = "" }))
                 add(Adjust("Settings background", "Behind settings and the icon picker", { styleName(st.panelStyle) },

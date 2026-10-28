@@ -351,15 +351,16 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         runCatching { ctx.startActivity(android.content.Intent(ctx, com.glasslauncher.tv.saver.ScreensaverActivity::class.java)) }
     }
 
-    // Moving an app along its row: ◀ ▶ carry it, OK puts it down.
+    // Moving an app in the grid: ◀ ▶ one place, ▲ ▼ a row; OK puts it down.
     val onMoveKey: (KeyEvent) -> Boolean = { ev ->
         val p = movingPkg
         if (p == null) false
         else when {
             ev.isSelect -> { if (ev.type == KeyEventType.KeyUp) movingPkg = null; true }
-            ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight -> {
+            ev.key == Key.DirectionLeft || ev.key == Key.DirectionRight || ev.key == Key.DirectionUp || ev.key == Key.DirectionDown -> {
                 if (ev.type == KeyEventType.KeyDown) {
-                    val delta = if (ev.key == Key.DirectionLeft) -1 else 1
+                    val n = settings.appsPerRow.coerceIn(APPS_MIN, APPS_MAX)
+                    val delta = when (ev.key) { Key.DirectionLeft -> -1; Key.DirectionRight -> 1; Key.DirectionUp -> -n; else -> n }
                     if (p == FOLDER) {
                         val n = app.apps.ordered().size
                         val cur = settings.folderPos.let { if (it < 0 || it > n) n else it }
@@ -368,7 +369,6 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                 }
                 true
             }
-            ev.key == Key.DirectionUp || ev.key == Key.DirectionDown -> true
             else -> false
         }
     }

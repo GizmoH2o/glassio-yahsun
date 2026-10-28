@@ -70,6 +70,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -96,7 +97,6 @@ private const val ROW_GAP = 14f
 private const val AIRING_W = 104f
 private const val WATCH_W = 168f
 private const val POSTER_W = 100f
-private const val APP_W = 96f
 /** A poster rested on opens up to this much wider (its picture on top, its details under it). */
 private const val OPEN_W = 1.32f
 private val RED = Color(0xFFE50914)
@@ -228,10 +228,17 @@ internal fun HomePage(
 
     // ── where the page sits: up just enough for the row with the focus, the big picture's text fading as it goes
     val tops = remember { mutableStateMapOf<Part, Pair<Float, Float>>() }
+    /** The apps grid's rows, top and bottom on the page; and the one with the focus. */
+    val appRows = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
+    var appRow by remember { mutableIntStateOf(0) }
     val offset = remember { Animatable(0f) }
     val screenPx = screenH * density
-    LaunchedEffect(inPart, tops[inPart], screenPx) {
-        val (top, bottom) = tops[inPart] ?: return@LaunchedEffect
+    val spot = if (inPart == Part.Apps && appRow > 0) appRows[appRow] else tops[inPart]?.let { t ->
+        // The apps' first row: from the "Apps" title to that row's bottom.
+        if (inPart == Part.Apps) appRows[0]?.let { r -> t.first to r.second } ?: t else t
+    }
+    LaunchedEffect(inPart, spot, screenPx) {
+        val (top, bottom) = spot ?: return@LaunchedEffect
         // The row as low on the screen as it fits, so what's above it shows (the big picture, back at the first row);
         // a row taller than the screen from its top.
         val margin = 26 * s * density
@@ -343,7 +350,8 @@ internal fun HomePage(
                 if (showSeries) posters(Part.Series, "Series in your library", series)
                 // ── apps
                 section(Part.Apps, "Apps") {
-                    AppsRow(app, s, appsFocus, above(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu)
+                    AppsGrid(app, s, settings.appsPerRow, appsFocus, above(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu,
+                        onRow = { r, top, bottom -> appRows[r] = (top + offset.value) to (bottom + offset.value) }, onFocusRow = { appRow = it })
                 }
                 Spacer(Modifier.height((40 * s).dp))
             }
@@ -781,11 +789,16 @@ private fun SeeAllCard(s: Float, modifier: Modifier, onOpen: () -> Unit) {
 
 // ───────────────────────────── apps ─────────────────────────────
 
-/** Your apps in one row (the Apps folder, if shown, where you put it): OK opens, hold OK for its options. */
+/**
+ * Your apps in a grid, [perRow] to a row (Settings → Apps & icons), the Apps folder ("All apps", if shown) where you
+ * put it: OK opens, hold OK for its options. [onRow] gives each row's top and bottom on the screen; [onFocusRow] the
+ * row with the focus.
+ */
 @Composable
-private fun AppsRow(
-    app: GlassApp, s: Float, appsFocus: FocusRequester, up: FocusRequester, folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>,
+private fun AppsGrid(
+    app: GlassApp, s: Float, perRow: Int, appsFocus: FocusRequester, up: FocusRequester, folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>,
     movingPkg: String?, onMoveKey: (KeyEvent) -> Boolean, onMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit,
+    onRow: (Int, Float, Float) -> Unit, onFocusRow: (Int) -> Unit,
 ) {
     val ctx = LocalContext.current
     val settings = app.settings
@@ -804,22 +817,37 @@ private fun AppsRow(
     var last by remember { mutableStateOf<String?>(null) }
     val keys = tiles.map { it?.pkg ?: FOLDER_KEY }
     val entryKey = keys.firstOrNull { it == last } ?: keys.firstOrNull()
-    LazyRow(
-        Modifier.fillMaxWidth().focusGroup(),
-        horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
-        contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (6 * s).dp, bottom = (6 * s).dp),
-    ) {
-        items(tiles, key = { it?.pkg ?: FOLDER_KEY }) { e ->
-            val k = e?.pkg ?: FOLDER_KEY
-            val base = Modifier.then(if (k == entryKey) Modifier.focusRequester(appsFocus) else Modifier)
-                .focusProperties { this.up = up; down = FocusRequester.Cancel }
-                .onFocusChanged { if (it.isFocused) last = k }
-            if (e == null) AppTile(app, null, s, movingPkg == FOLDER_KEY, base.focusRequester(folderFocus), onMoveKey, onFolder, onFolderMenu)
-            else AppTile(app, e, s, movingPkg == e.pkg, base.focusRequester(tileFocus.getOrPut(e.pkg) { FocusRequester() }), onMoveKey,
-                { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } }, { onMenu(e) })
+    val n = perRow.coerceIn(APPS_MIN, APPS_MAX)
+    val rows = tiles.chunked(n)
+    val gap = (10 * s).dp
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = (EDGE * s).dp, vertical = (6 * s).dp)) {
+        val tileW = (maxWidth - gap * (n - 1)) / n
+        Column(Modifier.focusGroup(), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
+            rows.forEachIndexed { r, row ->
+                Row(
+                    Modifier.onGloballyPositioned { c -> val y = c.positionInRoot().y; onRow(r, y, y + c.size.height) },
+                    horizontalArrangement = Arrangement.spacedBy(gap),
+                ) {
+                    row.forEach { e ->
+                        val k = e?.pkg ?: FOLDER_KEY
+                        key(k) {
+                            val base = Modifier.then(if (k == entryKey) Modifier.focusRequester(appsFocus) else Modifier)
+                                .focusProperties { if (r == 0) this.up = up; if (r == rows.lastIndex) down = FocusRequester.Cancel }
+                                .onFocusChanged { if (it.isFocused) { last = k; onFocusRow(r) } }
+                            if (e == null) AppTile(app, null, s, tileW, movingPkg == FOLDER_KEY, base.focusRequester(folderFocus), onMoveKey, onFolder, onFolderMenu)
+                            else AppTile(app, e, s, tileW, movingPkg == e.pkg, base.focusRequester(tileFocus.getOrPut(e.pkg) { FocusRequester() }), onMoveKey,
+                                { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } }, { onMenu(e) })
+                        }
+                    }
+                }
+            }
         }
     }
 }
+
+/** How many apps a row of the grid can hold (Settings → Apps & icons → Apps per row). */
+internal const val APPS_MIN = 3
+internal const val APPS_MAX = 8
 
 /** The Apps folder's place in the row (move mode). */
 internal const val FOLDER_KEY = "__apps_folder__"
@@ -827,17 +855,17 @@ internal const val FOLDER_KEY = "__apps_folder__"
 /** One app (or, for null, the Apps folder): its icon on a dark rounded plate, its name under it when selected. */
 @Composable
 private fun AppTile(
-    app: GlassApp, entry: AppEntry?, s: Float, moving: Boolean, modifier: Modifier,
+    app: GlassApp, entry: AppEntry?, s: Float, width: androidx.compose.ui.unit.Dp, moving: Boolean, modifier: Modifier,
     onMoveKey: (KeyEvent) -> Boolean, onClick: () -> Unit, onLong: () -> Unit,
 ) {
     var focused by remember { mutableStateOf(false) }
     val back = backKey()
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier.width((APP_W * s).dp).height((APP_W / 1.6f * s).dp)
+            modifier.width(width).height(width / 1.6f)
                 .onFocusChanged { focused = it.isFocused }
                 .tvPress(onLong = onLong, onKey = { ev -> onMoveKey(ev) || back(ev) }, onClick = onClick)
-                .cardFocus(s, focused, 7f, if (moving) 1.12f else 1.08f)
+                .cardFocus(s, focused, 7f, if (moving) 1.08f else 1.05f)
                 .background(Color(0xFF26262A)),
             contentAlignment = Alignment.Center,
         ) {
@@ -861,13 +889,13 @@ private fun AppTile(
                 val art by produceState(app.apps.cachedArtwork(entry), entry.pkg, app.settings.iconPack, app.icons.rev.intValue) { value = app.apps.artwork(entry) }
                 IconArt(art, entry.label, "liquid", s)
             }
-            if (moving) Text("◀ ▶  ·  OK", color = Color.White, fontSize = (7 * s).sp,
+            if (moving) Text("◀ ▶ ▲ ▼  ·  OK", color = Color.White, fontSize = (7 * s).sp,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (3 * s).dp).clip(RoundedCornerShape((4 * s).dp))
                     .background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = (5 * s).dp, vertical = (1 * s).dp))
         }
         Spacer(Modifier.height((5 * s).dp))
         Text(if (entry == null) "All apps" else entry.label, color = Color.White.copy(alpha = if (focused) 0.95f else 0f), fontSize = (7.5f * s).sp,
-            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width((APP_W * s).dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(width), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 

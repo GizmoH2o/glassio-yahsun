@@ -75,7 +75,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
 **Home**
 - **The big picture**: a title's backdrop across the page, its logo, IMDb rating, year, runtime, genres and synopsis, with **Play** and **My Library**. Titles come from your Nuvio or Stremio add-on catalogs (Cinemeta, AIOMetadata, TMDB lists …), shuffled across all catalogs if you like, and change on their own while it's selected (Settings → Home → *Auto-play*); ◀ on Play and ▶ on My Library go to the previous and next one. Add-ons from your Nuvio account and your Stremio account join the TV's own (Settings → Catalogs), never twice.
-- **Rows** under it: **Airing this week** (new episodes of the series in your library: NEW, the episode, *Out now* or *in 21h 47m*), **Continue watching**, **Movies in your library**, **Series in your library**, then **your apps**. The library rows come from your Nuvio library, your Stremio library or both (Settings → Home → *Library on Home*), with what you saved in Glassio; each can be turned off.
+- **Rows** under it: **Airing this week** (new episodes of the series in your library: NEW, the episode, *Out now* or *in 21h 47m*), **Continue watching**, **Movies in your library**, **Series in your library**, then **your apps** in a grid. The library rows come from your Nuvio library, your Stremio library or both (Settings → Home → *Library on Home*), with what you saved in Glassio; each can be turned off.
 - The page moves up just enough to show the row you're in, and the big picture follows the title selected in a row (Settings → Home → *Big picture follows the selection*). Rest on a poster and it **opens up** into a wide card with its picture, logo, rating, year, runtime and genres.
 - Each row remembers where you were; **Back** goes to the first row, then to the big picture. **Hold OK** on a title for its menu (open it in your other app, save it to or take it out of your Library), on Continue watching to mark it watched or take it out, on an app for App info, Move, Change icon and Hide.
 - **Continue watching**: wide cards with the logo, the progress bar and the app the title came from; **+N** and **NEW EPISODE** when episodes came out since you last watched. Live TV's cards (a followed match, the last channel, new recordings) lead the row.
@@ -92,7 +92,7 @@ What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 - Backdrop and glass always change in the same frame.
 
 **Apps & icons**
-- Your apps in one row at the bottom of the home screen; the **Apps folder** (*All apps*) holds every app, hidden ones too. Move / hide / change icon / app info: hold OK.
+- Your apps in a grid at the bottom of the home screen, 5 to a row (Settings → Apps & icons → *Apps per row*, 3 to 8); the **Apps folder** (*All apps*) holds every app, hidden ones too. Move / hide / change icon / app info: hold OK.
 - In the Apps folder, tvOS behaviour: the selected icon lifts, **colour on focus** (icons white at rest, coloured on a light or dark plate),
   rubber-band **bounce at the edges**.
 - Icons from icon packs (Projectivy, Blueprint, Nova, ADW), a link, the TV's photos, your phone, or the **Apple TV icon

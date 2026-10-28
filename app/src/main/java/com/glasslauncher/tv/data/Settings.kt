@@ -190,6 +190,8 @@ class Settings(private val ctx: Context) {
     var homeSeries: Boolean get() = b("homeSeries", true); set(v) = putB("homeSeries", v)
     /** A poster rested on opens up into a wide card (picture, logo, details). */
     var homeExpand: Boolean get() = b("homeExpand", true); set(v) = putB("homeExpand", v)
+    /** How many apps a row of the home screen's apps grid holds. */
+    var appsPerRow: Int get() = i("appsPerRow", 5); set(v) = putI("appsPerRow", v.coerceIn(3, 8))
     /** The big picture at the top follows the title selected in the rows. */
     var homeFollow: Boolean get() = b("homeFollow", true); set(v) = putB("homeFollow", v)
     /** Continue Watching: row (its own row, Apple TV's) | first (at the start of the carousel) | mixed (among the catalogs) | off */
