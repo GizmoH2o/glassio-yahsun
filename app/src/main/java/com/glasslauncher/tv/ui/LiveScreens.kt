@@ -183,10 +183,12 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
                 ActionTile("Following", "star", s, Modifier.weight(1f).fillMaxHeight()) { onFollowing() }
             }
         }
-        cardRow("On now", p.onNow, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
+        // The channels watched lately (newest first; the last one is the big card above), with what's on them now.
+        cardRow("Recently watched", p.recent, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
+        cardRow("Favorites on now", p.onNow, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
         cardRow("Sports live now", sp, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
         cardRow("Starting soon", p.soon, s, now = false, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
-        if (p.onNow.isEmpty() && sp.isEmpty() && p.soon.isEmpty())
+        if (p.onNow.isEmpty() && p.recent.isEmpty() && sp.isEmpty() && p.soon.isEmpty())
             hint("Your favorite channels show here, with what's on now. Add some in Live TV: hold OK on a channel.", s)
     }
 }

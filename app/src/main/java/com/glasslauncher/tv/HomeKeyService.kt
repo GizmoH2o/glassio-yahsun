@@ -44,6 +44,13 @@ class HomeKeyService : AccessibilityService() {
     }
 
     override fun onKeyEvent(event: KeyEvent): Boolean {
+        // The remote's Guide button: Live TV's guide, not the TV maker's own app (a TCL remote's opens TCL's TV app).
+        if (event.keyCode == KeyEvent.KEYCODE_GUIDE && (application as? GlassApp)?.settings?.interceptGuide == true) {
+            if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) runCatching {
+                startActivity(com.glasslauncher.tv.live.LiveHome.open(this, -1, true))
+            }.onFailure { com.glasslauncher.tv.data.Glog.w("Guide button", it) }
+            return true
+        }
         if (event.keyCode != KeyEvent.KEYCODE_HOME || !enabled()) return false
         when (event.action) {
             KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) homeDownAt = System.currentTimeMillis()

@@ -58,10 +58,14 @@ public final class LiveHome {
         public final List<Airing> matches = new ArrayList<>(), shows = new ArrayList<>();
     }
 
-    /** The Live TV page: the channel last watched, the favorites and recent channels on now, sports, soon. */
+    /**
+     * The Live TV page: the channel last watched, the favorites on now, the channels watched lately (newest first, after
+     * the last one), sports, soon.
+     */
     public static final class Page {
         public Airing last;
-        public final List<Airing> onNow = new ArrayList<>(), sports = new ArrayList<>(), soon = new ArrayList<>();
+        public final List<Airing> onNow = new ArrayList<>(), recent = new ArrayList<>(), sports = new ArrayList<>(),
+                soon = new ArrayList<>();
     }
 
     // MARK: - Glassio's side
@@ -815,8 +819,8 @@ public final class LiveHome {
 
     // MARK: - Live TV
 
-    /** The On now row's cards: the favorites, then up to this many with the channels watched lately. */
-    private static final int LIVE_MAX = 16;
+    /** The On now row's cards (the favorites), and the Recently watched row's. */
+    private static final int LIVE_MAX = 16, RECENT_MAX = 12;
 
     public static Page page(Context c) {
         Page out = new Page();
@@ -825,10 +829,15 @@ public final class LiveHome {
         List<Xtream.Channel> recent = Xtream.recent(c);
         if (!recent.isEmpty()) out.last = airing(c, recent.get(0), onNow(c, recent.get(0), now));
         Set<Integer> seen = new HashSet<>();
-        List<Xtream.Channel> list = new ArrayList<>();
-        for (Xtream.Channel ch : Xtream.favorites(c)) if (seen.add(ch.id)) list.add(ch);
-        for (Xtream.Channel ch : recent) if (list.size() < LIVE_MAX && seen.add(ch.id)) list.add(ch);
-        for (Xtream.Channel ch : list) out.onNow.add(airing(c, ch, onNow(c, ch, now)));
+        for (Xtream.Channel ch : Xtream.favorites(c)) {
+            if (out.onNow.size() < LIVE_MAX && seen.add(ch.id)) out.onNow.add(airing(c, ch, onNow(c, ch, now)));
+        }
+        // Recently watched: newest first, the last one left out (it's the big card at the top).
+        Set<Integer> recentSeen = new HashSet<>();
+        for (int i = 1; i < recent.size() && out.recent.size() < RECENT_MAX; i++) {
+            Xtream.Channel ch = recent.get(i);
+            if (recentSeen.add(ch.id)) out.recent.add(airing(c, ch, onNow(c, ch, now)));
+        }
         for (Object[] o : soon(c, now)) out.soon.add(airing(c, (Xtream.Channel) o[0], (Xtream.Program) o[1]));
         return out;
     }
@@ -848,6 +857,7 @@ public final class LiveHome {
         List<Airing> missing = new ArrayList<>();
         if (page.last != null && page.last.p == null) missing.add(page.last);
         for (Airing a : page.onNow) if (a.p == null) missing.add(a);
+        for (Airing a : page.recent) if (a.p == null) missing.add(a);
         if (missing.isEmpty()) return false;
         final long t = System.currentTimeMillis();
         final Map<Integer, Xtream.Program> found = new java.util.concurrent.ConcurrentHashMap<>();
@@ -874,9 +884,11 @@ public final class LiveHome {
         if (page.last != null && page.last.p == null && found.containsKey(page.last.channel)) {
             page.last = airing(c, page.last.ch, found.get(page.last.channel));
         }
-        for (int i = 0; i < page.onNow.size(); i++) {
-            Airing a = page.onNow.get(i);
-            if (a.p == null && found.containsKey(a.channel)) page.onNow.set(i, airing(c, a.ch, found.get(a.channel)));
+        for (List<Airing> row : java.util.Arrays.asList(page.onNow, page.recent)) {
+            for (int i = 0; i < row.size(); i++) {
+                Airing a = row.get(i);
+                if (a.p == null && found.containsKey(a.channel)) row.set(i, airing(c, a.ch, found.get(a.channel)));
+            }
         }
         return true;
     }
@@ -900,6 +912,7 @@ public final class LiveHome {
         boolean changed = false;
         List<List<Airing>> rows = new ArrayList<>();
         rows.add(page.onNow);
+        rows.add(page.recent);
         rows.add(page.sports);
         rows.add(page.soon);
         for (List<Airing> row : rows) {

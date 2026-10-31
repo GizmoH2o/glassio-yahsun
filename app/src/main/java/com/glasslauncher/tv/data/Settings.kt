@@ -274,6 +274,8 @@ class Settings(private val ctx: Context) {
 
     // ---- System
     var interceptHome: Boolean get() = b("interceptHome", false); set(v) = putB("interceptHome", v)
+    /** The remote's Guide button opens Live TV's guide (instead of the TV maker's own app); the accessibility service. */
+    var interceptGuide: Boolean get() = b("interceptGuide", true); set(v) = putB("interceptGuide", v)
     /** After a restart, Glassio instead of Google TV's own home screen (BootReceiver, HomeKeyService). */
     var bootGlassio: Boolean get() = b("bootGlassio", true); set(v) = putB("bootGlassio", v)
 }
