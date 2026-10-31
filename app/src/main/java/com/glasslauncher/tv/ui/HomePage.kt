@@ -147,7 +147,7 @@ internal fun HomePage(
     // ── what the rows hold
     val watchItems = remember(liveCards, cwItems, enriched, settings.continueMode, settings.artChoice) {
         if (settings.continueMode == "off") liveCards
-        else liveCards + cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source) }
+        else liveCards + cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source, episodeTitle = c.episodeTitle) }
     }
     val showAiring = settings.homeAiring && airing.isNotEmpty()
     val showMovies = settings.homeMovies && movies.isNotEmpty()
@@ -642,16 +642,67 @@ private fun sourceTag(source: String): Pair<String, Color>? = when (source) {
     else -> null
 }
 
-/** Continue watching: the picture with its logo and progress; NEW EPISODE and +N when newer episodes are out. */
+/**
+ * Continue watching: the picture with its logo and progress (NEW EPISODE and +N when newer episodes are out), and
+ * under it what it is: the title and how much is left, then the episode (S2 · E5 and its title), the channel with its
+ * country, or the film's year and length.
+ */
 @Composable
 private fun WatchCard(item: HeroItem, newer: Int, s: Float, modifier: Modifier, onFocused: () -> Unit, onOpen: () -> Unit, onHold: () -> Unit) {
-    val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
+    Column(Modifier.width((WATCH_W * s).dp)) {
+        WatchPicture(item, newer, s, focused, modifier.onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
+            .tvPress(onLong = onHold, onKey = backKey(), onClick = onOpen))
+        Spacer(Modifier.height((6 * s).dp))
+        WatchInfo(item, s, focused)
+    }
+}
+
+/** What a Continue watching card is, under its picture. */
+@Composable
+private fun WatchInfo(item: HeroItem, s: Float, focused: Boolean) {
+    val live = LiveCards.isLive(item)
+    val dim = Color.White.copy(alpha = 0.6f)
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(item.name, color = Color.White.copy(alpha = if (focused) 1f else 0.85f), fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold,
+            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+        if (!live && item.progress >= 0f) {
+            val left = (100 - Math.round(item.progress.coerceIn(0f, 1f) * 100)).coerceIn(1, 100)
+            Spacer(Modifier.width((6 * s).dp))
+            Text("$left% left", color = dim, fontSize = (7 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+    }
+    Spacer(Modifier.height((2.5f * s).dp))
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        val series = !live && item.sub.isNotBlank()
+        if (series) {
+            // The episode as a chip (S2 · E5), then its title.
+            Text(item.sub, color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1,
+                modifier = Modifier.clip(RoundedCornerShape((2.5f * s).dp)).background(Color.White.copy(alpha = 0.16f))
+                    .padding(horizontal = (3.5f * s).dp, vertical = (0.5f * s).dp))
+            if (item.episodeTitle.isNotBlank()) {
+                Spacer(Modifier.width((5 * s).dp))
+                Text(item.episodeTitle, color = dim, fontSize = (7.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+            }
+        } else {
+            // Live TV: the channel (its number and name), then its country; a film: its year and length.
+            val line = if (live) item.sub else listOf(if (item.type.equals("movie", true)) "Movie" else "Series", item.year, item.runtime)
+                .filter { it.isNotBlank() }.joinToString("  ·  ")
+            Text(line, color = dim, fontSize = (7.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false))
+            if (item.country.isNotEmpty()) { Spacer(Modifier.width((4 * s).dp)); CountryTag(item.country, s * 0.85f) }
+        }
+    }
+}
+
+/** A Continue watching card's picture. */
+@Composable
+private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean, modifier: Modifier) {
+    val ctx = LocalContext.current
     val live = LiveCards.isLive(item)
     Box(
         modifier.width((WATCH_W * s).dp).height((WATCH_W * 9 / 16 * s).dp)
-            .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
-            .tvPress(onLong = onHold, onKey = backKey(), onClick = onOpen)
             .cardFocus(s, focused, 6f, 1.05f)
             .background(CARD),
     ) {
@@ -683,17 +734,6 @@ private fun WatchCard(item: HeroItem, newer: Int, s: Float, modifier: Modifier, 
             else Text(item.name, color = Color.White, fontSize = (8.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = (8 * s).dp, bottom = (12 * s).dp, end = (8 * s).dp))
         }
-        // Selected: where you are (S2 · E5 · 40% left).
-        if (focused) {
-            val where = whereText(item)
-            if (where.isNotBlank() || item.country.isNotEmpty()) Row(Modifier.align(Alignment.BottomEnd).padding(end = (8 * s).dp, bottom = (12 * s).dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text(where, color = Color.White.copy(alpha = 0.9f), fontSize = (6.5f * s).sp, fontWeight = FontWeight.Medium, maxLines = 1,
-                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                // A Live TV card's channel country (US, UK…).
-                if (item.country.isNotEmpty()) { Spacer(Modifier.width((4 * s).dp)); CountryTag(item.country, s * 0.9f) }
-            }
-        }
         if (newer > 0) Text("NEW EPISODE", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (5 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(RED).padding(horizontal = (4 * s).dp))
         if (item.progress >= 0f) {
@@ -704,15 +744,6 @@ private fun WatchCard(item: HeroItem, newer: Int, s: Float, modifier: Modifier, 
             }
         }
     }
-}
-
-/** "S10 · E12 · 23% left" (a series), "Movie · 40% left", a live card's own line. */
-private fun whereText(item: HeroItem): String {
-    if (LiveCards.isLive(item)) return item.sub
-    if (item.progress < 0f) return item.sub
-    val left = (100 - Math.round(item.progress.coerceIn(0f, 1f) * 100)).coerceIn(1, 100)
-    val what = item.sub.ifBlank { if (item.type.equals("movie", true)) "Movie" else "" }
-    return listOf(what, "$left% left").filter { it.isNotBlank() }.joinToString("  ·  ")
 }
 
 /**

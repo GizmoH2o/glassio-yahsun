@@ -501,12 +501,24 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         else tv("settings put secure screensaver_enabled 0 && s=\$(settings get secure sleep_timeout) && case \$s in ''|null|-1|0) s=1800000;; esac && settings put system screen_off_timeout \$s",
                             "TV screensaver off (the TV now sleeps at its own sleep time)")
                     }))
-                add(Adjust("TV screensaver starts after (ADB)", "The TV's own idle time (Android: screen_off_timeout)", {
-                    when { tvAfter <= 0 -> "Unknown"; tvAfter < 60_000 -> "${tvAfter / 1000} s"; tvAfter >= 3_600_000 -> "${tvAfter / 3_600_000} h"; else -> "${tvAfter / 60_000} min" + (if (tvAfter % 60_000 != 0) " ${tvAfter % 60_000 / 1000} s" else "") }
+                // Off: the TV starts no screensaver of its own, so Glassio's ("Start after" below) is the one that comes on.
+                val tvSaverOn = runCatching { AndroidSettings.Secure.getInt(cr, "screensaver_enabled", 1) == 1 }.getOrDefault(true)
+                add(Adjust("TV screensaver starts after (ADB)",
+                    if (tvSaverOn) "The TV's own screensaver and its idle time. Off lets Glassio's screensaver come on instead"
+                    else "Off: the TV starts no screensaver of its own; Glassio's comes on (Start after)", {
+                    when { !tvSaverOn -> "Off"; tvAfter <= 0 -> "Unknown"; tvAfter < 60_000 -> "${tvAfter / 1000} s"; tvAfter >= 3_600_000 -> "${tvAfter / 3_600_000} h"; else -> "${tvAfter / 60_000} min" + (if (tvAfter % 60_000 != 0) " ${tvAfter % 60_000 / 1000} s" else "") }
                 }, { d ->
-                    val opts = listOf(20_000, 30_000, 60_000, 120_000)
-                    val next = cycle(opts, opts.minByOrNull { kotlin.math.abs(it - tvAfter) } ?: 60_000, if (tvAfter in opts) d else 0)
-                    tv("settings put system screen_off_timeout $next && settings put secure screensaver_activate_on_sleep 1", "The TV screensaver now starts after " + (if (next < 60_000) "${next / 1000} s" else "${next / 60_000} min"))
+                    val opts = listOf(0, 20_000, 30_000, 60_000, 120_000, 300_000, 600_000, 900_000, 1_800_000)
+                    val cur = if (!tvSaverOn) 0 else opts.drop(1).minByOrNull { kotlin.math.abs(it - tvAfter) } ?: 60_000
+                    val next = cycle(opts, cur, if (!tvSaverOn || tvAfter in opts) d else 0)
+                    if (next == 0) {
+                        // As Aerial Views' switch off: the screen then stays on until the TV's own sleep time (Energy settings).
+                        tv("settings put secure screensaver_enabled 0 && s=\$(settings get secure sleep_timeout) && case \$s in ''|null|-1|0) s=1800000;; esac && settings put system screen_off_timeout \$s",
+                            "TV screensaver off: Glassio's screensaver comes on instead")
+                    } else {
+                        tv("settings put secure screensaver_enabled 1 && settings put system screen_off_timeout $next && settings put secure screensaver_activate_on_sleep 1",
+                            "The TV screensaver now starts after " + (if (next < 60_000) "${next / 1000} s" else "${next / 60_000} min"))
+                    }
                 }))
                 add(Note("Steps: 1. Install Aerial Views. 2. Turn on Aerial Views as the TV screensaver (the TV asks once to allow USB debugging for Glassio: Always allow). 3. Type: TV screensaver. 4. Start after / Back starts it."))
                 add(Adjust("Start after", "Idle time on the launcher", { st.idleSeconds.let { v -> if (v == 0) "Off" else if (v < 60) "$v s" else "${v / 60} min" } }, {

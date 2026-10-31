@@ -49,6 +49,8 @@ data class HeroItem(
      * "Open titles in" picks.
      */
     val source: String = "",
+    /** The episode in progress's own title ("Risky Business"), under a Continue Watching card; "" when not known. */
+    val episodeTitle: String = "",
 )
 
 /**

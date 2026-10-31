@@ -352,11 +352,18 @@ class ContinueWatching(
                 val year = Regex("(19|20)\\d{2}").find(str("releaseInfo").ifBlank { str("year") })?.value.orEmpty()
                 val genres = meta.optJSONArray("genres")?.let { a -> (0 until minOf(3, a.length())).map { a.optString(it) } }.orEmpty()
                 val sub = if (e.type == "series") "S${e.season} · E${e.episode}" else ""
+                // The episode's own title, from the series' list of episodes.
+                val episodeTitle = if (e.type != "series") "" else meta.optJSONArray("videos")?.let { v ->
+                    (0 until v.length()).mapNotNull { v.optJSONObject(it) }
+                        .firstOrNull { it.optInt("season") == e.season && it.optInt("episode", it.optInt("number")) == e.episode }
+                        ?.let { it.optString("name").ifBlank { it.optString("title") } }
+                }?.takeIf { it.isNotBlank() && it != "null" }.orEmpty()
                 HeroItem(
                     key = e.key, id = e.imdb, type = e.type, name = str("name"),
                     poster = str("poster"), background = str("background").ifBlank { str("poster") }, logo = str("logo"),
                     overview = str("description"), rating = rating, year = year, genres = genres, platform = "",
                     progress = e.percent / 100f, sub = sub, source = if (e.app == "Trakt") "" else e.app,
+                    episodeTitle = episodeTitle,
                 )
             }.getOrNull()
         }
