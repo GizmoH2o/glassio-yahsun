@@ -3885,6 +3885,14 @@ final class LiveView extends View {
 
     /** ◀ in the guide: in the past (catch-up), at once and held repeating; else held, into the catch-up. */
     private boolean guideLeft(KeyEvent e, boolean down) {
+        // Still held after it went into the catch-up: the rest of that press does nothing (not on into older shows).
+        if (pressCode == KeyEvent.KEYCODE_DPAD_LEFT && pressLong) {
+            if (!down) {
+                pressCode = -1;
+                pressLong = false;
+            }
+            return true;
+        }
         if (inPast() || gHead > 0) {
             if (down) {
                 guideKey(KeyEvent.KEYCODE_DPAD_LEFT);
@@ -5001,14 +5009,12 @@ final class LiveView extends View {
             case KeyEvent.KEYCODE_CHANNEL_UP: gRow = Math.max(0, gRow - G_ROWS); break;
             case KeyEvent.KEYCODE_CHANNEL_DOWN: gRow = Math.min(rows.size() - 1, gRow + G_ROWS); break;
             case KeyEvent.KEYCODE_DPAD_LEFT: {
-                // Back along the row to the show on now, then on into the past while the channel's catch-up has it
-                // (TiviMate's, Sky's); in the past, on as far as the guide goes. Without catch-up, from now, the groups.
+                // Back along the row to the show on now, then the groups: into the past (catch-up) is ◀ held
+                // (enterGuideCatchup). In the past, on as far as the guide goes.
                 boolean past = inPast();
                 Xtream.Program prev = list != null && at > 0 ? list.get(at - 1) : null;
-                boolean intoCatchup = !past && prev != null && prev.end <= now && replayable(rows.get(gRow), prev, now);
-                if (gCol == 1 && prev != null && prev.end > floor && (past || prev.end > now || intoCatchup)) {
+                if (gCol == 1 && prev != null && prev.end > floor && (past || prev.end > now)) {
                     gTime = Math.max(floor, prev.start);
-                    if (intoCatchup) flash(Ui.tr("Reprise: ◀ ▶ entre os programas, Voltar para agora", "Catch-up: ◀ ▶ through the shows, Back for now"));
                 } else if (!past) {
                     openGuideGroups();
                     return;
