@@ -2,6 +2,39 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 2.5.0 — 2026-10-31
+
+**A new home screen**
+- **One page instead of the carousel and dock**: the big picture (a title's backdrop, logo, IMDb rating, year, runtime, genres and synopsis, with Play and My Library), then your rows, then your apps.
+- **Rows**: Airing this week (new episodes of the series in your library), Continue watching, Movies and Series in your library (from Nuvio, Stremio or both, Settings › Home), then your apps.
+- **Apps in a grid**, 5 to a row by default (Settings › Apps & icons › *Apps per row*, 3 to 8); moving an app: ◀ ▶ one place, ▲ ▼ a row.
+- **Home is there at once**: the titles and Continue Watching's cards as last shown, while the add-ons and accounts are asked again; with no connection, last time's titles stay.
+- The big picture follows the title you stop on; each row keeps its place; Back goes to the first row, then the big picture; hold OK on any card or app for its menu.
+- Settings: *Carousel* becomes *Home* and *Dock & icons* becomes *Apps & icons*; options for the old page (slide animations, dots, dock size, your own background) are gone.
+
+**Continue Watching**
+- **What each card is, under it**: the title and how much is left, then the episode (S2 · E5 and its title), a Live TV channel with its country, or a film's year and length.
+- **Keep** (Settings › Continue Watching): everything, or only what you watched in the last 1–2 weeks or 30–90 days.
+- **New episodes first**: a series with an episode out since you watched moves to the front.
+- Lighter account syncs: an unchanged list isn't rebuilt, and while you're in another app the accounts are read every 15 minutes instead of 3.
+- Rows no longer show a card cut off at the edge, and a removed card or row no longer loses the focus.
+
+**Live TV**
+- **Catch-up skipping that works**: ◀ ▶ presses add up and go once you stop (held, bigger steps); streams that can't seek are asked for again from the new minute.
+- **Rewind from live** (◀ on the bar, or ⏪): about a minute back into Catch-up, where the provider has it; ⏮ still starts the show over.
+- **Rewind any channel** (Live TV › Settings › Playback, off by default): every channel plays through the TV's own buffer of its last 15 minutes, so ◀ and ⏪ go back even without Catch-up.
+- **Resume Catch-up**: a past show you left partway says where you stopped in the guide; OK asks *Resume from …* or *From the start*.
+- **In the guide, hold ◀ for Catch-up**; a single ◀ goes to the groups. When the guide has nothing before now, the provider's past shows are asked for.
+- **A slow connection steps down**: a stream that freezes switches to a lighter copy of a merged channel (SD after HD), and later channels start lighter.
+- **Voice tunes only with "watch"**: "Watch TLC" tunes; "TLC" on its own is a search, in Live TV and from Google TV's search.
+- **Live TV page**: a *Recently watched* row; *On now* becomes *Favorites on now*; program cards look like Continue Watching's.
+- **Guide button** (Settings › System): opens Live TV's guide instead of the TV maker's app, on TVs that pass the remote's buttons to apps.
+- Later shows' menu shows the channel's country tag; More airings lists one on now as *On now* and leaves out the ones already over; the info bar on a later show stays up 20 seconds; start times read "Starts in 25 min" or "Tomorrow 1:00 AM".
+
+**Screensaver**
+- **Turn the TV's own screensaver off** (Settings › Screensaver › *TV screensaver starts after*: Off), so Glassio's comes on instead; 5 to 30 minutes besides the short times.
+- On TVs that refuse the usual way of starting the TV's screensaver, Glassio tries SystemUI's *Start now*.
+
 ## 2.4.0 — 2026-10-27
 
 **Glassio Yahsun is now its own app**
