@@ -1596,7 +1596,7 @@ final class LiveView extends View {
                 return mode == WATCH && playing != null;        // live TV pauses too
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:     // in the guide: two hours on
                 return mode == GUIDE || (live.catchup() != null || live.shifted()) && mode == WATCH;
-            case KeyEvent.KEYCODE_MEDIA_REWIND:     // live, on a channel with catch-up: start over; in the guide: back
+            case KeyEvent.KEYCODE_MEDIA_REWIND:     // live, on a channel with catch-up: back a little; in the guide: back
                 return mode == GUIDE || mode == WATCH && (live.catchup() != null || live.shifted() || playing != null && playing.archive > 0);
             case KeyEvent.KEYCODE_SEARCH:
             case KeyEvent.KEYCODE_LAST_CHANNEL:
@@ -2193,11 +2193,6 @@ final class LiveView extends View {
 
     // MARK: - Voice: "watch …"
 
-    /** The words that mean "put it on", in the languages Live TV speaks (then the channel's name or number). */
-    private static final String[] WATCH_WORDS = {"watch", "play", "put on", "tune to", "switch to", "change to", "go to",
-            "turn on", "assistir", "assista", "colocar", "coloca", "coloque", "mudar para", "muda para", "ver", "pon",
-            "poner", "cambia a", "cambiar a", "sintoniza", "schau", "schaue", "zeige", "zeig", "schalte auf", "wechsle zu",
-            "включи", "смотреть", "покажи", "переключи на"};
     /** What a channel's name carries besides its name: a country, its picture's quality (left out when comparing). */
     private static final Set<String> NAME_TAGS = new HashSet<>(java.util.Arrays.asList("uk", "us", "usa", "ca", "au", "ie",
             "fr", "de", "es", "it", "nl", "pt", "br", "4k", "uhd", "fhd", "hd", "sd", "hevc", "h265", "raw", "vip", "backup",
@@ -2206,8 +2201,8 @@ final class LiveView extends View {
     /**
      * Said to search: "watch BBC One", "put on 302", "TLC USA", "assistir Globo"… tunes the channel it names at once
      * (its country's when one was said, else a favorite or one watched lately first), and "add TLC to favourites" /
-     * "remove TLC from favourites" does that. Without a word like "watch", only a channel named exactly (or its
-     * number) tunes, and only with Settings › Channels by voice on. True when it did; anything else stays a search.
+     * "remove TLC from favourites" does that. Without a word like "watch" it's a search, even for a channel named
+     * exactly. True when it did; anything else stays a search.
      */
     boolean voiceWatch(String said) {
         if (lineup == null || said == null) return false;
@@ -2224,26 +2219,9 @@ final class LiveView extends View {
             flash(nameOf(ch) + (fav.add ? Ui.tr(" está nos favoritos", " is in your favorites") : Ui.tr(" saiu dos favoritos", " is out of your favorites")));
             return true;
         }
-        String q = fold(said), rest = null;
-        for (String w : WATCH_WORDS) {
-            String f = fold(w);
-            if (q.startsWith(f + " ")) {
-                rest = q.substring(f.length() + 1).trim();
-                break;
-            }
-        }
-        if (rest == null) {
-            // No "watch": a channel named exactly ("TLC USA", "302") tunes; anything else is a search.
-            if (!LiveOptions.voiceChannels(getContext())) return false;
-            LiveVoice.Query query = LiveVoice.parse(said);
-            Xtream.Channel best = voiceChannel(query);
-            if (best == null || query.number < 0 && LiveVoice.fit(LiveCountry.split(best.name).name, query.name) < 95
-                    && LiveVoice.fit(best.name, query.whole) < 95) return false;
-            AppLog.w("live: voice tunes " + best.name);
-            watchFromSearch(best);
-            return true;
-        }
-        if (rest.isEmpty()) return false;
+        // Only "watch …" (or "play …", "put on …") tunes: a channel's name said on its own is a search.
+        String rest = LiveVoice.afterWatch(said);
+        if (rest == null || rest.isEmpty()) return false;
         for (String lead : new String[] {"channel ", "the ", "canal ", "o canal ", "el canal ", "kanal ", "den ", "канал "}) {
             if (rest.startsWith(lead)) rest = rest.substring(lead.length());
         }
@@ -2483,7 +2461,9 @@ final class LiveView extends View {
                 || code == KeyEvent.KEYCODE_MEDIA_PLAY;
         if ((live.catchup() != null || live.shifted() || pauseKey) && catchupKey(code)) return;
         switch (code) {     // the buttons with one meaning
-            case KeyEvent.KEYCODE_MEDIA_REWIND:
+            case KeyEvent.KEYCODE_MEDIA_REWIND:     // live: back a little, as ◀ on the bar (⏮ starts the show over)
+                rewindLive();
+                return;
             case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
                 startOver(live.playing());
                 return;
@@ -3850,6 +3830,9 @@ final class LiveView extends View {
      * ◀ held in the guide: into the row's catch-up, on the program before the one on now (◀ ▶ then go through the
      * past; Back comes back to now).
      */
+    /** Channels whose past was asked of the provider for the catch-up (once each). */
+    private final java.util.Set<Integer> pastAsked = new java.util.HashSet<>();
+
     private void enterGuideCatchup() {
         List<Xtream.Channel> rows = guideChannels();
         if (gRow >= rows.size()) return;
@@ -3862,6 +3845,34 @@ final class LiveView extends View {
         long now = System.currentTimeMillis();
         int at = programAt(list, now);
         Xtream.Program p = list != null && at > 0 ? list.get(at - 1) : null;
+        if (p == null && list != null && !pastAsked.contains(channel.id)) {
+            // The guide in use has nothing before now (a full guide often starts today): the provider's own, once.
+            pastAsked.add(channel.id);
+            flash(Ui.tr("Carregando a reprise…", "Loading the catch-up…"));
+            android.content.Context c = getContext();
+            final List<Xtream.Program> had = list;
+            epgIo.execute(() -> {
+                List<Xtream.Program> past;
+                try {
+                    past = Xtream.guide(c, channel, 12);
+                } catch (IOException | RuntimeException e) {
+                    past = null;
+                }
+                List<Xtream.Program> merged = new ArrayList<>();
+                long first = had.isEmpty() ? Long.MAX_VALUE : had.get(0).start;
+                if (past != null) for (Xtream.Program q : past) if (q.end <= first && q.end <= now) merged.add(q);
+                merged.addAll(had);
+                post(() -> {
+                    synchronized (epg) {
+                        if (epg.get(channel.id) == had) epg.put(channel.id, merged);
+                    }
+                    List<Xtream.Channel> now2 = guideChannels();
+                    if (mode == GUIDE && gRow < now2.size() && now2.get(gRow).id == channel.id) enterGuideCatchup();
+                    invalidate();
+                });
+            });
+            return;
+        }
         if (p == null || !replayable(channel, p, now)) {
             flash(Ui.tr("Nada na reprise ainda", "Nothing in the catch-up yet"));
             return;
@@ -4705,7 +4716,11 @@ final class LiveView extends View {
         }
     }
 
-    /** ◀ on the player's bar on a live channel with catch-up: back into it, a little before now. */
+    /**
+     * ◀ (or ⏪) on a live channel with catch-up: back into it, a minute or so before now. Not just the 10 seconds: the
+     * provider keeps its catch-up a minute at a time, and the one being made isn't there yet (it would end at once,
+     * back to live). A channel without a guide: an hour around now stands in for the show.
+     */
     private void rewindLive() {
         Xtream.Channel ch = live.playing();
         if (ch == null || ch.archive <= 0) {
@@ -4714,11 +4729,17 @@ final class LiveView extends View {
         }
         long now = System.currentTimeMillis();
         Xtream.Program p = onNow(ch, now);
-        if (p == null || p.start < catchupFrom(ch, now)) {
+        if (p == null) {
+            p = new Xtream.Program();
+            p.start = (now - HOUR) / 60_000 * 60_000;
+            p.end = p.start + 2 * HOUR;
+            p.title = ch.name;
+        }
+        if (p.start < catchupFrom(ch, now)) {
             flash(Ui.tr("Este programa não está na reprise", "This program isn't in the catch-up"));
             return;
         }
-        live.playCatchup(ch, p, Math.max(0, now - p.start - SKIP_BACK));
+        live.playCatchup(ch, p, Math.max(0, now - p.start - Math.max(SKIP_BACK, 60_000)));
     }
 
     private static LiveSchedule.Item item(String kind, Xtream.Channel channel, Xtream.Program p) {

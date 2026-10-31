@@ -80,6 +80,10 @@ class ScreensaverActivity : ComponentActivity() {
                 val now = SystemDream.startNow(applicationContext)
                 runOnUiThread {
                     if (now.isSuccess) { finish(); overridePendingTransition(0, 0); return@runOnUiThread }
+                    // No shell (USB debugging not allowed): SystemUI's "Start now", when the TV lets an app open it.
+                    if (now.exceptionOrNull() !is IllegalStateException && SystemDream.startByIntent(this)) {
+                        finish(); overridePendingTransition(0, 0); return@runOnUiThread
+                    }
                     // Fallback: let the system start it after its shortest timeout, posters meanwhile.
                     window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                     setContent { com.glasslauncher.tv.ui.GlassType { SaverContent(app, forceSlideshow = true) } }

@@ -24,6 +24,19 @@ public final class LiveVoiceActivity extends Activity {
         final android.content.Context app = getApplicationContext();
         final String said = in == null ? null : in.getStringExtra(SearchManager.QUERY);
         final Uri data = in == null ? null : in.getData();
+        // A search typed or said tunes only with "watch" first ("watch TLC"); a name on its own is Live TV's search.
+        // ("Play TLC on Glassio Yahsun" comes as MEDIA_PLAY_FROM_SEARCH: Google has asked to play it already.)
+        final boolean search = in != null && Intent.ACTION_SEARCH.equals(in.getAction());
+        if (search && said != null && !said.trim().isEmpty() && LiveVoice.afterWatch(said) == null
+                && LiveOptions.voiceChannels(app)) {
+            try {
+                startActivity(HomeApps.liveIntent(app, -1, false).putExtra(Live.EXTRA_SEARCH, said.trim()));
+            } catch (RuntimeException e) {
+                AppLog.w("live: voice couldn't open Live TV: " + e.getMessage());
+            }
+            finish();
+            return;
+        }
         new Thread(() -> {
             Intent open = target(app, said, data);
             new Handler(Looper.getMainLooper()).post(() -> {

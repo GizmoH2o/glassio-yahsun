@@ -728,9 +728,10 @@ final class Xtream {
 
     /**
      * A past program from the catch-up (its stream address carries the login: never logged). The provider wants the
-     * start in its own time zone, to the minute, and the length in minutes. Background thread (the zone may be asked).
+     * start in its own time zone, to the minute, and the length in minutes: from `start` (the program's own, or later
+     * into it) to its end. Background thread (the zone may be asked).
      */
-    static String catchupUrl(Context c, Channel ch, Program p, String format) throws IOException {
+    static String catchupUrl(Context c, Channel ch, Program p, long start, String format) throws IOException {
         Login l = login(c);
         if (!l.kind.equals(XTREAM)) throw new IOException(Ui.tr("Esta lista não tem reprise.", "This playlist has no catch-up."));
         if (l.zone.isEmpty()) {     // signed in before catch-up came: ask the server once
@@ -742,9 +743,9 @@ final class Xtream {
         }
         java.text.SimpleDateFormat at = new java.text.SimpleDateFormat("yyyy-MM-dd:HH-mm", Locale.ROOT);
         at.setTimeZone(l.zone.isEmpty() ? java.util.TimeZone.getDefault() : java.util.TimeZone.getTimeZone(l.zone));
-        long minutes = Math.max(1, (p.end - p.start + 59_999) / 60_000);
+        long minutes = Math.max(1, (p.end - start + 59_999) / 60_000);
         return l.server + "/timeshift/" + Uri.encode(l.user) + "/" + Uri.encode(l.pass) + "/" + minutes + "/"
-                + at.format(new java.util.Date(p.start)) + "/" + ch.id + "." + format;
+                + at.format(new java.util.Date(start)) + "/" + ch.id + "." + format;
     }
 
     /**

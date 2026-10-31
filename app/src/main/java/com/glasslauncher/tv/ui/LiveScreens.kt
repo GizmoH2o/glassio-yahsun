@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -69,6 +70,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import com.glasslauncher.tv.GlassApp
@@ -119,6 +121,9 @@ private inline fun <T> timed(what: String, read: () -> T): T {
 }
 
 private val LIVE_RED = Color(0xFFE5322D)
+/** The home page's Continue Watching cards: their red (LIVE, play, progress) and their plate. */
+private val CW_RED = Color(0xFFE50914)
+private val CW_CARD = Color(0xFF1C1C1F)
 private val INK = Color(0xFF111114)
 
 /** Live TV: the channel last watched, the guide, On now (favorites and recent channels), sports, starting soon. */
@@ -396,7 +401,7 @@ private fun LazyListScope.eventRows(title: String, list: List<LiveHome.Airing>, 
 
 /** How a selectable thing shows it's selected, as everywhere in Glassio. */
 private enum class Look {
-    /** A picture card (Library posters, Continue Watching): it grows and its soft shadow deepens. */
+    /** A picture card, as the home page's Continue Watching: it grows a little and gets a white outline. */
     LIFT,
     /** A row of text (Settings): its glass brightens. */
     ROW,
@@ -415,19 +420,14 @@ private fun Focusable(
     val shape = RoundedCornerShape(radius)
     Box(
         modifier
+            .zIndex(if (focused) 1f else 0f)
             .graphicsLayer { val k = 1f + ((if (look == Look.ROW) 1f else grow) - 1f) * f; scaleX = k; scaleY = k }
-            .then(if (look != Look.LIFT || DebugHide.intValue and 4194304 != 0) Modifier else Modifier.drawBehind {
-                val sh = CardShadow.get()
-                val pad = size.width * CardShadow.PAD
-                drawImage(sh, dstOffset = androidx.compose.ui.unit.IntOffset((-pad).toInt(), (-pad + size.height * (0.03f + 0.04f * f)).toInt()),
-                    dstSize = androidx.compose.ui.unit.IntSize((size.width + 2 * pad).toInt(), (size.height + 2 * pad).toInt()),
-                    alpha = 0.45f + 0.35f * f, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
-            })
+            .then(if (look == Look.LIFT && focused) Modifier.border((1.6f * LocalScale.current).dp, Color.White, shape) else Modifier)
             .clip(shape)
             .background(when (look) {
                 Look.PLATE -> lerp(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.95f), f)
                 Look.ROW -> lerp(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.26f), f)
-                Look.LIFT -> Color.White.copy(alpha = 0.07f)
+                Look.LIFT -> CW_CARD
             })
             .onFocusChanged { focused = it.isFocused }
             .tvPress(onLong = onLong, onClick = onClick),
@@ -497,23 +497,35 @@ private fun ActionTile(label: String, glyph: String, s: Float, modifier: Modifie
     }
 }
 
-/** A program card: its picture (else the channel's logo on glass), then the title and the channel or the time. */
+/**
+ * A program card, as the home page's Continue Watching: the picture (else the channel's logo), darker at the bottom
+ * with the channel's logo there, LIVE top left and the red progress along the bottom; under it, the title and the
+ * channel or the time.
+ */
 @Composable
 private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, modifier: Modifier, onClick: () -> Unit) {
     rev.hashCode()
     var focused by remember { mutableStateOf(false) }
     Column(Modifier.width((168 * s).dp).onFocusChanged { focused = it.hasFocus }) {
-        Focusable(modifier.fillMaxWidth().height((94.5f * s).dp), (12 * s).dp, onClick = onClick, grow = 1.07f) { _ ->
-            if (a.art.isNotEmpty()) Picture(a.art, Modifier.fillMaxSize())
-            else if (a.logo.isNotEmpty()) Logo(a.logo, Modifier.align(Alignment.Center).size((96 * s).dp, (48 * s).dp))
+        Focusable(modifier.fillMaxWidth().height((94.5f * s).dp), (6 * s).dp, onClick = onClick) { _ ->
+            val picture = a.art.isNotEmpty()
+            if (picture) Picture(a.art, Modifier.fillMaxSize())
+            else if (a.logo.isNotEmpty()) Logo(a.logo, Modifier.fillMaxSize().padding(horizontal = (34 * s).dp, vertical = (20 * s).dp))
             else Text(a.channelName, color = Color.White.copy(alpha = 0.75f), fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 2, modifier = Modifier.align(Alignment.Center).padding((10 * s).dp))
-            if (a.art.isNotEmpty() && a.logo.isNotEmpty()) Box(Modifier.align(Alignment.TopStart).padding((7 * s).dp).clip(RoundedCornerShape((5 * s).dp))
-                .background(Color.Black.copy(alpha = 0.45f)).padding(horizontal = (5 * s).dp, vertical = (3 * s).dp)) {
-                Logo(a.logo, Modifier.size((28 * s).dp, (13 * s).dp))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
+            if (a.live) Text("LIVE", color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((3 * s).dp)).background(CW_RED)
+                    .padding(horizontal = (4 * s).dp, vertical = (1 * s).dp))
+            if (picture && a.logo.isNotEmpty()) Logo(a.logo, Modifier.align(Alignment.BottomStart)
+                .padding(start = (8 * s).dp, bottom = (9 * s).dp).size(width = (52 * s).dp, height = (20 * s).dp), Alignment.BottomStart)
+            if (now && a.end > a.start) {
+                val k = ((System.currentTimeMillis() - a.start).toFloat() / (a.end - a.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                Canvas(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height((2.5f * s).dp)) {
+                    drawRect(Color.White.copy(alpha = 0.25f))
+                    drawRect(CW_RED, size = Size(size.width * k, size.height))
+                }
             }
-            if (a.live) LivePill(s, Modifier.align(Alignment.TopEnd).padding((7 * s).dp))
-            if (now && a.end > a.start) Progress(a, s, Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = (10 * s).dp, vertical = (8 * s).dp))
         }
         Spacer(Modifier.height((8 * s).dp))
         Text(a.title.ifEmpty { a.channelName }, color = Color.White.copy(alpha = if (focused) 0.95f else 0.75f), fontSize = (10 * s).sp,
@@ -647,10 +659,10 @@ private fun Picture(url: String, modifier: Modifier) {
 }
 
 @Composable
-private fun Logo(url: String, modifier: Modifier) {
+private fun Logo(url: String, modifier: Modifier, alignment: Alignment = Alignment.Center) {
     val ctx = LocalContext.current
     val req = remember(url) { ImageRequest.Builder(ctx).data(url).size(256, 128).build() }
-    AsyncImage(req, null, contentScale = ContentScale.Fit, modifier = modifier)
+    AsyncImage(req, null, contentScale = ContentScale.Fit, alignment = alignment, modifier = modifier)
 }
 
 private suspend fun focusFirst(req: FocusRequester) {

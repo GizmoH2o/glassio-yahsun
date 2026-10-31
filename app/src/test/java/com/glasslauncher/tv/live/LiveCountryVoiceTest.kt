@@ -69,6 +69,14 @@ class LiveCountryVoiceTest {
 
     private fun parse(said: String) = LiveVoice.parse(said).let { Triple(it.name, it.country, it.number) }
 
+    @Test fun onlyWatchTunes() {
+        assertEquals("tlc usa", LiveVoice.afterWatch("Watch TLC USA"))
+        assertEquals("302", LiveVoice.afterWatch("put on 302"))
+        assertEquals("globo", LiveVoice.afterWatch("assistir Globo"))
+        assertEquals(null, LiveVoice.afterWatch("TLC USA"))
+        assertEquals(null, LiveVoice.afterWatch("watchmen"))
+    }
+
     @Test fun whatWasSaid() {
         assertEquals(Triple("tlc", "", -1), parse("Watch TLC"))
         assertEquals(Triple("tlc", "US", -1), parse("watch TLC USA"))

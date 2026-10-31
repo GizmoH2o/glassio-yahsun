@@ -22,8 +22,25 @@ object SystemDream {
     fun startNow(ctx: Context): Result<Unit> = runCatching {
         LocalShell.run(ctx, "service call dreams 1").getOrThrow()
         Thread.sleep(600)
+        // Newer Android TV builds turn the shell's call down: SystemUI's own "Start now" (Settings › Screen saver).
+        if (!isDreaming(ctx)) {
+            LocalShell.run(ctx, "am start -n $SOMNAMBULATOR")
+            Thread.sleep(900)
+        }
         check(isDreaming(ctx)) { "screensaver did not start" }
     }
+
+    /** SystemUI's activity that starts the chosen screensaver at once (what Settings' "Start now" opens). */
+    const val SOMNAMBULATOR = "com.android.systemui/.Somnambulator"
+
+    /** Without the shell: SystemUI's "Start now", when this TV lets an app open it. False when it didn't. */
+    fun startByIntent(ctx: Context): Boolean = runCatching {
+        val i = android.content.Intent(android.content.Intent.ACTION_MAIN)
+            .setComponent(android.content.ComponentName.unflattenFromString(SOMNAMBULATOR))
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        ctx.startActivity(i)
+        true
+    }.getOrDefault(false)
 
     /** Older route: shorten the screen timeout so the system starts it itself. */
     fun arm(ctx: Context): Result<Unit> = runCatching {

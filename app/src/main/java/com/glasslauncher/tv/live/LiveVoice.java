@@ -56,6 +56,22 @@ final class LiveVoice {
         for (String[] m : more) SPOKEN.put(m[0], m[1]);
     }
 
+    /** The words that mean "put it on", in the languages Live TV speaks (then the channel's name or number). */
+    private static final String[] WATCH_WORDS = {"watch", "play", "put on", "tune to", "switch to", "change to", "go to",
+            "turn on", "assistir", "assista", "colocar", "coloca", "coloque", "mudar para", "muda para", "ver", "pon",
+            "poner", "cambia a", "cambiar a", "sintoniza", "schau", "schaue", "zeige", "zeig", "schalte auf", "wechsle zu",
+            "включи", "смотреть", "покажи", "переключи на"};
+
+    /** What was said after a word like "watch" (folded), or null when it doesn't start with one. */
+    static String afterWatch(String said) {
+        String q = Xtream.fold(said == null ? "" : said);
+        for (String w : WATCH_WORDS) {
+            String f = Xtream.fold(w);
+            if (q.startsWith(f + " ")) return q.substring(f.length() + 1).trim();
+        }
+        return null;
+    }
+
     /** What was said, read (it never throws: an empty name when nothing's left). */
     static Query parse(String said) {
         Query q = new Query();

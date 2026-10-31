@@ -38,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -144,7 +145,7 @@ internal fun HomePage(
     val resumed = lifeState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
 
     // ── what the rows hold
-    val watchItems = remember(liveCards, cwItems, enriched) {
+    val watchItems = remember(liveCards, cwItems, enriched, settings.continueMode, settings.artChoice) {
         if (settings.continueMode == "off") liveCards
         else liveCards + cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source) }
     }
@@ -164,6 +165,17 @@ internal fun HomePage(
     fun above(p: Part) = req(parts.getOrNull(parts.indexOf(p) - 1) ?: Part.Hero)
     fun below(p: Part) = parts.getOrNull(parts.indexOf(p) + 1)?.let { req(it) } ?: FocusRequester.Cancel
     var inPart by remember { mutableStateOf(Part.Hero) }
+    // The row with the focus went (its last card taken out, a row turned off): the focus to the row below, else the
+    // big picture, not lost.
+    val partsNow = parts
+    LaunchedEffect(partsNow) {
+        if (inPart !in partsNow) {
+            delay(50)
+            val next = Part.entries.drop(inPart.ordinal + 1).firstOrNull { it in partsNow } ?: Part.Hero
+            inPart = next
+            runCatching { req(next).requestFocus() }
+        }
+    }
 
     // ── the big picture: the catalogs' titles in turn, or the title selected in a row
     var index by remember { mutableIntStateOf(0) }
@@ -370,11 +382,31 @@ private object NoPageScroll : androidx.compose.foundation.gestures.BringIntoView
  * Up and Down go straight to the rows around it ([up], [down]), to the card you left each of those on.
  */
 @Composable
-private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: FocusRequester, keys: List<String>, card: @Composable (Int, Modifier) -> Unit) {
+private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: FocusRequester, titles: List<String>, card: @Composable (Int, Modifier) -> Unit) {
+    // Each card its own key (a title from Nuvio and Stremio both would otherwise be there twice, and the row stops).
+    val keys = remember(titles) { val seen = HashSet<String>(); titles.mapIndexed { i, k -> if (seen.add(k)) k else "$k#$i" } }
     var last by remember { mutableStateOf<String?>(null) }
+    var inside by remember { mutableStateOf(false) }
+    var leftAt by remember { mutableLongStateOf(0L) }
     val entryKey = keys.firstOrNull { it == last } ?: keys.firstOrNull()
+    // The card with the focus went (taken out of the row): the focus to the one now in its place, not lost. (The row
+    // loses the focus as the card goes, so "just now" counts too.)
+    LaunchedEffect(keys) {
+        val justNow = android.os.SystemClock.uptimeMillis() - leftAt < 400
+        if ((inside || justNow) && last != null && last !in keys) { delay(50); runCatching { entry.requestFocus() } }
+    }
+    // A card new at the front (Live TV's channel just watched): the row stays on the old first one by itself, half of
+    // the new one cut off at the edge. Not in the row, it shows from the start.
+    val state = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(keys.firstOrNull()) {
+        if (!inside && state.firstVisibleItemIndex <= 1) runCatching { state.scrollToItem(0) }
+    }
     LazyRow(
-        Modifier.fillMaxWidth().focusGroup(),
+        state = state,
+        modifier = Modifier.fillMaxWidth().onFocusChanged {
+            if (inside && !it.hasFocus) leftAt = android.os.SystemClock.uptimeMillis()
+            inside = it.hasFocus
+        }.focusGroup(),
         horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
         contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (6 * s).dp, bottom = (6 * s).dp),
     ) {
@@ -651,11 +683,8 @@ private fun WatchCard(item: HeroItem, newer: Int, s: Float, modifier: Modifier, 
             else Text(item.name, color = Color.White, fontSize = (8.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = (8 * s).dp, bottom = (12 * s).dp, end = (8 * s).dp))
         }
-        // Selected: a play button in the middle, and where you are (S2 · E5 · 40% left).
+        // Selected: where you are (S2 · E5 · 40% left).
         if (focused) {
-            Box(Modifier.align(Alignment.Center).size((24 * s).dp).background(RED, CircleShape), contentAlignment = Alignment.Center) {
-                PlayGlyph(Modifier.size((9 * s).dp).padding(start = (1 * s).dp), Color.White)
-            }
             val where = whereText(item)
             if (where.isNotBlank() || item.country.isNotEmpty()) Row(Modifier.align(Alignment.BottomEnd).padding(end = (8 * s).dp, bottom = (12 * s).dp),
                 verticalAlignment = Alignment.CenterVertically) {

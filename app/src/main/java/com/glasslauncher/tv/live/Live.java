@@ -81,6 +81,16 @@ public class Live extends Activity {
     private long shiftFrom;
     private boolean shiftPlaying;
     private androidx.media3.extractor.DefaultExtractorsFactory extractors;
+    /**
+     * A past program's address starts here, ms into it (the provider takes a start to the minute): the player's
+     * position is from there. And how far past that start to go once it plays, when the stream can seek.
+     */
+    private long catchupBase, catchupInside;
+    /** ◀ ▶ pressed in a row: where they go (position()'s ms), done once the presses stop; -1: none. */
+    private long skipTo = -1, skipLast;
+    private int skipRun;
+    /** What the skips were pressed on (the past program or the pause): anything else since, they're dropped. */
+    private Object skipOn;
     private long resumeAt;
     private String format = "ts";   // this channel's stream format (HLS after MPEG-TS failed, for this channel only)
     private boolean triedOther, waited, preview, askGuide;
@@ -131,6 +141,12 @@ public class Live extends Activity {
             if (state == Player.STATE_BUFFERING && wasReady) stalled();
             wasReady = state == Player.STATE_READY || wasReady && state == Player.STATE_BUFFERING;
             if (state == Player.STATE_READY) view.setStatus("");
+            if (state == Player.STATE_READY && catchup != null && catchupInside > 0 && player != null) {
+                // The rest of the way into the minute it started at; a stream that can't seek plays from there.
+                long inside = catchupInside;
+                catchupInside = 0;
+                if (player.isCurrentMediaItemSeekable() && inside > 1000) player.seekTo(inside);
+            }
             if (state == Player.STATE_ENDED && catchup != null && !endSeen) {       // the program is over: what's next, or live
                 endSeen = true;
                 upNext();
@@ -372,7 +388,7 @@ public class Live extends Activity {
         if (shift != null && playing != null) {      // the pause ends with the screen: live again next time
             endShift();
         }
-        if (player != null && catchup != null) resumeAt = player.getCurrentPosition();
+        if (player != null && catchup != null) resumeAt = position();
         leftCatchup();
         releasePlayer();
         setDisplayMode(0);  // the TV's own refresh rate again
@@ -1209,7 +1225,7 @@ public class Live extends Activity {
 
     /** The buffer or the format changed in the settings: a new player, the same channel (or program) on it. */
     void playbackChanged() {
-        if (player != null && catchup != null) resumeAt = player.getCurrentPosition();
+        if (player != null && catchup != null) resumeAt = position();
         releasePlayer();
         createPlayer();
         if (playing != null) resume();
@@ -1336,7 +1352,7 @@ public class Live extends Activity {
         view.setStatus(Ui.tr("Conectando de novo…", "Connecting again…"));
         final Xtream.Channel ch = playing;
         final Xtream.Program p = catchup;
-        final long at = player != null && catchup != null ? player.getCurrentPosition() : 0;
+        final long at = player != null && catchup != null ? position() : 0;
         main.postDelayed(() -> {
             if (playing != ch || catchup != p) return;
             if (p != null) startCatchup(at); else start(ch);
@@ -1373,7 +1389,7 @@ public class Live extends Activity {
         triedOther = waited = false;
         format = chosenFormat();
         if (catchup != null) {
-            long at = player == null ? 0 : player.getCurrentPosition();
+            long at = position();
             startCatchup(at);
         } else if (playing != null) {
             start(playing);
@@ -1424,7 +1440,7 @@ public class Live extends Activity {
     /** Multiview, the channel playing in its first box (the main player stops while it's open). */
     void openMultiview() {
         // The hardware decoder goes first: Multiview's first box needs it (the TV runs one at a time).
-        if (player != null && catchup != null) resumeAt = player.getCurrentPosition();
+        if (player != null && catchup != null) resumeAt = position();
         leftCatchup();
         releasePlayer();
         Intent i = new Intent(this, Multiview.class).putExtra(Multiview.EXTRA_UNLOCKED, unlocked);
@@ -1513,6 +1529,13 @@ public class Live extends Activity {
         // A merged channel's past from a source with catch-up (the one picked for the connection when there are several).
         if (file == null && (source == null || source.archive <= 0)) source = pickSource(true);
         final Xtream.Channel src = source == null ? ch : source;
+        // The provider's address starts at the minute before `from`: the rest is a seek once it plays, when it can.
+        // (A recording's file seeks from the start.)
+        from = Math.max(0, from);
+        final long base = file != null ? 0 : (p.start + from) / 60_000 * 60_000 - p.start;
+        catchupBase = base;
+        catchupInside = from - base;
+        skipTo = -1;
         Context app = getApplicationContext();
         wasReady = false;
         stallAt = 0;
@@ -1523,7 +1546,7 @@ public class Live extends Activity {
         io.execute(() -> {
             String url;
             try {
-                url = file != null ? android.net.Uri.fromFile(new java.io.File(file)).toString() : Xtream.catchupUrl(app, src, p, f);
+                url = file != null ? android.net.Uri.fromFile(new java.io.File(file)).toString() : Xtream.catchupUrl(app, src, p, p.start + base, f);
             } catch (Exception e) {
                 url = null;
             }
@@ -1535,8 +1558,9 @@ public class Live extends Activity {
                     view.setStatus(Ui.tr("Não deu para falar com o servidor.", "Couldn't reach the server."));
                     return;
                 }
+                // From the start of the address: a stream that can't seek would say it's further on than it is.
                 player.setMediaItem(new MediaItem.Builder().setUri(address)
-                        .setMimeType(file == null && f.equals("m3u8") ? MimeTypes.APPLICATION_M3U8 : MimeTypes.VIDEO_MP2T).build(), from);
+                        .setMimeType(file == null && f.equals("m3u8") ? MimeTypes.APPLICATION_M3U8 : MimeTypes.VIDEO_MP2T).build(), 0);
                 player.prepare();
                 player.play();
                 endSeen = false;
@@ -1551,7 +1575,7 @@ public class Live extends Activity {
         if (player == null || catchup == null || playing == null || recordingFile != null) return;
         final Xtream.Channel ch = playing;
         final Xtream.Program p = catchup;
-        final long at = player.getPlaybackState() == Player.STATE_ENDED ? Long.MAX_VALUE / 2 : player.getCurrentPosition();
+        final long at = player.getPlaybackState() == Player.STATE_ENDED ? Long.MAX_VALUE / 2 : position();
         final long length = length();
         final Context app = getApplicationContext();
         io.execute(() -> LiveResume.left(app, ch, p, at, length));
@@ -1707,17 +1731,22 @@ public class Live extends Activity {
 
     /** How far into the past program (ms) and how long it is (the stream's length, else the guide's). */
     long position() {
+        if (skipTo >= 0) return skipTo;     // skips on their way: where they go
         if (shift != null) return Math.max(0, shiftAt() - shift.oldest());
-        return player == null ? 0 : Math.max(0, player.getCurrentPosition());
+        if (player == null) return 0;
+        long at = Math.max(0, player.getCurrentPosition());
+        // A past program: from where its address starts (and, till it plays, where it's going in that minute).
+        return catchup == null ? at : Math.max(0, catchupBase + Math.max(at, catchupInside));
     }
 
     long length() {
         if (shift != null) return Math.max(1000, shift.newest() - shift.oldest());
         long d = player == null ? C.TIME_UNSET : player.getDuration();
         long guide = catchup == null ? 0 : catchup.end - catchup.start;
+        long total = d == C.TIME_UNSET || d <= 0 ? guide : (catchup == null ? 0 : catchupBase) + d;
         // Some providers' catch-up says it's far longer than the show (a day and more): then the guide's length.
-        if (guide > 0 && recordingFile == null && d > guide * 3 / 2 + 15 * 60_000L) return guide;
-        return d == C.TIME_UNSET || d <= 0 ? guide : d;
+        if (guide > 0 && recordingFile == null && total > guide * 3 / 2 + 15 * 60_000L) return guide;
+        return total;
     }
 
     boolean paused() {
@@ -1728,6 +1757,10 @@ public class Live extends Activity {
     /** Play/pause: a past program or a recording as it is; live TV pauses into the TV's own buffer (LiveTimeshift). */
     void togglePause() {
         if (player == null) return;
+        if (skipTo >= 0) {      // skips on their way: there first
+            main.removeCallbacks(applySkip);
+            applySkip.run();
+        }
         if (catchup == null && shift == null && playing != null) {
             startShift();
             return;
@@ -1828,25 +1861,65 @@ public class Live extends Activity {
         shiftPlaying = false;
     }
 
-    /** Skips `ms` (back when negative) in the past program; false when the stream can't skip. */
+    /**
+     * Skips `ms` (back when negative) in the past program, or behind live. Presses in a row add up and go once they
+     * stop (each would otherwise open the stream again); held, the steps grow. False when nothing can skip.
+     */
     boolean skip(long ms) {
-        if (shift != null) {        // behind live: within the buffer; past its newest, live again
-            long to = Math.max(shift.oldest(), shiftAt() + ms);
-            if (to >= shift.newest() - 4000) {
-                backToLive();
-            } else {
-                boolean wasPaused = paused();
-                playShift(to);
-                if (wasPaused) player.setPlayWhenReady(false);      // still paused, at the new moment
-            }
-            return true;
-        }
-        if (player == null || !player.isCurrentMediaItemSeekable()) return false;
-        long to = Math.max(0, player.getCurrentPosition() + ms), end = length();
-        if (end > 0) to = Math.min(to, end - 1000);
-        player.seekTo(to);
+        if (player == null || shift == null && catchup == null) return false;
+        long up = android.os.SystemClock.uptimeMillis();
+        skipRun = up - skipLast < 700 && (ms > 0) == (skipStep > 0) ? skipRun + 1 : 0;
+        skipLast = up;
+        skipStep = ms;
+        long step = ms * (skipRun >= 12 ? 6 : skipRun >= 5 ? 3 : 1);
+        long to = Math.max(0, (skipTo >= 0 ? skipTo : position()) + step), end = length();
+        long now = System.currentTimeMillis();
+        boolean airing = shift == null && recordingFile == null && catchup.end > now;
+        // Behind live (the pause, or a show still on): up to live. Over: up to its last second.
+        if (shift != null) to = Math.min(to, end);
+        else if (airing) to = Math.min(to, now - catchup.start);
+        else if (end > 0) to = Math.min(to, end - 1000);
+        skipTo = to;
+        skipOn = shift != null ? shift : catchup;
+        main.removeCallbacks(applySkip);
+        main.postDelayed(applySkip, 600);
         return true;
     }
+
+    private long skipStep;
+
+    /** The skips pressed, done: a seek, the stream again from the minute when it can't seek, or live at the end. */
+    private final Runnable applySkip = () -> {
+        long to = skipTo;
+        skipTo = -1;
+        if (to < 0 || player == null) return;
+        if (shift != null) {
+            if (skipOn != shift) return;
+            if (shift.oldest() + to >= shift.newest() - 4000) {     // past the newest: live again
+                backToLive();
+                return;
+            }
+            boolean wasPaused = paused();
+            playShift(shift.oldest() + to);
+            if (wasPaused) player.setPlayWhenReady(false);      // still paused, at the new moment
+            return;
+        }
+        if (catchup == null || skipOn != catchup) return;
+        long now = System.currentTimeMillis();
+        if (recordingFile == null && catchup.end > now && to >= now - catchup.start - 5000) {    // caught up: live
+            backToLive();
+            return;
+        }
+        long at = position();
+        if (recordingFile != null || player.isCurrentMediaItemSeekable() && to >= catchupBase) {
+            player.seekTo(Math.max(0, to - catchupBase));
+            return;
+        }
+        // It can't seek (most providers' catch-up as MPEG-TS): the address again, from the minute `to` is in; ahead,
+        // the next minute when that one is no further on than now.
+        long minute = (catchup.start + to) / 60_000 * 60_000 - catchup.start;
+        startCatchup(to > at && minute <= at ? minute + 60_000 : to);
+    };
 
     /** The video at its own shape, as large as the screen allows (letterboxed or pillarboxed). */
     private void fit(VideoSize size) {
