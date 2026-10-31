@@ -69,6 +69,9 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     val items = MutableStateFlow<List<HeroItem>>(emptyList())
     val addonList = MutableStateFlow(sp.getStringSet("addons", emptySet()) ?: emptySet())
     val status = MutableStateFlow("")
+    /** The titles showing are last time's (HeroSnapshot), till this run's list is whole. */
+    @Volatile private var fromSnapshot = false
+    private val SNAPSHOT = "catalogs"
     private val enriched = MutableStateFlow<Map<String, HeroItem>>(emptyMap())
     val enrichedItems: StateFlow<Map<String, HeroItem>> = enriched
 
@@ -137,6 +140,11 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     fun start(scope: CoroutineScope) {
         importSeed()
         scope.launch(Dispatchers.IO) {
+            // The titles as last shown, at once (asking every add-on again takes a while, and some never answer).
+            if (items.value.isEmpty()) HeroSnapshot.load(ctx, SNAPSHOT).takeIf { it.isNotEmpty() }?.let {
+                items.value = it
+                fromSnapshot = true
+            }
             while (true) {
                 runCatching { refresh() }
                 delay(30 * 60 * 1000L)
@@ -202,8 +210,15 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
                 saveSelected(sel)
             }
             val chosen = all.filter { it.key in sel }
+            if (chosen.isEmpty() && all.isEmpty() && urls.isNotEmpty() && fromSnapshot) {
+                // No add-on answered (no connection): last time's titles stay.
+                status.value = "Couldn't reach the add-ons"
+                return@withContext
+            }
             if (chosen.isEmpty()) {
                 items.value = emptyList()
+                fromSnapshot = false
+                HeroSnapshot.save(ctx, SNAPSHOT, emptyList())
                 status.value = if (urls.isEmpty()) "No add-ons yet" else "No catalogs selected"
                 return@withContext
             }
@@ -229,15 +244,21 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
                     async {
                         gate.withPermit {
                             results[c.key] = runCatching { fetchCatalog(c, per) }.getOrDefault(emptyList())
-                            // Show the first results early instead of waiting for every catalog.
-                            if (results.size <= 3 || results.size % 8 == 0) items.value = merge(false)
+                            // Show the first results early instead of waiting for every catalog (not over the
+                            // titles from last time: those stay till the new list is whole).
+                            if (!fromSnapshot && (results.size <= 3 || results.size % 8 == 0)) items.value = merge(false)
                             status.value = "Loading ${results.size}/${chosen.size} catalogs…"
                         }
                     }
                 }.awaitAll()
             }
             val merged = merge(settings.shuffle)
-            items.value = merged
+            // Every add-on failing (no connection) leaves last time's titles in place.
+            if (merged.isNotEmpty() || !fromSnapshot) {
+                items.value = merged
+                fromSnapshot = false
+                if (merged.isNotEmpty()) HeroSnapshot.save(ctx, SNAPSHOT, merged)
+            }
             status.value = "${merged.size} titles from ${chosen.size} catalogs"
         }
     }

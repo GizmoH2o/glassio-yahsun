@@ -39,7 +39,7 @@ final class LiveSettings {
             RESET_ROW = 56, MATCH_ROW = 57, MATCH_STYLE_ROW = 58, REMIND_WATCHING_ROW = 59, GUIDE_SHIFT_ROW = 60, GUIDE_SIZE_ROW = 61, SCORES_ROW = 62, GOALS_ROW = 63, RECORD_LIST_ROW = 64, RECORDINGS_ROW = 65,
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
-            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, MAIN_ROWS = 77;
+            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, MAIN_ROWS = 78;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
@@ -91,7 +91,7 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {FORMAT_ROW, BUFFER_ROW, FRAME_RATE_ROW, PASSTHROUGH_ROW, AUDIO_LANG_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
+            {FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, PASSTHROUGH_ROW, AUDIO_LANG_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
                     RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
@@ -316,6 +316,7 @@ final class LiveSettings {
             case FORMAT_ROW: return Ui.tr("Formato do vídeo", "Stream format");
             case BUFFER_ROW: return Ui.tr("Buffer", "Buffer");
             case FRAME_RATE_ROW: return Ui.tr("Taxa de quadros automática", "Auto frame rate");
+            case REWIND_ANY_ROW: return Ui.tr("Voltar em qualquer canal", "Rewind any channel");
             case PASSTHROUGH_ROW: return Ui.tr("Áudio direto (passthrough)", "Audio passthrough");
             case AUDIO_LANG_ROW: return Ui.tr("Idioma do áudio", "Audio language");
             case TUNNELING_ROW: return Ui.tr("Reprodução em túnel", "Tunneled playback");
@@ -456,6 +457,7 @@ final class LiveSettings {
                         : Ui.tr("Normal", "Normal");
             }
             case FRAME_RATE_ROW: return onOff(LiveOptions.frameRate(c));
+            case REWIND_ANY_ROW: return onOff(LiveOptions.rewindAny(c));
             case PASSTHROUGH_ROW: return onOff(LiveOptions.passthrough(c));
             case AUDIO_LANG_ROW: {
                 String l = LiveOptions.audioLanguage(c);
@@ -720,6 +722,8 @@ final class LiveSettings {
                             "Automatic uses what your provider prefers. If channels don't start, try the other one.");
                     case BUFFER_ROW: return Ui.tr("Maior: mais estável numa conexão lenta, demora um pouco mais para começar.",
                             "Larger: steadier on a slow connection, a little slower to start.");
+                    case REWIND_ANY_ROW: return Ui.tr("Os últimos 15 minutos do canal ficam na TV: ◀ volta em qualquer canal, mesmo sem reprise. Começa um instante depois.",
+                            "The channel's last 15 minutes are kept on the TV: ◀ goes back on any channel, even without catch-up. Starts a moment later.");
                     case FRAME_RATE_ROW: return Ui.tr("A tela muda para a taxa do vídeo (50 Hz, 24 Hz…), quando o canal informa a dele.",
                             "The screen switches to the video's rate (50 Hz, 24 Hz…), when the channel tells its own.");
                     case AUDIO_LANG_ROW: return LiveOptions.audioLanguage(context()).isEmpty()
@@ -1085,6 +1089,7 @@ final class LiveSettings {
         Context c = context();
         switch (id) {
             case FRAME_RATE_ROW: return LiveOptions.frameRate(c);
+            case REWIND_ANY_ROW: return LiveOptions.rewindAny(c);
             case PASSTHROUGH_ROW: return LiveOptions.passthrough(c);
             case TUNNELING_ROW: return LiveOptions.tunneling(c);
             case MERGE_ROW: return LiveOptions.merge(c);
@@ -1765,7 +1770,7 @@ final class LiveSettings {
     private void reset(Context c, int s) {
         switch (s) {
             case 0:     // Playback
-                LiveOptions.forget(c, "format", "buffer", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
+                LiveOptions.forget(c, "format", "buffer", "rewindAny", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
                 live.playbackChanged();
                 live.relist();
                 break;
@@ -1869,6 +1874,7 @@ final class LiveSettings {
         int focus = id();
         switch (focus) {
             case FRAME_RATE_ROW: LiveOptions.setFrameRate(c, !LiveOptions.frameRate(c)); live.playbackChanged(); announce(); return;
+            case REWIND_ANY_ROW: LiveOptions.setRewindAny(c, !LiveOptions.rewindAny(c)); live.playbackChanged(); announce(); return;
             case PASSTHROUGH_ROW: LiveOptions.setPassthrough(c, !LiveOptions.passthrough(c)); live.playbackChanged(); announce(); return;
             case AUDIO_LANG_ROW:
                 if (!LiveOptions.audioLanguage(c).isEmpty()) {
@@ -2141,6 +2147,7 @@ final class LiveSettings {
             case FORMAT_ROW:
             case BUFFER_ROW:
             case FRAME_RATE_ROW:
+            case REWIND_ANY_ROW:
             case PASSTHROUGH_ROW:
             case AUDIO_LANG_ROW:
             case TUNNELING_ROW:

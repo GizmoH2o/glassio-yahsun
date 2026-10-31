@@ -109,6 +109,13 @@ final class LiveResume {
         return out;
     }
 
+    /** Where each program left partway got to, by "channel id:its start": {position, length} (the guide asks Resume?). */
+    static synchronized java.util.Map<String, long[]> positions(Context c) {
+        java.util.Map<String, long[]> out = new java.util.HashMap<>();
+        for (Entry e : entries(c)) out.put(e.channel + ":" + e.program.start, new long[] {e.position, e.length});
+        return out;
+    }
+
     private static synchronized void keep(Context c, Xtream.Channel ch, Xtream.Program p, long position, long length) {
         try {
             org.json.JSONArray a = list(c), out = new org.json.JSONArray();

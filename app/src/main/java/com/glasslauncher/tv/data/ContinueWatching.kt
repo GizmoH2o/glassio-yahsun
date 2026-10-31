@@ -69,7 +69,11 @@ class ContinueWatching(
     fun start() {
         if (started) return
         started = true
-        scope.launch(Dispatchers.IO) { rebuildItems() }
+        scope.launch(Dispatchers.IO) {
+            // The cards as last shown, at once; then made again from the entries (each title's details).
+            if (items.value.isEmpty()) items.value = keepRecent(HeroSnapshot.load(ctx, "cw"))
+            rebuildItems()
+        }
         thread(name = "glass-cw-log", isDaemon = true) {
             while (true) {
                 // Can wait a long time: the TV's adb waits for "Allow USB debugging" to be answered. The accounts
@@ -343,7 +347,10 @@ class ContinueWatching(
 
     /** Turns entries into carousel items using Cinemeta (name, art, logo, synopsis, rating). */
     private fun rebuildItems() {
-        val out = entries.value.filter { it.percent >= 2 }.mapNotNull { e ->
+        // Settings › Continue Watching › Keep: only what was watched within that many days (0: everything).
+        val days = settings.cwDays
+        val since = if (days > 0) System.currentTimeMillis() - days * 24L * 3600 * 1000 else 0L
+        val out = entries.value.filter { it.percent >= 2 && it.at >= since }.mapNotNull { e ->
             runCatching {
                 val meta = http.json("https://v3-cinemeta.strem.io/meta/${e.type}/${e.imdb}.json", 7L * 24 * 3600 * 1000).optJSONObject("meta")
                     ?: return@runCatching null
@@ -368,7 +375,19 @@ class ContinueWatching(
             }.getOrNull()
         }
         items.value = out
+        HeroSnapshot.save(ctx, "cw", out)
     }
+
+    /** The saved cards still in the entries and within the days kept (the entries load before the cards). */
+    private fun keepRecent(list: List<HeroItem>): List<HeroItem> {
+        val days = settings.cwDays
+        val since = if (days > 0) System.currentTimeMillis() - days * 24L * 3600 * 1000 else 0L
+        val keep = entries.value.filter { it.at >= since }.map { it.key }.toHashSet()
+        return list.filter { it.key in keep }
+    }
+
+    /** Settings changed (how many days are kept): the cards made again. */
+    fun rebuild() { scope.launch(Dispatchers.IO) { rebuildItems() } }
 
     private fun load(): List<CwEntry> = runCatching {
         val a = JSONArray(sp.getString("entries", "[]"))

@@ -80,6 +80,11 @@ public class Live extends Activity {
     /** Where the player started in the pieces (the stream's clock), and whether it plays from them yet (else, paused). */
     private long shiftFrom;
     private boolean shiftPlaying;
+    /**
+     * The buffer is Rewind any channel's (always on, not a pause), and whether it plays at live (shown as live then);
+     * and, for one try, the channel straight from the provider after its buffer didn't start.
+     */
+    private boolean rolling, atLive, rollingFailed;
     private androidx.media3.extractor.DefaultExtractorsFactory extractors;
     /**
      * A past program's address starts here, ms into it (the provider takes a start to the minute): the player's
@@ -133,7 +138,7 @@ public class Live extends Activity {
             readySince = state == Player.STATE_READY ? up : 0;
             positionSince = up;
             lastPosition = -1;
-            if (state == Player.STATE_ENDED && catchup == null && shift == null && recordingFile == null && playing != null) {
+            if (state == Player.STATE_ENDED && catchup == null && (shift == null || rolling && atLive) && recordingFile == null && playing != null) {
                 recover(Ui.tr("O canal parou", "The channel stopped"));      // live has no end: the provider closed it
                 return;
             }
@@ -163,6 +168,13 @@ public class Live extends Activity {
             int status = httpStatus(e);
             AppLog.w("live: " + e.getErrorCodeName() + (status > 0 ? " (HTTP " + status + ")" : "") + " on " + format
                     + (playing == null ? "" : ", " + playing.name));
+            if (shift != null && rolling && playing != null) {     // Rewind any channel's buffer failed: straight, this time
+                AppLog.w("live: " + playing.name + ": the TV's buffer couldn't play, playing it directly");
+                endShift();
+                rollingFailed = true;
+                start(playing);
+                return;
+            }
             if (shift != null && playing != null) {     // the paused stream couldn't play: live again
                 view.flash(Ui.tr("Não deu para continuar daí: ao vivo", "Couldn't go on from there: live"));
                 play(playing);
@@ -891,6 +903,7 @@ public class Live extends Activity {
         leftCatchup();
         if (playing != null && playing.id != ch.id) previous = playing;
         if (playing == null || playing.id != ch.id) chosenSource = LiveMerge.preferred(this, ch);     // the version picked last time
+        if (playing == null || playing.id != ch.id) rollingFailed = false;     // another channel: through the buffer again
         playing = ch;
         sayWatching(ch);
         catchup = null;
@@ -914,6 +927,10 @@ public class Live extends Activity {
         if (source == null) source = ch;
         wasReady = false;
         stallAt = 0;
+        if (LiveOptions.rewindAny(this) && !rollingFailed) {
+            startRolling(ch);
+            return;
+        }
         MediaItem item = new MediaItem.Builder()
                 .setUri(Xtream.streamUrl(this, source, format))
                 .setMimeType(Xtream.mime(this, Xtream.streamUrl(this, source, format), format))
@@ -1195,7 +1212,7 @@ public class Live extends Activity {
      */
     private final Runnable ratingWatch = new Runnable() {
         @Override public void run() {
-            if (playing != null && catchup == null && shift == null && !askingRating && ratedLocked(onNowOf(playing))) {
+            if (playing != null && catchup == null && !shifted() && !askingRating && ratedLocked(onNowOf(playing))) {
                 final Xtream.Channel ch = playing;
                 askingRating = true;
                 if (player != null) player.stop();
@@ -1287,7 +1304,7 @@ public class Live extends Activity {
                     view.restyle();
                 }
             }
-            if (player == null || playing == null || shift != null || recordingFile != null || askingRating || !player.getPlayWhenReady()) return;
+            if (player == null || playing == null || shifted() || recordingFile != null || askingRating || !player.getPlayWhenReady()) return;
             long up = android.os.SystemClock.uptimeMillis();
             int state = player.getPlaybackState();
             if (state == Player.STATE_BUFFERING && bufferingSince > 0
@@ -1315,10 +1332,17 @@ public class Live extends Activity {
         bufferingSince = 0;
         positionSince = android.os.SystemClock.uptimeMillis();
         if (playing.sources != null && source != null && sources() != null) {
+            // A lighter source first (the connection didn't carry this one): SD after HD, H.264 after HEVC; the
+            // connection counts as slower from now on, so the next channels start lighter too. Not over a source
+            // the person picked.
+            Xtream.Channel light = chosenSource >= 0 || recordingFile != null ? null
+                    : LiveMerge.lighter(playing, source, catchup != null, failed);
+            if (light != null) LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
             failed.add(source.id);
-            Xtream.Channel next = LiveMerge.pick(this, playing, catchup != null, failed);
+            Xtream.Channel next = light != null ? light : LiveMerge.pick(this, playing, catchup != null, failed);
             if (next != null) {
-                view.flash(why + Ui.tr(": outra fonte", ": another source") + " (" + LiveMerge.label(next) + ")");
+                view.flash(light != null ? Ui.tr("Conexão lenta: ", "Slow connection: ") + LiveMerge.label(next)
+                        : why + Ui.tr(": outra fonte", ": another source") + " (" + LiveMerge.label(next) + ")");
                 health(LiveHealth.SWITCHED);
                 chosenSource = -1;
                 switchSource(next);
@@ -1726,6 +1750,12 @@ public class Live extends Activity {
 
     /** From a past program back to its channel live. */
     void backToLive() {
+        if (shift != null && rolling && playing != null) {      // Rewind any channel: the buffer's newest, kept
+            atLive = true;
+            playShift(shift.newest());
+            view.showBanner(playing);
+            return;
+        }
         if (playing != null) play(playing);
     }
 
@@ -1769,6 +1799,7 @@ public class Live extends Activity {
             playShift(shift.oldest() > shiftFrom ? shift.oldest() : shiftFrom);
             return;
         }
+        if (rolling && player.getPlayWhenReady()) atLive = false;     // paused in the buffer: behind live from now
         player.setPlayWhenReady(!player.getPlayWhenReady());
     }
 
@@ -1802,7 +1833,7 @@ public class Live extends Activity {
 
     /** Whether live TV is paused or playing behind live (from the TV's own buffer). */
     boolean shifted() {
-        return shift != null;
+        return shift != null && !(rolling && atLive);       // Rewind any channel's buffer at live: that's live
     }
 
     /** How far behind live it plays (ms). */
@@ -1815,6 +1846,35 @@ public class Live extends Activity {
         if (shift == null) return 0;
         if (!shiftPlaying || player == null) return shiftFrom;
         return shiftFrom + Math.max(0, player.getCurrentPosition());
+    }
+
+    /**
+     * Rewind any channel (Live TV › Settings): the channel plays through the TV's own buffer from the start, its last
+     * 15 minutes kept, so ◀ goes back on any channel. At live it shows as live; behind it, as paused live TV does.
+     * The buffer not starting (no answer): the channel straight from the provider instead, this time.
+     */
+    private void startRolling(Xtream.Channel ch) {
+        endShift();
+        shift = new LiveTimeshift(this, source, LiveTimeshift.ROLLING_MS);
+        rolling = true;
+        atLive = true;
+        view.setStatus("");
+        view.tuning();
+        playShift(0);       // at the newest as it comes in (the player waits for the first of it)
+        final LiveTimeshift s = shift;
+        main.postDelayed(() -> {
+            if (shift == s && !s.started() && playing == ch) {
+                AppLog.w("live: " + ch.name + ": the TV's buffer didn't start, playing it directly");
+                endShift();
+                rollingFailed = true;
+                start(ch);
+            }
+        }, 15_000);
+    }
+
+    /** Whether ◀ can go back in the TV's own buffer (Rewind any channel). */
+    boolean rolling() {
+        return shift != null && rolling;
     }
 
     /** Pause on live TV: the player lets go of the stream and the TV keeps it from now (the picture stays). */
@@ -1855,6 +1915,7 @@ public class Live extends Activity {
 
     /** The pause over: the buffer stops and goes (the caller plays what's next). */
     private void endShift() {
+        rolling = atLive = false;
         if (shift == null) return;
         shift.stop();
         shift = null;
@@ -1881,6 +1942,7 @@ public class Live extends Activity {
         else if (end > 0) to = Math.min(to, end - 1000);
         skipTo = to;
         skipOn = shift != null ? shift : catchup;
+        if (rolling) atLive = false;        // the buffer, behind live (past its newest, applySkip goes back to live)
         main.removeCallbacks(applySkip);
         main.postDelayed(applySkip, 600);
         return true;

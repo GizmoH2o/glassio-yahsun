@@ -198,6 +198,10 @@ class Settings(private val ctx: Context) {
     var continueMode: String get() = s("continueMode", "row"); set(v) = putS("continueMode", v)
     /** Continue Watching also from the Trakt account (when one is connected). */
     var cwTrakt: Boolean get() = b("cwTrakt", true); set(v) = putB("cwTrakt", v)
+    /** Continue Watching keeps only what was watched within this many days (0 = everything). */
+    var cwDays: Int get() = i("cwDays", 0); set(v) = putI("cwDays", v)
+    /** Continue Watching: series with a new episode out since you watched go first (after Live TV's cards). */
+    var cwNewFirst: Boolean get() = b("cwNewFirst", true); set(v) = putB("cwNewFirst", v)
     /** After you leave the player, the carousel opens on what you just watched. */
     /** How many titles in progress open the carousel (0 = all); the rest mix in with the catalogs. */
     var cwLead: Int get() = i("cwLead", 3); set(v) = putI("cwLead", v)

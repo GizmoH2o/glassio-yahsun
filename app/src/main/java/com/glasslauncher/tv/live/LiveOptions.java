@@ -70,6 +70,15 @@ final class LiveOptions {
     // MARK: - Playback
 
     /** Auto frame rate: the screen switches to a refresh rate matching the video (when the stream tells its own). */
+    /** Live TV through the TV's own buffer (its last 15 minutes): ◀ goes back on any channel, catch-up or not. */
+    static boolean rewindAny(Context c) {
+        return sp(c).getBoolean("rewindAny", false);
+    }
+
+    static void setRewindAny(Context c, boolean on) {
+        sp(c).edit().putBoolean("rewindAny", on).apply();
+    }
+
     static boolean frameRate(Context c) {
         return sp(c).getBoolean("frameRate", false);
     }

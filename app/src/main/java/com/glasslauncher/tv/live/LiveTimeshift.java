@@ -29,12 +29,16 @@ final class LiveTimeshift {
     /** A piece's size: whole MPEG-TS packets (188 bytes), about 24 MB. */
     static final long CHUNK = 188L * 128 * 1024;
     static final long MAX_MS = 90 * 60_000L;
+    /** Live TV played through the buffer (Rewind any channel): the last quarter hour is kept. */
+    static final long ROLLING_MS = 15 * 60_000L;
     private static final long MIN_FREE = 800L * 1024 * 1024;
 
     private final Context app;
     private final Xtream.Channel channel;
     private final File dir;
     private final Thread thread;
+    /** How far back it keeps. */
+    private final long maxMs;
     /**
      * {the stream's own clock (ms from the first moment kept, its PCR), where that packet is, when it came in}, about
      * twice a second: where each moment is in the pieces. The stream's clock, not the arrival: a provider sends its
@@ -47,8 +51,13 @@ final class LiveTimeshift {
     private volatile String failure;
 
     LiveTimeshift(Context c, Xtream.Channel channel) {
+        this(c, channel, MAX_MS);
+    }
+
+    LiveTimeshift(Context c, Xtream.Channel channel, long maxMs) {
         app = c.getApplicationContext();
         this.channel = channel;
+        this.maxMs = maxMs;
         dir = new File(app.getCacheDir(), "timeshift");
         clear(dir);
         dir.mkdirs();
@@ -120,12 +129,12 @@ final class LiveTimeshift {
         }
     }
 
-    /** The oldest pieces go: older than MAX_MS, or the TV's storage running short. */
+    /** The oldest pieces go: older than maxMs, or the TV's storage running short. */
     private void trim() {
         long now = System.currentTimeMillis(), keepFrom = first;
         synchronized (marks) {
             for (long[] m : marks) {
-                if (m[2] < now - MAX_MS) keepFrom = m[1]; else break;
+                if (m[2] < now - maxMs) keepFrom = m[1]; else break;
             }
         }
         if (dir.getUsableSpace() < MIN_FREE) keepFrom = Math.max(keepFrom, written - 4 * CHUNK);

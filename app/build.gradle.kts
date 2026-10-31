@@ -60,6 +60,18 @@ kotlin {
     compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) }
 }
 
+// On Windows something (the virus scanner, usually) still holds the last build's classes.dex for a moment, and R8
+// can't write over it ("being used by another process"): its folder goes first, waiting up to 15 s for the lock.
+tasks.matching { it.name == "minifyReleaseWithR8" }.configureEach {
+    val out = layout.buildDirectory.dir("intermediates/dex/release/minifyReleaseWithR8").get().asFile
+    doFirst {
+        for (i in 0 until 30) {
+            if (!out.exists() || out.deleteRecursively()) break
+            Thread.sleep(500)
+        }
+    }
+}
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2025.10.01"))
     implementation("androidx.compose.ui:ui")

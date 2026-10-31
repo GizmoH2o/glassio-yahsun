@@ -1597,7 +1597,7 @@ final class LiveView extends View {
             case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:     // in the guide: two hours on
                 return mode == GUIDE || (live.catchup() != null || live.shifted()) && mode == WATCH;
             case KeyEvent.KEYCODE_MEDIA_REWIND:     // live, on a channel with catch-up: back a little; in the guide: back
-                return mode == GUIDE || mode == WATCH && (live.catchup() != null || live.shifted() || playing != null && playing.archive > 0);
+                return mode == GUIDE || mode == WATCH && (live.catchup() != null || live.shifted() || live.rolling() || playing != null && playing.archive > 0);
             case KeyEvent.KEYCODE_SEARCH:
             case KeyEvent.KEYCODE_LAST_CHANNEL:
             case KeyEvent.KEYCODE_DPAD_UP:
@@ -2303,8 +2303,8 @@ final class LiveView extends View {
         if (p.start > now) {
             laterMenu(channel, p, () -> watchFromSearch(channel));
         } else if (p.end <= now && replayable(channel, p, now)) {
-            live.playCatchup(channel, p);
-            if (mode != WATCH) leave(WATCH);
+            resumes = LiveResume.positions(getContext());
+            playPast(channel, p, () -> { if (mode != WATCH) leave(WATCH); });
         } else {
             watchFromSearch(channel);
         }
@@ -2667,8 +2667,8 @@ final class LiveView extends View {
                         flash(Ui.tr("Este programa não está na reprise", "This program isn't in the catch-up"));
                     } else {
                         playCat = cat;
-                        live.playCatchup(channel, p);
-                        leave(WATCH);
+                        resumes = LiveResume.positions(getContext());
+                        playPast(channel, p, () -> leave(WATCH));
                     }
                 } else {
                     laterMenu(channel, p, () -> {
@@ -3267,6 +3267,7 @@ final class LiveView extends View {
     /** Opens the guide on category `category`, the playing channel's row focused at the current time. */
     void openGuide(int category) {
         if (lineup == null || lineup.categories.isEmpty()) return;
+        resumes = LiveResume.positions(getContext());      // where past programs were left (small: read here)
         enter(GUIDE);
         gGroups = gRail = false;
         gPanel.snap(0);
@@ -3294,6 +3295,37 @@ final class LiveView extends View {
     /** The guide on the category the playing channel came from (Live: the first time, to pick a channel). */
     void openGuide() {
         openGuide(playCat);
+    }
+
+    /** Past programs left partway: "channel id:start" → {position, length} (LiveResume), read as the guide opens. */
+    private java.util.Map<String, long[]> resumes = java.util.Collections.emptyMap();
+
+    /** Where past program `p` of `ch` was left, or null (never watched, or watched to the end). */
+    private long[] resumeOf(Xtream.Channel ch, Xtream.Program p) {
+        return ch == null || p == null ? null : resumes.get(ch.id + ":" + p.start);
+    }
+
+    /**
+     * A past program from the catch-up: left partway before, asked first (Resume from 23:10, or From the start);
+     * `after` once it plays (the screen it was picked on goes).
+     */
+    private void playPast(Xtream.Channel ch, Xtream.Program p, Runnable after) {
+        long[] r = resumeOf(ch, p);
+        if (r == null) {
+            live.playCatchup(ch, p);
+            after.run();
+            return;
+        }
+        LiveSheet.menu(getContext())
+                .setTitle(p.title.isEmpty() ? ch.name : p.title)
+                .setMessage(Ui.tr("Você parou em ", "You stopped at ") + clock(r[0]) + (r[1] > 0 ? " / " + clock(r[1]) : ""))
+                .setIcons("play", "start_over")
+                .setItems(new String[] {Ui.tr("Continuar de ", "Resume from ") + clock(r[0]), Ui.tr("Do início", "From the start")},
+                        (d, which) -> {
+                            live.playCatchup(ch, p, which == 0 ? r[0] : 0);
+                            after.run();
+                        })
+                .show();
     }
 
     private void closeGuide() {
@@ -4424,7 +4456,9 @@ final class LiveView extends View {
             }
         } else if (p != null && p.end <= now) {
             gLeft.setColor(PAST);
-            c.drawText(replayable(channel, p, now) ? Ui.tr("Reprise  ·  OK para assistir", "Catch-up  ·  Press OK to watch")
+            long[] r = replayable(channel, p, now) ? resumeOf(channel, p) : null;
+            c.drawText(r != null ? Ui.tr("Reprise  ·  Você parou em ", "Catch-up  ·  You stopped at ") + clock(r[0]) + Ui.tr("  ·  OK para continuar", "  ·  OK to resume")
+                    : replayable(channel, p, now) ? Ui.tr("Reprise  ·  OK para assistir", "Catch-up  ·  Press OK to watch")
                     : Ui.tr("Já passou", "Already aired"), x, y + 2 * k, gLeft);
             gLeft.setColor(LIVE_RED);
         } else if (p != null) {
@@ -4609,8 +4643,12 @@ final class LiveView extends View {
                 icons.add(0, "play");
                 actions.add(0, () -> {
                     playCat = gCat;
-                    if (p.end <= now) live.playCatchup(channel, p); else live.play(channel);
-                    closeGuide();
+                    if (p.end <= now) {
+                        playPast(channel, p, this::closeGuide);
+                    } else {
+                        live.play(channel);
+                        closeGuide();
+                    }
                 });
             }
             openShowPage(channel, p, labels, icons, actions);
@@ -4710,7 +4748,7 @@ final class LiveView extends View {
     /** Whether the player's bar seeks: a past program or a recording, or a live channel with catch-up (◀ goes back). */
     boolean canSeek() {
         Xtream.Channel ch = live.playing();
-        return live.catchup() != null || live.shifted() || ch != null && ch.archive > 0;
+        return live.catchup() != null || live.shifted() || live.rolling() || ch != null && ch.archive > 0;
     }
 
     /** ◀ ▶ on the player's bar: `ms` back or ahead; live, back into the catch-up (ahead is live already). */
@@ -4731,6 +4769,12 @@ final class LiveView extends View {
      */
     private void rewindLive() {
         Xtream.Channel ch = live.playing();
+        // Rewind any channel: the TV's own buffer, to the second (and on channels without catch-up).
+        if (live.rolling()) {
+            live.skip(-SKIP_BACK);
+            showBanner(ch);
+            return;
+        }
         if (ch == null || ch.archive <= 0) {
             flash(Ui.tr("Este canal não deixa voltar", "This channel can't rewind"));
             return;
@@ -5065,8 +5109,7 @@ final class LiveView extends View {
                         return;
                     }
                     playCat = gCat;
-                    live.playCatchup(rows.get(gRow), p);
-                    closeGuide();
+                    playPast(rows.get(gRow), p, this::closeGuide);      // left partway: Resume or From the start
                     return;
                 }
                 Xtream.Channel row = rows.get(gRow);

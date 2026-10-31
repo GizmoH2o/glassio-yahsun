@@ -145,9 +145,13 @@ internal fun HomePage(
     val resumed = lifeState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
 
     // ── what the rows hold
-    val watchItems = remember(liveCards, cwItems, enriched, settings.continueMode, settings.artChoice) {
+    val watchItems = remember(liveCards, cwItems, enriched, newEps, settings.continueMode, settings.artChoice, settings.cwNewFirst) {
         if (settings.continueMode == "off") liveCards
-        else liveCards + cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source, episodeTitle = c.episodeTitle) }
+        else {
+            val cw = cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source, episodeTitle = c.episodeTitle) }
+            // New episodes first (as watched, among themselves), then the rest as watched.
+            liveCards + if (settings.cwNewFirst) cw.sortedBy { if ((newEps[it.key] ?: 0) > 0) 0 else 1 } else cw
+        }
     }
     val showAiring = settings.homeAiring && airing.isNotEmpty()
     val showMovies = settings.homeMovies && movies.isNotEmpty()
@@ -395,11 +399,15 @@ private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: F
         val justNow = android.os.SystemClock.uptimeMillis() - leftAt < 400
         if ((inside || justNow) && last != null && last !in keys) { delay(50); runCatching { entry.requestFocus() } }
     }
-    // A card new at the front (Live TV's channel just watched): the row stays on the old first one by itself, half of
-    // the new one cut off at the edge. Not in the row, it shows from the start.
+    // A card new in front of the ones showing (Live TV's channel just watched, a new episode moved up): the row stays on
+    // the card that was first by itself, half of another cut off at the edge. Not in the row, it shows from the start
+    // (coming back in still lands on the card you left).
     val state = androidx.compose.foundation.lazy.rememberLazyListState()
-    LaunchedEffect(keys.firstOrNull()) {
-        if (!inside && state.firstVisibleItemIndex <= 1) runCatching { state.scrollToItem(0) }
+    LaunchedEffect(keys) {
+        // After the row has been laid out with the new order (it moves to keep the old first card then).
+        androidx.compose.runtime.withFrameNanos { }
+        androidx.compose.runtime.withFrameNanos { }
+        if (!inside && (state.firstVisibleItemIndex != 0 || state.firstVisibleItemScrollOffset != 0)) runCatching { state.scrollToItem(0) }
     }
     LazyRow(
         state = state,

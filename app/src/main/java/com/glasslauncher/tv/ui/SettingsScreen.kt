@@ -399,6 +399,10 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             buildList {
                 add(Toggle("Continue watching on Home", "Its row under the big picture: OK opens a title in the app it came from; hold OK to open it in your other app, mark it watched or take it out. Live TV's cards stay either way",
                     { st.continueMode != "off" }, { st.continueMode = if (it) "row" else "off" }))
+                add(Adjust("Keep", "Only what you watched within this time; older titles leave the row (they stay in the list below)", {
+                    st.cwDays.let { if (it == 0) "Everything" else if (it % 7 == 0 && it < 28) "${it / 7} week" + (if (it > 7) "s" else "") else "$it days" }
+                }, { st.cwDays = cycle(listOf(0, 7, 14, 30, 60, 90), st.cwDays, it); app.cw.rebuild() }))
+                add(Toggle("New episodes first", "A series with an episode out since you watched goes to the front (NEW EPISODE)", { st.cwNewFirst }, { st.cwNewFirst = it }))
                 add(Note("Apps"))
                 add(Toggle("Nuvio Legacy", if (app.cw.hasLogAccess()) "Reading what you watch in Nuvio Legacy" else "Allow USB debugging for Glassio when the TV asks", { st.cwLegacy }, { st.cwLegacy = it }))
                 val nuvioAcct = app.library.nuvio
