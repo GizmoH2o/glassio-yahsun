@@ -87,6 +87,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        (application as GlassApp).cw.inFront = false     // away (another app, Live TV): the accounts less often
+    }
+
     override fun onResume() {
         super.onResume()
         lastInput = System.currentTimeMillis()

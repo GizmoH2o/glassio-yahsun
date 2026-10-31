@@ -86,18 +86,18 @@ class ContinueWatching(
         }
         thread(name = "glass-cw-accounts", isDaemon = true) {
             while (true) {
-                // Trakt: every 3 minutes, or right away (at most every 45 s) when Glass comes back to the front.
+                // Trakt: every 3 minutes on screen (15 away), or right away (at most every 45 s) when Glass comes back.
                 val now = System.currentTimeMillis()
                 if (settings.cwTrakt && settings.continueMode != "off" && trakt.connected &&
-                    now - traktAt > (if (woke) 45_000L else 180_000L)) { traktAt = now; syncTrakt() }
+                    now - traktAt > every()) { traktAt = now; syncTrakt() }
                 // The official Nuvio app, through the account: as often as Trakt.
                 val nu = nuvio
                 if (settings.cwNuvio && settings.continueMode != "off" && nu != null && nu.connected &&
-                    now - nuvioAt > (if (woke) 45_000L else 180_000L)) { nuvioAt = now; syncNuvio(nu) }
+                    now - nuvioAt > every()) { nuvioAt = now; syncNuvio(nu) }
                 // Stremio, through the account: as often too.
                 val sa = stremio
                 if (settings.cwStremio && settings.continueMode != "off" && sa != null && sa.connected &&
-                    now - stremioAt > (if (woke) 45_000L else 180_000L)) { stremioAt = now; syncStremio(sa) }
+                    now - stremioAt > every()) { stremioAt = now; syncStremio(sa) }
                 woke = false
                 runCatching { accountsWake.tryAcquire(20, java.util.concurrent.TimeUnit.SECONDS) }
                 accountsWake.drainPermits()
@@ -109,7 +109,13 @@ class ContinueWatching(
     private val accountsWake = java.util.concurrent.Semaphore(0)
 
     /** Called when the home screen resumes, so leaving Nuvio shows up immediately. */
-    fun pollNow() { woke = true; wake.release(); accountsWake.release() }
+    fun pollNow() { inFront = true; woke = true; wake.release(); accountsWake.release() }
+
+    /** Whether the home screen is on screen: away (watching in another app), the accounts are read far less often. */
+    @Volatile var inFront = true
+
+    /** How long between account syncs: soon after coming back, every 3 minutes on screen, every 15 away. */
+    private fun every(): Long = if (woke) 45_000L else if (inFront) 180_000L else 900_000L
 
     /** Trakt sign-in in progress: the line to show ("Go to … and enter CODE"), null when idle. */
     val traktCode = MutableStateFlow<String?>(null)
@@ -141,6 +147,7 @@ class ContinueWatching(
      */
     private fun syncTrakt() {
         val paused = runCatching { trakt.playback() }.getOrElse { Glog.w("Trakt sync", it); traktStatus.value = "Sync failed: ${it.message}"; return }
+        var changed: Boolean
         synchronized(this) {
             val ids = JSONObject()
             val list = entries.value.filterNot { it.app == "Trakt" }.toMutableList()
@@ -154,12 +161,15 @@ class ContinueWatching(
                 ids.put(e.key, p.id)
             }
             val trimmed = list.sortedByDescending { it.at }.take(30)
-            entries.value = trimmed
-            save(trimmed)
+            changed = trimmed != entries.value
+            if (changed) {
+                entries.value = trimmed
+                save(trimmed)
+            }
             sp.edit().putString("traktIds", ids.toString()).apply()
         }
         traktStatus.value = "${paused.size} paused on Trakt"
-        rebuildItems()
+        if (changed) rebuildItems()     // the same list as before: the cards stay (no details read again)
     }
 
     private fun nuvioKeys(): JSONObject = runCatching { JSONObject(sp.getString("nuvioKeys", null) ?: "{}") }.getOrDefault(JSONObject())
@@ -175,6 +185,7 @@ class ContinueWatching(
         val all = nu.watchProgress() ?: run { nuvioStatus.value = "Sync failed: ${nu.lastError.ifBlank { "offline" }}"; return }
         // Cinemeta names the title: only IMDb ids (tt…).
         val latest = onePerTitle(all.filter { it.id.startsWith("tt") })
+        var changed: Boolean
         synchronized(this) {
             val keys = JSONObject()
             val list = entries.value.filterNot { it.app == "Nuvio" }.toMutableList()
@@ -188,14 +199,17 @@ class ContinueWatching(
                 keys.put(e.key, JSONArray(all.filter { it.id == p.id }.map { it.key }.filter { it.isNotBlank() }))
             }
             val trimmed = list.sortedByDescending { it.at }.take(30)
-            entries.value = trimmed
-            save(trimmed)
+            changed = trimmed != entries.value
+            if (changed) {
+                entries.value = trimmed
+                save(trimmed)
+            }
             sp.edit().putString("nuvioKeys", keys.toString()).apply()
         }
         val n = latest.count { it.percent < 92 }
         Glog.i("Nuvio watch progress: ${all.size} entries on the account, ${latest.size} titles with IMDb ids, $n in progress")
         nuvioStatus.value = if (n == 1) "1 title in progress" else "$n titles in progress"
-        rebuildItems()
+        if (changed) rebuildItems()     // the same list as before: the cards stay (no details read again)
     }
 
     /** Forces a Stremio account sync on the next round (after signing in, or turning it on). */
@@ -209,6 +223,7 @@ class ContinueWatching(
         val all = sa.watchProgress() ?: run { stremioStatus.value = "Sync failed: ${sa.lastError.ifBlank { "offline" }}"; return }
         // Cinemeta names the title: only IMDb ids (tt…); a series only with its episode known.
         val latest = all.filter { it.id.startsWith("tt") && (it.type == "movie" || it.season > 0 || it.episode > 0) }
+        var changed: Boolean
         synchronized(this) {
             val list = entries.value.filterNot { it.app == "Stremio" }.toMutableList()
             for (p in latest) {
@@ -220,13 +235,16 @@ class ContinueWatching(
                 list.add(e)
             }
             val trimmed = list.sortedByDescending { it.at }.take(30)
-            entries.value = trimmed
-            save(trimmed)
+            changed = trimmed != entries.value
+            if (changed) {
+                entries.value = trimmed
+                save(trimmed)
+            }
         }
         val n = latest.count { it.percent < 92 }
         Glog.i("Stremio watch progress: ${all.size} titles with a position, ${latest.size} with IMDb ids, $n in progress")
         stremioStatus.value = if (n == 1) "1 title in progress" else "$n titles in progress"
-        rebuildItems()
+        if (changed) rebuildItems()     // the same list as before: the cards stay (no details read again)
     }
 
     companion object {
