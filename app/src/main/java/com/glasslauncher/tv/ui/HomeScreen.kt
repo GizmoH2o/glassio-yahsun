@@ -674,7 +674,10 @@ private fun PageBackdrop(
 private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>) {
     // Drawn 1:1 normally; prepared at 2/3 size (Performance) it is scaled up, so it needs filtering.
     val fq = if ((cur ?: prev)?.width?.let { it < 1800 } == true) androidx.compose.ui.graphics.FilterQuality.Low else androidx.compose.ui.graphics.FilterQuality.None
-    if (prev != null) Image(prev, null, contentScale = ContentScale.FillBounds, filterQuality = fq, modifier = Modifier.fillMaxSize())
+    // The old picture only while the new one fades in: covered by it after that, drawn for nothing (a second full-screen
+    // picture every frame, a quarter of a TV graphics chip's time).
+    if (prev != null) Image(prev, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
+        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (cur != null && mix.value >= 1f) 0f else 1f })
     if (cur != null) Image(cur, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (prev != null) mix.value else 1f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
     else if (prev == null) Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
