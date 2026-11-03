@@ -124,6 +124,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         // If Glass was closed while the TV screensaver was being started, put the screen timeout back.
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()
         icons.importDropFolder(apps.apps.value.map { it.pkg })
+        com.glasslauncher.tv.net.PhoneRemote.apply(this)     // the phone remote, when it's on
         ensureHomeService()
         // TCL: a restart (Open Glassio when the TV starts) and Live TV's alarms reach Glassio only once it may auto-start.
         if (BootReceiver.TCL && (settings.bootGlassio || com.glasslauncher.tv.live.LiveHome.ready(this)))

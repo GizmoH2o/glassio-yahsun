@@ -100,6 +100,11 @@ public final class LiveHome {
         return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_SEARCH, "");
     }
 
+    /** Live TV's search with `words` in it (the phone remote's Search). */
+    public static Intent search(Context c, String words) {
+        return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_SEARCH, words);
+    }
+
     public static List<String> followed(Context c) {
         return LiveFollow.all(c);
     }

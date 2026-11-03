@@ -202,7 +202,48 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
     }
     @Volatile private var lastDownload = ""
 
+    /** The remote's buttons, to the TV's own key codes (pressed through the TV's debugging connection, LocalShell). */
+    private val KEYS = mapOf(
+        "up" to "DPAD_UP", "down" to "DPAD_DOWN", "left" to "DPAD_LEFT", "right" to "DPAD_RIGHT", "ok" to "DPAD_CENTER",
+        "back" to "BACK", "home" to "HOME", "menu" to "MENU", "playpause" to "MEDIA_PLAY_PAUSE", "rew" to "MEDIA_REWIND",
+        "ff" to "MEDIA_FAST_FORWARD", "volup" to "VOLUME_UP", "voldown" to "VOLUME_DOWN", "mute" to "VOLUME_MUTE",
+        "chup" to "CHANNEL_UP", "chdown" to "CHANNEL_DOWN", "info" to "INFO",
+    )
+
+    /** A command on the TV's shell; the TV asks once to allow USB debugging for Glassio (Always allow). */
+    private fun shell(cmd: String) {
+        com.glasslauncher.tv.data.LocalShell.run(app, cmd)
+            .getOrElse { error("Allow TV access (ADB) for Glassio first: Settings › System › TV access") }
+    }
+
     private fun post(path: String, j: JSONObject): String = when (path) {
+        // The phone remote: a button, typed text, Live TV's search, an app opened or moved on Home.
+        "/api/key" -> { shell("input keyevent KEYCODE_" + (KEYS[j.optString("key")] ?: error("Unknown button"))); "" }
+        "/api/text" -> {
+            // Only what the TV's keyboard types plainly (letters, digits, simple punctuation); a space as %s.
+            val t = j.optString("text").take(200).filter { it.isLetterOrDigit() || it in " .,-_@:/?!'" }
+            require(t.isNotBlank()) { "Nothing to type" }
+            shell("input text '" + t.replace("'", "'\\''").replace(" ", "%s") + "'")
+            "Typed"
+        }
+        "/api/search" -> {
+            val words = j.optString("q").trim().take(100)
+            require(words.isNotEmpty()) { "Type what to look for" }
+            app.startActivity(com.glasslauncher.tv.live.LiveHome.search(app, words))
+            "Searching Live TV for “$words”"
+        }
+        "/api/app/open" -> {
+            val e = app.apps.ordered(includeHidden = true).firstOrNull { it.pkg == j.optString("pkg") } ?: error("No such app")
+            check(app.apps.open(app, e)) { "${e.label} can't be opened" }; "Opened ${e.label}"
+        }
+        // Home Assistant: a camera over whatever is on (a doorbell). {"image": snapshot link, "title", "seconds"}.
+        "/api/ha/camera" -> {
+            val image = j.optString("image").trim()
+            require(image.startsWith("http")) { "Send the camera's picture link as image" }
+            com.glasslauncher.tv.CameraActivity.show(app, image, j.optString("title", "Doorbell"), j.optInt("seconds", 20))
+            "Showing the camera"
+        }
+        "/api/app/move" -> { app.apps.move(j.optString("pkg"), if (j.optInt("dir") < 0) -1 else 1); "Moved" }
         "/api/bg/mode" -> {
             val m = j.optString("mode")
             require(m in listOf("carousel", "image", "video", "aerial")) { "Unknown mode" }
@@ -289,10 +330,21 @@ button{background:#7b61ff;color:#fff;border:0;border-radius:12px;padding:11px 16
 button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin:0 4px 0 0}button.d{background:#3a1f2b;color:#ff8f9b}
 #msg{position:sticky;top:0;padding:10px 0;min-height:1.4em;font-weight:600}.ok{color:#6ee7b7}.bad{color:#ff8f9b}
 .card{background:#141827;border-radius:14px;padding:12px 14px;margin-bottom:8px}.card b{display:block}.card small{color:#6b7794;word-break:break-all}
-.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tag{font-size:11px;background:#2a2150;color:#c8bdff;border-radius:6px;padding:1px 6px;margin-left:6px}
+.row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:8px;justify-content:center;margin:6px 0 4px}.pad button{height:64px;margin:0;font-size:20px}.pad .okb{border-radius:50%}.tag{font-size:11px;background:#2a2150;color:#c8bdff;border-radius:6px;padding:1px 6px;margin-left:6px}
 </style></head><body><main>
 <h1>Glassio</h1><p>Manage your TV from here &middot; &#1573;&#1583;&#1575;&#1585;&#1577; &#1575;&#1604;&#1578;&#1604;&#1601;&#1586;&#1610;&#1608;&#1606; &#1605;&#1606; &#1607;&#1606;&#1575;</p>
 <div id="msg"></div>
+<h2>Remote</h2>
+<div class="pad"><span></span><button onclick="k('up')">&#9650;</button><span></span>
+<button onclick="k('left')">&#9664;</button><button class="okb" onclick="k('ok')">OK</button><button onclick="k('right')">&#9654;</button>
+<span></span><button onclick="k('down')">&#9660;</button><span></span></div>
+<div class="row"><button class="s" onclick="k('back')">Back</button><button class="s" onclick="k('home')">Home</button><button class="s" onclick="k('menu')">Menu</button><button class="s" onclick="k('info')">Info</button></div>
+<div class="row"><button class="s" onclick="k('rew')">&#9194;</button><button class="s" onclick="k('playpause')">&#9199;</button><button class="s" onclick="k('ff')">&#9193;</button>
+<button class="s" onclick="k('chup')">CH +</button><button class="s" onclick="k('chdown')">CH &minus;</button></div>
+<div class="row"><button class="s" onclick="k('voldown')">Vol &minus;</button><button class="s" onclick="k('mute')">Mute</button><button class="s" onclick="k('volup')">Vol +</button></div>
+<input type="text" id="tx" placeholder="Type into the TV (the box that's open there)" style="margin-top:12px"><button onclick="send('/api/text',{text:v('tx')},'tx')">Type on the TV</button>
+<input type="text" id="sq" placeholder="Channel or show" style="margin-top:12px"><button onclick="send('/api/search',{q:v('sq')},'sq')">Search Live TV</button>
 <h2>Add-ons</h2><div id="addons"></div>
 <input type="text" id="au" placeholder="https://.../manifest.json  or  stremio://..."><button onclick="addAddon()">Add add-on</button>
 <div style="display:none"><h2>Background</h2><p>What's behind the home screen. Your pictures and videos live in Glassio's backgrounds folder on the TV.</p>
@@ -301,7 +353,7 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 <input type="text" id="bv" placeholder="Video link: https://.../video.mp4" style="margin-top:12px"><div class="row"><button onclick="bgLink('video','bv')">Use video link</button><button class="s" onclick="bgSave('bv')">Save to the TV</button></div>
 <div class="row" style="margin-top:12px"><input type="file" id="bf" accept="image/*,video/*" style="display:none" onchange="bgUp()"><button onclick="document.getElementById('bf').click()">Upload a picture or video from this phone</button></div>
 <p id="bgp"></p><div id="bgfiles"></div></div>
-<h2>App icons</h2><p>Pick an app, then paste an image link or upload an image from this phone.</p><div id="apps"></div>
+<h2>Apps</h2><p>Open one on the TV, move it up or down on Home, or give it an icon: an image link or one from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>
 <h2>Backup</h2><p>Everything Glassio has on this TV (settings, sign-ins, app icons, Live TV) in one file, locked with a code you choose: at least 6 characters. Keep the code safe: without it the file can't be opened.</p>
@@ -321,6 +373,7 @@ api('/api/backup/make',{code:c}).then(function(r){if(!r.ok){say(r.error,false);r
 function rs(){var f=document.getElementById('bkf').files[0],c=v('rc');if(!f){say('Choose the backup file first',false);return}if(!c){say('Type its code',false);return}
 if(!confirm('Replace Glassio's settings on the TV with this backup?'))return;say('Restoring...',true);var fr=new FileReader();
 fr.onload=function(){api('/api/backup/restore',{code:c,file:fr.result}).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok)document.getElementById('rc').value=''}).catch(function(){say('Cannot reach the TV',false)})};fr.readAsText(f)}
+function k(key){api('/api/key',{key:key}).then(function(r){if(!r.ok)say(r.error,false)}).catch(function(){say('Cannot reach the TV',false)})}
 function addAddon(){var u=v('au');if(u)send('/api/addon/add',{url:u},'au')}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
 function up(pkg,f){say('Uploading...',true);fetch('/api/icon/upload?pkg='+encodeURIComponent(pkg)+'&t='+encodeURIComponent(T),{method:'POST',body:f}).then(function(r){return r.json()}).then(function(r){say(r.ok?r.message:r.error,r.ok);load()}).catch(function(){say('Upload failed',false)})}
@@ -344,7 +397,10 @@ var bu=el('button','s','Link');bu.onclick=function(){var u=prompt('Image link');
 var fi=el('input');fi.type='file';fi.accept='image/*';fi.style.display='none';fi.onchange=function(){if(fi.files[0])up(x.pkg,fi.files[0])};
 var bf=el('button','s','Upload');bf.onclick=function(){fi.click()};
 var br=el('button','s d','Reset');br.onclick=function(){send('/api/icon/reset',{pkg:x.pkg})};
-r.appendChild(bu);r.appendChild(bf);r.appendChild(fi);if(x.custom)r.appendChild(br);c.appendChild(r);p.appendChild(c)});
+var bo=el('button','s','Open');bo.onclick=function(){send('/api/app/open',{pkg:x.pkg})};
+var bup=el('button','s','▲');bup.onclick=function(){send('/api/app/move',{pkg:x.pkg,dir:-1})};
+var bdn=el('button','s','▼');bdn.onclick=function(){send('/api/app/move',{pkg:x.pkg,dir:1})};
+r.appendChild(bo);r.appendChild(bup);r.appendChild(bdn);r.appendChild(bu);r.appendChild(bf);r.appendChild(fi);if(x.custom)r.appendChild(br);c.appendChild(r);p.appendChild(c)});
 var ks=document.getElementById('tks');ks.textContent=d.tmdb?'\u2713 Set':'Not set';ks.className=d.tmdb?'ok':'';
 document.getElementById('tk').placeholder=d.tmdb?'Token saved (type a new one to replace, empty to remove)':'TMDB read access token';
 var hs=document.getElementById('ha');hs.previousElementSibling.innerHTML='Home Assistant webhook'+(d.ha?' <span class="ok">&#10003; Set</span>':'');

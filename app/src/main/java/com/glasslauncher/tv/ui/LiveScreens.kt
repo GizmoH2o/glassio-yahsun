@@ -122,7 +122,7 @@ private inline fun <T> timed(what: String, read: () -> T): T {
 
 private val LIVE_RED = Color(0xFFE5322D)
 /** The home page's Continue Watching cards: their red (LIVE, play, progress) and their plate. */
-private val CW_RED = Color(0xFFE50914)
+private val CW_RED: Color @Composable @androidx.compose.runtime.ReadOnlyComposable get() = LocalAccent.current
 private val CW_CARD = Color(0xFF1C1C1F)
 private val INK = Color(0xFF111114)
 
@@ -523,9 +523,10 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
                 .padding(start = (8 * s).dp, bottom = (9 * s).dp).size(width = (52 * s).dp, height = (20 * s).dp), Alignment.BottomStart)
             if (now && a.end > a.start) {
                 val k = ((System.currentTimeMillis() - a.start).toFloat() / (a.end - a.start).coerceAtLeast(1)).coerceIn(0f, 1f)
+                val accent = CW_RED
                 Canvas(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height((2.5f * s).dp)) {
                     drawRect(Color.White.copy(alpha = 0.25f))
-                    drawRect(CW_RED, size = Size(size.width * k, size.height))
+                    drawRect(accent, size = Size(size.width * k, size.height))
                 }
             }
         }

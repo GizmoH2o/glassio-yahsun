@@ -107,6 +107,14 @@ class AppRepository(private val ctx: Context, private val settings: Settings, pr
         settings.hiddenApps = h
     }
 
+    /** Opens [e] (Home Assistant hears it: HaEvents). False when it can't be opened. */
+    fun open(ctx: Context, e: AppEntry): Boolean {
+        val i = launchIntent(e) ?: return false
+        if (runCatching { ctx.startActivity(i) }.isFailure) return false
+        HaEvents.playing(ctx, "app", e.label, e.pkg)
+        return true
+    }
+
     fun launchIntent(e: AppEntry): Intent? =
         (pm.getLeanbackLaunchIntentForPackage(e.pkg) ?: pm.getLaunchIntentForPackage(e.pkg))
             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

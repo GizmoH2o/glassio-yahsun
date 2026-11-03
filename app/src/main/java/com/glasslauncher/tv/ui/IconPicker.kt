@@ -77,6 +77,8 @@ private sealed interface IconSource {
     object Photos : IconSource { override val title = "Photos on this TV" }
     /** Apple TV home-screen icons copied to the TV (tools/appletv_icons.py): default, dark, white, clear. */
     class AppleTv(val variant: String, override val title: String) : IconSource
+    /** This app's Apple TV home-screen icon, found by name in Apple's store (no library on the TV needed). */
+    object AppleTvOnline : IconSource { override val title = "Apple TV icon (online)" }
     object Link : IconSource { override val title = "From a link" }
     object Phone : IconSource { override val title = "From my phone" }
     object Original : IconSource { override val title = "Original icon" }
@@ -86,7 +88,7 @@ private data class PackIcon(val pack: String, val name: String)
 
 private val ATV_VARIANTS = listOf("default" to "Apple TV icons", "dark" to "Apple TV · Dark", "white" to "Apple TV · White", "clear" to "Apple TV · Clear")
 
-/** The Apple TV icon library on this TV: Android/data/com.glasslauncher.tv/files/appletv/<variant>/<App>.png */
+/** The Apple TV icon library on this TV: Android/data/com.glassioyahsun.tv/files/appletv/<variant>/<App>.png */
 fun appleTvDir(ctx: android.content.Context) = java.io.File(ctx.getExternalFilesDir(null), "appletv")
 
 private fun atvFiles(ctx: android.content.Context, variant: String): List<java.io.File> =
@@ -112,6 +114,7 @@ fun IconPicker(app: GlassApp, entry: AppEntry, onPhone: () -> Unit, onClose: () 
     val sources = remember {
         buildList {
             add(IconSource.Suggested)
+            add(IconSource.AppleTvOnline)
             ATV_VARIANTS.forEach { (v, title) -> if (atvFiles(ctx, v).isNotEmpty()) add(IconSource.AppleTv(v, title)) }
             packs.forEach { add(IconSource.Pack(it.pkg, it.label)) }
             add(IconSource.Photos); add(IconSource.Link); add(IconSource.Phone); add(IconSource.Original)
@@ -187,10 +190,25 @@ fun IconPicker(app: GlassApp, entry: AppEntry, onPhone: () -> Unit, onClose: () 
                 when (val src = sources[sel]) {
                     IconSource.Suggested -> {
                         val atv = remember(entry.pkg) { atvMatches(ctx, entry.label) }
+                        val fromPacks = suggested(app, entry)
                         if (atv.isNotEmpty()) FileGrid(s, atv, labelled = true) { applyUri(Uri.fromFile(it)) }
-                        else PackGrid(app, s, suggested(app, entry), "No pack has an icon that matches this app. Pick a pack on the left to browse all its icons.") { applyPack(it) }
+                        else if (fromPacks != null && fromPacks.isEmpty()) {
+                            // No pack has one (or no pack is installed): this app's Apple TV icon from Apple's store.
+                            OnlineGrid(s, appleTvOnline(app, entry.label)) { a ->
+                                scope.launch {
+                                    val r = withContext(Dispatchers.IO) { runCatching { app.icons.setFromUrl(entry.pkg, a.url) } }
+                                    done(if (r.isSuccess) "Icon updated" else r.exceptionOrNull()?.message ?: "Failed")
+                                }
+                            }
+                        } else PackGrid(app, s, fromPacks, "No pack has an icon that matches this app. Pick a pack on the left to browse all its icons.") { applyPack(it) }
                     }
                     is IconSource.AppleTv -> FileGrid(s, remember(src.variant) { atvFiles(ctx, src.variant) }, labelled = false) { applyUri(Uri.fromFile(it)) }
+                    IconSource.AppleTvOnline -> OnlineGrid(s, appleTvOnline(app, entry.label)) { a ->
+                        scope.launch {
+                            val r = withContext(Dispatchers.IO) { runCatching { app.icons.setFromUrl(entry.pkg, a.url) } }
+                            done(if (r.isSuccess) "Icon updated" else r.exceptionOrNull()?.message ?: "Failed")
+                        }
+                    }
                     is IconSource.Pack -> PackGrid(app, s, allOf(app, src.pkg), "This pack has no icons.") { applyPack(it) }
                     IconSource.Photos -> PhotoGrid(app, s) { applyUri(it) }
                     else -> {}
@@ -201,7 +219,70 @@ fun IconPicker(app: GlassApp, entry: AppEntry, onPhone: () -> Unit, onClose: () 
     DialogHost(dialog) { dialog = null }
 }
 
-private fun IconSource.isBrowsable() = this is IconSource.Suggested || this is IconSource.Pack || this is IconSource.Photos || this is IconSource.AppleTv
+private fun IconSource.isBrowsable() = this is IconSource.Suggested || this is IconSource.Pack || this is IconSource.Photos ||
+    this is IconSource.AppleTv || this is IconSource.AppleTvOnline
+
+/** An Apple TV home-screen icon in Apple's store: the app's name there and the icon at its largest (1280×768). */
+private data class AtvOnline(val name: String, val url: String)
+
+/**
+ * The Apple TV icons Apple's store has for apps of this name (its public iTunes search, as tools/appletv_icons.py
+ * does): the search gives iPhone apps, a lookup of those as tvOS apps gives their Apple TV icon. The app's own name
+ * first. Null while it looks; kept a week.
+ */
+@Composable
+private fun appleTvOnline(app: GlassApp, label: String): List<AtvOnline>? {
+    val v by produceState<List<AtvOnline>?>(null, label) {
+        value = withContext(Dispatchers.IO) {
+            val week = 7L * 24 * 3600 * 1000
+            val want = label.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "")
+            val out = LinkedHashMap<String, AtvOnline>()
+            for (cc in listOf("us", "gb", "ae")) {
+                runCatching {
+                    val q = java.net.URLEncoder.encode(label, "UTF-8")
+                    val res = app.http.json("https://itunes.apple.com/search?term=$q&entity=software&country=$cc&limit=10", week)
+                        .optJSONArray("results") ?: return@runCatching
+                    val ids = (0 until res.length()).mapNotNull { res.optJSONObject(it)?.optLong("trackId")?.takeIf { id -> id > 0 } }
+                    if (ids.isEmpty()) return@runCatching
+                    val tv = app.http.json("https://itunes.apple.com/lookup?id=${ids.joinToString(",")}&entity=tvSoftware&country=$cc", week)
+                        .optJSONArray("results") ?: return@runCatching
+                    for (i in 0 until tv.length()) {
+                        val o = tv.optJSONObject(i) ?: continue
+                        val art = o.optString("artworkUrl512")
+                        if (!art.contains(".lsr/")) continue
+                        val url = art.replace(Regex("/\\d+x\\d+bb\\.\\w+$"), "/1280x768bb.png")
+                        out.putIfAbsent(url, AtvOnline(o.optString("trackName"), url))
+                    }
+                }
+                if (out.isNotEmpty()) break
+            }
+            out.values.sortedBy { if (it.name.lowercase().replace(Regex("[^\\p{L}\\p{N}]"), "").contains(want)) 0 else 1 }
+        }
+    }
+    return v
+}
+
+@Composable
+private fun OnlineGrid(s: Float, list: List<AtvOnline>?, onPick: (AtvOnline) -> Unit) {
+    val ctx = LocalContext.current
+    when {
+        list == null -> Hint("Looking for this app's Apple TV icon…", s)
+        list.isEmpty() -> Hint("Apple has no Apple TV icon for an app of this name.", s)
+        else -> LazyVerticalGrid(
+            columns = GridCells.Adaptive((150 * s).dp),
+            contentPadding = PaddingValues((14 * s).dp),
+            horizontalArrangement = Arrangement.spacedBy((12 * s).dp),
+            verticalArrangement = Arrangement.spacedBy((12 * s).dp),
+        ) {
+            items(list, key = { it.url }) { a ->
+                val req = remember(a.url) { ImageRequest.Builder(ctx).data(a.url.replace("/1280x768bb.png", "/400x240bb.png")).size(400, 240).build() }
+                PickTile(s, a.name, onClick = { onPick(a) }) {
+                    AsyncImage(model = req, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize())
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun FileGrid(s: Float, files: List<java.io.File>, labelled: Boolean, onPick: (java.io.File) -> Unit) {

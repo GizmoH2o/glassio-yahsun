@@ -97,15 +97,7 @@ object NuvioLaunch {
             Toast.makeText(ctx, "${NAMES[target]} is not installed or can't open this title", Toast.LENGTH_LONG).show()
             return
         }
-        if (s.haOnLaunch && s.haWebhook.startsWith("http")) {
-            thread(name = "ha-hook") {
-                runCatching {
-                    http.post(s.haWebhook, JSONObject()
-                        .put("event", "launch").put("title", item.name).put("type", item.type)
-                        .put("id", item.id).put("app", pkg))
-                }
-            }
-        }
+        HaEvents.playing(ctx, "title", item.name, pkg, JSONObject().put("type", item.type).put("id", item.id))
     }
 
     fun testWebhook(s: Settings, http: Http): String = try {

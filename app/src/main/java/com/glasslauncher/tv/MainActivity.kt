@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            com.glasslauncher.tv.ui.GlassType { com.glasslauncher.tv.ui.QuietSemantics { HomeScreen(app, screen) { screen = it } } }
+            com.glasslauncher.tv.ui.GlassType(app.settings.accent, app.settings.textSize) { com.glasslauncher.tv.ui.QuietSemantics { HomeScreen(app, screen) { screen = it } } }
             // Watch on Home and the kick-off alert: over everything, last.
             com.glasslauncher.tv.ui.MiniLiveWindow()
             com.glasslauncher.tv.ui.KickOffCard()
@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity() {
         lastInput = System.currentTimeMillis()
         hideBars()
         (application as GlassApp).cw.pollNow()
+        com.glasslauncher.tv.data.HaEvents.home(this)     // back from watching: Home Assistant hears it
         // Live TV's "open when the TV starts" (its settings): the first time the home screen shows after a boot.
         Thread { runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) } }.start()
     }
@@ -131,6 +132,8 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("panel_style")?.let { app.settings.panelStyle = it }
         i?.getStringExtra("tile_style")?.let { app.settings.tileStyle = it }
         i?.getStringExtra("theme")?.let { app.settings.applyTheme(it) }
+        i?.getStringExtra("accent")?.let { if (com.glasslauncher.tv.ui.ACCENTS.any { a -> a.first == it }) app.settings.accent = it }
+        i?.getStringExtra("text_size")?.let { if (com.glasslauncher.tv.ui.TEXT_SIZES.any { t -> t.first == it }) app.settings.textSize = it }
         i?.getStringExtra("menu_mode")?.let { app.settings.menuMode = it }
         i?.getStringExtra("bg_mode")?.let { if (it in setOf("carousel", "image", "video", "aerial")) app.settings.bgMode = it }
         if (i?.hasExtra("menu_city") == true) app.settings.menuCity = i.getBooleanExtra("menu_city", true)

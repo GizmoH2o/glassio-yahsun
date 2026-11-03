@@ -489,7 +489,7 @@ private fun appMenu(
 ): DialogState {
     val hidden = e.pkg in app.settings.hiddenApps
     val opts = mutableListOf<Pair<String, () -> Unit>>()
-    if (hidden) opts += "Open" to { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } }
+    if (hidden) opts += "Open" to { app.apps.open(ctx, e) }
     opts += "App info" to {
         runCatching {
             ctx.startActivity(
@@ -1369,7 +1369,7 @@ private fun FolderOverlay(
                                             entry = e, app = app, s = s, radius = radius, moving = moving == e.pkg,
                                             modifier = Modifier.weight(1f).focusProperties { canFocus = !blocked }.focusRequester(fr).then(if (r == 0 && c == 0) Modifier.focusRequester(first) else Modifier),
                                             onFocus = {}, onMoveKey = onMoveKey,
-                                            onClick = { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } },
+                                            onClick = { app.apps.open(ctx, e) },
                                             onLong = { onMenu(e) },
                                             alwaysLabel = true, flat = true,
                                             label = if (e.pkg in hidden) "${e.label} · hidden" else e.label, edges = edges,

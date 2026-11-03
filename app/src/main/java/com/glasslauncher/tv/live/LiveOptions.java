@@ -70,6 +70,15 @@ final class LiveOptions {
     // MARK: - Playback
 
     /** Auto frame rate: the screen switches to a refresh rate matching the video (when the stream tells its own). */
+    /** Upscaling: the picture enlarged to 1080 lines and sharpened on the graphics chip (LiveUpscale). */
+    static boolean upscale(Context c) {
+        return sp(c).getBoolean("upscale", false);
+    }
+
+    static void setUpscale(Context c, boolean on) {
+        sp(c).edit().putBoolean("upscale", on).apply();
+    }
+
     /** Live TV through the TV's own buffer (its last 15 minutes): ◀ goes back on any channel, catch-up or not. */
     static boolean rewindAny(Context c) {
         return sp(c).getBoolean("rewindAny", false);

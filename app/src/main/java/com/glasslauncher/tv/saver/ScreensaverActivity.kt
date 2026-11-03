@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 class ScreensaverActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.glasslauncher.tv.data.HaEvents.screensaver(this)     // Home Assistant: the screensaver came on
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         WindowInsetsControllerCompat(window, window.decorView).apply {

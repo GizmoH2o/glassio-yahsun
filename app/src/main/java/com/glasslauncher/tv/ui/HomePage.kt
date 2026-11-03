@@ -86,6 +86,7 @@ import com.glasslauncher.tv.GlassApp
 import com.glasslauncher.tv.data.AppEntry
 import com.glasslauncher.tv.data.Airing
 import com.glasslauncher.tv.data.HeroItem
+import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.LiveCards
 import com.glasslauncher.tv.data.NuvioLaunch
 import kotlinx.coroutines.delay
@@ -100,7 +101,8 @@ private const val WATCH_W = 168f
 private const val POSTER_W = 100f
 /** A poster rested on opens up to this much wider (its picture on top, its details under it). */
 private const val OPEN_W = 1.32f
-private val RED = Color(0xFFE50914)
+/** The accent: Settings › Home › Accent colour (Netflix's red unless another is picked). */
+private val RED: Color @Composable @androidx.compose.runtime.ReadOnlyComposable get() = LocalAccent.current
 private val GREEN = Color(0xFF46D369)
 private val IMDB = Color(0xFFF5C518)
 private val CARD = Color(0xFF1C1C1F)
@@ -439,7 +441,8 @@ private fun HeroText(
     val back = backKey()
     var onPlayBtn by remember { mutableStateOf(false) }
     var onSaveBtn by remember { mutableStateOf(false) }
-    LaunchedEffect(onPlayBtn || onSaveBtn) { onFocus(onPlayBtn || onSaveBtn) }
+    var onSvc by remember { mutableStateOf(false) }
+    LaunchedEffect(onPlayBtn || onSaveBtn || onSvc) { onFocus(onPlayBtn || onSaveBtn || onSvc) }
     Column(modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp).width((330 * s).dp)) {
         AnimatedContent(
             targetState = item, contentKey = { it.key },
@@ -477,15 +480,34 @@ private fun HeroText(
             }
         }
         Spacer(Modifier.height((12 * s).dp))
-        // Play, and + to save it to your Library (✓ once it's there). ◀ on Play and ▶ on + change the title.
+        // Where else it's on: its page in Netflix, Prime Video, Disney+ or Apple TV, when this TV has the app.
+        val ctx = LocalContext.current
+        val link by produceState<StreamLinks.Link?>(null, item.id, item.platform) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { StreamLinks.forTitle(ctx, app.http, item.id, item.name, item.platform).firstOrNull() }.getOrNull() }
+        }
+        val svcFocus = remember { FocusRequester() }
+        var onSvcBtn by remember { mutableStateOf(false) }
+        LaunchedEffect(onSvcBtn) { onSvc = onSvcBtn }
+        // Play, then the title in its streaming app, and + to save it to your Library (✓ once it's there). ◀ on Play
+        // and ▶ on + change the title.
         Row(verticalAlignment = Alignment.CenterVertically) {
+            val svc = link
             HeroButton("Play", true, s, onPlayBtn,
-                Modifier.focusRequester(heroFocus).focusProperties { this.down = down; right = saveFocus }
+                Modifier.focusRequester(heroFocus).focusProperties { this.down = down; right = if (svc != null) svcFocus else saveFocus }
                     .onFocusChanged { onPlayBtn = it.isFocused }
                     .tvPress(onLong = onArt, onKey = { ev -> if (ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown) { onPrev(); true } else back(ev) }, onClick = onPlay))
+            if (svc != null) {
+                Spacer(Modifier.width((8 * s).dp))
+                HeroButton(svc.service, false, s, onSvcBtn,
+                    Modifier.focusRequester(svcFocus).focusProperties { this.down = down; left = heroFocus; right = saveFocus }
+                        .onFocusChanged { onSvcBtn = it.isFocused }
+                        .tvPress(onKey = back, onClick = {
+                            runCatching { ctx.startActivity(svc.intent()) }.onFailure { toast(ctx, "${svc.service} couldn't open it") }
+                        }))
+            }
             Spacer(Modifier.width((8 * s).dp))
             HeroButton(if (saved) "In Library" else "My Library", false, s, onSaveBtn,
-                Modifier.focusRequester(saveFocus).focusProperties { this.down = down; left = heroFocus }
+                Modifier.focusRequester(saveFocus).focusProperties { this.down = down; left = if (svc != null) svcFocus else heroFocus }
                     .onFocusChanged { onSaveBtn = it.isFocused }
                     .tvPress(onKey = { ev -> if (ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown) { onNext(); true } else back(ev) }, onClick = onSave),
                 saved = saved)
@@ -600,10 +622,12 @@ private fun AiringCard(a: Airing, s: Float, modifier: Modifier, onFocused: () ->
             val line = listOfNotNull("S${e.season} · E${e.episode}", e.title.takeIf { it.isNotBlank() }, if (a.more > 0) "+${a.more} more" else null).joinToString(" · ")
             Text(line, color = Color.White.copy(alpha = 0.75f), fontSize = (6 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(airDay(e.released, now), color = Color.White.copy(alpha = 0.75f), fontSize = (6 * s).sp)
+                // One line however large the text (Settings › Home › Text size): the day gives way first.
+                Text(airDay(e.released, now), color = Color.White.copy(alpha = 0.75f), fontSize = (6 * s).sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Spacer(Modifier.width((3 * s).dp))
-                Text(if (e.released <= now) "Out now" else "in " + airIn(e.released, now), color = if (e.released <= now) GREEN else Color(0xFFFF4B4B),
-                    fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold)
+                Text(if (e.released <= now) "Out now" else "in " + airIn(e.released, now), color = if (e.released <= now) GREEN else RED,
+                    fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false)
             }
         }
     }
@@ -746,9 +770,10 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (5 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(RED).padding(horizontal = (4 * s).dp))
         if (item.progress >= 0f) {
             val p = item.progress.coerceIn(0f, 1f)
+            val accent = RED
             Canvas(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height((2.5f * s).dp)) {
                 drawRect(Color.White.copy(alpha = 0.25f))
-                drawRect(RED, size = Size(size.width * p, size.height))
+                drawRect(accent, size = Size(size.width * p, size.height))
             }
         }
     }
@@ -904,7 +929,7 @@ private fun AppsGrid(
                                 .onFocusChanged { if (it.isFocused) { last = k; onFocusRow(r) } }
                             if (e == null) AppTile(app, null, s, tileW, movingPkg == FOLDER_KEY, base.focusRequester(folderFocus), onMoveKey, onFolder, onFolderMenu)
                             else AppTile(app, e, s, tileW, movingPkg == e.pkg, base.focusRequester(tileFocus.getOrPut(e.pkg) { FocusRequester() }), onMoveKey,
-                                { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } }, { onMenu(e) })
+                                { app.apps.open(ctx, e) }, { onMenu(e) })
                         }
                     }
                 }

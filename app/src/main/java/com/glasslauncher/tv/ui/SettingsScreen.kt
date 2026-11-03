@@ -239,6 +239,12 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         },
         Category("Home") {
             listOf(
+                Adjust("Accent colour", "LIVE, NEW, the progress bars and the FILM / SERIES line, on Home and the Live TV page", {
+                    (ACCENTS.firstOrNull { it.first == st.accent } ?: ACCENTS[0]).second.first
+                }, { st.accent = cycle(ACCENTS.map { it.first }, st.accent, it) }),
+                Adjust("Text size", "Every screen of Glassio's own (Live TV's player keeps its own)", {
+                    (TEXT_SIZES.firstOrNull { it.first == st.textSize } ?: TEXT_SIZES[1]).second.first
+                }, { st.textSize = cycle(TEXT_SIZES.map { it.first }, st.textSize, it) }),
                 Adjust("Library on Home", "Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here", {
                     when (st.homeSource) { "nuvio" -> "Nuvio"; "stremio" -> "Stremio"; else -> "Nuvio and Stremio" }
                 }, { st.homeSource = cycle(listOf("both", "nuvio", "stremio"), st.homeSource, it); app.shelf.rebuild() }),
@@ -557,6 +563,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val devOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1 }.getOrDefault(false)
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
+                Toggle("Phone remote", "The phone page stays on, at an address that doesn't change: keep it on your phone's home screen and use it as a remote any time (Manage from phone shows its code)",
+                    { st.phoneRemote }, { st.phoneRemote = it; com.glasslauncher.tv.net.PhoneRemote.apply(app) }),
                 // A backup: everything in one file locked with a code (Backup), in the TV's Downloads and via the phone page.
                 Act("Back up settings", Backup.reminder(ctx), if (Backup.lastMade(ctx) <= 0L || System.currentTimeMillis() - Backup.lastMade(ctx) >= Backup.REMIND_AFTER_DAYS * 86_400_000L) "Due" else "") {
                     dialog = TextEntry("Backup code", "", "At least ${Backup.MIN_CODE} characters. You need it to restore: keep it somewhere safe", secret = true) { code ->
@@ -829,7 +837,18 @@ private fun PhonePane(app: GlassApp, s: Float) {
     var url by remember { mutableStateOf<String?>(null) }
     var failed by remember { mutableStateOf(false) }
     var qr by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-    DisposableEffect(Unit) {
+    val remote = app.settings.phoneRemote
+    // Keyed on the switch: turned on or off with this page open, the one page server gives way to the other.
+    DisposableEffect(remote) {
+        // Phone remote on: the page that's always running, at its fixed address.
+        if (remote) {
+            val job = app.scope.launch(Dispatchers.IO) {
+                val u = com.glasslauncher.tv.net.PhoneRemote.start(app)
+                val bmp = u?.let { Net.qr(it, 480).asImageBitmap() }
+                kotlinx.coroutines.withContext(Dispatchers.Main) { if (u != null) { url = u; qr = bmp } else failed = true }
+            }
+            return@DisposableEffect onDispose { job.cancel() }
+        }
         val token = Net.token()
         val server = PhoneServer(app, token)
         val job = app.scope.launch(Dispatchers.IO) {
@@ -841,11 +860,11 @@ private fun PhonePane(app: GlassApp, s: Float) {
                 kotlinx.coroutines.withContext(Dispatchers.Main) { url = u; qr = bmp }
             } else kotlinx.coroutines.withContext(Dispatchers.Main) { failed = true }
         }
-        onDispose { job.cancel(); app.scope.launch(Dispatchers.IO) { job.join(); server.stop() } }
+        onDispose { job.cancel(); runCatching { server.stop() } }     // at once: the port is free for Phone remote
     }
     Column(Modifier.fillMaxSize().padding(start = (6 * s).dp)) {
         Text(
-            "Scan the code with your phone (same Wi-Fi) to add add-ons, set app icons, set or upload a background picture or video, paste tokens with a real keyboard, and back up or restore Glassio.",
+            "Scan the code with your phone (same Wi-Fi): a remote, typing and Live TV search from your phone, open and reorder apps, add-ons, app icons, tokens with a real keyboard, and backups.",
             color = Color.White.copy(alpha = 0.7f), fontSize = (12.5f * s).sp,
         )
         Spacer(Modifier.height((14 * s).dp))
@@ -858,7 +877,8 @@ private fun PhonePane(app: GlassApp, s: Float) {
             Text("The TV is not on a network, so the phone page can't start.", color = Color(0xFFFF8F9B), fontSize = (13 * s).sp)
         }
         Spacer(Modifier.height((10 * s).dp))
-        Text("The page stops when you leave this screen.", color = Color.White.copy(alpha = 0.45f), fontSize = (11 * s).sp)
+        Text(if (remote) "Phone remote is on: this page keeps running at this address (Settings › System)." else "The page stops when you leave this screen. For a remote that always works, turn on Phone remote (Settings › System).",
+            color = Color.White.copy(alpha = 0.45f), fontSize = (11 * s).sp)
     }
 }
 

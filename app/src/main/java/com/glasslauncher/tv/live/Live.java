@@ -85,6 +85,8 @@ public class Live extends Activity {
      * and, for one try, the channel straight from the provider after its buffer didn't start.
      */
     private boolean rolling, atLive, rollingFailed;
+    /** When Rewind any channel's buffer last ran dry at live (uptime ms; 0: not lately). */
+    private long rollingStallAt;
     private androidx.media3.extractor.DefaultExtractorsFactory extractors;
     /**
      * A past program's address starts here, ms into it (the provider takes a start to the minute): the player's
@@ -135,6 +137,20 @@ public class Live extends Activity {
         @Override public void onPlaybackStateChanged(int state) {
             long up = android.os.SystemClock.uptimeMillis();
             bufferingSince = state == Player.STATE_BUFFERING ? up : 0;
+            // Rewind any channel on a poor connection: its one long download falls behind (a lossy line slows a single
+            // connection more than the player's own). Twice in a minute at live: this channel straight, as before.
+            if (state == Player.STATE_BUFFERING && wasReady && rolling && atLive && shift != null && playing != null) {
+                if (up - rollingStallAt < 60_000) {
+                    AppLog.w("live: " + playing.name + ": the TV's buffer can't keep up, playing it directly");
+                    view.flash(Ui.tr("Conexão lenta: sem voltar neste canal", "Slow connection: rewind off for this channel"));
+                    endShift();
+                    rollingFailed = true;
+                    rollingStallAt = 0;
+                    start(playing);
+                    return;
+                }
+                rollingStallAt = up;
+            }
             readySince = state == Player.STATE_READY ? up : 0;
             positionSince = up;
             lastPosition = -1;
@@ -215,6 +231,8 @@ public class Live extends Activity {
 
         @Override public void onRenderedFirstFrame() {
             view.tuned();   // the picture is there: it fades in from black
+            measuredFps = 0;        // another stream: its rate counted again
+            fpsFrames = -1;
             matchFrameRate();
         }
 
@@ -225,6 +243,16 @@ public class Live extends Activity {
             if (source != null && recordingFile == null && size.height > 0) {
                 LiveMerge.played(Live.this, source.id, size.height,
                         f != null && MimeTypes.VIDEO_H265.equals(f.sampleMimeType));
+            }
+            // Upscaling went by the name ("… SD") and the picture is HD after all (providers mislabel): the stream
+            // again without it (what it really is is kept now, so once).
+            if (upscaling && size.height >= 1000 && playing != null) {
+                AppLog.w("live: " + playing.name + " is " + size.height + " lines: no upscaling");
+                main.post(() -> {
+                    if (shift != null) playShift(shiftAt());
+                    else if (catchup != null) startCatchup(position());
+                    else start(playing);
+                });
             }
         }
 
@@ -518,6 +546,8 @@ public class Live extends Activity {
             }
         }.setEnableDecoderFallback(true);
         DefaultTrackSelector tracks = new DefaultTrackSelector(this);
+        trackSelector = tracks;
+        upscaling = false;      // per channel: applyUpscale, as each one starts
         tracks.setParameters(subtitlePrefs(tracks.buildUponParameters().setTunnelingEnabled(LiveOptions.tunneling(this)),
                 LiveOptions.subtitles(this)).setPreferredAudioLanguage(audioPref()));
         // A TS stream's closed captions (CEA-608, in the video, as US channels send them) show as a subtitle track
@@ -536,6 +566,36 @@ public class Live extends Activity {
         player.setWakeMode(C.WAKE_MODE_NETWORK);
         player.setVideoSurfaceView(surface);
         player.addListener(listener);
+    }
+
+    private DefaultTrackSelector trackSelector;
+    /** Whether the player's frames go through LiveUpscale now (tunneled playback off while they do). */
+    private boolean upscaling;
+
+    /**
+     * Upscaling (Live TV › Settings › Playback) for the stream about to start: only under 1080 lines (SD and 720p, as
+     * it played last or as its name says), where the TV's graphics chip keeps up and it shows; the rest as before,
+     * tunneled. Before the player is given the stream; switching it stops the player first.
+     */
+    private void applyUpscale(Xtream.Channel src) {
+        if (player == null || trackSelector == null) return;
+        int tier = src == null ? 0 : LiveMerge.tierOf(this, src);
+        boolean on = LiveOptions.upscale(this) && (tier == LiveMerge.SD || tier == LiveMerge.HD);
+        if (on == upscaling) return;
+        if (!on) {
+            // Off again: a new player on a new surface. Once the graphics chip has drawn into the surface, tunneled
+            // video can't take it over (the HD channel after an SD one stayed on the last frame, buffering for good):
+            // hidden and shown again, the surface is made anew, and the player takes the new one as it comes.
+            releasePlayer();
+            surface.setVisibility(android.view.View.GONE);
+            main.post(() -> surface.setVisibility(android.view.View.VISIBLE));
+            createPlayer();     // upscaling false, tunneled as set
+            return;
+        }
+        upscaling = true;
+        player.stop();
+        player.setVideoEffects(java.util.Collections.singletonList(new LiveUpscale()));
+        trackSelector.setParameters(trackSelector.buildUponParameters().setTunnelingEnabled(false));
     }
 
     private void releasePlayer() {
@@ -917,6 +977,7 @@ public class Live extends Activity {
         prefs().edit().putInt("channel", ch.id).putString("category", view.categoryId()).apply();
         final Context app = getApplicationContext();
         io.execute(() -> Xtream.watched(app, ch));     // the home screen's On now row
+        com.glasslauncher.tv.data.HaEvents.playing(this, "live", ch.name);     // Home Assistant: a channel on
         start(ch);
         view.showBanner(ch);
     }
@@ -938,6 +999,7 @@ public class Live extends Activity {
         view.setStatus("");
         view.setBuffering(true);
         view.tuning();      // black until its first frame: nothing half-decoded shows
+        applyUpscale(source);
         player.setMediaItem(item);
         player.prepare();
         player.play();
@@ -957,7 +1019,7 @@ public class Live extends Activity {
             return;
         }
         androidx.media3.common.Format f = player.getVideoFormat();
-        float fps = f == null ? -1 : f.frameRate;
+        float fps = f != null && f.frameRate > 0 ? f.frameRate : measuredFps;     // the stream's own, else counted
         if (fps <= 0) return;
         android.view.Display d = getWindowManager().getDefaultDisplay();
         android.view.Display.Mode now = d.getMode(), best = null;
@@ -969,6 +1031,37 @@ public class Live extends Activity {
         }
         if (best != null) setDisplayMode(best.getModeId());
         AppLog.w("live: video " + fps + " fps, screen " + (best == null ? "kept" : best.getRefreshRate() + " Hz"));
+    }
+
+    /**
+     * The video's frame rate as counted from the frames shown (most live streams don't say theirs), rounded to the
+     * usual rates; 0 till it's known. And the count it was measured from.
+     */
+    private float measuredFps;
+    private long fpsFrames = -1, fpsSince;
+    private static final float[] RATES = {24, 25, 30, 48, 50, 60};
+
+    /** Every few seconds while it plays: the frames shown since the last look give the rate (a stall is no rate). */
+    private void measureFps() {
+        androidx.media3.exoplayer.DecoderCounters dc = player == null ? null : player.getVideoDecoderCounters();
+        if (dc == null || player.getPlaybackState() != Player.STATE_READY || !player.isPlaying()) {
+            fpsFrames = -1;
+            return;
+        }
+        dc.ensureUpdated();
+        long frames = dc.renderedOutputBufferCount, up = android.os.SystemClock.uptimeMillis();
+        if (fpsFrames >= 0 && up - fpsSince >= 1500 && frames > fpsFrames) {
+            float seen = (frames - fpsFrames) * 1000f / (up - fpsSince), rate = 0;
+            for (float r : RATES) if (Math.abs(seen - r) <= r * 0.04f) rate = r;
+            if (rate > 0 && rate != measuredFps) {
+                boolean first = measuredFps <= 0;
+                measuredFps = rate;
+                androidx.media3.common.Format f = player.getVideoFormat();
+                if (first && (f == null || f.frameRate <= 0)) matchFrameRate();       // auto frame rate, now it's known
+            }
+        }
+        fpsFrames = frames;
+        fpsSince = up;
     }
 
     /** The screen mode this window asks for (0: the TV's own). */
@@ -1004,7 +1097,10 @@ public class Live extends Activity {
         if (v != null && v.height > 0) {
             int lines = Math.min(v.height, v.width > 0 ? v.width : v.height);
             out.add(lines >= 2000 ? "4K" : lines >= 1400 ? "1440p" : lines >= 1000 ? "1080p" : lines >= 700 ? "720p" : "SD");
-            if (v.frameRate > 0) out.add(Math.round(v.frameRate) + " FPS");
+            // The video's frame rate: the stream's own, else counted.
+            float fps = v.frameRate > 0 ? v.frameRate : measuredFps;
+            if (fps > 0) out.add((Math.abs(fps - Math.round(fps)) < 0.05f ? String.valueOf(Math.round(fps))
+                    : String.format(java.util.Locale.ROOT, "%.2f", fps)) + " FPS");
             if (MimeTypes.VIDEO_H265.equals(v.sampleMimeType)) out.add("HEVC");
             else if (MimeTypes.VIDEO_H264.equals(v.sampleMimeType)) out.add("H.264");
             if (v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084) out.add("HDR10");
@@ -1304,6 +1400,7 @@ public class Live extends Activity {
                     view.restyle();
                 }
             }
+            measureFps();
             if (player == null || playing == null || shifted() || recordingFile != null || askingRating || !player.getPlayWhenReady()) return;
             long up = android.os.SystemClock.uptimeMillis();
             int state = player.getPlaybackState();
@@ -1582,6 +1679,7 @@ public class Live extends Activity {
                     view.setStatus(Ui.tr("Não deu para falar com o servidor.", "Couldn't reach the server."));
                     return;
                 }
+                applyUpscale(src);
                 // From the start of the address: a stream that can't seek would say it's further on than it is.
                 player.setMediaItem(new MediaItem.Builder().setUri(address)
                         .setMimeType(file == null && f.equals("m3u8") ? MimeTypes.APPLICATION_M3U8 : MimeTypes.VIDEO_MP2T).build(), 0);
@@ -1907,6 +2005,7 @@ public class Live extends Activity {
                         .createMediaSource(new MediaItem.Builder().setUri("timeshift:" + offset).setMimeType(MimeTypes.VIDEO_MP2T).build());
         wasReady = false;
         view.setBuffering(true);
+        applyUpscale(this.source != null ? this.source : playing);
         player.setMediaSource(source);
         player.prepare();
         player.play();

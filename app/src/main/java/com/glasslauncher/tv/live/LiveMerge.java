@@ -267,6 +267,12 @@ final class LiveMerge {
     }
 
     /** A source's tier: from its picture once it played (many providers don't tag the names), else from its name. */
+    /** The tier of `s` (SD, HD, FHD, UHD; 0 unknown): as it played last, else as its name says. */
+    static int tierOf(Context c, Xtream.Channel s) {
+        seen(c);
+        return tier(s);
+    }
+
     static int tier(Xtream.Channel s) {
         int seen = seen(s.id);
         if (seen <= 0) return s.quality;

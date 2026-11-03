@@ -200,6 +200,12 @@ class Settings(private val ctx: Context) {
     var cwTrakt: Boolean get() = b("cwTrakt", true); set(v) = putB("cwTrakt", v)
     /** Continue Watching keeps only what was watched within this many days (0 = everything). */
     var cwDays: Int get() = i("cwDays", 0); set(v) = putI("cwDays", v)
+    /** Home's accent colour (a key of ui.ACCENTS) and the text size of Glassio's screens (a key of ui.TEXT_SIZES). */
+    var accent: String get() = s("accent", "red"); set(v) = putS("accent", v)
+    /** Phone remote: the phone page kept running at a fixed address (net.PhoneRemote), and that address's token. */
+    var phoneRemote: Boolean get() = b("phoneRemote", false); set(v) = putB("phoneRemote", v)
+    var phoneToken: String get() = s("phoneToken", ""); set(v) = putS("phoneToken", v)
+    var textSize: String get() = s("textSize", "normal"); set(v) = putS("textSize", v)
     /** Continue Watching: series with a new episode out since you watched go first (after Live TV's cards). */
     var cwNewFirst: Boolean get() = b("cwNewFirst", true); set(v) = putB("cwNewFirst", v)
     /** After you leave the player, the carousel opens on what you just watched. */

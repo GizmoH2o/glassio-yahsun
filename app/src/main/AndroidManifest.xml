@@ -28,6 +28,11 @@
         <intent><action android:name="org.adw.launcher.icons.ACTION_PICK_ICON"/></intent>
         <package android:name="space.nuvio.nativelegacy"/>
         <package android:name="com.nuvioreshaped.tv"/>
+        <!-- "Open in Netflix" and the like: a title's page in these apps (data.StreamLinks) -->
+        <package android:name="com.netflix.ninja"/>
+        <package android:name="com.amazon.amazonvideo.livingroom"/>
+        <package android:name="com.disney.disneyplus"/>
+        <package android:name="com.apple.atve.androidtv.appletv"/>
         <!-- Live TV: Open in another player (VLC, MX Player, Just Player…) -->
         <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="http" android:mimeType="video/*"/></intent>
         <intent><action android:name="android.intent.action.VIEW"/><data android:scheme="https" android:mimeType="video/*"/></intent>
@@ -64,6 +69,16 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Home Assistant's camera (a doorbell) over whatever is on: a card, the window around it see-through. -->
+        <activity
+            android:name=".CameraActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.camera"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"/>
 
         <activity
             android:name=".saver.ScreensaverActivity"
