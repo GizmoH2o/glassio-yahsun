@@ -724,8 +724,8 @@ final class LiveSettings {
                             "Automatic uses what your provider prefers. If channels don't start, try the other one.");
                     case BUFFER_ROW: return Ui.tr("Maior: mais estável numa conexão lenta, demora um pouco mais para começar.",
                             "Larger: steadier on a slow connection, a little slower to start.");
-                    case UPSCALE_ROW: return Ui.tr("Canais SD e 720p mais nítidos pelo chip gráfico da TV antes de a TV ampliá-los para a tela. Canais em HD tocam como antes.",
-                            "SD and 720p channels sharpened by the TV's graphics chip before the TV enlarges them to the screen. HD channels play as before.");
+                    case UPSCALE_ROW: return Ui.tr("Canais SD e 720p mais nítidos pelo chip gráfico da TV antes de a TV ampliá-los para a tela. Ligado, a reprodução em túnel fica desligada em todos os canais.",
+                            "SD and 720p channels sharpened by the TV's graphics chip before the TV enlarges them to the screen. While it's on, tunneled playback is off for every channel.");
                     case REWIND_ANY_ROW: return Ui.tr("Os últimos 15 minutos do canal ficam na TV: ◀ volta em qualquer canal, mesmo sem reprise. Começa um instante depois.",
                             "The channel's last 15 minutes are kept on the TV: ◀ goes back on any channel, even without catch-up. Starts a moment later.");
                     case FRAME_RATE_ROW: return Ui.tr("A tela muda para a taxa do vídeo (50 Hz, 24 Hz…), a do canal, ou a contada enquanto toca.",

@@ -548,7 +548,10 @@ public class Live extends Activity {
         DefaultTrackSelector tracks = new DefaultTrackSelector(this);
         trackSelector = tracks;
         upscaling = false;      // per channel: applyUpscale, as each one starts
-        tracks.setParameters(subtitlePrefs(tracks.buildUponParameters().setTunnelingEnabled(LiveOptions.tunneling(this)),
+        // Upscaling on: no tunneled playback for any channel, so the surface never passes between the decoder's
+        // own path and the graphics chip's (that handover left the picture black on TCL's Realtek TVs).
+        tracks.setParameters(subtitlePrefs(tracks.buildUponParameters()
+                        .setTunnelingEnabled(LiveOptions.tunneling(this) && !LiveOptions.upscale(this)),
                 LiveOptions.subtitles(this)).setPreferredAudioLanguage(audioPref()));
         // A TS stream's closed captions (CEA-608, in the video, as US channels send them) show as a subtitle track
         // even when the stream doesn't announce them, as HLS does already.
@@ -582,20 +585,22 @@ public class Live extends Activity {
         int tier = src == null ? 0 : LiveMerge.tierOf(this, src);
         boolean on = LiveOptions.upscale(this) && (tier == LiveMerge.SD || tier == LiveMerge.HD);
         if (on == upscaling) return;
-        if (!on) {
-            // Off again: a new player on a new surface. Once the graphics chip has drawn into the surface, tunneled
-            // video can't take it over (the HD channel after an SD one stayed on the last frame, buffering for good):
-            // hidden and shown again, the surface is made anew, and the player takes the new one as it comes.
-            releasePlayer();
-            surface.setVisibility(android.view.View.GONE);
-            main.post(() -> surface.setVisibility(android.view.View.VISIBLE));
-            createPlayer();     // upscaling false, tunneled as set
-            return;
+        // On or off, a new player on a new surface: once the graphics chip has drawn into the surface, video straight
+        // from the decoder couldn't take it over, nor the other way round (the picture stayed black, or it buffered for
+        // good). Hidden and shown again, the surface is made anew, and the new player takes it as it comes.
+        releasePlayer();
+        freshSurface();
+        createPlayer();     // upscaling false; tunneled playback off while Upscaling is on
+        if (on) {
+            upscaling = true;
+            player.setVideoEffects(java.util.Collections.singletonList(new LiveUpscale()));
         }
-        upscaling = true;
-        player.stop();
-        player.setVideoEffects(java.util.Collections.singletonList(new LiveUpscale()));
-        trackSelector.setParameters(trackSelector.buildUponParameters().setTunnelingEnabled(false));
+    }
+
+    /** The video's surface made anew (hidden, then shown on the next frame): nothing of the last picture kept. */
+    private void freshSurface() {
+        surface.setVisibility(android.view.View.GONE);
+        main.post(() -> surface.setVisibility(android.view.View.VISIBLE));
     }
 
     private void releasePlayer() {
@@ -603,6 +608,9 @@ public class Live extends Activity {
         player.removeListener(listener);
         player.release();
         player = null;
+        // An upscaling player leaves its last picture in the surface, over whatever the next player sends (Upscaling
+        // turned off in the settings left that frame frozen on screen): the next one starts on a fresh surface.
+        if (upscaling) freshSurface();
     }
 
     // MARK: - Signing in and the channel list
