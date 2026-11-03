@@ -221,6 +221,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         "/api/key" -> { shell("input keyevent KEYCODE_" + (KEYS[j.optString("key")] ?: error("Unknown button"))); "" }
         "/api/text" -> {
             // Only what the TV's keyboard types plainly (letters, digits, simple punctuation); a space as %s.
+            // As typed: a space in front too (adding a word to what's there).
             val t = j.optString("text").take(200).filter { it.isLetterOrDigit() || it in " .,-_@:/?!'" }
             require(t.isNotBlank()) { "Nothing to type" }
             shell("input text '" + t.replace("'", "'\\''").replace(" ", "%s") + "'")
@@ -278,6 +279,26 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             if (t.isBlank()) "TMDB token removed" else "TMDB token saved and working"
         }
         "/api/ha" -> { app.settings.haWebhook = j.optString("url"); app.settings.haOnLaunch = app.settings.haWebhook.startsWith("http"); "Home Assistant webhook saved" }
+        "/api/cal/add" -> {
+            val u = j.optString("url").trim()
+            require(Regex("^(https?|webcals?)://.+", RegexOption.IGNORE_CASE).matches(u)) { "The link starts with https:// or webcal://" }
+            app.settings.calLinks = app.settings.calLinks + u; "Calendar added: its next events show on Home"
+        }
+        "/api/cal/remove" -> {
+            val l = app.settings.calLinks; val i = j.optInt("i", -1)
+            require(i in l.indices) { "Not found" }
+            app.settings.calLinks = l.filterIndexed { k, _ -> k != i }; "Calendar removed"
+        }
+        "/api/hastate" -> {
+            val st = app.settings
+            val url = j.optString("url").trim().trimEnd('/'); val token = j.optString("token").trim()
+            require(url.isBlank() || url.startsWith("http")) { "The address starts with http:// or https://" }
+            if (url.isNotBlank()) st.haUrl = url
+            if (token.isNotBlank()) st.haToken = token
+            // Checked straight away: a wrong address or token says so here, not as an empty row on the TV.
+            val n = com.glasslauncher.tv.data.HomeWidgets.all(st.haBase, st.haToken).size
+            "Home Assistant works: $n entities. Choose which show on Home in Settings › Home › Home Assistant readings"
+        }
         "/api/aerial/add" -> {
             val u = j.optString("url").trim()
             require(u.startsWith("http")) { "The link must start with http" }
@@ -296,6 +317,8 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             apps.put(JSONObject().put("pkg", it.pkg).put("label", it.label).put("custom", app.icons.fileFor(it.pkg).exists()))
         }
         val aerial = JSONArray(); app.settings.aerialUrls.forEach { aerial.put(it) }
+        // The calendars by their site only: their links are secret addresses.
+        val cals = JSONArray(); app.settings.calLinks.forEach { cals.put(runCatching { java.net.URI(it.replaceFirst(Regex("^webcals?://"), "https://")).host }.getOrNull() ?: "calendar") }
         val st = app.settings
         val files = JSONArray()
         (bg.files(app, false) + bg.files(app, true)).forEach { f ->
@@ -307,6 +330,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             .put("downloading", downloading).put("last", lastDownload)
         return JSONObject().put("addons", addons).put("bg", back).put("apps", apps).put("aerial", aerial)
             .put("tmdb", app.settings.tmdbToken.isNotBlank()).put("ha", app.settings.haWebhook.isNotBlank())
+            .put("cals", cals).put("haBase", app.settings.haBase).put("haToken", app.settings.haToken.isNotBlank())
     }
 
     private fun err(m: String) = JSONObject().put("ok", false).put("error", m).toString()
@@ -320,7 +344,8 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         out.write(head.toByteArray(Charsets.UTF_8)); out.write(bytes); out.flush()
     }
 
-    private companion object {
+    internal companion object {
+        /** The phone page. Its script's strings in single quotes: no apostrophes in them (’ instead), or none of it runs. */
         const val PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Glassio</title><style>
 body{margin:0;background:#0b0d16;color:#eef1fb;font:16px/1.5 -apple-system,Roboto,Segoe UI,sans-serif}
@@ -343,7 +368,7 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 <div class="row"><button class="s" onclick="k('rew')">&#9194;</button><button class="s" onclick="k('playpause')">&#9199;</button><button class="s" onclick="k('ff')">&#9193;</button>
 <button class="s" onclick="k('chup')">CH +</button><button class="s" onclick="k('chdown')">CH &minus;</button></div>
 <div class="row"><button class="s" onclick="k('voldown')">Vol &minus;</button><button class="s" onclick="k('mute')">Mute</button><button class="s" onclick="k('volup')">Vol +</button></div>
-<input type="text" id="tx" placeholder="Type into the TV (the box that's open there)" style="margin-top:12px"><button onclick="send('/api/text',{text:v('tx')},'tx')">Type on the TV</button>
+<input type="text" id="tx" placeholder="Type into the TV (the box that's open there)" style="margin-top:12px"><button onclick="send('/api/text',{text:document.getElementById('tx').value},'tx')">Type on the TV</button>
 <input type="text" id="sq" placeholder="Channel or show" style="margin-top:12px"><button onclick="send('/api/search',{q:v('sq')},'sq')">Search Live TV</button>
 <h2>Add-ons</h2><div id="addons"></div>
 <input type="text" id="au" placeholder="https://.../manifest.json  or  stremio://..."><button onclick="addAddon()">Add add-on</button>
@@ -356,6 +381,8 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 <h2>Apps</h2><p>Open one on the TV, move it up or down on Home, or give it an icon: an image link or one from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>
+<h2>Calendars on Home</h2><p>An iCal link: in Google Calendar on a computer, the calendar's Settings &rarr; <b>Secret address in iCal format</b>. Its next events show in Home's "At a glance" row.</p><div id="cals"></div><input type="text" id="cl" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"><button onclick="send('/api/cal/add',{url:v('cl')},'cl')">Add calendar</button>
+<h2>Home Assistant readings on Home</h2><p>Its address and a <b>long-lived access token</b> (your Home Assistant profile &rarr; Security &rarr; Long-lived access tokens). Then choose the readings on the TV: Settings &rsaquo; Home &rsaquo; Home Assistant readings.</p><p id="hab"></p><input type="text" id="hu" placeholder="http://homeassistant.local:8123"><input type="password" id="ht" placeholder="Long-lived access token" autocomplete="off" style="margin-top:8px"><button onclick="send('/api/hastate',{url:v('hu'),token:v('ht')},'ht')">Save and check</button>
 <h2>Backup</h2><p>Everything Glassio has on this TV (settings, sign-ins, app icons, Live TV) in one file, locked with a code you choose: at least 6 characters. Keep the code safe: without it the file can't be opened.</p>
 <input type="password" id="bc" placeholder="Code for the backup" autocomplete="new-password"><button onclick="bk()">Download a backup</button>
 <p style="margin-top:14px">Restore one: Glassio's settings on the TV are replaced, then it restarts.</p>
@@ -369,9 +396,9 @@ function say(t,ok){var m=document.getElementById('msg');m.textContent=t;m.classN
 function api(p,b){return fetch(p+'?t='+encodeURIComponent(T),b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{}).then(function(r){return r.json()})}
 function send(p,b,clear){say('...',true);api(p,b).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok){if(clear)document.getElementById(clear).value='';load()}}).catch(function(){say('Cannot reach the TV',false)})}
 function bk(){var c=v('bc');if(c.length<6){say('The code needs at least 6 characters',false);return}say('Making the backup... (a few seconds)',true);
-api('/api/backup/make',{code:c}).then(function(r){if(!r.ok){say(r.error,false);return}var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.file],{type:'application/json'}));a.download=r.name;document.body.appendChild(a);a.click();a.remove();document.getElementById('bc').value='';say('Backup downloaded (also saved in the TV's Downloads)',true)}).catch(function(){say('Cannot reach the TV',false)})}
+api('/api/backup/make',{code:c}).then(function(r){if(!r.ok){say(r.error,false);return}var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.file],{type:'application/json'}));a.download=r.name;document.body.appendChild(a);a.click();a.remove();document.getElementById('bc').value='';say('Backup downloaded (also saved in the TV’s Downloads)',true)}).catch(function(){say('Cannot reach the TV',false)})}
 function rs(){var f=document.getElementById('bkf').files[0],c=v('rc');if(!f){say('Choose the backup file first',false);return}if(!c){say('Type its code',false);return}
-if(!confirm('Replace Glassio's settings on the TV with this backup?'))return;say('Restoring...',true);var fr=new FileReader();
+if(!confirm('Replace Glassio’s settings on the TV with this backup?'))return;say('Restoring...',true);var fr=new FileReader();
 fr.onload=function(){api('/api/backup/restore',{code:c,file:fr.result}).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok)document.getElementById('rc').value=''}).catch(function(){say('Cannot reach the TV',false)})};fr.readAsText(f)}
 function k(key){api('/api/key',{key:key}).then(function(r){if(!r.ok)say(r.error,false)}).catch(function(){say('Cannot reach the TV',false)})}
 function addAddon(){var u=v('au');if(u)send('/api/addon/add',{url:u},'au')}
@@ -405,6 +432,8 @@ var ks=document.getElementById('tks');ks.textContent=d.tmdb?'\u2713 Set':'Not se
 document.getElementById('tk').placeholder=d.tmdb?'Token saved (type a new one to replace, empty to remove)':'TMDB read access token';
 var hs=document.getElementById('ha');hs.previousElementSibling.innerHTML='Home Assistant webhook'+(d.ha?' <span class="ok">&#10003; Set</span>':'');
 document.getElementById('ha').placeholder=d.ha?'Webhook saved (type a new one to replace)':'http://homeassistant.local:8123/api/webhook/your_id';
+var cz=document.getElementById('cals');cz.textContent='';d.cals.forEach(function(h,i){var c=el('div','card');c.appendChild(el('b','',h));var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/cal/remove',{i:i})};r.appendChild(b);c.appendChild(r);cz.appendChild(c)});
+var hb=document.getElementById('hab');hb.textContent=(d.haBase?'Address: '+d.haBase:'No address yet')+(d.haToken?' · token saved':'');document.getElementById('hu').placeholder=d.haBase||'http://homeassistant.local:8123';
 var z=document.getElementById('aerial');z.textContent='';d.aerial.forEach(function(u){var c=el('div','card');c.appendChild(el('small','',u.replace(/^(https?:\/\/[^\/]+).*$/,'$1')));var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/aerial/remove',{url:u})};r.appendChild(b);c.appendChild(r);z.appendChild(c)})
 }).catch(function(){say('Cannot reach the TV',false)})}
 load();

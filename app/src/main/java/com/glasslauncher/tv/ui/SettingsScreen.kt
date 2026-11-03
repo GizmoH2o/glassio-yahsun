@@ -78,6 +78,12 @@ private class Adjust(val title: String, val desc: String, val value: () -> Strin
 /** [ok]: true shows the value in green with a check mark (set and working), false in red. */
 private class Act(val title: String, val desc: String, val value: String = "", val ok: Boolean? = null, val onClick: () -> Unit) : SRow
 private class Note(val text: String) : SRow
+
+/** Settings shown on two pages (Performance, and Home or Clock & glass): one row, so both read and act the same. */
+private fun transitionRow(st: com.glasslauncher.tv.data.Settings) = Adjust("Slide transition", "Fade between the big picture's titles (lower = faster)",
+    { "${st.transitionMs} ms" }, { st.transitionMs += it * 50; st.perfMode = "custom" })
+private fun refractionRow(st: com.glasslauncher.tv.data.Settings) = Adjust("Glass refraction", "How much the glass's rim bends what's behind it (0 = flat, the lightest)",
+    { "${st.refraction}" }, { st.refraction += it * 2; st.perfMode = "custom" })
 private class AppItem(val entry: AppEntry) : SRow
 
 private enum class Kind { Rows, Phone, About }
@@ -233,8 +239,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 }, { st.glassRes = cycle(listOf(480, 720), st.glassRes, it); custom() }),
                 Adjust("Picture quality", "The home screen's big picture", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
                     { st.imageQuality = cycle(listOf("high", "max"), st.imageQuality, it); custom() }),
-                Adjust("Slide transition", "", { "${st.transitionMs} ms" }, { st.transitionMs += it * 50; custom() }),
-                Adjust("Glass refraction", "0 = flat glass (lightest)", { "${st.refraction}" }, { st.refraction += it * 2; custom() }),
+                // Also on Home and Clock & glass: the same rows (a change there makes the mode Custom too).
+                transitionRow(st),
+                refractionRow(st),
             )
         },
         Category("Home") {
@@ -253,10 +260,17 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Series in your library", "", { st.homeSeries }, { st.homeSeries = it }),
                 Toggle("Posters open up when selected", "Rest on a poster: it opens into a wide card with its picture, rating, year and genres", { st.homeExpand }, { st.homeExpand = it }),
                 Toggle("Big picture follows the selection", "The title selected in a row fills the top of the page", { st.homeFollow }, { st.homeFollow = it }),
-                Note("The big picture: titles from your catalogs (Settings → Catalogs). Play opens one; My Library saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play for its next picture."),
+                Note("The big picture: titles from your catalogs (Settings › Catalogs). Play opens one; My Library saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play: Not interested, or another picture."),
+                Toggle("Because you watched", "Every third title is one like what's in Continue watching (it says why)", { st.heroBecause }, { st.heroBecause = it }),
+                Toggle("Seasonal picks first", "Horror in October, Christmas titles in December, romance in February", { st.heroSeasonal }, { st.heroSeasonal = it }),
+                Toggle("Trailers", "After a few seconds on a title, its trailer plays (muted) behind it; it stops when you move", { st.heroTrailers }, { st.heroTrailers = it }),
+                Toggle("Live match ticker", "A team you follow playing now: its score in the middle of the top bar", { st.homeTicker }, { st.homeTicker = it }),
+                Act("Titles you're not interested in", if (st.heroHidden.isEmpty()) "None" else "${st.heroHidden.size} kept off the big picture", if (st.heroHidden.isEmpty()) "" else "Show them again") {
+                    if (st.heroHidden.isNotEmpty()) { st.heroHidden = emptyList(); toast(ctx, "They're back on the big picture") }
+                },
                 Toggle("Auto-play", "Titles change on their own while the big picture is selected", { st.heroAutoplay }, { st.heroAutoplay = it }),
                 Adjust("Title time", "Seconds before the next title", { "${st.heroIntervalSec} s" }, { st.heroIntervalSec += it }),
-                Adjust("Transition speed", "Fade between titles (lower = faster)", { "${st.transitionMs} ms" }, { st.transitionMs += it * 100 }),
+                transitionRow(st),
                 Adjust("Title style", "Logo image, plain text, or nothing", {
                     when (st.titleMode) { "logo" -> "Logo"; "text" -> "Text"; else -> "Hidden" }
                 }, { st.titleMode = cycle(listOf("logo", "text", "hidden"), st.titleMode, it) }),
@@ -273,7 +287,84 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 }, { st.artChoice = cycle(listOf("main", "second", "best", "addon"), st.artChoice, it) }),
                 Act("Reset pictures picked per title", "", "") { st.clearArtPicks(); toast(ctx, "Every title is back to the Artwork setting") },
                 Act("Reload titles now", "") { io { app.catalogs.refresh(); app.catalogs.status.value } },
-            )
+            ) + buildList {
+                // The widgets row, under the apps.
+                add(Note("At a glance: a row under your apps with the weather's next days, your calendars' next events and Home Assistant readings. Home Assistant is set up under Settings › Nuvio, Stremio & Home Assistant. Long links and tokens are easiest pasted from your phone (Settings › Manage from phone)."))
+                add(Toggle("At a glance row", "Under the apps on Home", { st.widgetsRow }, { st.widgetsRow = it }))
+                add(Toggle("Weather forecast", "Today and the next four days, for the weather's city (Clock & glass)", { st.widgetWeather }, { st.widgetWeather = it }))
+                add(Act("Calendars", if (st.calLinks.isEmpty()) "iCal links, like Google Calendar's secret address" else "${st.calLinks.size} linked: the next 3 events show",
+                    if (st.calLinks.isEmpty()) "Add" else "Add or remove") {
+                    dialog = MenuDialog("Calendars", st.calLinks.map { l ->
+                        "Remove " + (runCatching { java.net.URI(l.replaceFirst(Regex("^webcals?://"), "https://")).host }.getOrNull() ?: l).take(40) to {
+                            st.calLinks = st.calLinks - l; toast(ctx, "Calendar removed")
+                        }
+                    } + ("Add an iCal link" to {
+                        scope.launch {
+                            kotlinx.coroutines.delay(80)
+                            dialog = TextEntry("Calendar link", "", "Its iCal address (https://… or webcal://…, ending .ics)") { l ->
+                                if (Regex("^(https?|webcals?)://.+", RegexOption.IGNORE_CASE).matches(l.trim())) { st.calLinks = st.calLinks + l.trim(); toast(ctx, "Calendar added") }
+                                else toast(ctx, "That isn't a link (it starts with https:// or webcal://)")
+                            }
+                        }
+                    }))
+                })
+                add(Act("Home Assistant readings", if (st.haBase.isBlank() || st.haToken.isBlank()) "Set its address and token first: Settings › Nuvio, Stremio & Home Assistant"
+                    else "${st.haEntities.size} on Home: sensors, doors, locks, climate, people…", "Choose") {
+                    scope.launch {
+                        val all = kotlinx.coroutines.withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.data.HomeWidgets.all(st.haBase, st.haToken) } }
+                        all.onFailure { toast(ctx, it.message ?: "Couldn't reach Home Assistant") }
+                        val list = all.getOrNull() ?: return@launch
+                        if (list.isEmpty()) { toast(ctx, "Home Assistant has nothing to show"); return@launch }
+                        fun menu(): MenuDialog = MenuDialog("Home Assistant readings", list.map { r ->
+                            val on = r.id in st.haEntities
+                            (if (on) "✓  " else "     ") + r.name + "  ·  " + r.value + (if (r.unit == "°") r.unit else if (r.unit.isNotBlank()) " " + r.unit else "") to {
+                                st.haEntities = if (on) st.haEntities - r.id else st.haEntities + r.id
+                                scope.launch { kotlinx.coroutines.delay(80); dialog = menu() }
+                            }
+                        })
+                        dialog = menu()
+                    }
+                })
+                // Profiles: each person's own Home (these settings, Continue watching's sources, hidden titles).
+                val profs = app.profiles
+                val now = profs.current()
+                add(Note("Profiles: each person's own Home settings. Switch with the top bar's profile button (the round letter). The Nuvio, Stremio and Trakt accounts are the TV's: each profile picks which of them its Continue watching reads (Settings › Continue Watching)."))
+                for (p in profs.all()) {
+                    add(Act(p.name + if (p.kids) " (Kids)" else "", if (p.id == now.id) "On now" else "", "Rename or remove") {
+                        dialog = MenuDialog(p.name, listOfNotNull(
+                            "Rename" to {
+                                scope.launch { kotlinx.coroutines.delay(80); dialog = TextEntry("Rename", p.name, "A name") { profs.rename(p.id, it) } }
+                            },
+                            // Its row gone, the focus to this page's category (not the first one's page).
+                            if (p.id != now.id) "Remove" to {
+                                val here = cat
+                                if (profs.delete(p.id)) {
+                                    toast(ctx, "${p.name} removed")
+                                    scope.launch { kotlinx.coroutines.delay(80); cat = here; runCatching { catFocus[here].requestFocus() } }
+                                }
+                            } else null,
+                        ))
+                    })
+                }
+                add(Toggle("Ask who's watching", "When Glassio starts, with more than one profile", { st.askProfile }, { st.askProfile = it }))
+                add(Act("Home PIN", if (st.homePin.isBlank()) "None: Kids mode can be left freely" else "Asked to leave Kids mode", if (st.homePin.isBlank()) "Set" else "Change") {
+                    dialog = TextEntry("Home PIN (4 digits)", "", if (st.homePin.isBlank()) "Asked to leave Kids mode" else "Asked to leave Kids mode. Left empty: no PIN", secret = true) { pin ->
+                        if (pin.trim().matches(Regex("\\d{4}"))) { st.homePin = pin.trim(); toast(ctx, "PIN saved") }
+                        else if (pin.isBlank() && st.homePin.isNotBlank()) { st.homePin = ""; toast(ctx, "PIN removed: Kids mode can be left freely") }
+                        else toast(ctx, "The PIN must be 4 digits")
+                    }
+                })
+                // In Kids mode (here after the PIN): which apps it shows.
+                if (st.kidsMode) add(Act("Apps in Kids mode", "${st.kidsApps.size} chosen", "Choose") {
+                    fun menu(): MenuDialog = MenuDialog("Apps in Kids mode", app.apps.ordered(includeHidden = true).map { e ->
+                        (if (e.pkg in st.kidsApps) "✓  " else "     ") + e.label to {
+                            st.kidsApps = if (e.pkg in st.kidsApps) st.kidsApps - e.pkg else st.kidsApps + e.pkg
+                            scope.launch { kotlinx.coroutines.delay(80); dialog = menu() }
+                        }
+                    })
+                    dialog = menu()
+                })
+            }
         },
         Category("Clock & glass") {
             listOf(
@@ -293,7 +384,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Shown at start for", "Then hidden until you go up to them", { "${st.topHideSec} s" }, { st.topHideSec += it }),
                 Adjust("Corner radius", "The Apps folder and its tiles (0 = square)", { "${st.cornerRadius}" }, { st.cornerRadius += it * 2 }),
                 Adjust("Glass blur", "0 turns blur off", { "${st.blurRadius}" }, { st.blurRadius += it * 4 }),
-                Adjust("Glass refraction", "How much the rim bends what is behind it (0 = flat)", { "${st.refraction}" }, { st.refraction += it * 2 }),
+                refractionRow(st),
                 Adjust("Glass brightness", "", { "${st.glassTint}" }, { st.glassTint += it * 2 }),
                 Toggle("Colour on focus", "In the Apps folder, like tvOS: icons stay white, the selected one shows its colours on a light plate", { st.focusColor }, { st.focusColor = it }),
                 Adjust("Selected icon plate", "In the Apps folder, with Colour on focus", { PLATE_NAMES[st.focusPlate] ?: "Dark" },
@@ -319,7 +410,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Adjust("Icon style in the Apps folder", "How the plate behind every icon looks there", {
                     styleName(st.tileStyle)
                 }, { st.tileStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.tileStyle, it); st.theme = "" }))
-                add(Note("Change one icon: on the home screen hold OK on the app → Change icon. Pick from an icon pack, the Apple TV icons, a photo on the TV, a link to a PNG, or send one from your phone (Manage from phone)."))
+                add(Note("Change one icon: on the home screen hold OK on the app, then Change icon. Pick from an icon pack, the Apple TV icons, a photo on the TV, a link to a PNG, or send one from your phone (Manage from phone)."))
                 add(Note("Icon packs: install any Android TV / Projectivy icon pack from Google Play, then choose it above. Every app takes the pack's icon; you can still change single apps."))
                 add(Act("Find icon packs on Google Play", "Projectivy / Android TV icon packs", "") { openPlay(ctx, null, "projectivy icon pack") })
                 add(Note("Many icons at once: copy <package>.png files (e.g. com.netflix.ninja.png) into the icon folder below, then Import."))
@@ -402,6 +493,19 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         },
         Category("Continue Watching") {
             val cwList by app.cw.entries.collectAsState()
+            // The list's titles by name (its entries hold only IMDb ids): the row's cards first, then Cinemeta (kept a week).
+            val cwNames by androidx.compose.runtime.produceState(emptyMap<String, String>(), cwList) {
+                val known = app.cw.items.value.associate { it.key to it.name }.filterValues { it.isNotBlank() }
+                value = known
+                value = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    cwList.associate { e ->
+                        e.key to (known[e.key] ?: runCatching {
+                            app.http.json("https://v3-cinemeta.strem.io/meta/${e.type}/${e.imdb}.json", 7L * 24 * 3600 * 1000)
+                                .optJSONObject("meta")?.optString("name")?.takeIf { it.isNotBlank() && it != "null" }
+                        }.getOrNull() ?: "")
+                    }.filterValues { it.isNotBlank() }
+                }
+            }
             buildList {
                 add(Toggle("Continue watching on Home", "Its row under the big picture: OK opens a title in the app it came from; hold OK to open it in your other app, mark it watched or take it out. Live TV's cards stay either way",
                     { st.continueMode != "off" }, { st.continueMode = if (it) "row" else "off" }))
@@ -416,14 +520,14 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 if (nuvioAcct.available) add(Toggle("Nuvio (official app)",
                     if (nuvioAcct.connected) "From your Nuvio account" + (nuvioAcct.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") +
                         ": what you're watching in the official Nuvio app" + (if (nStatus.isNotBlank()) " · $nStatus" else "")
-                    else "Sign in to your Nuvio account (Settings → Nuvio, Stremio & Home Assistant) to see what you're watching in the official Nuvio app",
+                    else "Sign in to your Nuvio account (Settings › Nuvio, Stremio & Home Assistant) to see what you're watching in the official Nuvio app",
                     { st.cwNuvio }, { st.cwNuvio = it; app.cw.syncNuvioNow() }))
                 val stremioAcct = app.library.stremio
                 val sStatus by app.cw.stremioStatus.collectAsState()
                 add(Toggle("Stremio",
                     if (stremioAcct.connected) "From your Stremio account" + (stremioAcct.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") +
                         ": what you're watching in Stremio" + (if (sStatus.isNotBlank()) " · $sStatus" else "")
-                    else "Sign in to your Stremio account (Settings → Nuvio, Stremio & Home Assistant) to see what you're watching in Stremio",
+                    else "Sign in to your Stremio account (Settings › Nuvio, Stremio & Home Assistant) to see what you're watching in Stremio",
                     { st.cwStremio }, { st.cwStremio = it; app.cw.syncStremioNow() }))
                 val trakt = app.cw.trakt
                 val tStatus by app.cw.traktStatus.collectAsState()
@@ -443,12 +547,15 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     })
                     else add(Act("Sign out of Trakt", trakt.user, "") { trakt.signOut(); st.cwTrakt = st.cwTrakt; toast(ctx, "Signed out of Trakt") })
                 }
-                add(Note("How it works: Nuvio Legacy writes what you play to the TV's log (title, episode, how far). Glassio reads that log through the TV's own debugging connection (ADB), so this needs ADB once: Settings → System → TV access (ADB). Nothing leaves the TV."))
+                add(Note("How it works: Nuvio Legacy writes what you play to the TV's log (title, episode, how far). Glassio reads that log through the TV's own debugging connection (ADB), so this needs ADB once: Settings › System › TV access (ADB). Nothing leaves the TV."))
                 add(Note("The official Nuvio app saves what you watch to your Nuvio account, and Stremio to your Stremio account: signed in to the same account here, it shows up in Continue Watching (taking a title out here takes it out there too). Nuvio Arc and Re-Shaped: connect Trakt (and turn on Trakt in that app) and what you pause there shows up here through Trakt."))
                 add(Note("Other apps (YouTube, Netflix, Apple TV…) keep their Continue Watching private on Google TV; only the system launcher may read it."))
                 add(Act("Clear the list", "${cwList.size} titles", "") { app.cw.clear() })
                 cwList.forEach { e ->
-                    add(Act(e.imdb + if (e.season > 0) "  S${e.season}E${e.episode}" else "", "${e.app} · ${e.percent}%", "Remove") { app.cw.remove(e.key) })
+                    val name = cwNames[e.key] ?: e.imdb
+                    add(Act(name + if (e.season > 0) "  ·  S${e.season} · E${e.episode}" else "", "${e.app} · ${e.percent}% watched", "Remove") {
+                        app.cw.remove(e.key); toast(ctx, "$name removed from Continue Watching")
+                    })
                 }
             }
         },
@@ -471,8 +578,16 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     ok = if (st.haWebhook.startsWith("http")) true else null) {
                     dialog = TextEntry("Home Assistant webhook", st.haWebhook, "http://homeassistant.local:8123/api/webhook/…") { st.haWebhook = it }
                 },
-                Toggle("Tell Home Assistant when a title opens", "Sends title, type and id as JSON", { st.haOnLaunch }, { st.haOnLaunch = it }),
+                Toggle("Tell Home Assistant what's on", "Events to the webhook: something playing, back on Home, the screensaver", { st.haOnLaunch }, { st.haOnLaunch = it }),
                 Act("Send a test event", "") { io { NuvioLaunch.testWebhook(st, app.http) } },
+                // Reading Home Assistant (the At a glance row's readings, chosen in Settings › Home).
+                Act("Home Assistant address", st.haBase.ifBlank { "Not set: like http://homeassistant.local:8123" }, if (st.haUrl.isBlank()) "Set" else "Change") {
+                    dialog = TextEntry("Home Assistant address", st.haBase, "Like http://homeassistant.local:8123 (empty: the webhook's)") { st.haUrl = it }
+                },
+                Act("Home Assistant token", if (st.haToken.isBlank()) "A long-lived access token (your HA profile › Security)" else "Saved",
+                    if (st.haToken.isBlank()) "Set" else "Change", ok = if (st.haToken.isNotBlank()) true else null) {
+                    dialog = TextEntry("Home Assistant token", "", "Long-lived access token (empty: remove it)", secret = true) { st.haToken = it; toast(ctx, if (it.isBlank()) "Token removed" else "Token saved") }
+                },
                 tmdbRow(),
             )
         },
@@ -688,7 +803,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     .focusGroup(),
                 (30 * s).dp, style = st.panelStyle, darken = 0.42f,
             ) {
-                val c = categories[shownCat]
+                // A page that isn't there (asked for from outside by number, past About): the first one, not a crash.
+                val c = categories.getOrNull(shownCat) ?: categories.first()
                 Column(Modifier.padding((18 * s).dp)) {
                     Text(c.title, color = Color.White, fontSize = (20 * s).sp, fontWeight = FontWeight.Light, modifier = Modifier.padding(start = (6 * s).dp, bottom = (8 * s).dp))
                     if (c.kind == Kind.Phone) PhonePane(app, s)
@@ -891,7 +1007,7 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
     val rel by app.updater.available.collectAsState()
     val status by app.updater.status.collectAsState()
     val qr = remember { com.glasslauncher.tv.net.Net.qr(com.glasslauncher.tv.data.Updater.REPO_URL, 420).asImageBitmap() }
-    val crash = remember { java.io.File(ctx.filesDir, "last-crash.txt").takeIf { it.exists() }?.readText()?.lineSequence()?.take(2)?.joinToString(" · ").orEmpty() }
+    var crash by remember { mutableStateOf(java.io.File(ctx.filesDir, "last-crash.txt").takeIf { it.exists() }?.readText()?.lineSequence()?.take(2)?.joinToString(" · ").orEmpty()) }
     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy((18 * s).dp)) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Image(qr, "GitHub", Modifier.size((150 * s).dp).clip(RoundedCornerShape((12 * s).dp)))
@@ -909,8 +1025,8 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
                 scope.launch(Dispatchers.IO) { toast(ctx, app.updater.check()) }
             })
             add(Note("A pill appears next to the clock when a new version is out."))
-            add(Note("Made by Mohammad (mrh12) · Fonts: Inter (SIL OFL) · Weather: Open-Meteo · This product uses the TMDB API but is not endorsed or certified by TMDB."))
-            if (crash.isNotBlank()) add(Act("Last crash", crash.take(120), "Clear") { java.io.File(ctx.filesDir, "last-crash.txt").delete(); toast(ctx, "Cleared") })
+            add(Note("Glassio Yahsun by GizmoH2o, based on Glassio by Mohammad (mrh12) · Fonts: Inter (SIL OFL) · Weather: Open-Meteo · This product uses the TMDB API but is not endorsed or certified by TMDB."))
+            if (crash.isNotBlank()) add(Act("Last crash", crash.take(120), "Clear") { java.io.File(ctx.filesDir, "last-crash.txt").delete(); crash = ""; toast(ctx, "Cleared") })
         }
         LazyColumn(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
             items(rows.size) { i -> RowView(rows[i], s, app, onApp = onApp) }

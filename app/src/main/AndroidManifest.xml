@@ -70,6 +70,9 @@
             </intent-filter>
         </activity>
 
+        <!-- Home's sleep timer (the quick panel): the TV to sleep at its time. -->
+        <receiver android:name=".data.SleepReceiver" android:exported="false"/>
+
         <!-- Home Assistant's camera (a doorbell) over whatever is on: a card, the window around it see-through. -->
         <activity
             android:name=".CameraActivity"
@@ -124,6 +127,7 @@
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
 

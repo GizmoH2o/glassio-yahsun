@@ -48,14 +48,22 @@ data class WeatherNow(
     fun temp(fahrenheit: Boolean) = (if (fahrenheit) tempC * 9 / 5 + 32 else tempC).roundToInt().toString() + "°"
 }
 
+/** One day of the forecast (Home's widgets row): its date (yyyy-mm-dd), weather code, high and low. */
+data class WeatherDay(val date: String, val code: Int, val hiC: Double, val loC: Double) {
+    val icon: String get() = WeatherNow("", 0.0, code, true).icon
+    val condition: String get() = WeatherNow("", 0.0, code, true).condition
+}
+
 class Weather(private val settings: Settings, private val http: Http, private val scope: CoroutineScope) {
     val now = MutableStateFlow<WeatherNow?>(null)
+    /** Today and the next four days. */
+    val days = MutableStateFlow<List<WeatherDay>>(emptyList())
     private var place: Triple<String, Double, Double>? = null
 
     fun start() {
         scope.launch(Dispatchers.IO) {
             while (true) {
-                if (settings.weatherMode != "off" || (settings.menuMode != "off" && settings.menuWeather)) runCatching { refresh() }
+                if (settings.weatherMode != "off" || (settings.menuMode != "off" && settings.menuWeather) || (settings.widgetsRow && settings.widgetWeather)) runCatching { refresh() }
                 delay(15 * 60_000L)
             }
         }
@@ -102,11 +110,17 @@ class Weather(private val settings: Settings, private val http: Http, private va
             Triple(city, ll.first, ll.second).also { place = it }
         }
         val j = http.json(
-            "https://api.open-meteo.com/v1/forecast?latitude=${p.second}&longitude=${p.third}&current=temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&forecast_days=1&timezone=auto",
+            "https://api.open-meteo.com/v1/forecast?latitude=${p.second}&longitude=${p.third}&current=temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5&timezone=auto",
             10 * 60_000L,
         )
         val c = j.optJSONObject("current") ?: return
         val d = j.optJSONObject("daily")
+        days.value = d?.optJSONArray("time")?.let { t ->
+            (0 until t.length()).map { i ->
+                WeatherDay(t.optString(i), d.optJSONArray("weather_code")?.optInt(i) ?: 3,
+                    d.optJSONArray("temperature_2m_max")?.optDouble(i) ?: Double.NaN, d.optJSONArray("temperature_2m_min")?.optDouble(i) ?: Double.NaN)
+            }
+        }.orEmpty()
         now.value = WeatherNow(
             found.value.substringBefore(",").ifBlank { city }, c.optDouble("temperature_2m"), c.optInt("weather_code"), c.optInt("is_day", 1) == 1,
             d?.optJSONArray("temperature_2m_max")?.optDouble(0) ?: Double.NaN, d?.optJSONArray("temperature_2m_min")?.optDouble(0) ?: Double.NaN,

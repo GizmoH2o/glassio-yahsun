@@ -28,6 +28,7 @@ public class ScheduleReceiver extends BroadcastReceiver {
         String key = LiveSchedule.keyOf(intent);
         LiveSchedule.Item it = key == null ? null : LiveSchedule.find(c, key);
         if (it == null) return;
+        LiveSchedule.started(c, it);     // a followed match: still "on now" for the home screen and the screensaver
         LiveSchedule.remove(c, key);     // it's happening now
         if (LiveSchedule.RECORD.equals(it.kind)) {
             RecordService.start(c, it);

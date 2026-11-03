@@ -33,8 +33,18 @@ class BootReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         val app = context.applicationContext as? GlassApp ?: return
+        // Updated: Android drops the Home-button service from the enabled ones, sometimes after Glassio has already put
+        // it back as it started; so again a few times over the next seconds (otherwise Home led to Google TV's home
+        // screen till Glassio was opened by hand).
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            val done = goAsync()
+            thread(name = "glass-updated", isDaemon = true) {
+                try { for (wait in listOf(0L, 2_000L, 4_000L, 4_000L)) { Thread.sleep(wait); app.ensureHomeService() } } finally { done.finish() }
+            }
+            return
+        }
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
         if (!app.settings.bootGlassio) return
         val done = goAsync()
         thread(name = "glass-boot", isDaemon = true) {

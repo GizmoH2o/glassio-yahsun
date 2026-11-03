@@ -64,6 +64,7 @@ fun DialogHost(state: DialogState?, onDismiss: () -> Unit) {
             is TextEntry -> TextEntryDialog(state, onDismiss)
             is MenuDialog -> MenuDialogView(state, onDismiss)
             is QrCodeDialog -> QrCodeDialogView(state, onDismiss)
+            QuickPanelState -> QuickPanelView(onDismiss)
         }
     }
 }

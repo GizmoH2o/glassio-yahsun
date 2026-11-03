@@ -155,8 +155,8 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                             onClick = {
                                 target = i
                                 when {
-                                    key == "image" && st.bgImage.isBlank() -> toast(ctx, "Choose a picture first: Glassio settings → Clock & glass")
-                                    key == "video" && st.bgVideo.isBlank() -> toast(ctx, "Choose a video first: Glassio settings → Clock & glass")
+                                    key == "image" && st.bgImage.isBlank() -> toast(ctx, "Choose a picture first: Glassio settings › Clock & glass")
+                                    key == "video" && st.bgVideo.isBlank() -> toast(ctx, "Choose a video first: Glassio settings › Clock & glass")
                                     else -> st.bgMode = key
                                 }
                             })

@@ -25,7 +25,10 @@ final class LiveMatchDay {
         if (now - cachedAt < 60_000) return cached != null && cached.end > now ? cached : null;
         cachedAt = now;
         cached = null;
-        for (LiveSchedule.Item it : LiveSchedule.all(c)) {
+        // The schedule, and the followed shows already started (their reminders have gone off: out of the schedule).
+        java.util.List<LiveSchedule.Item> items = new java.util.ArrayList<>(LiveSchedule.onNow(c));
+        items.addAll(LiveSchedule.all(c));
+        for (LiveSchedule.Item it : items) {
             if (it.series == null || !it.series.startsWith(LiveFollow.SERIES) || it.ch == null) continue;
             if (it.end <= now || it.start > now + AHEAD) continue;
             if (cached != null && it.start >= cached.start) continue;

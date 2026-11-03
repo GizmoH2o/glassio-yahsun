@@ -86,6 +86,7 @@ import com.glasslauncher.tv.GlassApp
 import com.glasslauncher.tv.data.AppEntry
 import com.glasslauncher.tv.data.Airing
 import com.glasslauncher.tv.data.HeroItem
+import com.glasslauncher.tv.data.HeroPicks
 import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.LiveCards
 import com.glasslauncher.tv.data.NuvioLaunch
@@ -94,9 +95,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** The page's left edge, as the big picture's text (dp at 960 wide). */
-private const val EDGE = 48f
+internal const val EDGE = 48f
 private const val ROW_GAP = 14f
-private const val AIRING_W = 104f
+internal const val AIRING_W = 104f
 private const val WATCH_W = 168f
 private const val POSTER_W = 100f
 /** A poster rested on opens up to this much wider (its picture on top, its details under it). */
@@ -105,10 +106,10 @@ private const val OPEN_W = 1.32f
 private val RED: Color @Composable @androidx.compose.runtime.ReadOnlyComposable get() = LocalAccent.current
 private val GREEN = Color(0xFF46D369)
 private val IMDB = Color(0xFFF5C518)
-private val CARD = Color(0xFF1C1C1F)
+internal val CARD = Color(0xFF1C1C1F)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, Movies, Series, Apps }
+private enum class Part { Hero, Airing, Watch, Movies, Series, Apps, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -124,6 +125,8 @@ internal fun HomePage(
     shownUrl: androidx.compose.runtime.State<String?>, onBackdrop: (String?) -> Unit,
     onHeroFocus: (Boolean) -> Unit, onDialog: (DialogState) -> Unit,
     onAppMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit, onLibrary: () -> Unit,
+    /** The trailer to play behind the big picture (null: none), and whether the last one has ended. */
+    onTrailer: (String?) -> Unit, trailerOver: Boolean,
     /** How far down the page is, 0 (the top) to 1: the top bar fades as it goes. */
     down: androidx.compose.runtime.MutableFloatState,
 ) {
@@ -146,25 +149,65 @@ internal fun HomePage(
     val lifeState by lifecycle.currentStateFlow.collectAsState()
     val resumed = lifeState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
 
-    // ── what the rows hold
-    val watchItems = remember(liveCards, cwItems, enriched, newEps, settings.continueMode, settings.artChoice, settings.cwNewFirst) {
-        if (settings.continueMode == "off") liveCards
+    // ── what the rows hold (Kids mode: no Continue watching or Airing, the library's family titles, the chosen apps)
+    val kids = settings.kidsMode
+    val watchItems = remember(liveCards, cwItems, enriched, newEps, settings.continueMode, settings.artChoice, settings.cwNewFirst, kids) {
+        if (kids) emptyList()
+        else if (settings.continueMode == "off") liveCards
         else {
             val cw = cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source, episodeTitle = c.episodeTitle) }
             // New episodes first (as watched, among themselves), then the rest as watched.
             liveCards + if (settings.cwNewFirst) cw.sortedBy { if ((newEps[it.key] ?: 0) > 0) 0 else 1 } else cw
         }
     }
-    val showAiring = settings.homeAiring && airing.isNotEmpty()
-    val showMovies = settings.homeMovies && movies.isNotEmpty()
-    val showSeries = settings.homeSeries && series.isNotEmpty()
+    val kidsMovies = remember(movies, kids, infoRev) { if (kids) movies.filter { HeroPicks.isKids(app.shelf.filled(it)) } else movies }
+    val kidsSeries = remember(series, kids, infoRev) { if (kids) series.filter { HeroPicks.isKids(app.shelf.filled(it)) } else series }
+    val allAppsNow by app.apps.apps.collectAsState()
+    val anyApps = remember(allAppsNow, kids, settings.kidsApps) {
+        !kids || settings.kidsApps.toSet().let { ok -> app.apps.ordered(includeHidden = true).any { it.pkg in ok } }
+    }
+    val showAiring = !kids && settings.homeAiring && airing.isNotEmpty()
+    val showMovies = settings.homeMovies && kidsMovies.isNotEmpty()
+    val showSeries = settings.homeSeries && kidsSeries.isNotEmpty()
+    // ── the widgets row (Settings › Home › Widgets): the weather's next days, the calendars' next events and Home
+    // Assistant readings, read again while Home is on screen (the calendars every 10 minutes, the readings every half
+    // minute); OK on a card reads them now. Kids mode: the weather only.
+    var widgetBump by remember { mutableIntStateOf(0) }
+    val weatherNow by app.weather.now.collectAsState()
+    val weatherDays by app.weather.days.collectAsState()
+    val calLinks = if (kids) emptyList() else settings.calLinks
+    val agenda by produceState<com.glasslauncher.tv.data.HomeWidgets.Agenda?>(null, calLinks, visible, widgetBump) {
+        if (calLinks.isEmpty()) { value = null; return@produceState }
+        while (visible) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.glasslauncher.tv.data.HomeWidgets.agenda(app.http, calLinks) }
+            delay(10 * 60_000L)
+        }
+    }
+    val haIds = if (kids) emptyList() else settings.haEntities
+    val readings by produceState(emptyList<com.glasslauncher.tv.data.HomeWidgets.Reading>(), haIds, settings.haBase, settings.haToken, visible, widgetBump) {
+        if (haIds.isEmpty()) { value = emptyList(); return@produceState }
+        while (visible) {
+            val got = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.glasslauncher.tv.data.HomeWidgets.readings(settings.haBase, settings.haToken, haIds) }
+            // None read (Home Assistant restarting, the Wi-Fi gone a moment): the last ones stay, the cards don't vanish.
+            if (got.isNotEmpty() || value.none { it.id in haIds }) value = got
+            delay(30_000L)
+        }
+    }
+    val widgetNow by produceState(java.time.Instant.now()) { while (true) { delay(30_000L); value = java.time.Instant.now() } }
+    val widgetKeys = buildList {
+        if (settings.widgetWeather && weatherNow != null && weatherDays.isNotEmpty()) add("weather")
+        if (calLinks.isNotEmpty()) add("calendar")
+        readings.forEach { add("ha:" + it.id) }
+    }
+    val showWidgets = settings.widgetsRow && widgetKeys.isNotEmpty()
     val parts = buildList {
         add(Part.Hero)
         if (showAiring) add(Part.Airing)
         if (watchItems.isNotEmpty()) add(Part.Watch)
         if (showMovies) add(Part.Movies)
         if (showSeries) add(Part.Series)
-        add(Part.Apps)
+        if (anyApps) add(Part.Apps)
+        if (showWidgets) add(Part.Widgets)
     }
     val entry = remember { mutableStateMapOf<Part, FocusRequester>() }
     fun req(p: Part) = if (p == Part.Hero) heroFocus else if (p == Part.Apps) appsFocus else entry.getOrPut(p) { FocusRequester() }
@@ -183,9 +226,15 @@ internal fun HomePage(
         }
     }
 
-    // ── the big picture: the catalogs' titles in turn, or the title selected in a row
+    // ── the big picture: the catalogs' titles in turn (HeroPicks: not the hidden ones, the season's first, Because you
+    // watched among them, family ones only in Kids mode), or the title selected in a row. Picked from the catalogs' own
+    // genres, not the fuller ones found later: those would reorder the slides while you look at them.
     var index by remember { mutableIntStateOf(0) }
-    val slides = catalogItems
+    val month = settings.seasonMonth.takeIf { it in 1..12 } ?: (java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1)
+    val picks = remember(catalogItems, settings.heroHidden, kids, cwItems, settings.heroBecause, settings.heroSeasonal, month) {
+        HeroPicks.pick(catalogItems, emptyMap(), settings.heroHidden.toSet(), kids, cwItems, settings.heroBecause, settings.heroSeasonal, month)
+    }
+    val slides = picks.slides
     val slide = slides.getOrNull(index.mod(slides.size.coerceAtLeast(1)))
         ?.let { r -> (enriched[r.key] ?: r) }?.let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }
     var selected by remember { mutableStateOf<HeroItem?>(null) }
@@ -225,9 +274,23 @@ internal fun HomePage(
             if (n.background.isNotBlank()) loader.enqueue(ImageRequest.Builder(ctx).data(n.background).size(1920, 1080).build())
         }
     }
-    // On its own: the next title every few seconds while the big picture is selected (or nothing is).
-    LaunchedEffect(index, slides.size, settings.heroAutoplay, settings.heroIntervalSec, visible, paused, resumed, inPart) {
-        if (settings.heroAutoplay && visible && !paused && resumed && slides.size > 1 && inPart == Part.Hero) {
+    // Its trailer (Settings › Home › Trailers): after a few seconds on the big picture with a title, behind it; any
+    // move (another title, a row, another screen) stops it.
+    val restingOn = textItem?.takeIf { settings.heroTrailers && trailersPlay && inPart == Part.Hero && visible && !paused && resumed }
+    var trailerOn by remember { mutableStateOf(false) }
+    LaunchedEffect(restingOn?.key) {
+        onTrailer(null); trailerOn = false
+        val t = restingOn ?: return@LaunchedEffect
+        delay(4_000)
+        val id = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { trailerOf(app, t) }
+        if (id == null) return@LaunchedEffect
+        trailerOn = true
+        onTrailer(id)
+    }
+    // On its own: the next title every few seconds while the big picture is selected (or nothing is); not while its
+    // trailer plays (after it, on).
+    LaunchedEffect(index, slides.size, settings.heroAutoplay, settings.heroIntervalSec, visible, paused, resumed, inPart, trailerOn, trailerOver) {
+        if (settings.heroAutoplay && visible && !paused && resumed && slides.size > 1 && inPart == Part.Hero && (!trailerOn || trailerOver)) {
             delay(settings.heroIntervalSec * 1000L)
             SlideDir.dir = 1
             index++
@@ -289,7 +352,7 @@ internal fun HomePage(
                     val fade = { (1f - offset.value / (heroH * density * 0.55f)).coerceIn(0f, 1f) }
                     if (shown != null && !app.showSetup.value) {
                         HeroText(app, shown, s, savedList.any { it.key == shown.key }, heroFocus,
-                            down = parts.getOrNull(1)?.let { req(it) } ?: appsFocus,
+                            down = parts.getOrNull(1)?.let { req(it) } ?: FocusRequester.Cancel,
                             onFocus = { f -> if (f) { inPart = Part.Hero; selected = null }; onHeroFocus(f) },
                             onPrev = { app.navAt = System.currentTimeMillis(); SlideDir.dir = -1; index-- },
                             onNext = { app.navAt = System.currentTimeMillis(); SlideDir.dir = 1; index++ },
@@ -298,21 +361,39 @@ internal fun HomePage(
                                 val now = app.library.toggle(shown)
                                 toast(ctx, if (now) "Saved to Library · ${shown.name}" else "Removed from Library · ${shown.name}")
                             },
-                            onArt = {
-                                val base = enriched[shown.key] ?: shown
-                                val options = artOptions(base)
-                                if (options.size < 2) toast(ctx, "No other pictures for ${shown.name} (add a TMDB token for more)")
-                                else {
-                                    val cur = options.indexOf(shown.background).coerceAtLeast(0)
-                                    settings.setArtPick(shown.key, options[(cur + 1) % options.size])
-                                    toast(ctx, "Picture ${(cur + 1) % options.size + 1} of ${options.size} · ${shown.name}  (hold OK again for the next)")
+                            // Hold OK: Not interested (it leaves the big picture), or another picture for it.
+                            onArt = hold@{
+                                if (kids) return@hold
+                                val nextPicture = {
+                                    val base = enriched[shown.key] ?: shown
+                                    val options = artOptions(base)
+                                    if (options.size < 2) toast(ctx, "No other pictures for ${shown.name} (add a TMDB token for more)")
+                                    else {
+                                        val cur = options.indexOf(shown.background).coerceAtLeast(0)
+                                        settings.setArtPick(shown.key, options[(cur + 1) % options.size])
+                                        toast(ctx, "Picture ${(cur + 1) % options.size + 1} of ${options.size} · ${shown.name}")
+                                    }
                                 }
+                                onDialog(MenuDialog(shown.name, listOf(
+                                    "Not interested" to {
+                                        settings.heroHidden = (settings.heroHidden + shown.key).distinct()
+                                        toast(ctx, "${shown.name} won't show here again (Settings › Home to bring it back)")
+                                    },
+                                    "Another picture" to nextPicture,
+                                )))
                             },
+                            reason = if (shown.key == slide?.key) picks.reasons[shown.key] else null,
                             modifier = Modifier.align(Alignment.BottomStart).graphicsLayer { alpha = fade() })
                         if (slides.size > 1 && hero == slide) Dashes(slides.size, index.mod(slides.size), s,
                             Modifier.align(Alignment.BottomEnd).padding(end = (EDGE * s).dp, bottom = (12 * s).dp).graphicsLayer { alpha = fade() })
+                    } else if (kids) {
+                        // Kids mode with no family title in the catalogs: a line, never the setup steps (they lead to Settings).
+                        Text("Nothing to watch here yet", color = Color.White.copy(alpha = 0.85f), fontSize = (16 * s).sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.align(Alignment.BottomStart).padding(start = (EDGE * s).dp, bottom = (20 * s).dp)
+                                .focusRequester(heroFocus).focusProperties { this.down = parts.getOrNull(1)?.let { req(it) } ?: FocusRequester.Cancel }
+                                .onFocusChanged { if (it.isFocused) inPart = Part.Hero; onHeroFocus(it.isFocused) }.tvPress(onKey = backKey(), onClick = {}))
                     } else {
-                        EmptyHint(app, status, s, heroFocus, parts.getOrNull(1)?.let { req(it) } ?: appsFocus,
+                        EmptyHint(app, status, s, heroFocus, parts.getOrNull(1)?.let { req(it) } ?: FocusRequester.Cancel,
                             Modifier.align(Alignment.TopStart).graphicsLayer { alpha = fade() },
                             { f -> if (f) inPart = Part.Hero; onHeroFocus(f) }) { cat ->
                             app.requestSettings.intValue = cat; app.requestSettingsRev.intValue++
@@ -360,16 +441,34 @@ internal fun HomePage(
                             val item = list[i]
                             PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item },
                                 onOpen = { NuvioLaunch.open(ctx, settings, app.http, item) },
-                                onHold = { onDialog(titleMenu(app, ctx, item)) })
+                                onHold = { if (!kids) onDialog(titleMenu(app, ctx, item)) })
                         }
                     }
                 }
-                if (showMovies) posters(Part.Movies, "Movies in your library", movies)
-                if (showSeries) posters(Part.Series, "Series in your library", series)
-                // ── apps
-                section(Part.Apps, "Apps") {
-                    AppsGrid(app, s, settings.appsPerRow, appsFocus, above(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu,
+                if (showMovies) posters(Part.Movies, "Movies in your library", kidsMovies)
+                if (showSeries) posters(Part.Series, "Series in your library", kidsSeries)
+                // ── apps (Kids mode: only with apps chosen for it)
+                if (anyApps) section(Part.Apps, "Apps") {
+                    AppsGrid(app, s, settings.appsPerRow, appsFocus, above(Part.Apps), below(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu,
                         onRow = { r, top, bottom -> appRows[r] = (top + offset.value) to (bottom + offset.value) }, onFocusRow = { appRow = it })
+                }
+                // ── at a glance: the widgets
+                if (showWidgets) section(Part.Widgets, "At a glance") {
+                    CardRow(s, req(Part.Widgets), above(Part.Widgets), below(Part.Widgets), widgetKeys) { i, mod ->
+                        val k = widgetKeys[i]
+                        val w = weatherNow
+                        // A quarter larger than the other rows' cards: read from the sofa, beside the apps' big tiles.
+                        val s = s * 1.25f
+                        when {
+                            k == "weather" && w != null -> WeatherWidget(w.city, w.temp(settings.weatherF), weatherDays, settings.weatherF, s, mod) { app.weather.reload() }
+                            k == "calendar" -> CalendarWidget(agenda, widgetNow, s, mod) { widgetBump++ }
+                            else -> readings.firstOrNull { "ha:" + it.id == k }?.let { r ->
+                                HaWidget(r, s, mod, onClick = { widgetBump++ }, onHold = {
+                                    onDialog(MenuDialog(r.name, listOf("Remove from Home" to { settings.haEntities = settings.haEntities - r.id })))
+                                })
+                            }
+                        }
+                    }
                 }
                 Spacer(Modifier.height((40 * s).dp))
             }
@@ -434,6 +533,8 @@ private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: F
 private fun HeroText(
     app: GlassApp, item: HeroItem, s: Float, saved: Boolean, heroFocus: FocusRequester, down: FocusRequester,
     onFocus: (Boolean) -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onPlay: () -> Unit, onSave: () -> Unit, onArt: () -> Unit,
+    /** Why it's here ("Because you watched …"), after the kind line; null for none. */
+    reason: String?,
     modifier: Modifier,
 ) {
     val settings = app.settings
@@ -450,9 +551,13 @@ private fun HeroText(
             label = "heroText",
         ) { it ->
             Column {
-                // A small kind line over the logo ("SERIES", "FILM"), then the logo.
-                Text(if (it.type.equals("movie", true)) "FILM" else "SERIES", color = RED, fontSize = (7.5f * s).sp,
-                    fontWeight = FontWeight.Bold, letterSpacing = (1.5f * s).sp)
+                // A small kind line over the logo ("SERIES", "FILM"), why it's here beside it, then the logo.
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (it.type.equals("movie", true)) "FILM" else "SERIES", color = RED, fontSize = (7.5f * s).sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = (1.5f * s).sp)
+                    if (reason != null) Text("  ·  $reason", color = Color.White.copy(alpha = 0.8f), fontSize = (7.5f * s).sp,
+                        fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
                 Spacer(Modifier.height((4 * s).dp))
                 Title(it, settings.titleMode, settings.titleScale * 0.9f, s)
                 Spacer(Modifier.height((10 * s).dp))
@@ -577,7 +682,7 @@ private fun ImdbBadge(rating: String, s: Float, small: Boolean = false) {
  * Back only took the focus off the card, and nothing seemed to happen.
  */
 @Composable
-private fun backKey(): (KeyEvent) -> Boolean {
+internal fun backKey(): (KeyEvent) -> Boolean {
     val owner = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current
     return { ev ->
         if (ev.key == Key.Back) {
@@ -589,7 +694,7 @@ private fun backKey(): (KeyEvent) -> Boolean {
 
 /** A card's selected look: it grows a little and gets a white outline. */
 @Composable
-private fun Modifier.cardFocus(s: Float, focused: Boolean, radius: Float = 6f, grow: Float = 1.06f): Modifier {
+internal fun Modifier.cardFocus(s: Float, focused: Boolean, radius: Float = 6f, grow: Float = 1.06f): Modifier {
     val sc by animateFloatAsState(if (focused) grow else 1f, spring(0.75f, 600f), label = "cardScale")
     val shape = RoundedCornerShape((radius * s).dp)
     return this.zIndex(if (focused) 1f else 0f).graphicsLayer { scaleX = sc; scaleY = sc }
@@ -889,17 +994,21 @@ private fun SeeAllCard(s: Float, modifier: Modifier, onOpen: () -> Unit) {
  */
 @Composable
 private fun AppsGrid(
-    app: GlassApp, s: Float, perRow: Int, appsFocus: FocusRequester, up: FocusRequester, folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>,
+    app: GlassApp, s: Float, perRow: Int, appsFocus: FocusRequester, up: FocusRequester, below: FocusRequester, folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>,
     movingPkg: String?, onMoveKey: (KeyEvent) -> Boolean, onMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit,
     onRow: (Int, Float, Float) -> Unit, onFocusRow: (Int) -> Unit,
 ) {
     val ctx = LocalContext.current
     val settings = app.settings
     val allApps by app.apps.apps.collectAsState()
-    val apps = remember(allApps, settings.dockOrder, settings.hiddenApps, settings.showMobileApps) { app.apps.ordered() }
-    val tiles: List<AppEntry?> = remember(apps, settings.folderPos, settings.showFolder) {
+    // Kids mode: only the apps chosen for it (hidden ones too, when chosen), and no Apps folder.
+    val kids = settings.kidsMode
+    val apps = remember(allApps, settings.dockOrder, settings.hiddenApps, settings.showMobileApps, kids, settings.kidsApps) {
+        if (kids) settings.kidsApps.toSet().let { ok -> app.apps.ordered(includeHidden = true).filter { it.pkg in ok } } else app.apps.ordered()
+    }
+    val tiles: List<AppEntry?> = remember(apps, settings.folderPos, settings.showFolder, kids) {
         val p = settings.folderPos.let { if (it < 0 || it > apps.size) apps.size else it }
-        apps.toMutableList<AppEntry?>().apply { if (settings.showFolder) add(p, null) }
+        apps.toMutableList<AppEntry?>().apply { if (settings.showFolder && !kids) add(p, null) }
     }
     // Moving an app: it keeps the focus at every step (laid out again in its new place).
     LaunchedEffect(tiles, movingPkg) {
@@ -925,7 +1034,7 @@ private fun AppsGrid(
                         val k = e?.pkg ?: FOLDER_KEY
                         key(k) {
                             val base = Modifier.then(if (k == entryKey) Modifier.focusRequester(appsFocus) else Modifier)
-                                .focusProperties { if (r == 0) this.up = up; if (r == rows.lastIndex) down = FocusRequester.Cancel }
+                                .focusProperties { if (r == 0) this.up = up; if (r == rows.lastIndex) down = below }
                                 .onFocusChanged { if (it.isFocused) { last = k; onFocusRow(r) } }
                             if (e == null) AppTile(app, null, s, tileW, movingPkg == FOLDER_KEY, base.focusRequester(folderFocus), onMoveKey, onFolder, onFolderMenu)
                             else AppTile(app, e, s, tileW, movingPkg == e.pkg, base.focusRequester(tileFocus.getOrPut(e.pkg) { FocusRequester() }), onMoveKey,

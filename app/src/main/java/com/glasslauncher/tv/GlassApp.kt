@@ -87,6 +87,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     lateinit var library: com.glasslauncher.tv.data.Library; private set
     /** The home screen's library rows: Airing this week, Movies, Series, and Continue Watching's new episodes. */
     lateinit var shelf: com.glasslauncher.tv.data.HomeShelf; private set
+    lateinit var profiles: com.glasslauncher.tv.data.HomeProfiles; private set
 
     override fun onCreate() {
         super.onCreate()
@@ -103,6 +104,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         // Live TV (:live) and its recordings (:rec) run in their own processes: none of the home screen's work there.
         if (getProcessName() != packageName) return
         settings = Settings(this)
+        profiles = com.glasslauncher.tv.data.HomeProfiles(this, settings)
         if (settings.perfMode == "auto") settings.applyMode("auto")
         com.glasslauncher.tv.ui.GlassCache.res = settings.glassRes
         http = Http(this)

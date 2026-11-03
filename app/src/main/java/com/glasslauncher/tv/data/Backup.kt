@@ -34,7 +34,7 @@ object Backup {
      */
     private val SKIP_DIRS = setOf("recordings", "drop", "live-logos")
     private val SKIP_FILES = setOf("mini_live.json", "last-crash.txt", "live-watching.txt", "live-last-boot", "profileInstalled",
-        "live-public-matches.json", "live-tmdb-episodes.json")
+        "live-public-matches.json", "live-tmdb-episodes.json", "live-on-now.json")
 
     class Restored(val settings: Int, val files: Int)
 
@@ -196,7 +196,8 @@ object Backup {
     private fun prefNames(ctx: Context): List<String> =
         File(ctx.applicationInfo.dataDir, "shared_prefs").listFiles().orEmpty()
             .filter { it.name.endsWith(".xml") }.map { it.name.removeSuffix(".xml") }
-            .filter { safeName(it) && !it.startsWith("androidx.") && !it.startsWith("com.google.") && !it.startsWith("WebView") }
+            // glass_sleep: the sleep timer's time, only for now (restored, it would show a timer that never goes off).
+            .filter { safeName(it) && !it.startsWith("androidx.") && !it.startsWith("com.google.") && !it.startsWith("WebView") && it != "glass_sleep" }
 
     private fun safeName(n: String) = n.isNotBlank() && !n.contains('/') && !n.contains("..")
 

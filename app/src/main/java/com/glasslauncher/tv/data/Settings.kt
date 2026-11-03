@@ -15,6 +15,36 @@ class Settings(private val ctx: Context) {
     /** Test only: every stored value (am start --ez dump_prefs true → logcat GlassPrefs). */
     fun dumpAll(): Map<String, *> = sp.all
 
+    /** [keys]' stored values (a profile's own settings, HomeProfiles): each with its type; unset ones left out. */
+    fun snapshot(keys: Collection<String>): org.json.JSONObject {
+        val out = org.json.JSONObject()
+        val all = sp.all
+        for (k in keys) when (val v = all[k]) {
+            is Boolean -> out.put(k, org.json.JSONObject().put("b", v))
+            is Int -> out.put(k, org.json.JSONObject().put("i", v))
+            is String -> out.put(k, org.json.JSONObject().put("s", v))
+            else -> {}
+        }
+        return out
+    }
+
+    /** [keys] as [j] has them (as snapshot made it); those it hasn't go back to their defaults. */
+    fun restore(keys: Collection<String>, j: org.json.JSONObject) {
+        val e = sp.edit()
+        for (k in keys) {
+            val o = j.optJSONObject(k)
+            when {
+                o == null -> e.remove(k)
+                o.has("b") -> e.putBoolean(k, o.getBoolean("b"))
+                o.has("i") -> e.putInt(k, o.getInt("i"))
+                o.has("s") -> e.putString(k, o.getString("s"))
+                else -> e.remove(k)
+            }
+        }
+        e.commit()
+        touch()
+    }
+
     private fun b(k: String, d: Boolean): Boolean { rev.intValue; return sp.getBoolean(k, d) }
     private fun i(k: String, d: Int): Int { rev.intValue; return sp.getInt(k, d) }
     private fun f(k: String, d: Float): Float { rev.intValue; return sp.getFloat(k, d) }
@@ -202,6 +232,37 @@ class Settings(private val ctx: Context) {
     var cwDays: Int get() = i("cwDays", 0); set(v) = putI("cwDays", v)
     /** Home's accent colour (a key of ui.ACCENTS) and the text size of Glassio's screens (a key of ui.TEXT_SIZES). */
     var accent: String get() = s("accent", "red"); set(v) = putS("accent", v)
+    /** The big picture: titles said "Not interested" to (keys), Because-you-watched picks, the season's titles first. */
+    var heroHidden: List<String> get() = list("heroHidden"); set(v) = putList("heroHidden", v)
+    var heroBecause: Boolean get() = b("heroBecause", true); set(v) = putB("heroBecause", v)
+    var heroSeasonal: Boolean get() = b("heroSeasonal", true); set(v) = putB("heroSeasonal", v)
+    /** Test only: the month the season picks go by (0: this month). */
+    var seasonMonth: Int get() = i("seasonMonth", 0); set(v) = putI("seasonMonth", v)
+    /** A muted trailer behind the big picture after a few seconds on a title (YouTube, through Cinemeta). */
+    var heroTrailers: Boolean get() = b("heroTrailers", true); set(v) = putB("heroTrailers", v)
+    /** A followed team's match on now, as a ticker in Home's top bar. */
+    var homeTicker: Boolean get() = b("homeTicker", true); set(v) = putB("homeTicker", v)
+    /**
+     * Home's widgets row, under the apps: the weather's next days, the next calendar events (iCal links: Google
+     * Calendar's secret address and the like) and Home Assistant readings (its address, a long-lived token, the entities).
+     */
+    var widgetsRow: Boolean get() = b("widgetsRow", true); set(v) = putB("widgetsRow", v)
+    var widgetWeather: Boolean get() = b("widgetWeather", true); set(v) = putB("widgetWeather", v)
+    var calLinks: List<String> get() = list("calLinks"); set(v) = putList("calLinks", v.map { it.trim() }.filter { it.isNotBlank() }.distinct())
+    var haUrl: String get() = s("haUrl", ""); set(v) = putS("haUrl", v.trim().trimEnd('/'))
+    var haToken: String get() = s("haToken", ""); set(v) = putS("haToken", v.trim())
+    var haEntities: List<String> get() = list("haEntities"); set(v) = putList("haEntities", v)
+    /** Home Assistant's address: the one set, else the webhook's (http://homeassistant.local:8123). */
+    val haBase: String get() = haUrl.ifBlank {
+        runCatching { java.net.URI(haWebhook).let { u -> if (u.scheme == null || u.host == null) "" else u.scheme + "://" + u.host + (if (u.port > 0) ":" + u.port else "") } }.getOrDefault("")
+    }
+    /** Kids mode (a kids profile, HomeProfiles): family titles only, these apps only, the PIN to leave. */
+    var kidsMode: Boolean get() = b("kidsMode", false); set(v) = putB("kidsMode", v)
+    var kidsApps: List<String> get() = list("kidsApps"); set(v) = putList("kidsApps", v)
+    /** Home's PIN (4 digits; "" none): leaving Kids mode, and Settings while in it. */
+    var homePin: String get() = s("homePin", ""); set(v) = putS("homePin", v)
+    /** Who's watching? when Glassio starts, with more than one profile. */
+    var askProfile: Boolean get() = b("askProfile", false); set(v) = putB("askProfile", v)
     /** Phone remote: the phone page kept running at a fixed address (net.PhoneRemote), and that address's token. */
     var phoneRemote: Boolean get() = b("phoneRemote", false); set(v) = putB("phoneRemote", v)
     var phoneToken: String get() = s("phoneToken", ""); set(v) = putS("phoneToken", v)

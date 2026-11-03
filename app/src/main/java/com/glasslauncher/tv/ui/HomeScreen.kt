@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.offset
 import kotlinx.coroutines.async
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -175,14 +176,40 @@ private class DockMetrics(val s: Float, screenW: Float, dockScale: Float) {
 }
 
 @Composable
-fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
+fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     val settings = app.settings
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
+    var dialog by remember { mutableStateOf<DialogState?>(null) }
+    /** Kids mode: Home's PIN first ([then] once it's right). No PIN set: at once. */
+    val askPin: (then: () -> Unit) -> Unit = { then ->
+        val pin = settings.homePin
+        if (!settings.kidsMode || pin.isBlank()) then()
+        else dialog = TextEntry("PIN", "", "Home's PIN, to leave Kids mode", secret = true) { typed ->
+            if (typed.trim() == pin) then() else toast(ctx, "That's not the PIN")
+        }
+    }
+    // Kids mode: anything but Home (Settings, the Library, Live TV, the menu's pages) asks for the PIN.
+    val onScreen: (Screen) -> Unit = { to -> if (to == Screen.Home || !settings.kidsMode) onScreenAsked(to) else askPin { onScreenAsked(to) } }
+    // Who's watching? as Glassio starts (Settings › Home), with more than one profile.
+    LaunchedEffect(Unit) {
+        if (settings.askProfile && app.profiles.all().size > 1) {
+            delay(1500)
+            dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } }
+        }
+    }
     val backdropS = remember { mutableStateOf<String?>(null) }
     var backdrop by backdropS
     var movingPkg by remember { mutableStateOf<String?>(null) }
-    var dialog by remember { mutableStateOf<DialogState?>(null) }
+    /** The big picture's trailer playing (a YouTube id), and whether the last one has ended (the titles move on then). */
+    var trailer by remember { mutableStateOf<String?>(null) }
+    var trailerOver by remember { mutableStateOf(false) }
+    /** It playing (not just loading), and how far the page's picture over it has faded away (0 to 1). */
+    var trailerPlaying by remember { mutableStateOf(false) }
+    val trailerShown = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(trailer, trailerPlaying) {
+        if (trailer == null) trailerShown.snapTo(0f) else trailerShown.animateTo(if (trailerPlaying) 1f else 0f, tween(700))
+    }
     var settingsCat by remember { mutableIntStateOf(0) }
     /** The big picture's Play button, and the apps row: where the page starts, and where the apps are. */
     val heroFocus = remember { FocusRequester() }
@@ -373,7 +400,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
         }
     }
 
-    val showMenu: (AppEntry, Boolean) -> Unit = { e, inFolder ->
+    val showMenu: (AppEntry, Boolean) -> Unit = showMenu@{ e, inFolder ->
+        if (settings.kidsMode) return@showMenu     // Kids mode: no app menu (hide, move, change icon)
         dialog = appMenu(
             app, e, ctx,
             startMove = if (inFolder) ({ folderMoving = e.pkg }) else ({ movingPkg = e.pkg }),
@@ -405,7 +433,18 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
 
         CompositionLocalProvider(LocalGlassEnv provides env, LocalScale provides s) {
             // The page's picture: the title's backdrop, the side and bottom shades painted in (bakeBackdrop).
-            if (!folderOpen && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade") { false }
+            // The big picture's trailer (Settings › Home › Trailers): under the picture, which fades away once it plays.
+            // Over: the picture back, then the trailer gone.
+            val trailerDrawn = trailer != null && !folderOpen && screen == Screen.Home
+            trailer?.let { id ->
+                if (trailerDrawn) HeroTrailer(id, { trailerShown.value }, onPlaying = { trailerPlaying = true }, onWaiting = { trailerPlaying = false }) {
+                    trailerPlaying = false
+                    scope.launch { delay(700); if (trailer == id) { trailer = null; trailerOver = true } }
+                }
+            }
+            if (!folderOpen && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade") {
+                if (trailerDrawn) 1f - trailerShown.value else 1f
+            }
 
             // Fully covered by settings or the folder: stop drawing it at all.
             val homeAlphaState = animateFloatAsState(if (screen == Screen.Home && !folderOpen) 1f else 0f, tween(180), label = "homeAlpha")
@@ -426,16 +465,24 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
                         "Hide from the apps row" to {
                             settings.showFolder = false
                             scope.launch { delay(80); runCatching { appsFocus.requestFocus() } }
-                            android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings → Apps & icons", android.widget.Toast.LENGTH_LONG).show()
+                            android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings › Apps & icons", android.widget.Toast.LENGTH_LONG).show()
                         },
                     )) },
                     onLibrary = { onScreen(Screen.Library) },
+                    onTrailer = { trailer = it; trailerPlaying = false; if (it != null) trailerOver = false }, trailerOver = trailerOver,
                     down = pageDown,
                 )
                 if (DebugHide.intValue and 4 == 0) Box(Modifier.fillMaxWidth().align(Alignment.TopStart).graphicsLayer { alpha = 1f - pageDown.floatValue }) {
                     TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed ->
-                        if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
-                    }, modifier = Modifier.fillMaxWidth())
+                        // Kids mode: the menu only when asked for (OK on the button), and after the PIN.
+                        if (settings.kidsMode) { if (pressed && !menuOpen) askPin { menuOpen = true } }
+                        else if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
+                    }, modifier = Modifier.fillMaxWidth(),
+                        onProfile = { dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } } },
+                        onQuick = { dialog = QuickPanelState })
+                    // A followed team playing now: its score in the top bar's middle, going with it as the page scrolls
+                    // (at the bottom it covered the rows) (Settings › Home › Live match ticker).
+                    if (settings.homeTicker) MatchTicker(app, s, Modifier.align(Alignment.TopCenter).padding(top = (24 * s).dp))
                 }
             }
             if (folderOpen) {
@@ -481,6 +528,43 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreen: (Screen) -> Unit) {
             DialogHost(dialog) { dialog = null }
         }
     }
+}
+
+/**
+ * Who's watching (the top bar's profile button): each profile (✓ the one on), then adding one. Leaving a kids profile
+ * asks for the PIN; a kids profile can't be made without one. [show] opens the next dialog (after this one has gone).
+ */
+internal fun profileMenu(app: GlassApp, ctx: android.content.Context, askPin: (() -> Unit) -> Unit, show: (DialogState) -> Unit): MenuDialog {
+    val p = app.profiles
+    val now = p.current()
+    fun switch(to: com.glasslauncher.tv.data.HomeProfiles.Profile) {
+        p.switchTo(to.id)
+        app.cw.rebuild(); app.cw.syncNuvioNow(); app.cw.syncStremioNow(); app.cw.syncTraktNow()
+        app.shelf.rebuild()
+        app.homeRev.intValue++      // back to the top of Home
+        toast(ctx, "${to.name}" + if (to.kids) " · Kids mode" else "")
+    }
+    val options = ArrayList<Pair<String, () -> Unit>>()
+    for (pr in p.all()) {
+        options += ((if (pr.id == now.id) "✓  " else "     ") + pr.name + if (pr.kids) "  (Kids)" else "") to {
+            if (pr.id != now.id) { if (now.kids) askPin { switch(pr) } else switch(pr) }
+        }
+    }
+    if (!now.kids) {
+        options += "Add a profile" to {
+            show(TextEntry("New profile", "", "A name, e.g. Sam") { name -> p.add(name, false).let { toast(ctx, "${it.name} added: choose it here to use it") } })
+        }
+        options += "Add a kids profile" to {
+            show(TextEntry("New kids profile", "Kids", "A name") { name ->
+                val add = { val k = p.add(name, true); toast(ctx, "${k.name} added: family titles and the apps you choose (Settings › Home)") }
+                if (app.settings.homePin.length == 4) add()
+                else show(TextEntry("Home PIN (4 digits)", "", "Asked to leave Kids mode", secret = true) { pin ->
+                    if (pin.trim().matches(Regex("\\d{4}"))) { app.settings.homePin = pin.trim(); add() } else toast(ctx, "The PIN must be 4 digits: no kids profile added")
+                })
+            })
+        }
+    }
+    return MenuDialog("Who's watching?", options)
 }
 
 private fun appMenu(
@@ -651,15 +735,15 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
 
 /**
  * The page's picture: its own composable, so a slide change (new pictures, the slide's direction) recomposes only
- * this. [covered]: the open dock's veil hides it completely (it isn't drawn then).
+ * this. [opacity]: fading away over the big picture's trailer, which is under it.
  */
 @Composable
 private fun PageBackdrop(
     prev: androidx.compose.runtime.State<ImageBitmap?>, cur: androidx.compose.runtime.State<ImageBitmap?>,
     dir: androidx.compose.runtime.State<Int>, mix: androidx.compose.animation.core.Animatable<Float, *>, anim: String,
-    covered: () -> Boolean,
+    opacity: () -> Float,
 ) {
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = if (covered()) 0f else 1f }) {
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity() }) {
         if (anim != "fade") SlideBackdrop(prev.value, cur.value, mix, dir.value, if (anim == "apple") SLIDE_APPLE else SLIDE_PUSH)
         else FadeBackdrop(prev.value, cur.value, mix)
     }
@@ -858,7 +942,8 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
 // ───────────────────────────── top bar ─────────────────────────────
 
 @Composable
-private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: (pressed: Boolean) -> Unit, modifier: Modifier) {
+private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: (pressed: Boolean) -> Unit, modifier: Modifier,
+                   onProfile: () -> Unit = {}, onQuick: () -> Unit = {}) {
     val settings = app.settings
     // The settings button opens the menu (as soon as it is selected, or with OK), or Settings when the menu is off.
     // A key pressed on it (OK, or Up again when it is already selected) always opens it: that is never by accident.
@@ -868,8 +953,9 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
     val since = remember { android.os.SystemClock.uptimeMillis() }
     // Still on the button a moment later (it was just closed, or the TV was busy): that's on purpose, open it.
     var gearOn by remember { mutableStateOf(false) }
+    // Not in Kids mode: the menu there only with OK (and the PIN), never by staying on the button.
     LaunchedEffect(gearOn) {
-        if (gearOn && settings.menuMode == "auto") {
+        if (gearOn && settings.menuMode == "auto" && !settings.kidsMode) {
             delay(450)
             // A key brought the focus here (not the system, handing it to the first thing on screen as Glassio starts).
             if (gearOn && android.os.SystemClock.uptimeMillis() - since > 1200 && System.currentTimeMillis() - app.interaction.longValue < 2500) onMenu(true)
@@ -927,12 +1013,16 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
                 UpdateDot(app, s) { barFocused = it }
+                QuickButton(s, onQuick) { barFocused = it }
+                ProfileButton(app, s, onProfile) { barFocused = it }
                 GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
             }
             weatherRow()
         } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             weatherRow()
             UpdateDot(app, s) { barFocused = it }
+            QuickButton(s, onQuick) { barFocused = it }
+            ProfileButton(app, s, onProfile) { barFocused = it }
             GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
         }
     }
@@ -1023,6 +1113,45 @@ private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp:
     ) {
         SlidersGlyph(Modifier.fillMaxSize(), Color.White) { lit.value }
     }
+}
+
+/** A small glass circle in the top bar, white when selected ([content] gets whether it is). */
+@Composable
+private fun TopCircle(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit, content: @Composable (Boolean) -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val scale = animateFloatAsState(if (focused) 1.16f else 1f, spring(0.8f, 900f), label = "topCircle")
+    Box(
+        Modifier.size((20 * s).dp)
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+            .clip(CircleShape)
+            .background(if (focused) Color.White.copy(alpha = 0.95f) else Color.White.copy(alpha = 0.18f))
+            .border((1 * s).dp, Color.White.copy(alpha = if (focused) 0f else 0.85f), CircleShape)
+            .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
+            .tvPress(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { content(focused) }
+}
+
+/** The quick panel's button (inputs, sleep timer, volume): a switch glyph. */
+@Composable
+private fun QuickButton(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit) = TopCircle(s, onClick, onFocus) { focused ->
+    val c = if (focused) Color.Black else Color.White
+    androidx.compose.foundation.Canvas(Modifier.size((11 * s).dp)) {
+        val w = size.width; val h = size.height
+        val sw = w * 0.13f
+        val track = androidx.compose.ui.geometry.Size(w, h * 0.56f)
+        val top = (h - track.height) / 2
+        drawRoundRect(c, topLeft = androidx.compose.ui.geometry.Offset(0f, top), size = track,
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(track.height / 2), style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
+        drawCircle(c, radius = track.height / 2 - sw * 1.3f, center = androidx.compose.ui.geometry.Offset(w - track.height / 2, h / 2))
+    }
+}
+
+/** Who's watching: the profile on's first letter. */
+@Composable
+private fun ProfileButton(app: GlassApp, s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit) = TopCircle(s, onClick, onFocus) { focused ->
+    val name = app.profiles.current().name
+    Text(name.take(1).uppercase(), color = if (focused) Color.Black else Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.Bold)
 }
 
 /** Settings glyph: three sliders in a rounded square. */

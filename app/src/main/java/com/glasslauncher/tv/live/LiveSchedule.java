@@ -250,4 +250,48 @@ final class LiveSchedule {
     private static File file(Context c) {
         return new File(c.getApplicationContext().getFilesDir(), "live-schedule.json");
     }
+
+    /**
+     * A followed show whose reminder has gone off (it's out of the schedule then), kept till it ends: the match on now,
+     * for the home screen's ticker, the screensaver and the kick-off alert, which read the schedule.
+     */
+    static synchronized void started(Context c, Item it) {
+        if (it == null || it.ch == null || it.series == null || !it.series.startsWith(LiveFollow.SERIES)) return;
+        List<Item> list = onNow(c);
+        for (int i = list.size() - 1; i >= 0; i--) {
+            Item o = list.get(i);
+            if (o.ch.id == it.ch.id && o.start == it.start) list.remove(i);
+        }
+        list.add(it);
+        JSONArray a = new JSONArray();
+        try {
+            for (Item o : list) a.put(o.json());
+            Xtream.write(onNowFile(c), a.toString());
+        } catch (IOException | JSONException e) {
+            AppLog.w("live: couldn't save the show on now");
+        }
+    }
+
+    /** The followed shows started (their reminders gone off) and not over yet. */
+    static synchronized List<Item> onNow(Context c) {
+        List<Item> out = new ArrayList<>();
+        File f = onNowFile(c);
+        if (!f.exists()) return out;
+        long now = System.currentTimeMillis();
+        try (FileInputStream in = new FileInputStream(f)) {
+            JSONArray a = new JSONArray(Xtream.read(in));
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject o = a.optJSONObject(i);
+                Item it = o == null ? null : Item.of(o);
+                if (it != null && it.end > now) out.add(it);
+            }
+        } catch (IOException | JSONException e) {
+            AppLog.w("live: the show on now unreadable");
+        }
+        return out;
+    }
+
+    private static File onNowFile(Context c) {
+        return new File(c.getApplicationContext().getFilesDir(), "live-on-now.json");
+    }
 }

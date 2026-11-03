@@ -97,6 +97,7 @@ class MainActivity : ComponentActivity() {
         lastInput = System.currentTimeMillis()
         hideBars()
         (application as GlassApp).cw.pollNow()
+        (application as GlassApp).ensureHomeService()     // the Home-button service, if an update switched it off
         com.glasslauncher.tv.data.HaEvents.home(this)     // back from watching: Home Assistant hears it
         // Live TV's "open when the TV starts" (its settings): the first time the home screen shows after a boot.
         Thread { runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) } }.start()
@@ -119,6 +120,9 @@ class MainActivity : ComponentActivity() {
             }.start()
         }
         if (i?.hasExtra("hero_autoplay") == true) app.settings.heroAutoplay = i.getBooleanExtra("hero_autoplay", true)
+        if (i?.hasExtra("widgets_row") == true) app.settings.widgetsRow = i.getBooleanExtra("widgets_row", true)
+        // Test only: the widgets' calendars and Home Assistant set back to none.
+        if (i?.getStringExtra("widgets_reset") == "all") { app.settings.calLinks = emptyList(); app.settings.haUrl = ""; app.settings.haToken = ""; app.settings.haEntities = emptyList() }
         if (i?.hasExtra("page_glass") == true) com.glasslauncher.tv.ui.PageGlass.on.value = i.getBooleanExtra("page_glass", true)
         i?.getIntExtra("open_settings", -1)?.takeIf { it >= 0 }?.let { app.requestSettings.intValue = it; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_menu", false) == true) { app.requestSettings.intValue = 100; app.requestSettingsRev.intValue++ }
@@ -134,6 +138,9 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("theme")?.let { app.settings.applyTheme(it) }
         i?.getStringExtra("accent")?.let { if (com.glasslauncher.tv.ui.ACCENTS.any { a -> a.first == it }) app.settings.accent = it }
         i?.getStringExtra("text_size")?.let { if (com.glasslauncher.tv.ui.TEXT_SIZES.any { t -> t.first == it }) app.settings.textSize = it }
+        i?.getStringExtra("ticker_test")?.let { com.glasslauncher.tv.ui.TickerTest.value = it }
+        i?.getStringExtra("hero_hidden")?.let { if (it == "clear") app.settings.heroHidden = emptyList() }
+        if (i?.hasExtra("season_month") == true) app.settings.seasonMonth = i.getIntExtra("season_month", 0)
         i?.getStringExtra("menu_mode")?.let { app.settings.menuMode = it }
         i?.getStringExtra("bg_mode")?.let { if (it in setOf("carousel", "image", "video", "aerial")) app.settings.bgMode = it }
         if (i?.hasExtra("menu_city") == true) app.settings.menuCity = i.getBooleanExtra("menu_city", true)
@@ -202,6 +209,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (keyCode == KeyEvent.KEYCODE_MENU && (application as GlassApp).settings.kidsMode) return true     // Kids mode: not to Settings
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             screen = if (screen == Screen.Settings) Screen.Home else Screen.Settings
             return true
