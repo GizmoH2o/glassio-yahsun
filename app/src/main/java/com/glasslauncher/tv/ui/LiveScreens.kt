@@ -127,7 +127,7 @@ private val INK = Color(0xFF111114)
 
 /** Live TV: the channel last watched, the guide, On now (favorites and recent channels), sports, starting soon. */
 @Composable
-fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
+fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null, onClose: () -> Unit, onFollowing: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     BackHandler { onClose() }
@@ -158,6 +158,7 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
     }
     val first = remember { FocusRequester() }
     LaunchedEffect(ready, page != null) { if (ready != null) focusFirst(first) }
+    LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { first.requestFocus() } }     // Down from the tabs
     val r = ready
     val p = page
     val sp = sports
@@ -174,12 +175,12 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
         if (p == null) return@LivePage
         item(key = "top") {
             Row(Modifier.fillMaxWidth().height((150 * s).dp), horizontalArrangement = Arrangement.spacedBy((16 * s).dp)) {
-                FeatureCard(p.last, s, shown, Modifier.width((520 * s).dp).fillMaxHeight().focusRequester(first)) {
+                FeatureCard(p.last, s, shown, Modifier.width((520 * s).dp).fillMaxHeight().nav(up = toTabs).focusRequester(first)) {
                     open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false))
                 }
-                ActionTile("TV guide", "guide", s, Modifier.weight(1f).fillMaxHeight()) { open(ctx, LiveHome.open(ctx, -1, true)) }
-                ActionTile("Search", "search", s, Modifier.weight(1f).fillMaxHeight()) { open(ctx, LiveHome.search(ctx)) }
-                ActionTile("Following", "star", s, Modifier.weight(1f).fillMaxHeight()) { onFollowing() }
+                ActionTile("TV guide", "guide", s, Modifier.weight(1f).fillMaxHeight().nav(up = toTabs)) { open(ctx, LiveHome.open(ctx, -1, true)) }
+                ActionTile("Search", "search", s, Modifier.weight(1f).fillMaxHeight().nav(up = toTabs)) { open(ctx, LiveHome.search(ctx)) }
+                ActionTile("Following", "star", s, Modifier.weight(1f).fillMaxHeight().nav(up = toTabs)) { onFollowing() }
             }
         }
         // The channels watched lately (newest first; the last one is the big card above), with what's on them now.

@@ -68,7 +68,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun LibraryScreen(app: GlassApp, active: Boolean = true, onTitle: (HeroItem) -> Unit, onClose: () -> Unit) {
+fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTabs: FocusRequester? = null, onTitle: (HeroItem) -> Unit, onClose: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     val st = app.settings
@@ -107,6 +107,10 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, onTitle: (HeroItem) -> 
     var lastKey by remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }
     var wasActive by remember { mutableStateOf(active) }
+    // Down from the tabs: the poster it was on, else the first (the list may have changed).
+    LaunchedEffect(downAsk) {
+        if (downAsk > 0 && runCatching { lastFocus.requestFocus() }.getOrDefault(false) != true) runCatching { first.requestFocus() }
+    }
     LaunchedEffect(active) { if (active && !wasActive) { delay(60); runCatching { lastFocus.requestFocus() } }; wasActive = active }
 
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
@@ -132,7 +136,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, onTitle: (HeroItem) -> 
                     if (tabs.size > 1) {
                         Spacer(Modifier.height((14 * s).dp))
                         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                            tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, i == tabs.lastIndex, s) { tabKey = t.key } }
+                            tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, i == tabs.lastIndex, s, toTabs) { tabKey = t.key } }
                         }
                     }
                 }
@@ -143,7 +147,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, onTitle: (HeroItem) -> 
                     Text("Nothing in this list yet.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
                 }
                 itemsIndexed(shown, key = { _, it -> tab.key + ":" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, (if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
+                    Poster(it, s, st.libraryTitles, (if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
                         onFocused = { lastKey = it.key },
                         onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })
@@ -162,10 +166,11 @@ private class LibraryTab(val key: String, val label: String, val items: List<Her
  * Left on the first and Right on the last stay put (the TV would otherwise drop into the posters below).
  */
 @Composable
-private fun TabPill(label: String, selected: Boolean, first: Boolean, last: Boolean, s: Float, onFocused: () -> Unit) {
+private fun TabPill(label: String, selected: Boolean, first: Boolean, last: Boolean, s: Float, toTabs: FocusRequester?, onFocused: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Box(
         Modifier
+            .nav(up = toTabs)
             .onPreviewKeyEvent { e ->
                 e.type == KeyEventType.KeyDown && (first && e.key == Key.DirectionLeft || last && e.key == Key.DirectionRight)
             }

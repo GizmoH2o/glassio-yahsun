@@ -249,6 +249,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     /** The tab of the page on, and whether a tab is selected (it keeps an auto-hidden top bar showing). */
     val tabFocus = remember { FocusRequester() }
     var tabFocused by remember { mutableStateOf(false) }
+    /** Down on a tab, on a page with tabs: counted, the page takes the focus where it last had it. */
+    var tabDown by remember { mutableIntStateOf(0) }
     /** The big picture's Play button, and the apps row: where the page starts, and where the apps are. */
     val heroFocus = remember { FocusRequester() }
     val appsFocus = remember { FocusRequester() }
@@ -571,11 +573,11 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             ) {
                 val onTop = screen != Screen.Title
                 Box(Modifier.fillMaxSize().padding(top = (48 * s).dp)) {
-                    if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
-                    if (tabPage == Screen.LiveTv) LiveTvScreen(app, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
-                    if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
+                    if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, downAsk = tabDown, toTabs = tabFocus, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
+                    if (tabPage == Screen.LiveTv) LiveTvScreen(app, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
+                    if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
                 }
-                if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp)) { to -> onScreen(to) }
+                if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> onScreen(to) }
             }
             if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
                 androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle) }
