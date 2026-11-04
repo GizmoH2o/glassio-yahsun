@@ -8,7 +8,9 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 - **One design everywhere**: a near-black page, what's selected lifts and turns white, red only for what's live, new or in progress.
 - **Tabs in the top bar**: Home, Live TV, Library and Search.
 - **A page for every title**: Resume or Play, its trailer with sound, seasons and episodes, More like this. *OK on a card* in Settings › Home can play straight away instead.
-- **Search everything**: titles, Live TV channels and apps from one box.
+- **Search everything**: titles, Live TV channels and apps from one box, with voice search where the TV has a recogniser.
+- **Five languages**: Glassio and Live TV in English, Portuguese, Spanish, German or Russian (Settings › Look & motion › Language; Auto follows the TV).
+- **Streaming apps show their icon** on their buttons.
 - **Settings redone**: clearer rows, pages merged, and a search box.
 
 **For everyone, with or without an account**

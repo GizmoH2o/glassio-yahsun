@@ -46,7 +46,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -962,7 +961,7 @@ private fun SetupRow(step: SetupStep, s: Float, modifier: Modifier, onFocus: (Bo
 @Composable
 internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
     if (mode == "hidden") return
-    @Composable fun asText() = Text(
+    @Composable fun asText() = RawText(
         item.name, color = Color.White, fontSize = (30 * s * scale).sp, fontWeight = FontWeight.Light,
         letterSpacing = (4 * scale).sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
     )
@@ -1077,7 +1076,7 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                 Spacer(Modifier.width((5 * s).dp))
                 val parts = buildList {
                     add(w.temp(settings.weatherF))
-                    if (settings.weatherMode == "condition" || settings.weatherMode == "all") w.condition.takeIf { it.isNotBlank() }?.let { add(it) }
+                    if (settings.weatherMode == "condition" || settings.weatherMode == "all") w.condition.takeIf { it.isNotBlank() }?.let { add(Lang.weather(it)) }
                     if (settings.weatherMode == "city" || settings.weatherMode == "all") add(w.city)
                 }
                 // At most what leaves the tabs clear.
@@ -1176,7 +1175,7 @@ fun UpdateBanner(app: GlassApp, s: Float, modifier: Modifier) {
 }
 
 private fun dateText(): String =
-    java.text.SimpleDateFormat("d MMM ''yy", java.util.Locale.US).format(java.util.Date()).uppercase()
+    java.text.SimpleDateFormat("d MMM ''yy", Lang.locale()).format(java.util.Date()).uppercase()
 
 @Composable
 private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp: () -> Boolean = { false }, onFocus: (Boolean) -> Unit) {

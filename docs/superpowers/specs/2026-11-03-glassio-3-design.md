@@ -28,4 +28,4 @@ Setting "Recommendations": Auto (when neither Nuvio nor Stremio is signed in and
 - Home scrolling profiled and improved.
 
 ## Out of scope
-Translating Home and Settings; rebuilding Live TV's screens; other companies' logos or artwork.
+Bundling other companies' logos or artwork as Glassio's own look (a streaming app's button shows the icon the TV has installed for it); translating the phone page and What's new; rewriting Live TV's player and guide, whose Glassio design already uses these colours.

@@ -18,6 +18,11 @@ import java.util.Set;
  * Zero's home screen tabs made (HomePages), as plain data. Every read is blocking: call it off the main thread.
  */
 public final class LiveHome {
+    /** Glassio's language changed (Settings › Look & motion). */
+    public static void languageChanged() {
+        Ui.applyLanguage();
+    }
+
     private LiveHome() {}
 
     /** One program on one channel, as a page shows it. */

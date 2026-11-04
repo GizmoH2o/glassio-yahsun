@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,7 +66,7 @@ internal fun WeatherWidget(city: String, nowTemp: String, days: List<WeatherDay>
                     Spacer(Modifier.width((4 * s).dp))
                     Text(nowTemp, color = Color.White, fontSize = (16 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
-                if (today != null) Text("${today.condition} · ${deg(today.hiC, fahrenheit)} / ${deg(today.loC, fahrenheit)}",
+                if (today != null) RawText("${Lang.weather(today.condition)} · ${deg(today.hiC, fahrenheit)} / ${deg(today.loC, fahrenheit)}",
                     color = Color.White.copy(alpha = 0.75f), fontSize = (6 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             days.drop(1).take(4).forEach { d ->
@@ -100,7 +99,7 @@ internal fun CalendarWidget(agenda: HomeWidgets.Agenda?, now: Instant, s: Float,
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(Ics.whenText(o, now), color = accent, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
                             modifier = Modifier.width((50 * s).dp))
-                        Text(o.title, color = Color.White, fontSize = (7 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        RawText(o.title, color = Color.White, fontSize = (7 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             }
@@ -113,7 +112,7 @@ internal fun CalendarWidget(agenda: HomeWidgets.Agenda?, now: Instant, s: Float,
 internal fun HaWidget(r: HomeWidgets.Reading, s: Float, modifier: Modifier, onClick: () -> Unit, onHold: () -> Unit) {
     WidgetCard(s, SMALL, modifier, onClick, onHold) {
         Column(Modifier.fillMaxHeight(), verticalArrangement = Arrangement.SpaceBetween) {
-            Text(r.name, color = Color.White.copy(alpha = 0.7f), fontSize = (6.5f * s).sp, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = (8 * s).sp)
+            RawText(r.name, color = Color.White.copy(alpha = 0.7f), fontSize = (6.5f * s).sp, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = (8 * s).sp)
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(r.value, color = Color.White, fontSize = (if (r.value.length > 8) 9f else 13f).times(s).sp, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))

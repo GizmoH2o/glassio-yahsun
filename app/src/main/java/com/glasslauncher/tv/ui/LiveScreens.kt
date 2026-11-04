@@ -29,7 +29,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -326,10 +325,6 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
 @Composable
 private fun LivePage(s: Float, content: LazyListScope.() -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
-        val density = LocalDensity.current
-        val bw = with(density) { maxWidth.roundToPx() }; val bh = with(density) { maxHeight.roundToPx() }
-        val bg = remember(bw, bh) { graphitePage(bw, bh) }
-        androidx.compose.foundation.Image(bg, null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
         val rowScroll = androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
         CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides RowPivot, LocalRowScroll provides rowScroll) {
             LazyColumn(
@@ -513,7 +508,7 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
             val picture = a.art.isNotEmpty()
             if (picture) Picture(a.art, Modifier.fillMaxSize())
             else if (a.logo.isNotEmpty()) Logo(a.logo, Modifier.fillMaxSize().padding(horizontal = (34 * s).dp, vertical = (20 * s).dp))
-            else Text(a.channelName, color = Color.White.copy(alpha = 0.75f), fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold,
+            else RawText(a.channelName, color = Color.White.copy(alpha = 0.75f), fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 2, modifier = Modifier.align(Alignment.Center).padding((10 * s).dp))
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
             if (a.live) Text("LIVE", color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
@@ -605,11 +600,11 @@ private fun EventRowView(a: LiveHome.Airing, s: Float, rev: Int, actions: Boolea
                 Column(Modifier.weight(1f)) {
                     Text(a.teams.ifEmpty { a.title }, color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.Medium,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    if (a.sub.isNotEmpty()) Text(a.sub, color = AppleSecondary, fontSize = (9 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    if (a.sub.isNotEmpty()) RawText(a.sub, color = AppleSecondary, fontSize = (9 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (a.logo.isNotEmpty()) { Logo(a.logo, Modifier.size((34 * s).dp, (16 * s).dp)); Spacer(Modifier.width((8 * s).dp)) }
                 Row(Modifier.width((130 * s).dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(a.channelName, color = Color.White.copy(alpha = 0.8f), fontSize = (10 * s).sp, maxLines = 1,
+                    RawText(a.channelName, color = Color.White.copy(alpha = 0.8f), fontSize = (10 * s).sp, maxLines = 1,
                         overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     if (a.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(a.country, s) }
                 }
@@ -731,13 +726,3 @@ private object RowPivot : androidx.compose.foundation.gestures.BringIntoViewSpec
     }
 }
 
-/** The graphite page: a soft gradient from the top left, dithered so the TV shows no steps. */
-private fun graphitePage(w: Int, h: Int): ImageBitmap {
-    val b = android.graphics.Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), android.graphics.Bitmap.Config.ARGB_8888)
-    val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
-    p.shader = android.graphics.LinearGradient(0f, 0f, w * 0.25f, h.toFloat(),
-        intArrayOf(0xFF2E2E34.toInt(), 0xFF1D1D21.toInt(), 0xFF0E0E11.toInt()), floatArrayOf(0f, 0.55f, 1f), android.graphics.Shader.TileMode.CLAMP)
-    android.graphics.Canvas(b).drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
-    b.setHasAlpha(false)
-    return b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap()
-}

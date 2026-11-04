@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -143,7 +142,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 if (canPlay) DsButton(if (resume != null) "Resume" + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play", s, firstMod(), primary = true,
                     leading = { c -> PlayGlyph(Modifier.size((8.5f * s).dp), c) }) { NuvioLaunch.open(ctx, st, app.http, resume ?: item) }
                 links.firstOrNull()?.let { l ->
-                    DsButton(l.service, s, firstMod()) { runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") } }
+                    DsButton(l.service, s, firstMod(), leading = { ServiceIcon(l.pkg, s) }) { runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") } }
                 }
                 if (trailerIds != null) DsButton("Trailer", s, firstMod()) { trailerOn = true }
                 DsButton(if (inLibrary) "✓  In Library" else "+  My Library", s, firstMod().then(if (kids) Modifier.nav(right = FocusRequester.Cancel) else Modifier)) {
@@ -237,7 +236,7 @@ private fun EpisodeCard(e: TitleDetails.Episode, series: HeroItem, s: Float, now
         }
         Spacer(Modifier.height((4 * s).dp))
         Text("${e.number} · ${e.name.ifBlank { "Episode ${e.number}" }}", color = if (focused) Color.White else Color(0xFFE8E8EC), fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        if (e.released > now) Text("Out " + java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.ENGLISH).format(java.util.Date(e.released)), color = Text2, fontSize = (7.5f * s).sp, maxLines = 1)
+        if (e.released > now) Text("Out " + java.text.SimpleDateFormat("EEE d MMM", Lang.locale()).format(java.util.Date(e.released)), color = Text2, fontSize = (7.5f * s).sp, maxLines = 1)
     }
 }
 
@@ -255,7 +254,7 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
                 .background(Ds.Surface),
             contentAlignment = Alignment.Center,
         ) {
-            Text(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))
+            RawText(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))
             if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
     }

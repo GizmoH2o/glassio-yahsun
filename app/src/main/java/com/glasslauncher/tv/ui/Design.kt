@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
@@ -30,6 +29,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -132,6 +132,22 @@ fun Modifier.nav(up: FocusRequester? = null, down: FocusRequester? = null, left:
         if (left != null) this.left = left
         if (right != null) this.right = right
     }
+
+/** A streaming app's own icon, as the TV has it installed (nothing when it isn't): beside its name on an "open in" button. */
+@Composable
+fun ServiceIcon(pkg: String, s: Float) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val icon = remember(pkg) {
+        runCatching {
+            val d = ctx.packageManager.getApplicationIcon(pkg)
+            val b = android.graphics.Bitmap.createBitmap(96, 96, android.graphics.Bitmap.Config.ARGB_8888)
+            d.setBounds(0, 0, 96, 96)
+            d.draw(android.graphics.Canvas(b))
+            b.asImageBitmap()
+        }.getOrNull()
+    } ?: return
+    androidx.compose.foundation.Image(icon, null, Modifier.height((11 * s).dp).width((11 * s).dp).clip(RoundedCornerShape((2.5f * s).dp)))
+}
 
 /** The selected control's lift (nothing with Reduce motion). */
 @Composable

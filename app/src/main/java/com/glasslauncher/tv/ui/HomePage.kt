@@ -35,7 +35,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -675,7 +674,7 @@ private fun HeroText(
                         .onFocusChanged { onSvcBtn = it.isFocused }
                         .tvPress(onKey = back, onClick = {
                             runCatching { ctx.startActivity(svc.intent()) }.onFailure { toast(ctx, "${svc.service} couldn't open it") }
-                        }), info = true)
+                        }), info = true, iconPkg = svc.pkg)
             }
             Spacer(Modifier.width((8 * s).dp))
             HeroButton(if (saved) "In Library" else "My Library", false, s, onSaveBtn,
@@ -689,7 +688,7 @@ private fun HeroText(
 
 /** Play (white, with its triangle) or + My Library (grey, ✓ when saved); the selected one grows and lights up. */
 @Composable
-private fun HeroButton(label: String, play: Boolean, s: Float, focused: Boolean, modifier: Modifier, saved: Boolean = false, info: Boolean = false) {
+private fun HeroButton(label: String, play: Boolean, s: Float, focused: Boolean, modifier: Modifier, saved: Boolean = false, info: Boolean = false, iconPkg: String? = null) {
     val sc = liftOf(focused, 1.06f)
     val bg = when {
         focused -> Color.White
@@ -712,6 +711,7 @@ private fun HeroButton(label: String, play: Boolean, s: Float, focused: Boolean,
             else { p.moveTo(w * 0.5f, h * 0.1f); p.lineTo(w * 0.5f, h * 0.9f); p.moveTo(w * 0.1f, h * 0.5f); p.lineTo(w * 0.9f, h * 0.5f) }
             drawPath(p, fg, style = st)
         }
+        if (iconPkg != null) { ServiceIcon(iconPkg, s); Spacer(Modifier.width((6 * s).dp)) }
         if (!info) Spacer(Modifier.width((6 * s).dp))
         Text(label, color = fg, fontSize = (11 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
     }
@@ -794,7 +794,7 @@ private fun AiringCard(a: Airing, s: Float, modifier: Modifier, onFocused: () ->
         if (a.out && now - e.released < 3 * 24 * 3600_000L) Text("NEW", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
             modifier = Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(RED).padding(horizontal = (3 * s).dp))
         Column(Modifier.align(Alignment.BottomStart).padding(horizontal = (5 * s).dp, vertical = (4 * s).dp)) {
-            Text(a.item.name, color = Color.White, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            RawText(a.item.name, color = Color.White, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val line = listOfNotNull("S${e.season} · E${e.episode}", e.title.takeIf { it.isNotBlank() }, if (a.more > 0) "+${a.more} more" else null).joinToString(" · ")
             Text(line, color = Color.White.copy(alpha = 0.75f), fontSize = (6 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -872,7 +872,7 @@ private fun WatchInfo(item: HeroItem, s: Float, focused: Boolean) {
     val live = LiveCards.isLive(item)
     val dim = Color.White.copy(alpha = 0.6f)
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(item.name, color = Color.White.copy(alpha = if (focused) 1f else 0.85f), fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold,
+        RawText(item.name, color = Color.White.copy(alpha = if (focused) 1f else 0.85f), fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         if (!live && item.progress >= 0f) {
             val left = (100 - Math.round(item.progress.coerceIn(0f, 1f) * 100)).coerceIn(1, 100)
@@ -885,7 +885,7 @@ private fun WatchInfo(item: HeroItem, s: Float, focused: Boolean) {
         val series = !live && item.sub.isNotBlank()
         if (series) {
             // The episode as a chip (S2 · E5), then its title.
-            Text(item.sub, color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1,
+            RawText(item.sub, color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1,
                 modifier = Modifier.clip(RoundedCornerShape((2.5f * s).dp)).background(Color.White.copy(alpha = 0.16f))
                     .padding(horizontal = (3.5f * s).dp, vertical = (0.5f * s).dp))
             if (item.episodeTitle.isNotBlank()) {
@@ -939,7 +939,7 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
         if (!logoOnly) {
             if (item.logo.isNotBlank()) AsyncImage(remember(item.logo) { req(ctx, item.logo, 300, 100) }, item.name, contentScale = ContentScale.Fit, alignment = Alignment.BottomStart,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = (8 * s).dp, bottom = (12 * s).dp).size(width = (82 * s).dp, height = (26 * s).dp))
-            else Text(item.name, color = Color.White, fontSize = (8.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            else RawText(item.name, color = Color.White, fontSize = (8.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = (8 * s).dp, bottom = (12 * s).dp, end = (8 * s).dp))
         }
         if (newer > 0) Text("NEW EPISODE", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
@@ -981,7 +981,7 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         val openA by animateFloatAsState(if (open) 1f else 0f, tween(220), label = "posterOpen")
         if (item.poster.isNotBlank()) AsyncImage(remember(item.poster) { req(ctx, item.poster, 300, 450) }, item.name, contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 1f - openA })
-        else Text(item.name, color = Color.White.copy(alpha = 0.7f), fontSize = (8 * s).sp, modifier = Modifier.align(Alignment.Center).padding((8 * s).dp))
+        else RawText(item.name, color = Color.White.copy(alpha = 0.7f), fontSize = (8 * s).sp, modifier = Modifier.align(Alignment.Center).padding((8 * s).dp))
         if (item.rating.isNotBlank() && !open) Box(Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = (2 * s).dp, vertical = (1 * s).dp)) {
             ImdbBadge(item.rating, s, small = true)
         }
@@ -992,7 +992,7 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to CARD)))
                 if (item.logo.isNotBlank()) AsyncImage(remember(item.logo) { req(ctx, item.logo, 300, 100) }, item.name, contentScale = ContentScale.Fit, alignment = Alignment.BottomStart,
                     modifier = Modifier.align(Alignment.BottomStart).padding(start = (6 * s).dp, bottom = (3 * s).dp).size(width = (80 * s).dp, height = (22 * s).dp))
-                else Text(item.name, color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                else RawText(item.name, color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.align(Alignment.BottomStart).padding(start = (6 * s).dp, bottom = (3 * s).dp))
             }
             Column(Modifier.padding(horizontal = (6 * s).dp, vertical = (4 * s).dp)) {

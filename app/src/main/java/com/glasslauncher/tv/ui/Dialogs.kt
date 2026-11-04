@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,7 +49,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 
 fun toast(ctx: Context, msg: String) {
-    Handler(Looper.getMainLooper()).post { Toast.makeText(ctx, msg, Toast.LENGTH_LONG).show() }
+    val words = Lang.tr(msg)
+    Handler(Looper.getMainLooper()).post { Toast.makeText(ctx, words, Toast.LENGTH_LONG).show() }
 }
 
 sealed interface DialogState

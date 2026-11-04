@@ -16,9 +16,14 @@ final class Prefs {
         Ui.applyLanguage();
     }
 
-    /** Glassio is in English: Live TV too, so the two read the same. */
+    /** Live TV reads as Glassio does (Settings › Look & motion). "auto": the TV's own language. */
     static String language() {
-        return "en";
+        try {
+            String v = new String(java.nio.file.Files.readAllBytes(new java.io.File(app.getFilesDir(), "ui_language").toPath())).trim();
+            return v.isEmpty() ? "auto" : v;
+        } catch (Exception e) {
+            return "auto";
+        }
     }
 
     /** The TMDB token typed in Glassio's settings (Settings → Catalogs), for the shows' pictures and pages. */

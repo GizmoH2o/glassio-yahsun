@@ -1,0 +1,731 @@
+Home's PIN, to leave Kids mode	PIN de inicio, para salir del modo Niños
+That's not the PIN	Ese no es el PIN
+Apps	Apps
+Move	Mover
+Hide from the apps row	Ocultar de la fila de apps
+Apps folder hidden. Show it again: Settings › Apps & icons	Carpeta de apps oculta. Para mostrarla: Ajustes › Apps e iconos
+ · Kids mode	 · Modo Niños
+  (Kids)	  (Niños)
+Add a profile	Añadir un perfil
+New profile	Perfil nuevo
+A name, e.g. Sam	Un nombre, p. ej. Sam
+Add a kids profile	Añadir un perfil infantil
+New kids profile	Perfil infantil nuevo
+Kids	Niños
+A name	Un nombre
+Home PIN (4 digits)	PIN de inicio (4 dígitos)
+Asked to leave Kids mode	Se pide para salir del modo Niños
+The PIN must be 4 digits: no kids profile added	El PIN debe tener 4 dígitos: no se añadió el perfil infantil
+Who's watching?	¿Quién está viendo?
+Open	Abrir
+App info	Info de la app
+App info is not available on this device	La info de la app no está disponible en este dispositivo
+Change icon	Cambiar icono
+Show in dock	Mostrar en el dock
+Hide	Ocultar
+Restore a backup	Restaurar una copia
+Had Glassio before? Everything back in one go	¿Ya tenías Glassio? Recupera todo de una vez
+Add catalogs	Añadir catálogos
+Nuvio or Stremio add-ons fill the carousel	Los complementos de Nuvio o Stremio llenan el carrusel
+Sign in to Nuvio or Stremio	Inicia sesión en Nuvio o Stremio
+Continue Watching and your library	Seguir viendo y tu biblioteca
+Allow TV access (ADB)	Permitir acceso al TV (ADB)
+Silent updates, the screensaver, Nuvio Legacy	Actualizaciones silenciosas, protector de pantalla, Nuvio Legacy
+Turn on the Home button	Activar el botón Inicio
+Home opens Glassio	Inicio abre Glassio
+Sign in to Live TV	Inicia sesión en TV en vivo
+Your IPTV playlist	Tu lista IPTV
+Loading…	Cargando…
+Update failed	Error al actualizar
+Press OK to update now	Pulsa OK para actualizar ahora
+Go up to Update and press OK	Sube a Actualizar y pulsa OK
+Not interested	No me interesa
+Another picture	Otra imagen
+Nothing to watch here yet	Aún no hay nada que ver aquí
+Airing this week	En emisión esta semana
+New episodes of shows in your library	Episodios nuevos de series de tu biblioteca
+Continue watching	Seguir viendo
+Movies in your library	Películas de tu biblioteca
+Series in your library	Series de tu biblioteca
+Trending now	Tendencias
+Popular films	Películas populares
+Popular series	Series populares
+At a glance	De un vistazo
+Remove from Home	Quitar de Inicio
+FILM	PELÍCULA
+SERIES	SERIE
+Movie	Película
+Series	Serie
+Play	Reproducir
+More info	Más info
+In Library	En la biblioteca
+My Library	Mi biblioteca
+NEW	NUEVO
+Out now	Ya disponible
+in 	en
+Today	Hoy
+Tomorrow	Mañana
+Yesterday	Ayer
+1 day	1 día
+LIVE	EN VIVO
+NEW EPISODE	EPISODIO NUEVO
+See all	Ver todo
+in the Library	en la biblioteca
+All apps	Todas las apps
+Remove from Library	Quitar de la biblioteca
+Save to Library	Guardar en la biblioteca
+Remove from my Nuvio library	Quitar de mi biblioteca de Nuvio
+Remove from my Stremio library	Quitar de mi biblioteca de Stremio
+Mark as watched	Marcar como visto
+Remove from Continue Watching	Quitar de Seguir viendo
+Stop recording	Detener la grabación
+Record this show	Grabar este programa
+Slide transition	Transición de imágenes
+Fade between the big picture's titles (lower = faster)	Fundido entre los títulos de la imagen grande (menos = más rápido)
+Glass refraction	Refracción del cristal
+How much the glass's rim bends what's behind it (0 = flat, the lightest)	Cuánto dobla el borde del cristal lo que hay detrás (0 = plano, lo más ligero)
+Glass like glass	Cristal como cristal
+Glass like glass (still)	Cristal como cristal (fijo)
+Clear (matte)	Claro (mate)
+AMOLED black	Negro AMOLED
+Black on white	Negro sobre blanco
+Liquid glass	Cristal líquido
+Black AMOLED	Negro AMOLED
+Liquid	Líquido
+Clear	Claro
+Glass still	Cristal fijo
+Glass is glass	Cristal real
+Custom	Personalizado
+Google Play is not available on this device	Google Play no está disponible en este dispositivo
+This screen is not available on this device	Esta pantalla no está disponible en este dispositivo
+Failed	Error
+Not set	Sin configurar
+API Key, not the token	Clave API, no el token
+Set	Listo
+Not working	No funciona
+Checking…	Comprobando…
+Set (couldn't check, offline?)	Listo (no se pudo comprobar, ¿sin conexión?)
+TMDB token	Token de TMDB
+Use the API Read Access Token (long, starts eyJ…), not the short API Key	Usa el API Read Access Token (largo, empieza por eyJ…), no la API Key corta
+TMDB API Read Access Token	API Read Access Token de TMDB
+The long token starting eyJ… (not the 32-character API Key). Easier from the phone page	El token largo que empieza por eyJ… (no la API Key de 32 caracteres). Más fácil desde la página del teléfono
+Connect Nuvio account	Conectar cuenta de Nuvio
+Scan a QR code with your phone and approve, like signing in to Nuvio on a TV	Escanea un código QR con el teléfono y aprueba, como al iniciar sesión en Nuvio en un TV
+Waiting…	Esperando…
+Connect Nuvio	Conectar Nuvio
+Scan with your phone and approve on nuvio.tv. This closes by itself once you approve.	Escanea con el teléfono y aprueba en nuvio.tv. Esto se cierra solo al aprobar.
+Nuvio account	Cuenta de Nuvio
+Signed in	Sesión iniciada
+: Library, add-ons and saving use it	: la usan la biblioteca, los complementos y el guardado
+Sign out	Cerrar sesión
+Signed out of Nuvio	Sesión de Nuvio cerrada
+Connect Stremio account	Conectar cuenta de Stremio
+Scan a QR code with your phone, sign in to Stremio there and confirm, like the Stremio TV app	Escanea un código QR con el teléfono, inicia sesión en Stremio y confirma, como en la app de Stremio para TV
+Connect Stremio	Conectar Stremio
+Scan with your phone, sign in to Stremio and confirm. This closes by itself once you do.	Escanea con el teléfono, inicia sesión en Stremio y confirma. Esto se cierra solo al hacerlo.
+Stremio account	Cuenta de Stremio
+Signed out of Stremio	Sesión de Stremio cerrada
+Performance	Rendimiento
+Mode	Modo
+Picked for this TV from its memory and graphics chip	Elegido para este TV según su memoria y chip gráfico
+Smoothest: lighter pictures, quick fades, flat glass	Lo más fluido: imágenes ligeras, fundidos rápidos, cristal plano
+Sharpest: original pictures, slow fades, full glass	Lo más nítido: imágenes originales, fundidos lentos, cristal completo
+Sharp pictures, smooth navigation	Imágenes nítidas, navegación fluida
+Your own mix of the settings below	Tu propia mezcla de los ajustes de abajo
+Quality	Calidad
+Balanced	Equilibrado
+Glass detail	Detalle del cristal
+Resolution of the picture the glass bends (higher = crisper glass, more memory)	Resolución de la imagen que dobla el cristal (más = cristal más nítido, más memoria)
+Sharp (720 px)	Nítido (720 px)
+Standard (480 px)	Estándar (480 px)
+Picture quality	Calidad de imagen
+The home screen's big picture	La imagen grande de la pantalla de inicio
+High (1280 px)	Alta (1280 px)
+Maximum (original)	Máxima (original)
+Home	Inicio
+Accent colour	Color de acento
+LIVE, NEW, the progress bars and the FILM / SERIES line, on Home and the Live TV page	EN VIVO, NUEVO, las barras de progreso y la línea PELÍCULA / SERIE, en Inicio y en la página de TV en vivo
+Text size	Tamaño del texto
+Every screen of Glassio's own (Live TV's player keeps its own)	Todas las pantallas de Glassio (el reproductor de TV en vivo tiene el suyo)
+Library on Home	Biblioteca en Inicio
+Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here	En emisión esta semana, Películas y Series: de tu biblioteca de Nuvio, de Stremio o de ambas, con lo que guardaste aquí
+Nuvio and Stremio	Nuvio y Stremio
+New episodes of the series in your library: out now, or when they come out	Episodios nuevos de las series de tu biblioteca: ya disponibles o cuando se estrenen
+Posters open up when selected	Los pósteres se abren al seleccionarlos
+Rest on a poster: it opens into a wide card with its picture, rating, year and genres	Quédate en un póster: se abre en una tarjeta ancha con imagen, nota, año y géneros
+Big picture follows the selection	La imagen grande sigue la selección
+The title selected in a row fills the top of the page	El título seleccionado en una fila llena la parte superior de la página
+The big picture: titles from your catalogs (Settings › Catalogs). Play opens one; My Library saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play: Not interested, or another picture.	La imagen grande: títulos de tus catálogos (Ajustes › Catálogos). Reproducir abre uno; Mi biblioteca lo guarda; ◀ en Reproducir y ▶ en Mi biblioteca van al título anterior y al siguiente. Mantén OK en Reproducir: No me interesa, u otra imagen.
+Because you watched	Porque viste
+Every third title is one like what's in Continue watching (it says why)	Uno de cada tres títulos se parece a lo que hay en Seguir viendo (indica por qué)
+Seasonal picks first	Primero lo de temporada
+Horror in October, Christmas titles in December, romance in February	Terror en octubre, títulos navideños en diciembre, romance en febrero
+Trailers	Tráileres
+Off for now: they kept failing on this TV. Choose On to try again	Desactivados por ahora: fallaban en este TV. Elige Activado para volver a intentarlo
+After a few seconds on a title, its trailer plays (muted) behind it. Auto turns them off if they keep failing	Tras unos segundos en un título, su tráiler se reproduce (sin sonido) detrás. Auto los desactiva si siguen fallando
+On	Activado
+Off	Desactivado
+Auto	Auto
+OK on a card	OK en una tarjeta
+Open its title page, or play straight away	Abrir su página o reproducir directamente
+Play straight away	Reproducir directamente
+Title page	Página del título
+Recommendations	Recomendaciones
+Trending and popular titles from TMDB. Auto: with no Nuvio or Stremio account signed in	Títulos en tendencia y populares de TMDB. Auto: sin sesión iniciada en Nuvio o Stremio
+Always	Siempre
+Live match ticker	Marcador en directo
+A team you follow playing now: its score under the tabs	Un equipo que sigues jugando ahora: su marcador bajo las pestañas
+Titles you're not interested in	Títulos que no te interesan
+None	Ninguno
+Show them again	Volver a mostrarlos
+They're back on the big picture	Han vuelto a la imagen grande
+Auto-play	Reproducción automática
+Titles change on their own while the big picture is selected	Los títulos cambian solos mientras la imagen grande está seleccionada
+Title time	Tiempo por título
+Seconds before the next title	Segundos antes del siguiente título
+Title style	Estilo del título
+Logo image, plain text, or nothing	Logo, texto simple o nada
+Logo	Logo
+Text	Texto
+Hidden	Oculto
+Logo / title size	Tamaño del logo / título
+Logos are evened out so wide and tall ones look the same size	Los logos se igualan para que los anchos y los altos parezcan del mismo tamaño
+Synopsis lines	Líneas de sinopsis
+Titles per catalog	Títulos por catálogo
+Reload to apply	Recarga para aplicar
+Total titles	Títulos en total
+0 = every title, endless loop	0 = todos los títulos, en bucle
+Unlimited	Sin límite
+Shuffle all catalogs	Mezclar todos los catálogos
+Random order across every catalog, a new mix each time the list loads	Orden aleatorio entre catálogos, una mezcla nueva cada vez que se carga la lista
+Synopsis language	Idioma de la sinopsis
+Needs a TMDB token. English is used when a title has no text in this language	Necesita un token de TMDB. Se usa inglés si un título no tiene texto en este idioma
+English	Inglés
+Artwork	Imágenes
+Which picture each title uses	Qué imagen usa cada título
+Second picture	Segunda imagen
+Highest resolution	Mayor resolución
+Add-on picture	Imagen del complemento
+Main (TMDB)	Principal (TMDB)
+Reset pictures picked per title	Restablecer las imágenes elegidas por título
+Every title is back to the Artwork setting	Todos los títulos vuelven al ajuste de Imágenes
+Reload titles now	Recargar títulos ahora
+At a glance: a row under your apps with the weather's next days, your calendars' next events and Home Assistant readings. Home Assistant is set up under Settings › Accounts & Home Assistant. Long links and tokens are easiest pasted from your phone (Settings › Manage from phone).	De un vistazo: una fila bajo tus apps con el tiempo de los próximos días, los próximos eventos de tus calendarios y lecturas de Home Assistant. Home Assistant se configura en Ajustes › Cuentas y Home Assistant. Los enlaces largos y los tokens se pegan más fácil desde el teléfono (Ajustes › Gestionar desde el teléfono).
+At a glance row	Fila De un vistazo
+Under the apps on Home	Bajo las apps en Inicio
+Weather forecast	Previsión del tiempo
+Today and the next four days, for the weather's city (Look & motion)	Hoy y los próximos cuatro días, para la ciudad del tiempo (Aspecto y movimiento)
+Calendars	Calendarios
+iCal links, like Google Calendar's secret address	Enlaces iCal, como la dirección secreta de Google Calendar
+Add	Añadir
+Add or remove	Añadir o quitar
+Remove 	Quitar
+Calendar removed	Calendario quitado
+Add an iCal link	Añadir un enlace iCal
+Calendar link	Enlace del calendario
+Its iCal address (https://… or webcal://…, ending .ics)	Su dirección iCal (https://… o webcal://…, termina en .ics)
+Calendar added	Calendario añadido
+That isn't a link (it starts with https:// or webcal://)	Eso no es un enlace (empieza por https:// o webcal://)
+Home Assistant readings	Lecturas de Home Assistant
+Set its address and token first: Settings › Accounts & Home Assistant	Primero configura su dirección y token: Ajustes › Cuentas y Home Assistant
+Choose	Elegir
+Couldn't reach Home Assistant	No se pudo conectar con Home Assistant
+Home Assistant has nothing to show	Home Assistant no tiene nada que mostrar
+Profiles: each person's own Home settings. Switch with the top bar's profile button (the round letter). The Nuvio, Stremio and Trakt accounts are the TV's: each profile picks which of them its Continue watching reads (Settings › Continue Watching).	Perfiles: los ajustes de Inicio de cada persona. Cambia con el botón de perfil de la barra superior (la letra redonda). Las cuentas de Nuvio, Stremio y Trakt son del TV: cada perfil elige cuáles lee su Seguir viendo (Ajustes › Seguir viendo).
+ (Kids)	 (Niños)
+On now	Activo ahora
+Rename or remove	Renombrar o quitar
+Rename	Renombrar
+Remove	Quitar
+Ask who's watching	Preguntar quién está viendo
+When Glassio starts, with more than one profile	Al iniciar Glassio, con más de un perfil
+Home PIN	PIN de inicio
+None: Kids mode can be left freely	Ninguno: se puede salir del modo Niños libremente
+Change	Cambiar
+Asked to leave Kids mode. Left empty: no PIN	Se pide para salir del modo Niños. Vacío: sin PIN
+PIN saved	PIN guardado
+PIN removed: Kids mode can be left freely	PIN quitado: se puede salir del modo Niños libremente
+The PIN must be 4 digits	El PIN debe tener 4 dígitos
+Apps in Kids mode	Apps en el modo Niños
+Clock & glass	Reloj y cristal
+Show clock	Mostrar reloj
+24-hour clock	Reloj de 24 horas
+Show date	Mostrar fecha
+Under the clock, like Apple TV	Bajo el reloj
+Clock position	Posición del reloj
+Right, by Settings	A la derecha, junto a Ajustes
+Left, like Apple TV	A la izquierda
+Weather	Tiempo
+Top bar, next to the settings button	Barra superior, junto al botón de ajustes
+Temperature	Temperatura
+Temperature + sky	Temperatura + cielo
+Temperature + city	Temperatura + ciudad
+Everything	Todo
+Weather city	Ciudad del tiempo
+Fahrenheit	Fahrenheit
+Auto-hide clock and settings button	Ocultar reloj y botón de ajustes
+Hidden while you browse; they appear when you go up to the settings button	Ocultos mientras navegas; aparecen al subir al botón de ajustes
+Shown at start for	Se muestran al inicio durante
+Then hidden until you go up to them	Luego se ocultan hasta que subas a ellos
+Corner radius	Radio de las esquinas
+The Apps folder and its tiles (0 = square)	La carpeta de apps y sus mosaicos (0 = cuadrado)
+Glass blur	Desenfoque del cristal
+0 turns blur off	0 desactiva el desenfoque
+Glass brightness	Brillo del cristal
+Colour on focus	Color al seleccionar
+In the Apps folder, like tvOS: icons stay white, the selected one shows its colours on a light plate	En la carpeta de apps: los iconos quedan blancos y el seleccionado muestra sus colores sobre una placa clara
+Selected icon plate	Placa del icono seleccionado
+In the Apps folder, with Colour on focus	En la carpeta de apps, con Color al seleccionar
+Dark	Oscuro
+Bounce at the edges	Rebote en los bordes
+In the Apps folder: pressing past the first or last icon nudges it, like tvOS	En la carpeta de apps: al pasarte del primer o último icono, este se mueve un poco
+Lift selected icon	Elevar el icono seleccionado
+In the Apps folder: the selected icon rises a little, glass and all	En la carpeta de apps: el icono seleccionado sube un poco, con su cristal
+Show phone apps too	Mostrar también apps de teléfono
+Apps without a TV launcher entry	Apps sin entrada para TV
+Apps & icons	Apps e iconos
+Icon pack	Paquete de iconos
+Projectivy / Blueprint / Nova packs installed on this TV	Paquetes Projectivy / Blueprint / Nova instalados en este TV
+None (original icons)	Ninguno (iconos originales)
+Apps per row	Apps por fila
+The apps on the home screen, in a grid	Las apps de la pantalla de inicio, en cuadrícula
+Show Apps folder	Mostrar carpeta de apps
+All apps (hidden ones too), as a tile among your apps. Hidden apps stay listed below	Todas las apps (también las ocultas), como un mosaico entre tus apps. Las ocultas se listan abajo
+Apps folder background	Fondo de la carpeta de apps
+Behind the apps in the Apps folder	Detrás de las apps en la carpeta
+Settings background	Fondo de Ajustes
+Behind the icon picker	Detrás del selector de iconos
+Icon style in the Apps folder	Estilo de icono en la carpeta de apps
+How the plate behind every icon looks there	Cómo se ve la placa detrás de cada icono
+Change one icon: on the home screen hold OK on the app, then Change icon. Pick from an icon pack, the Apple TV icons, a photo on the TV, a link to a PNG, or send one from your phone (Manage from phone).	Cambiar un icono: en la pantalla de inicio mantén OK en la app y elige Cambiar icono. Elige de un paquete, los iconos de Apple TV, una foto del TV, un enlace a un PNG, o envíalo desde el teléfono (Gestionar desde el teléfono).
+Icon packs: install any Android TV / Projectivy icon pack from Google Play, then choose it above. Every app takes the pack's icon; you can still change single apps.	Paquetes de iconos: instala cualquier paquete de iconos para Android TV / Projectivy desde Google Play y elígelo arriba. Todas las apps toman el icono del paquete; aún puedes cambiar apps sueltas.
+Find icon packs on Google Play	Buscar paquetes de iconos en Google Play
+Projectivy / Android TV icon packs	Paquetes de iconos Projectivy / Android TV
+Many icons at once: copy <package>.png files (e.g. com.netflix.ninja.png) into the icon folder below, then Import.	Muchos iconos a la vez: copia archivos <paquete>.png (p. ej. com.netflix.ninja.png) en la carpeta de iconos de abajo y luego Importar.
+On the home screen, hold OK on an app for App info, Move, Change icon and Hide.	En la pantalla de inicio, mantén OK en una app para Info de la app, Mover, Cambiar icono y Ocultar.
+Here: OK picks an app up, ◀ ▶ moves it, OK puts it down. Hold OK (or Menu) for its options.	Aquí: OK coge una app, ◀ ▶ la mueve, OK la suelta. Mantén OK (o Menú) para sus opciones.
+Import icons from the icon folder	Importar iconos de la carpeta
+Menu & themes	Menú y temas
+Theme	Tema
+One look for the Apps folder, its icons and the menu	Un aspecto para la carpeta de apps, sus iconos y el menú
+Menu	Menú
+The Apple TV-style menu at the settings button	El menú del botón de ajustes
+Opens when you go up to it	Se abre al subir a él
+Opens with OK	Se abre con OK
+Off (OK opens Settings)	Desactivado (OK abre Ajustes)
+Menu look	Aspecto del menú
+Clock in the menu	Reloj en el menú
+Date in the menu	Fecha en el menú
+Weather in the menu	Tiempo en el menú
+Temperature, conditions, high / low, humidity and wind (city in Clock & glass)	Temperatura, condiciones, máxima / mínima, humedad y viento (ciudad en Reloj y cristal)
+City in the menu	Ciudad en el menú
+Live TV tab and Following	Pestaña TV en vivo y Siguiendo
+Your IPTV channels with a full guide, and the teams and shows you follow (in the menu)	Tus canales IPTV con guía completa, y los equipos y programas que sigues (en el menú)
+Library tab	Pestaña Biblioteca
+Android settings in the menu	Ajustes de Android en el menú
+Wi-Fi in the menu	Wi-Fi en el menú
+Themes in the menu	Temas en el menú
+Library	Biblioteca
+Trakt watchlist in the Library	Lista de Trakt en la biblioteca
+Needs Trakt (Continue Watching)	Necesita Trakt (Seguir viendo)
+Nuvio library	Biblioteca de Nuvio
+From your Nuvio account	De tu cuenta de Nuvio
+: Nuvio Legacy, the official Nuvio app and forks that sync with it	: Nuvio Legacy, la app oficial de Nuvio y variantes que se sincronizan con ella
+Connect your Nuvio account above	Conecta tu cuenta de Nuvio arriba
+Save to the Nuvio library too	Guardar también en la biblioteca de Nuvio
+The + button also saves the title to your Nuvio account (Legacy, official Nuvio and forks see it)	El botón + también guarda el título en tu cuenta de Nuvio (lo ven Legacy, Nuvio oficial y variantes)
+Stremio library	Biblioteca de Stremio
+From your Stremio account	De tu cuenta de Stremio
+: the library the Stremio apps show	: la biblioteca que muestran las apps de Stremio
+Connect your Stremio account above	Conecta tu cuenta de Stremio arriba
+Save to the Stremio library too	Guardar también en la biblioteca de Stremio
+The + button also saves the title to your Stremio account	El botón + también guarda el título en tu cuenta de Stremio
+Save to the Trakt watchlist too	Guardar también en la lista de Trakt
+The + button also adds the title on Trakt	El botón + también añade el título en Trakt
+Titles under posters	Títulos bajo los pósteres
+In the Library	En la biblioteca
+In the Library: OK opens the title like the carousel. Hold OK (or Menu) to remove it.	En la biblioteca: OK abre el título como en el carrusel. Mantén OK (o Menú) para quitarlo.
+Catalogs	Catálogos
+Add add-ons from my phone (QR)	Añadir complementos desde el teléfono (QR)
+Scan the code, paste add-on manifest links (Nuvio or Stremio) and your TMDB token	Escanea el código, pega enlaces de manifiesto (Nuvio o Stremio) y tu token de TMDB
+Connect to Nuvio	Conectar con Nuvio
+Open Nuvio > Add-ons > Manage from phone first	Primero abre Nuvio > Complementos > Gestionar desde el teléfono
+Add-ons from my Nuvio account	Complementos de mi cuenta de Nuvio
+Connect your Nuvio account first: Settings › Accounts & Home Assistant	Primero conecta tu cuenta de Nuvio: Ajustes › Cuentas y Home Assistant
+Add-ons from my Stremio account	Complementos de mi cuenta de Stremio
+Connect your Stremio account first: Settings › Accounts & Home Assistant	Primero conecta tu cuenta de Stremio: Ajustes › Cuentas y Home Assistant
+Add add-on link	Añadir enlace de complemento
+Paste a manifest link	Pega un enlace de manifiesto
+Add-on link	Enlace del complemento
+Refresh catalogs	Actualizar catálogos
+Select all catalogs	Seleccionar todos los catálogos
+Done	Listo
+Select none	No seleccionar ninguno
+Remove add-on	Quitar complemento
+No catalogs yet. Connect to Nuvio or Stremio, or add an add-on link.	Aún no hay catálogos. Conecta Nuvio o Stremio, o añade un enlace de complemento.
+Continue Watching	Seguir viendo
+Continue watching on Home	Seguir viendo en Inicio
+Its row under the big picture: OK opens a title in the app it came from; hold OK to open it in your other app, mark it watched or take it out. Live TV's cards stay either way	Su fila bajo la imagen grande: OK abre un título en la app de donde vino; mantén OK para abrirlo en tu otra app, marcarlo como visto o quitarlo. Las tarjetas de TV en vivo se quedan igualmente
+Keep	Conservar
+Only what you watched within this time; older titles leave the row (they stay in the list below)	Solo lo que viste en este tiempo; los títulos más antiguos salen de la fila (siguen en la lista de abajo)
+New episodes first	Episodios nuevos primero
+A series with an episode out since you watched goes to the front (NEW EPISODE)	Una serie con un episodio nuevo desde que la viste pasa al frente (EPISODIO NUEVO)
+Reading what you watch in Nuvio Legacy	Leyendo lo que ves en Nuvio Legacy
+Allow USB debugging for Glassio when the TV asks	Permite la depuración USB para Glassio cuando el TV lo pida
+Nuvio (official app)	Nuvio (app oficial)
+: what you're watching in the official Nuvio app	: lo que ves en la app oficial de Nuvio
+Sign in to your Nuvio account (Settings › Accounts & Home Assistant) to see what you're watching in the official Nuvio app	Inicia sesión en tu cuenta de Nuvio (Ajustes › Cuentas y Home Assistant) para ver lo que estás viendo en la app oficial
+: what you're watching in Stremio	: lo que ves en Stremio
+Sign in to your Stremio account (Settings › Accounts & Home Assistant) to see what you're watching in Stremio	Inicia sesión en tu cuenta de Stremio (Ajustes › Cuentas y Home Assistant) para ver lo que estás viendo en Stremio
+Connect your account below to see what you paused in any app that uses Trakt	Conecta tu cuenta abajo para ver lo que pausaste en cualquier app que use Trakt
+Connect Trakt account	Conectar cuenta de Trakt
+Scan a QR code with your phone and enter a short code, no password on the TV	Escanea un código QR con el teléfono e introduce un código corto, sin contraseña en el TV
+Connect Trakt	Conectar Trakt
+This closes by itself once you approve. The code works for about 10 minutes.	Esto se cierra solo al aprobar. El código funciona unos 10 minutos.
+Sign out of Trakt	Cerrar sesión de Trakt
+Signed out of Trakt	Sesión de Trakt cerrada
+How it works: Nuvio Legacy writes what you play to the TV's log (title, episode, how far). Glassio reads that log through the TV's own debugging connection (ADB), so this needs ADB once: Settings › System › TV access (ADB). Nothing leaves the TV.	Cómo funciona: Nuvio Legacy escribe lo que reproduces en el registro del TV (título, episodio, hasta dónde). Glassio lee ese registro por la conexión de depuración del propio TV (ADB), así que necesita ADB una vez: Ajustes › Sistema › Acceso al TV (ADB). Nada sale del TV.
+The official Nuvio app saves what you watch to your Nuvio account, and Stremio to your Stremio account: signed in to the same account here, it shows up in Continue Watching (taking a title out here takes it out there too). Nuvio Arc and Re-Shaped: connect Trakt (and turn on Trakt in that app) and what you pause there shows up here through Trakt.	La app oficial de Nuvio guarda lo que ves en tu cuenta de Nuvio, y Stremio en tu cuenta de Stremio: con la misma cuenta aquí, aparece en Seguir viendo (quitar un título aquí también lo quita allí). Nuvio Arc y Re-Shaped: conecta Trakt (y actívalo en esa app) y lo que pauses allí aparece aquí a través de Trakt.
+Other apps (YouTube, Netflix, Apple TV…) keep their Continue Watching private on Google TV; only the system launcher may read it.	Otras apps (YouTube, Netflix, Apple TV…) mantienen privado su Seguir viendo en Google TV; solo el launcher del sistema puede leerlo.
+Clear the list	Vaciar la lista
+Nuvio, Stremio & Home Assistant	Nuvio, Stremio y Home Assistant
+Open titles in	Abrir títulos en
+Auto uses the first installed: Nuvio Legacy, Nuvio (official), Nuvio Arc, Nuvio Re-Shaped, Stremio	Auto usa la primera instalada: Nuvio Legacy, Nuvio (oficial), Nuvio Arc, Nuvio Re-Shaped, Stremio
+none installed	ninguna instalada
+Home Assistant webhook	Webhook de Home Assistant
+Full webhook URL from your Home Assistant	URL completa del webhook de tu Home Assistant
+Tell Home Assistant what's on	Avisar a Home Assistant de lo que se ve
+Events to the webhook: something playing, back on Home, the screensaver	Eventos al webhook: algo reproduciéndose, vuelta a Inicio, protector de pantalla
+Send a test event	Enviar un evento de prueba
+Home Assistant address	Dirección de Home Assistant
+Not set: like http://homeassistant.local:8123	Sin configurar: como http://homeassistant.local:8123
+Like http://homeassistant.local:8123 (empty: the webhook's)	Como http://homeassistant.local:8123 (vacío: la del webhook)
+Home Assistant token	Token de Home Assistant
+A long-lived access token (your HA profile › Security)	Un token de acceso de larga duración (tu perfil de HA › Seguridad)
+Saved	Guardado
+Long-lived access token (empty: remove it)	Token de acceso de larga duración (vacío: quitarlo)
+Token removed	Token quitado
+Token saved	Token guardado
+Screensaver	Protector de pantalla
+Recommended: Aerial Views. The best screensaver with Glassio: Apple, Amazon and your own 4K videos, clock and info, free on Google Play.	Recomendado: Aerial Views. El mejor protector de pantalla con Glassio: vídeos 4K de Apple, Amazon y tuyos, reloj e info, gratis en Google Play.
+Install Aerial Views	Instalar Aerial Views
+Opens it on Google Play	Se abre en Google Play
+Open Aerial Views settings	Abrir ajustes de Aerial Views
+Choose videos, clock, overlays	Elige vídeos, reloj, superposiciones
+Allow USB debugging for Glassio when the TV asks (Always allow), then try again	Permite la depuración USB para Glassio cuando el TV lo pida (Permitir siempre) e inténtalo de nuevo
+Aerial Views as the TV screensaver (ADB)	Aerial Views como protector del TV (ADB)
+On: the TV starts Aerial Views by itself when idle	Activado: el TV inicia Aerial Views solo cuando está inactivo
+Off: the TV doesn't start a screensaver	Desactivado: el TV no inicia un protector de pantalla
+Aerial Views screensaver on	Protector Aerial Views activado
+TV screensaver off (the TV now sleeps at its own sleep time)	Protector del TV desactivado (el TV se suspende a su hora)
+TV screensaver starts after (ADB)	El protector del TV empieza tras (ADB)
+The TV's own screensaver and its idle time. Off lets Glassio's screensaver come on instead	El protector del propio TV y su tiempo de inactividad. Desactivado deja actuar al protector de Glassio
+Off: the TV starts no screensaver of its own; Glassio's comes on (Start after)	Desactivado: el TV no inicia su protector; se activa el de Glassio (Empezar tras)
+Unknown	Desconocido
+TV screensaver off: Glassio's screensaver comes on instead	Protector del TV desactivado: se activa el de Glassio
+The TV screensaver now starts after 	Ahora el protector del TV empieza tras
+Steps: 1. Install Aerial Views. 2. Turn on Aerial Views as the TV screensaver (the TV asks once to allow USB debugging for Glassio: Always allow). 3. Type: TV screensaver. 4. Start after / Back starts it.	Pasos: 1. Instala Aerial Views. 2. Activa Aerial Views como protector del TV (el TV pregunta una vez si permite la depuración USB para Glassio: Permitir siempre). 3. Tipo: protector del TV. 4. Empezar tras / Atrás lo inicia.
+Start after	Empezar tras
+Idle time on the launcher	Tiempo de inactividad en el launcher
+Type	Tipo
+What plays when the screensaver starts	Qué se reproduce al iniciar el protector
+Apple aerial videos	Vídeos aéreos de Apple
+TV screensaver (	Protector del TV (
+Posters with logos	Pósteres con logos
+Starts the screensaver chosen in Google TV settings (Aerial Views). The first time, the TV asks to allow USB debugging for Glassio: choose Always allow.	Inicia el protector elegido en los ajustes de Google TV (Aerial Views). La primera vez, el TV pide permitir la depuración USB para Glassio: elige Permitir siempre.
+Streams Apple's public aerial feed	Reproduce el canal público de vídeos aéreos de Apple
+Followed matches	Partidos seguidos
+Your team's next match from Following under the clock, with LIVE and the score	El próximo partido de tu equipo de Siguiendo bajo el reloj, con EN VIVO y el marcador
+Back on the home screen starts it	Atrás en la pantalla de inicio lo inicia
+Like Apple TV: press Back on the home screen	Pulsa Atrás en la pantalla de inicio
+Add video link	Añadir enlace de vídeo
+A direct .mp4 / .mov link	Un enlace directo .mp4 / .mov
+Video link	Enlace de vídeo
+The link must start with http	El enlace debe empezar por http
+Preview now	Ver ahora
+Use as system screensaver	Usar como protector del sistema
+Pick Glassio Yahsun in the list	Elige Glassio Yahsun en la lista
+Manage from phone	Gestionar desde el teléfono
+System	Sistema
+Phone remote	Mando en el teléfono
+The phone page stays on, at an address that doesn't change: keep it on your phone's home screen and use it as a remote any time (Manage from phone shows its code)	La página del teléfono sigue activa, en una dirección que no cambia: guárdala en la pantalla de inicio del teléfono y úsala como mando cuando quieras (Gestionar desde el teléfono muestra su código)
+Back up settings	Copia de seguridad de los ajustes
+Due	Pendiente
+Backup code	Código de la copia
+Type the code again	Escribe el código otra vez
+The same code, to be sure	El mismo código, para asegurarse
+The codes don't match: nothing was saved	Los códigos no coinciden: no se guardó nada
+Making the backup…	Creando la copia…
+From the phone page or Downloads (after a reinstall, Downloads needs TV access). Glassio restarts after	Desde la página del teléfono o Descargas (tras reinstalar, Descargas necesita acceso al TV). Glassio se reinicia después
+No backup on this TV: send one from Manage from phone, or allow TV access (below) to read Downloads	No hay copia en este TV: envía una desde Gestionar desde el teléfono, o permite el acceso al TV (abajo) para leer Descargas
+Its code. Everything here now is replaced, then Glassio restarts	Su código. Todo lo que hay aquí se reemplaza y Glassio se reinicia
+Restoring…	Restaurando…
+Open Glassio when the TV starts	Abrir Glassio al encender el TV
+After a restart, Glassio Yahsun instead of Google TV's home screen. Needs the accessibility service or TV access (ADB), below	Tras reiniciar, Glassio Yahsun en lugar de la pantalla de inicio de Google TV. Necesita el servicio de accesibilidad o acceso al TV (ADB), abajo
+. TCL TVs: TV access lets Glassio start by itself	. TV TCL: el acceso al TV permite que Glassio se inicie solo
+Glassio may start by itself on this TCL TV	Glassio puede iniciarse solo en este TV TCL
+Allow TV access (ADB) first: steps below	Primero permite el acceso al TV (ADB): pasos abajo
+Home button opens Glassio	El botón Inicio abre Glassio
+Needs the accessibility service below	Necesita el servicio de accesibilidad de abajo
+Guide button opens Live TV's guide	El botón Guía abre la guía de TV en vivo
+Instead of the TV maker's own TV app, on TVs that pass the remote's buttons to apps (some TCL TVs don't). Needs the accessibility service below	En lugar de la app de TV del fabricante, en TV que pasan los botones del mando a las apps (algunos TCL no). Necesita el servicio de accesibilidad de abajo
+Turn on the accessibility service	Activar el servicio de accesibilidad
+Find Glassio Yahsun and switch it on	Busca Glassio Yahsun y actívalo
+Turn it on with ADB	Activarlo con ADB
+The accessibility service is on	El servicio de accesibilidad está activo
+When the TV doesn't let you (restricted setting / greyed out). Needs TV access (ADB), below	Cuando el TV no lo permite (ajuste restringido / en gris). Necesita acceso al TV (ADB), abajo
+Accessibility service turned on	Servicio de accesibilidad activado
+Done, but the TV didn't turn it on. Try the button above	Hecho, pero el TV no lo activó. Prueba el botón de arriba
+Choose default home app	Elegir la app de inicio predeterminada
+TV access (ADB): Continue Watching from Nuvio Legacy, setting Aerial Views as the screensaver, starting the screensaver and silent updates use the TV's own debugging connection. Turn it on once:	Acceso al TV (ADB): Seguir viendo de Nuvio Legacy, poner Aerial Views como protector, iniciar el protector y las actualizaciones silenciosas usan la conexión de depuración del propio TV. Actívala una vez:
+1. Developer options: open About below and press OK on "Android TV OS build" (or "Build") 7 times, until it says you are a developer.	1. Opciones de desarrollador: abre Acerca de abajo y pulsa OK en "Compilación de Android TV OS" (o "Compilación") 7 veces, hasta que diga que eres desarrollador.
+2. Open Developer options below and turn on USB debugging (on some TVs also "Network debugging" / "ADB over network").	2. Abre Opciones de desarrollador abajo y activa la depuración USB (en algunos TV también "Depuración de red" / "ADB por red").
+3. Press "Allow Glassio" below. The TV asks "Allow USB debugging?": tick Always allow from this computer, then OK. It is asked only once.	3. Pulsa "Permitir Glassio" abajo. El TV pregunta "¿Permitir la depuración USB?": marca Permitir siempre desde este ordenador y OK. Se pregunta una sola vez.
+1 · Open About (enable Developer options)	1 · Abrir Acerca de (activar Opciones de desarrollador)
+Developer options are on	Las opciones de desarrollador están activas
+Press OK on the build number 7 times	Pulsa OK en el número de compilación 7 veces
+2 · Open Developer options	2 · Abrir Opciones de desarrollador
+USB debugging is on	La depuración USB está activa
+Turn on USB debugging	Activa la depuración USB
+3 · Allow Glassio	3 · Permitir Glassio
+Allowed: Glassio can use ADB	Permitido: Glassio puede usar ADB
+Not allowed yet: press OK, then Always allow on the TV	Aún no permitido: pulsa OK y luego Permitir siempre en el TV
+Press OK to check	Pulsa OK para comprobar
+Glassio can use ADB	Glassio puede usar ADB
+Turn on USB debugging first (step 2)	Primero activa la depuración USB (paso 2)
+Choose Always allow on the TV, then press OK here again	Elige Permitir siempre en el TV y pulsa OK aquí otra vez
+About	Acerca de
+Look & motion	Aspecto y movimiento
+Reduce motion	Reducir movimiento
+No lift, slide or zoom; simple fades only	Sin elevación, deslizamiento ni zoom; solo fundidos simples
+High contrast	Alto contraste
+A stronger selection and solid backing behind text	Selección más marcada y fondo sólido detrás del texto
+Accounts & Home Assistant	Cuentas y Home Assistant
+Settings	Ajustes
+Search settings	Buscar ajustes
+A setting's name, or what it does (empty: all pages)	El nombre de un ajuste o lo que hace (vacío: todas las páginas)
+Search	Buscar
+No setting matches.	Ningún ajuste coincide.
+Hide from dock	Ocultar del dock
+Icon from a link	Icono desde un enlace
+Icon updated	Icono actualizado
+Icon from my phone (Manage from phone)	Icono desde mi teléfono (Gestionar desde el teléfono)
+Reset to the original icon	Volver al icono original
+Open app	Abrir app
+◀ ▶ to change · OK when done	◀ ▶ para cambiar · OK al terminar
+Custom icon	Icono personalizado
+Scan the code with your phone (same Wi-Fi): a remote, typing and Live TV search from your phone, open and reorder apps, add-ons, app icons, tokens with a real keyboard, and backups.	Escanea el código con el teléfono (misma Wi-Fi): mando, escritura y búsqueda de TV en vivo desde el teléfono, abrir y ordenar apps, complementos, iconos, tokens con teclado real y copias de seguridad.
+QR code	Código QR
+The TV is not on a network, so the phone page can't start.	El TV no está en una red, así que la página del teléfono no puede iniciarse.
+Phone remote is on: this page keeps running at this address (Settings › System).	El mando en el teléfono está activo: esta página sigue funcionando en esta dirección (Ajustes › Sistema).
+The page stops when you leave this screen. For a remote that always works, turn on Phone remote (Settings › System).	La página se detiene al salir de esta pantalla. Para un mando siempre disponible, activa Mando en el teléfono (Ajustes › Sistema).
+Scan with your phone	Escanea con el teléfono
+Downloads from GitHub and restarts Glass	Se descarga de GitHub y reinicia Glassio
+Install	Instalar
+Check for updates	Buscar actualizaciones
+Looks at the latest release on GitHub	Mira la última versión en GitHub
+Check	Buscar
+A pill appears next to the clock when a new version is out.	Aparece un aviso junto al reloj cuando hay una versión nueva.
+Glassio Yahsun by GizmoH2o, based on Glassio by Mohammad (mrh12) · Fonts: Inter (SIL OFL) · Weather: Open-Meteo · This product uses the TMDB API but is not endorsed or certified by TMDB.	Glassio Yahsun de GizmoH2o, basado en Glassio de Mohammad (mrh12) · Fuentes: Inter (SIL OFL) · Tiempo: Open-Meteo · Este producto usa la API de TMDB pero no está respaldado ni certificado por TMDB.
+Last crash	Último fallo
+Cleared	Borrado
+Resume	Reanudar
+Trailer	Tráiler
+✓  In Library	✓  En la biblioteca
++  My Library	+  Mi biblioteca
+Episodes	Episodios
+Specials	Especiales
+No app for titles on this TV: Nuvio or Stremio plays them	No hay app para títulos en este TV: Nuvio o Stremio los reproducen
+More like this	Más como este
+Titles, channels and apps	Títulos, canales y apps
+Type with the keys below	Usa las teclas de abajo
+Space	Espacio
+Delete	Borrar
+Titles	Títulos
+Live TV	TV en vivo
+Welcome to Glassio	Te damos la bienvenida a Glassio
+Your films, series, live TV and apps, together on one home screen.	Tus películas, series, TV en vivo y apps, juntas en una pantalla de inicio.
+Bring in what you watch	Trae lo que ves
+Sign in to fill Home with your library and Continue Watching. No account? Home shows what's trending, and you can still save titles.	Inicia sesión para llenar Inicio con tu biblioteca y Seguir viendo. ¿Sin cuenta? Inicio muestra las tendencias y aun así puedes guardar títulos.
+Make it your TV's home	Hazla la pantalla de inicio del TV
+So the Home button comes here, and Glassio can start with the TV. You can do this later.	Para que el botón Inicio venga aquí y Glassio arranque con el TV. Puedes hacerlo más tarde.
+You're all set	Todo listo
+Everything you've seen here is in Settings, whenever you want it.	Todo lo que has visto aquí está en Ajustes, cuando quieras.
+Get started	Empezar
+Scan a code with your phone	Escanea un código con el teléfono
+Continue	Continuar
+Skip	Omitir
+Settings › System	Ajustes › Sistema
+Allow TV access	Permitir acceso al TV
+For the screensaver, silent updates and more	Para el protector de pantalla, actualizaciones silenciosas y más
+Go to Home	Ir a Inicio
+Save	Guardar
+Close	Cerrar
+Cancel	Cancelar
+Scan with your phone, or open	Escanea con el teléfono o abre
+and enter	e introduce
+Input	Entrada
+TV inputs	Entradas del TV
+Quick settings	Ajustes rápidos
+Sleep timer	Temporizador
+Sleep timer off	Temporizador desactivado
+Volume · 	Volumen ·
+Unmute	Activar sonido
+Mute	Silenciar
+The TV's settings	Ajustes del TV
+Bluetooth & remotes	Bluetooth y mandos
+Picture	Imagen
+picture settings	ajustes de imagen
+Sound	Sonido
+sound settings	ajustes de sonido
+Background	Fondo
+Choose a picture first: Settings › Look & motion	Primero elige una imagen: Ajustes › Aspecto y movimiento
+Choose a video first: Settings › Look & motion	Primero elige un vídeo: Ajustes › Aspecto y movimiento
+Following	Siguiendo
+Glassio settings	Ajustes de Glassio
+Android settings	Ajustes de Android
+Themes	Temas
+Focus plate	Placa de selección
+White	Blanco
+Glass	Cristal
+Title backdrops	Fondos de títulos
+My picture	Mi imagen
+My video	Mi vídeo
+OK opens · hold OK to remove	OK abre · mantén OK para quitar
+Nothing here yet. On the home screen, press + next to Play to save a title.	Aún no hay nada. En la pantalla de inicio, pulsa + junto a Reproducir para guardar un título.
+Nothing in this list yet.	Aún no hay nada en esta lista.
+Suggested	Sugeridos
+Photos on this TV	Fotos de este TV
+Apple TV icon (online)	Icono de Apple TV (en línea)
+From a link	Desde un enlace
+From my phone	Desde mi teléfono
+Original icon	Icono original
+Apple TV icons	Iconos de Apple TV
+Apple TV · Dark	Apple TV · Oscuro
+Apple TV · White	Apple TV · Blanco
+Apple TV · Clear	Apple TV · Claro
+This icon could not be loaded	No se pudo cargar este icono
+Could not read the file	No se pudo leer el archivo
+Back to the original icon	De vuelta al icono original
+No pack has an icon that matches this app. Pick a pack on the left to browse all its icons.	Ningún paquete tiene un icono para esta app. Elige un paquete a la izquierda para ver todos sus iconos.
+This pack has no icons.	Este paquete no tiene iconos.
+Looking for this app's Apple TV icon…	Buscando el icono de Apple TV de esta app…
+Apple has no Apple TV icon for an app of this name.	Apple no tiene un icono de Apple TV para una app con este nombre.
+No icons here yet.	Aún no hay iconos aquí.
+Loading icons…	Cargando iconos…
+Allow access to photos on this TV	Permitir acceso a las fotos de este TV
+CALENDAR	CALENDARIO
+Reading…	Leyendo…
+Couldn't read the calendar: check its link in Settings › Home	No se pudo leer el calendario: revisa su enlace en Ajustes › Inicio
+Nothing in the next 30 days	Nada en los próximos 30 días
+FOLLOWING	SIGUIENDO
+  ·  KICK-OFF	  ·  INICIO DEL PARTIDO
+Watch	Ver
+Small window	Ventana pequeña
+Couldn't open that channel in the small window	No se pudo abrir ese canal en la ventana pequeña
+Not now	Ahora no
+No other channel to go to	No hay otro canal al que ir
+Changing channel…	Cambiando de canal…
+OK full screen  ·  ▲▼ channels	OK pantalla completa  ·  ▲▼ canales
+Back to select	Atrás para seleccionar
+Saved to Library · %s	Guardado en la biblioteca · %s
+Removed from Library · %s	Quitado de la biblioteca · %s
+No other pictures for %s (add a TMDB token for more)	No hay más imágenes de %s (añade un token de TMDB para tener más)
+%s won't show here again (Settings › Home to bring it back)	%s no volverá a aparecer aquí (Ajustes › Inicio para recuperarlo)
+%s won't show on the big picture again (Settings › Home to bring it back)	%s no volverá a aparecer en la imagen grande (Ajustes › Inicio para recuperarlo)
+Continue  ·  %s	Seguir  ·  %s
+%s couldn't open it	%s no pudo abrirlo
++%d more	+%d más
+%d days	%d días
+in %d days	en %d días
+in 1 day	en 1 día
+%d% left	Quedan %d%
+Open in %s	Abrir en %s
+Removed from your Nuvio library · %s	Quitado de tu biblioteca de Nuvio · %s
+Removed from your Stremio library · %s	Quitado de tu biblioteca de Stremio · %s
+Removed from Continue Watching · %s	Quitado de Seguir viendo · %s
+Mark %s as watched	Marcar %s como visto
+Marked as watched · %s	Marcado como visto · %s
+Couldn't mark %s as watched. Try again	No se pudo marcar %s como visto. Inténtalo de nuevo
+%d kept off the big picture	%d fuera de la imagen grande
+%d titles	%d títulos
+%d chosen	%d elegidas
+Results for “%s”	Resultados de “%s”
+Season %d	Temporada %d
+Episode %d	Episodio %d
+Nothing found for “%s” yet.	Aún no hay nada para “%s”.
+What's new in %s	Novedades de %s
+Sleep timer · the TV sleeps in %d min	Temporizador · el TV se suspende en %d min
+%d min	%d min
+The TV goes to sleep in %d minutes	El TV se suspenderá en %d minutos
+%d of %d	%d de %d
+Starring %s	Con %s
+Out %s	Sale el %s
+Feels %s	Sensación %s
+Signed in as %s: Library, add-ons and saving use it	Sesión iniciada como %s: la usan la biblioteca, los complementos y el guardado
+Removed · %s	Quitado · %s
+Removed from the Trakt watchlist · %s	Quitado de la lista de Trakt · %s
+%d linked: the next 3 events show	%d vinculados: se muestran los 3 próximos eventos
+Restore the backup from %s	Restaurar la copia del %s
+Backup saved: Downloads › %s	Copia guardada: Descargas › %s
+Backup failed: %s	Error en la copia: %s
+Picture %d of %d · %s	Imagen %d de %d · %s
+Update %s	Actualizar %s
+Install update %s	Instalar la actualización %s
+Icon · %s	Icono · %s
+weather:Broken Clouds	Nubes dispersas
+weather:Clear	Despejado
+weather:Drizzle	Llovizna
+weather:Fog	Niebla
+weather:Freezing Drizzle	Llovizna helada
+weather:Freezing Rain	Lluvia helada
+weather:Hail Storm	Tormenta de granizo
+weather:Heavy Rain	Lluvia fuerte
+weather:Light Rain	Lluvia ligera
+weather:Mostly Clear	Mayormente despejado
+weather:Partly Cloudy	Parcialmente nublado
+weather:Rain	Lluvia
+weather:Showers	Chubascos
+weather:Snow Showers	Chubascos de nieve
+weather:Snow	Nieve
+weather:Thunderstorm	Tormenta
+Also on	También en
+CONTINUE WATCHING	SEGUIR VIENDO
+Choose a team or a show: every match shows here, with the live score, and a reminder before it starts.	Elige un equipo o un programa: cada partido aparece aquí, con el marcador en directo y un aviso antes de empezar.
+Coming up	Próximamente
+Every match and episode in the guide shows here, with reminders when it starts.	Cada partido y episodio de la guía aparece aquí, con avisos cuando empiezan.
+Favorites on now	Favoritos en emisión
+Follow a team or a show	Sigue un equipo o un programa
+Follow your teams and shows	Sigue a tus equipos y programas
+LIVE TV	TV EN VIVO
+Live TV couldn't open	No se pudo abrir TV en vivo
+Looking in the guide…	Buscando en la guía…
+No matches in the next 7 days. They show here as soon as they're in the guide.	No hay partidos en los próximos 7 días. Aparecerán aquí en cuanto estén en la guía.
+Nothing in the next hours	Nada en las próximas horas
+OK again to stop following	OK otra vez para dejar de seguir
+OK watches · in the guide, hold OK for a channel's menu	OK para ver · en la guía, mantén OK para el menú del canal
+Open Live TV	Abrir TV en vivo
+Recently watched	Vistos recientemente
+Replays and shows	Repeticiones y programas
+Search in Live TV	Buscar en TV en vivo
+Set up Live TV	Configurar TV en vivo
+Sign in to Live TV to see when your teams and shows are on	Inicia sesión en TV en vivo para ver cuándo juegan tus equipos y se emiten tus programas
+Sign in with your provider's details: Xtream Codes, an M3U link or a MAG portal. They stay on the TV.	Inicia sesión con los datos de tu proveedor: Xtream Codes, un enlace M3U o un portal MAG. Se quedan en el TV.
+Sports live now	Deportes en vivo
+Starting soon	A punto de empezar
+Stop following	Dejar de seguir
+TV guide	Guía de TV
+The next 7 days in the guide · Remind and Record at the right	Los próximos 7 días en la guía · Recordar y Grabar a la derecha
+The teams and shows you follow, from the TV guide	Los equipos y programas que sigues, de la guía de TV
+Upcoming matches and episodes show here as soon as they're in the guide.	Los próximos partidos y episodios aparecerán aquí en cuanto estén en la guía.
+Watch your TV channels with a full guide	Mira tus canales con una guía completa
+Your favorite channels show here, with what's on now. Add some in Live TV: hold OK on a channel.	Tus canales favoritos aparecen aquí, con lo que se emite ahora. Añade algunos en TV en vivo: mantén OK en un canal.
+Language	Idioma
+Glassio and Live TV. Auto follows the TV's language	Glassio y TV en vivo. Auto sigue el idioma del TV
+Now	Ahora
+Started at %s	Empezó a las %s
+Resume %s	Reanudar %s
+Clear all	Vaciar
+Today %s	Hoy %s
+Tomorrow %s	Mañana %s
+Voice search	Búsqueda por voz

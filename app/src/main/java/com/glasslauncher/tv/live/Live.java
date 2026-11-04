@@ -311,6 +311,7 @@ public class Live extends Activity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Prefs.init(this);      // the language too: it may have changed since this process started
         if (!freezesWatched) {
             freezesWatched = true;
             CrashLog.watchFreezes(this);

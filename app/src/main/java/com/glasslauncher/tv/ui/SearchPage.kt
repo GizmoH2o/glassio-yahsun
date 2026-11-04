@@ -19,7 +19,6 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
@@ -105,6 +104,17 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     fun below(r: RowEntry) = order.getOrNull(order.indexOf(r) + 1)?.req ?: FocusRequester.Cancel
     val toResults = order.firstOrNull()?.req ?: FocusRequester.Cancel
 
+    // Voice, where the TV has a recogniser: what's said goes in the box, and it searches as if typed.
+    val voice = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
+        r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let { query.value = it.trim().take(60) }
+    }
+    val voiceAsk = remember(Lang.code.value) {
+        android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, Lang.locale().toLanguageTag())
+    }
+    val canVoice = remember { voiceAsk.resolveActivity(ctx.packageManager) != null }
+
     Row(Modifier.fillMaxSize().padding(start = (EDGE * s).dp, top = (6 * s).dp), horizontalArrangement = Arrangement.spacedBy((22 * s).dp)) {
         // No scrolling or focus group on either side (it all fits): those columns take the focus themselves, with nothing to show for it.
         Column(Modifier.width((206 * s).dp).fillMaxHeight()) {
@@ -124,7 +134,11 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
             Row(horizontalArrangement = Arrangement.spacedBy((3.5f * s).dp)) {
                 Key("Space", s, lastKey, keyFocus, Modifier.weight(2f)) { if (q.isNotEmpty() && !q.endsWith(" ")) query.value = "$q " }
                 Key("Delete", s, lastKey, keyFocus, Modifier.weight(1.4f)) { query.value = q.dropLast(1) }
-                Key("Clear", s, lastKey, keyFocus, Modifier.weight(1.2f).nav(right = toResults)) { query.value = "" }
+                Key("Clear all", s, lastKey, keyFocus, Modifier.weight(1.2f).nav(right = toResults)) { query.value = "" }
+            }
+            if (canVoice) {
+                Spacer(Modifier.height((3.5f * s).dp))
+                Key("Voice search", s, lastKey, keyFocus, Modifier.fillMaxWidth().nav(right = toResults)) { runCatching { voice.launch(voiceAsk) } }
             }
         }
         Column(Modifier.weight(1f).fillMaxHeight().onFocusChanged { inResults = it.hasFocus }) {

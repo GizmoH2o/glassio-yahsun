@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -776,6 +775,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         page("Home"),
         Category("Look & motion") {
             buildList {
+                add(Adjust("Language", "Glassio and Live TV. Auto follows the TV's language",
+                    { Lang.CHOICES.first { it.first == Lang.choice.value }.second },
+                    { Lang.choose(ctx, cycle(Lang.CHOICES.map { c -> c.first }, Lang.choice.value, it)) }))
                 add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
                 addAll(page("Clock & glass").rows().filterNot { it is Adjust && it.title == "Glass refraction" })
@@ -857,9 +859,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     if (query.isNotBlank()) {
                         val found = categories.filter { it.kind == Kind.Rows }.flatMap { it.rows() }.filter { r ->
                             val text = when (r) {
-                                is Toggle -> r.title + " " + r.desc
-                                is Adjust -> r.title + " " + r.desc
-                                is Act -> r.title + " " + r.desc
+                                is Toggle -> r.title + " " + r.desc + " " + Lang.tr(r.title) + " " + Lang.tr(r.desc)
+                                is Adjust -> r.title + " " + r.desc + " " + Lang.tr(r.title) + " " + Lang.tr(r.desc)
+                                is Act -> r.title + " " + r.desc + " " + Lang.tr(r.title) + " " + Lang.tr(r.desc)
                                 is AppItem -> r.entry.label
                                 is Note -> ""
                             }

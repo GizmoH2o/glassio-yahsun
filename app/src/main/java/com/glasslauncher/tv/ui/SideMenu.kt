@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -122,7 +121,7 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                             Spacer(Modifier.width((5 * s).dp))
                             Text(w.temp(st.weatherF), color = ink, fontSize = (22 * s).sp, fontWeight = FontWeight.Light)
                         }
-                        if (w.condition.isNotBlank()) Text(w.condition, color = soft, fontSize = (9.5f * s).sp, fontWeight = FontWeight.Medium)
+                        if (w.condition.isNotBlank()) RawText(Lang.weather(w.condition), color = soft, fontSize = (9.5f * s).sp, fontWeight = FontWeight.Medium)
                     }
                 }
                 val w = wx
@@ -276,7 +275,7 @@ private fun open(ctx: android.content.Context, action: String) {
 }
 
 private fun longDate(): String =
-    java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.ENGLISH).format(java.util.Date())
+    java.text.SimpleDateFormat("EEEE, d MMMM", Lang.locale()).format(java.util.Date())
 
 /** Thin line glyphs, drawn in the row's colour. */
 private fun DrawScope.glyph(kind: String, c: Color) {
