@@ -122,7 +122,7 @@ final class LiveScores {
     /** The score for a show (its title, folded, has a followed team's words), or null. */
     Score forTitle(String folded) {
         if (scores.isEmpty() || folded == null) return null;
-        for (Score s : scores.values()) if (LiveFollow.matches(s.term, folded)) return hidden(s.term) ? null : s;
+        for (Score s : scores.values()) if (LiveNames.of(c, s.term).in(folded)) return hidden(s.term) ? null : s;
         return null;
     }
 
@@ -137,7 +137,7 @@ final class LiveScores {
 
     /** A team kept spoiler-free: its score is still read, but shown nowhere and no goal is told. */
     private boolean hidden(String folded) {
-        return LiveOptions.spoilerFree(c).contains(folded);
+        return LiveOptions.spoilerFree(c).contains(LiveNames.key(folded));
     }
 
     // MARK: - Background
@@ -198,7 +198,7 @@ final class LiveScores {
 
     /** Whether the full guide has a show with these words on now (or starting within a quarter of an hour). */
     private boolean onAir(String folded, long now) {
-        return !XmltvStore.find(c, folded.split(" "), now, now + 15 * 60_000L, 1).isEmpty();
+        return !LiveNames.find(c, LiveNames.of(c, folded), now, now + 15 * 60_000L, 40).isEmpty();
     }
 
     /** Looks for each team's match of the day on the boards; true when one was found. */
@@ -220,7 +220,7 @@ final class LiveScores {
                 if (teams == null) continue;
                 for (int t = 0; t < look.size(); t++) {
                     String term = look.get(t);
-                    if (!plays(term, teams)) continue;
+                    if (!plays(LiveNames.of(c, term), teams)) continue;
                     Score s = new Score();
                     s.term = term;
                     s.event = ev.optString("id");
@@ -250,16 +250,16 @@ final class LiveScores {
         }
     }
 
-    /** Whether a team in `teams` is the followed one: its name and the followed words the same, or one inside the other. */
-    private static boolean plays(String term, JSONArray teams) {
-        String t = " " + term + " ";
+    /** Whether a team in `teams` is the followed one, under any of its names. */
+    private static boolean plays(LiveNames.Names names, JSONArray teams) {
         for (int i = 0; i < teams.length(); i++) {
             JSONObject team = teams.optJSONObject(i) == null ? null : teams.optJSONObject(i).optJSONObject("team");
             if (team == null) continue;
+            String full = Xtream.fold(team.optString("displayName"));
             for (String key : new String[] {"displayName", "shortDisplayName", "name"}) {
                 String n = Xtream.fold(team.optString(key));
                 if (n.length() < 3) continue;
-                if (n.equals(term) || t.contains(" " + n + " ") || (" " + n + " ").contains(t)) return true;
+                if (names.isTeam(n, full)) return true;
             }
         }
         return false;

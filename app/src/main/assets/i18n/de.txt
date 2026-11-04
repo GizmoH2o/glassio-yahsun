@@ -734,3 +734,6 @@ Hide scores	Spielstand ausblenden
 Show scores	Spielstand zeigen
 Scores hidden · %s	Spielstand ausgeblendet · %s
 Scores shown · %s	Spielstand sichtbar · %s
+Also called	Auch genannt
+Other names it has in the guide, with commas between them	Andere Namen im Programm, durch Kommas getrennt
+Names saved	Namen gespeichert

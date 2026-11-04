@@ -25,11 +25,11 @@ public final class LiveHome {
 
     /** A followed team whose scores stay hidden (for watching it later). */
     public static boolean spoilerFree(Context c, String term) {
-        return LiveOptions.spoilerFree(c).contains(Xtream.fold(term));
+        return LiveOptions.spoilerFree(c).contains(LiveNames.key(term));
     }
 
     public static void setSpoilerFree(Context c, String term, boolean on) {
-        LiveOptions.setSpoilerFree(c, Xtream.fold(term), on);
+        LiveOptions.setSpoilerFree(c, LiveNames.key(term), on);
     }
 
     /** Reduce motion, for Live TV's process too: a file, as it can't see the preferences change. */
@@ -142,6 +142,16 @@ public final class LiveHome {
     public static void follow(Context c, String term) {
         if (term == null || term.trim().isEmpty()) return;
         LiveFollow.add(c, term.trim());
+    }
+
+    /** Its other names in the guide, as typed ("Man U, MUFC"). */
+    public static String alsoCalled(Context c, String term) {
+        return LiveFollow.alsoCalled(c, term);
+    }
+
+    /** Sets them, and looks through the guide again. Background thread. */
+    public static void setAlsoCalled(Context c, String term, String typed) {
+        LiveFollow.setAlsoCalled(c, term, typed);
     }
 
     /** Stops following it: its reminders still to come go too. */
@@ -432,7 +442,8 @@ public final class LiveHome {
             String k = Xtream.fold(term);
             folded.add(k);
             if (byEpg.isEmpty()) continue;
-            for (XmltvStore.Found f : XmltvStore.findAll(c, k.split(" "), now, now + ahead, max * 2)) {
+            LiveNames.Names names = LiveNames.of(c, k);
+            for (XmltvStore.Found f : LiveNames.find(c, names, now, now + ahead, max * 2)) {
                 Xtream.Channel ch = f.epg == null ? null : byEpg.get(f.epg.toLowerCase(Locale.ROOT));
                 if (ch == null) continue;
                 Xtream.Program p = new Xtream.Program();
@@ -442,7 +453,7 @@ public final class LiveHome {
                 p.icon = f.icon == null ? "" : f.icon;
                 Xtream.mark(p);
                 if (!p.live && !all) continue;
-                if (!LiveFollow.matches(k, Xtream.fold(p.title))) continue;
+                if (!names.in(Xtream.fold(p.title))) continue;
                 if (!seen.add(Xtream.fold(p.title) + "|" + p.start)) continue;
                 out.add(new Object[] {ch, p, k});
             }
@@ -475,8 +486,8 @@ public final class LiveHome {
         if (!LiveOptions.fullGuide(c)) return out;
         for (String term : terms) {
             String k = Xtream.fold(term);
-            for (XmltvStore.Found f : XmltvStore.findAll(c, k.split(" "), now - 12 * 3600_000L, now, 80)) {
-                if (f.start >= now || !LiveFollow.matches(k, Xtream.fold(f.title))) continue;
+            for (XmltvStore.Found f : LiveNames.find(c, LiveNames.of(c, k), now - 12 * 3600_000L, now, 80)) {
+                if (f.start >= now) continue;
                 String key = teamsKey(f.title);
                 if (key == null) continue;
                 Long had = out.get(key);
@@ -501,8 +512,8 @@ public final class LiveHome {
     // "(F)" and "(W)": the women's side, as the guide marks it on some channels and not others.
     private static final Set<String> CLUB_WORDS = new HashSet<>(java.util.Arrays.asList("fc", "afc", "cf", "sc", "the", "f", "w"));
 
-    /** The two sides of a match, sorted and folded ("bournemouth|manchester united"); null for anything else. */
-    private static String teamsKey(String title) {
+    /** The two sides of a match, sorted and folded, each by its team's main name ("bournemouth|manchester united"); null for anything else. */
+    static String teamsKey(String title) {
         String f = " " + Xtream.fold(title) + " ";
         for (String w : SHOWS) if (f.contains(" " + w + " ")) return null;
         String t = LiveMatchDay.teams(title), low = t.toLowerCase(Locale.ROOT);
@@ -523,7 +534,7 @@ public final class LiveHome {
             if (b.length() > 0) b.append(' ');
             b.append(w);
         }
-        return b.toString();
+        return LiveNames.side(b.toString());
     }
 
     private static String competition(String title) {

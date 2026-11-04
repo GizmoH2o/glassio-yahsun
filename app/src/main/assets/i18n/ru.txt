@@ -734,3 +734,6 @@ Hide scores	Скрыть счёт
 Show scores	Показать счёт
 Scores hidden · %s	Счёт скрыт · %s
 Scores shown · %s	Счёт показан · %s
+Also called	Другие названия
+Other names it has in the guide, with commas between them	Другие названия в телегиде, через запятую
+Names saved	Названия сохранены

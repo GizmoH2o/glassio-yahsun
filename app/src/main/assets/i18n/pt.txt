@@ -733,3 +733,6 @@ Hide scores	Ocultar placar
 Show scores	Mostrar placar
 Scores hidden · %s	Placar oculto · %s
 Scores shown · %s	Placar visível · %s
+Also called	Também chamado
+Other names it has in the guide, with commas between them	Outros nomes que tem no guia, separados por vírgulas
+Names saved	Nomes salvos

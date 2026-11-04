@@ -49,9 +49,50 @@ final class LiveFollow {
     }
 
     static boolean follows(Context c, String term) {
-        String k = Xtream.fold(term);
-        for (String t : all(c)) if (Xtream.fold(t).equals(k)) return true;
+        String k = LiveNames.key(term);
+        for (String t : all(c)) if (LiveNames.key(t).equals(k)) return true;
         return false;
+    }
+
+    /** The other names typed for what's followed ("Man U, MUFC"). */
+    static synchronized String alsoCalled(Context c, String term) {
+        JSONObject also = read(c).optJSONObject("also");
+        return also == null ? "" : also.optString(Xtream.fold(term));
+    }
+
+    /** All the names typed, by what's followed (folded). */
+    static synchronized Map<String, String> alsoAll(Context c) {
+        Map<String, String> out = new HashMap<>();
+        JSONObject also = read(c).optJSONObject("also");
+        if (also == null) return out;
+        java.util.Iterator<String> keys = also.keys();
+        while (keys.hasNext()) {
+            String k = keys.next();
+            out.put(k, also.optString(k));
+        }
+        return out;
+    }
+
+    /** Sets the other names, then looks through the guide again with them. Background thread. */
+    static void setAlsoCalled(Context c, String term, String typed) {
+        String k = Xtream.fold(term), names = typed == null ? "" : typed.trim();
+        synchronized (LiveFollow.class) {
+            JSONObject o = read(c);
+            JSONObject also = o.optJSONObject("also");
+            try {
+                if (also == null) also = new JSONObject();
+                if (names.isEmpty()) also.remove(k);
+                else also.put(k, names);
+                o.put("also", also);
+            } catch (JSONException ignored) {
+            }
+            save(c, o);
+        }
+        LiveNames.changed();
+        for (LiveSchedule.Item it : LiveSchedule.all(c)) {
+            if ((SERIES + k).equals(it.series)) LiveSchedule.remove(c, it.key());
+        }
+        sync(c);
     }
 
     /** Follows `term`, and puts in its airings already in the full guide (a background thread). */
@@ -75,19 +116,31 @@ final class LiveFollow {
 
     /** Stops following `term`: its reminders still to come go too. */
     static void remove(Context c, String term) {
-        String k = Xtream.fold(term);
+        String k = LiveNames.key(term);
+        Set<String> gone = new HashSet<>();
+        gone.add(SERIES + Xtream.fold(term));
         synchronized (LiveFollow.class) {
             JSONObject o = read(c);
             JSONArray a = o.optJSONArray("terms"), out = new JSONArray();
-            for (int i = 0; a != null && i < a.length(); i++) if (!Xtream.fold(a.optString(i)).equals(k)) out.put(a.optString(i));
+            JSONObject also = o.optJSONObject("also");
+            for (int i = 0; a != null && i < a.length(); i++) {
+                String t = a.optString(i);
+                if (!LiveNames.key(t).equals(k)) {
+                    out.put(t);
+                    continue;
+                }
+                gone.add(SERIES + Xtream.fold(t));
+                if (also != null) also.remove(Xtream.fold(t));
+            }
             try {
                 o.put("terms", out);
             } catch (JSONException ignored) {
             }
             save(c, o);
         }
+        LiveNames.changed();
         for (LiveSchedule.Item it : LiveSchedule.all(c)) {
-            if ((SERIES + k).equals(it.series)) LiveSchedule.remove(c, it.key());
+            if (it.series != null && gone.contains(it.series)) LiveSchedule.remove(c, it.key());
         }
         LiveSeries.arm(c);
     }
@@ -153,10 +206,10 @@ final class LiveFollow {
         Set<String> skipped = skipped(c);
         for (String term : terms) {
             String k = Xtream.fold(term);
+            LiveNames.Names names = LiveNames.of(c, k);
             for (Xtream.Program p : programs) {
                 if (p.start <= now || p.start > now + AHEAD) continue;
-                String title = Xtream.fold(p.title);
-                if (!matches(k, title)) continue;
+                if (!names.in(Xtream.fold(p.title))) continue;
                 remind(c, k, ch, p, skipped);
             }
         }
@@ -193,8 +246,8 @@ final class LiveFollow {
         String term = it.series.substring(SERIES.length());
         boolean all = LiveOptions.followAll(c);
         List<Object[]> more = new ArrayList<>();
-        for (XmltvStore.Found f : XmltvStore.findAll(c, term.split(" "), it.start, it.start + SAME_MATCH, 80)) {
-            if (f.epg == null || !matches(term, Xtream.fold(f.title))) continue;
+        for (XmltvStore.Found f : LiveNames.find(c, LiveNames.of(c, term), it.start, it.start + SAME_MATCH, 80)) {
+            if (f.epg == null) continue;
             Xtream.Program p = new Xtream.Program();
             p.title = f.title;
             p.start = f.start;
@@ -235,9 +288,9 @@ final class LiveFollow {
         for (String term : terms) {
             String k = Xtream.fold(term);
             int n = 0;
-            for (XmltvStore.Found f : XmltvStore.findAll(c, k.split(" "), now, now + AHEAD, 80)) {
+            for (XmltvStore.Found f : LiveNames.find(c, LiveNames.of(c, k), now, now + AHEAD, 80)) {
                 if (n >= PER_TERM) break;
-                if (f.start <= now || !matches(k, Xtream.fold(f.title))) continue;
+                if (f.start <= now) continue;
                 Xtream.Channel ch = f.epg == null ? null : byEpg.get(f.epg.toLowerCase(Locale.ROOT));
                 if (ch == null) continue;
                 Xtream.Program p = new Xtream.Program();
@@ -255,9 +308,23 @@ final class LiveFollow {
         if (!p.live && !LiveOptions.followAll(c)) return false;     // Match alerts: live events only
         String id = Xtream.fold(p.title) + "|" + p.start;
         if (skipped.contains(id)) return false;
+        // The same match under another name ("Man Utd v Roma"): cancelled or set already is the same.
+        String match = LiveHome.teamsKey(p.title);
+        if (match != null) {
+            for (String s : skipped) {
+                int bar = s.lastIndexOf('|');
+                if (bar <= 0) continue;
+                try {
+                    if (Math.abs(Long.parseLong(s.substring(bar + 1)) - p.start) <= SAME_MATCH
+                            && match.equals(LiveHome.teamsKey(s.substring(0, bar)))) return false;
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
         int mine = 0;
         for (LiveSchedule.Item it : LiveSchedule.all(c)) {
             if (it.start == p.start && Xtream.fold(it.title).equals(Xtream.fold(p.title))) return false;     // there already
+            if (match != null && Math.abs(it.start - p.start) <= SAME_MATCH && match.equals(LiveHome.teamsKey(it.title))) return false;
             if ((SERIES + term).equals(it.series)) mine++;
         }
         if (mine >= PER_TERM) return false;

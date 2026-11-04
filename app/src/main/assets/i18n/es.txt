@@ -733,3 +733,6 @@ Hide scores	Ocultar marcador
 Show scores	Mostrar marcador
 Scores hidden · %s	Marcador oculto · %s
 Scores shown · %s	Marcador visible · %s
+Also called	También llamado
+Other names it has in the guide, with commas between them	Otros nombres que tiene en la guía, separados por comas
+Names saved	Nombres guardados

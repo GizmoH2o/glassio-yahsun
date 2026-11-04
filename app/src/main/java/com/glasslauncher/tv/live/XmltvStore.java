@@ -210,8 +210,9 @@ final class XmltvStore {
             where.append(i == 0 ? "(" : " OR (");
             String[] words = phrases.get(i);
             for (int j = 0; j < words.length; j++) {
-                where.append(j == 0 ? "key LIKE ?" : " AND key LIKE ?");
-                args.add("%" + words[j].replace("%", "").replace("_", "") + "%");
+                // instr, not LIKE: the words and the keys are folded already, and it's much quicker over a whole guide.
+                where.append(j == 0 ? "instr(key, ?) > 0" : " AND instr(key, ?) > 0");
+                args.add(words[j]);
             }
             where.append(')');
         }

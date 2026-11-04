@@ -302,6 +302,15 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                     ChipView("‹  Following", s, Modifier.focusRequester(first), null) { leaveTeam() }
                     scoresChoice(ctx, t) { reload++ }.let { (label, act) -> ChipView(label, s, Modifier, null, act) }
+                    ChipView("Also called", s, Modifier, null) {
+                        dialog = TextEntry("Also called", LiveHome.alsoCalled(ctx, t), "Other names it has in the guide, with commas between them") { names ->
+                            scope.launch {
+                                withContext(Dispatchers.IO) { LiveHome.setAlsoCalled(app, t, names) }
+                                toast(ctx, "Names saved")
+                                reload++
+                            }
+                        }
+                    }
                     ChipView(if (armed) "OK again to stop following" else "Stop following", s, Modifier, null) {
                         val now = System.currentTimeMillis()
                         if (stopArmedAt == 0L || now - stopArmedAt > 5_000) stopArmedAt = now
