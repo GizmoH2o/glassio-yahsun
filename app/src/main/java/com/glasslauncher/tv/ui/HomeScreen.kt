@@ -134,7 +134,6 @@ enum class Screen { Home, Settings, Library, LiveTv, Following, Search, Title }
  * Watching's shade, 2097152 its row, 4194304 the Live TV pages' card shadows. Finds what the GPU spends a frame on.
  */
 val DebugHide = androidx.compose.runtime.mutableIntStateOf(0)
-val WelcomeTest = androidx.compose.runtime.mutableStateOf(false)
 
 const val DOCK_COLUMNS = 6
 /** Index of the "Manage from phone" category in the settings list. */
@@ -236,7 +235,6 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     /** The welcome, on a first run; What's new, after an update. */
     var welcomeOn by remember { mutableStateOf(false) }
     val welcomeStep = remember { mutableIntStateOf(0) }
-    LaunchedEffect(WelcomeTest.value) { if (WelcomeTest.value) { WelcomeTest.value = false; welcomeStep.intValue = 0; welcomeOn = true } }
     LaunchedEffect(Unit) {
         val st = settings
         val current = app.updater.current
@@ -773,7 +771,7 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
     // One canvas: both pictures drawn straight (no layers), the old one darkened by a colour filter in the
     // same pass instead of a full-screen rectangle on top.
     if (cur == null && prev == null) {
-        Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
+        Box(Modifier.fillMaxSize().background(Ds.Bg))
         return
     }
     Canvas(Modifier.fillMaxSize()) {
@@ -835,7 +833,7 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (cur != null && mix.value >= 1f) 0f else 1f })
     if (cur != null) Image(cur, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
         modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (prev != null) mix.value else 1f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
-    else if (prev == null) Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF110E26), Color(0xFF3A1B52), Color(0xFF0D1A3A)))))
+    else if (prev == null) Box(Modifier.fillMaxSize().background(Ds.Bg))
 }
 
 

@@ -55,7 +55,7 @@ fun toast(ctx: Context, msg: String) {
 
 sealed interface DialogState
 /** [secret]: what's typed shows as dots (a backup's code). */
-class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val onDone: (String) -> Unit) : DialogState
+class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val action: String = "Save", val onDone: (String) -> Unit) : DialogState
 class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>) : DialogState
 /** A sign-in code with a QR code of the page to enter it on; closes by itself when [code] turns null. */
 class QrCodeDialog(val title: String, val url: String, val code: kotlinx.coroutines.flow.StateFlow<String?>, val note: String) : DialogState
@@ -155,7 +155,7 @@ private fun TextEntryDialog(d: TextEntry, onDismiss: () -> Unit) {
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogButton("Save", Modifier.focusRequester(saveFocus)) { d.onDone(text); onDismiss() }
+                DialogButton(d.action, Modifier.focusRequester(saveFocus)) { d.onDone(text); onDismiss() }
                 DialogButton("Cancel", onClick = onDismiss)
             }
         }

@@ -82,14 +82,15 @@ val Text2: Color @Composable @ReadOnlyComposable get() = if (LocalHighContrast.c
  */
 internal fun logoIsDark(pixels: IntArray): Boolean {
     var seen = 0
-    var lum = 0.0
+    var bright = 0.0
     for (p in pixels) {
         if ((p ushr 24) < 128) continue
         seen++
-        lum += (0.2126 * ((p shr 16) and 255) + 0.7152 * ((p shr 8) and 255) + 0.0722 * (p and 255)) / 255.0
+        // Its strongest colour, not how light it looks: a deep red logo is a colour, and reads.
+        bright += maxOf((p shr 16) and 255, (p shr 8) and 255, p and 255) / 255.0
     }
     if (seen == 0 || seen > pixels.size * 0.9) return false
-    return lum / seen < 0.14
+    return bright / seen < 0.35
 }
 
 /**
@@ -119,6 +120,9 @@ fun Modifier.backGoesBack(): Modifier {
         true
     }
 }
+
+/** The end of a row: the arrow stays there, or it would jump to whatever it finds that way. */
+fun edge(end: Boolean): FocusRequester? = if (end) FocusRequester.Cancel else null
 
 /** Where Up, Down, Left and Right go from here; null: wherever the arrows find. */
 fun Modifier.nav(up: FocusRequester? = null, down: FocusRequester? = null, left: FocusRequester? = null, right: FocusRequester? = null): Modifier =

@@ -11,7 +11,7 @@ import java.io.File
  */
 object ProblemReport {
     /** Settings never shown, whatever they hold. */
-    private val PRIVATE = Regex("token|pass|pin|secret|auth|key|code|webhook|url|link|mail|user|city|ha[A-Z]|cal|bg(Image|Video)|aerial|entities", RegexOption.IGNORE_CASE)
+    private val PRIVATE = Regex("token|pass|pin|secret|auth|key|code|webhook|url|link|mail|user|city|ha[A-Z]|cal|bg(Image|Video)|aerial|entities|hidden|saved|profile|name|title", RegexOption.IGNORE_CASE)
 
     internal fun privateSetting(name: String) = PRIVATE.containsMatchIn(name)
 

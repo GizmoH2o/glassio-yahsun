@@ -139,18 +139,18 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
             Row(Modifier.padding(start = (EDGE * s).dp), horizontalArrangement = dsGap(s), verticalAlignment = Alignment.CenterVertically) {
                 var firstUsed = false
                 val toRows = Modifier.nav(down = if (hasSeasons) seasonEntry.req else if (more.isNotEmpty()) moreEntry.req else FocusRequester.Cancel)
-                fun firstMod(): Modifier = if (firstUsed) toRows else { firstUsed = true; toRows.focusRequester(first) }
+                fun firstMod(): Modifier = if (firstUsed) toRows else { firstUsed = true; toRows.nav(left = FocusRequester.Cancel).focusRequester(first) }
                 if (canPlay) DsButton(if (resume != null) "Resume" + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play", s, firstMod(), primary = true,
                     leading = { c -> PlayGlyph(Modifier.size((8.5f * s).dp), c) }) { NuvioLaunch.open(ctx, st, app.http, resume ?: item) }
                 links.firstOrNull()?.let { l ->
                     DsButton(l.service, s, firstMod()) { runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") } }
                 }
                 if (trailerIds != null) DsButton("Trailer", s, firstMod()) { trailerOn = true }
-                DsButton(if (inLibrary) "✓  In Library" else "+  My Library", s, firstMod()) {
+                DsButton(if (inLibrary) "✓  In Library" else "+  My Library", s, firstMod().then(if (kids) Modifier.nav(right = FocusRequester.Cancel) else Modifier)) {
                     val now = app.library.toggle(item)
                     toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
                 }
-                if (!kids) DsButton("Not interested", s, toRows) {
+                if (!kids) DsButton("Not interested", s, toRows.nav(right = FocusRequester.Cancel)) {
                     st.heroHidden = (st.heroHidden + item.key).distinct()
                     toast(ctx, "${item.name} won't show on the big picture again (Settings › Home to bring it back)")
                     onClose()
@@ -168,13 +168,14 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     Text("Episodes", color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.width((10 * s).dp))
                     LazyRow(state = seasonEntry.state, horizontalArrangement = Arrangement.spacedBy((3 * s).dp)) {
-                        itemsIndexed(details.seasons.keys.toList(), key = { _, n -> n }) { i, n ->
+                        val seasonKeys = details.seasons.keys.toList()
+                        itemsIndexed(seasonKeys, key = { _, n -> n }) { i, n ->
                             var f by remember { mutableStateOf(false) }
                             Text(
                                 if (n == 0) "Specials" else "Season $n", color = if (f) Ds.Ink else if (n == seasonOn) Color.White else Text2, fontSize = (9.5f * s).sp,
                                 fontWeight = if (f || n == seasonOn) FontWeight.Bold else FontWeight.SemiBold,
                                 // The focus coming onto a season shows it, as the Library's tabs do.
-                                modifier = seasonEntry.of(i).nav(up = first, down = epEntry.req).onFocusChanged { f = it.isFocused; if (it.isFocused) season = n }.tvPress(onClick = { season = n })
+                                modifier = seasonEntry.of(i).nav(up = first, down = epEntry.req, left = edge(i == 0), right = edge(i == seasonKeys.lastIndex)).onFocusChanged { f = it.isFocused; if (it.isFocused) season = n }.tvPress(onClick = { season = n })
                                     .clip(RoundedCornerShape(50)).background(if (f) Color.White else if (n == seasonOn) Ds.Glass else Color.Transparent)
                                     .padding(horizontal = (9 * s).dp, vertical = (3.5f * s).dp),
                             )
@@ -191,7 +192,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 ) {
                     itemsIndexed(eps, key = { _, e -> "$seasonOn:${e.number}" }) { i, e ->
                         val current = resume != null && seasonOn == fromResume && e.number == epNow
-                        EpisodeCard(e, item, s, now, if (current) resume?.progress ?: -1f else -1f, epEntry.of(i).nav(up = seasonEntry.req, down = if (more.isNotEmpty()) moreEntry.req else FocusRequester.Cancel)) {
+                        EpisodeCard(e, item, s, now, if (current) resume?.progress ?: -1f else -1f, epEntry.of(i).nav(up = seasonEntry.req, down = if (more.isNotEmpty()) moreEntry.req else FocusRequester.Cancel, left = edge(i == 0), right = edge(i == eps.lastIndex))) {
                             if (canPlay) NuvioLaunch.openEpisode(ctx, st, app.http, item, e.season, e.number)
                             else toast(ctx, "No app for titles on this TV: Nuvio or Stremio plays them")
                         }
@@ -207,7 +208,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
                     horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
                 ) {
-                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = if (hasSeasons) epEntry.req else first, down = FocusRequester.Cancel)) { onOpen(h) } }
+                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = if (hasSeasons) epEntry.req else first, down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex))) { onOpen(h) } }
                 }
             }
         }

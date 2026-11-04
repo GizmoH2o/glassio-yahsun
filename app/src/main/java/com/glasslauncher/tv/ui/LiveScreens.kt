@@ -325,7 +325,7 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun LivePage(s: Float, content: LazyListScope.() -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF16161A))) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
         val density = LocalDensity.current
         val bw = with(density) { maxWidth.roundToPx() }; val bh = with(density) { maxHeight.roundToPx() }
         val bg = remember(bw, bh) { graphitePage(bw, bh) }

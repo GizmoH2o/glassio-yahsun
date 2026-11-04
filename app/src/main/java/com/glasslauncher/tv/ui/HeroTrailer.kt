@@ -47,10 +47,7 @@ private class TrailerBridge(val onPlaying: () -> Unit, val onEnded: () -> Unit, 
 }
 
 /** Everything of YouTube's over its video: hidden from the page's start, and again once it has loaded (it builds its head afresh). */
-private const val HIDE_CSS = "#movie_player>:not(.html5-video-container),.ytp-chrome-top,.ytp-chrome-bottom,.ytp-gradient-top,.ytp-gradient-bottom," +
-    ".ytp-pause-overlay,.ytp-large-play-button,.ytp-cued-thumbnail-overlay,.ytp-spinner,.ytp-watermark,.ytp-title,.ytp-youtube-button," +
-    ".ytp-impression-link,.ytp-ce-element,.ytp-endscreen-content,.ytp-show-cards-title,.ytp-paid-content-overlay,.ytp-error" +
-    "{display:none!important}html,body{background:#000!important}"
+private const val HIDE_CSS = "*{visibility:hidden!important}video{visibility:visible!important}html,body{background:#000!important}"
 
 /**
  * Watches YouTube's own player page once it's loaded: its video playing or over, an error screen (a trailer its owner
@@ -62,6 +59,7 @@ var s=document.createElement('style');s.textContent='$HIDE_CSS';document.head.ap
 var seen=false,done=false,n=0;
 function over(){if(!done){done=true;clearInterval(t);Glassio.ended()}}
 var t=setInterval(function(){n++;
+ if(!s.isConnected)document.head.appendChild(s);
  if(document.querySelector('.ytp-error')){clearInterval(t);Glassio.failed();return}
  var v=document.querySelector('video');
  if(v&&!seen){seen=true;v.muted=true;
@@ -101,9 +99,10 @@ object TrailerGuard {
     /** Once, as Glassio starts. */
     fun started(ctx: android.content.Context) {
         val p = sp(ctx)
-        if (p.getBoolean("armed", false)) p.edit().putBoolean("armed", false).putInt("fails", p.getInt("fails", 0) + 1).apply()
+        // Armed by this version: it went down during one. By another: an update took it down, no fault of the trailer's.
+        if (p.getBoolean("armed", false)) p.edit().putBoolean("armed", false).putInt("fails", p.getInt("fails", 0) + (if (p.getInt("armedBy", 0) == com.glasslauncher.tv.BuildConfig.VERSION_CODE) 1 else 0)).apply()
     }
-    fun arm(ctx: android.content.Context) { sp(ctx).edit().putBoolean("armed", true).apply() }
+    fun arm(ctx: android.content.Context) { sp(ctx).edit().putBoolean("armed", true).putInt("armedBy", com.glasslauncher.tv.BuildConfig.VERSION_CODE).apply() }
     fun disarm(ctx: android.content.Context) { sp(ctx).edit().putBoolean("armed", false).apply() }
     fun failed(ctx: android.content.Context) { sp(ctx).let { it.edit().putBoolean("armed", false).putInt("fails", it.getInt("fails", 0) + 1).apply() } }
     fun playedWell(ctx: android.content.Context) { sp(ctx).edit().putInt("fails", 0).apply() }
@@ -172,7 +171,14 @@ private fun releaseTrailer(v: WebView) {
 fun TrailerPlayer(ids: String, onClose: () -> Unit) {
     androidx.activity.compose.BackHandler { onClose() }
     AndroidView(
-        factory = { ctx -> trailerView(ctx, ids, muted = false, onPlaying = {}, onWaiting = {}, onEnded = onClose) },
+        factory = { ctx ->
+            var played = false
+            trailerView(ctx, ids, muted = false, onPlaying = { played = true }, onWaiting = {}, onEnded = {
+                // None of its trailers would play (their owners keep them on YouTube, say): say so, not just back again.
+                if (!played) toast(ctx, "This trailer won't play on the TV")
+                onClose()
+            })
+        },
         onRelease = { releaseTrailer(it) },
         modifier = Modifier.fillMaxSize(),
     )

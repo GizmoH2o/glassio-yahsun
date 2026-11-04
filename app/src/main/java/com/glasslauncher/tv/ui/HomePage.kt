@@ -604,7 +604,7 @@ private fun HeroText(
     LaunchedEffect(onPlayBtn || onSaveBtn || onSvc || onMoreHeld) { onFocus(onPlayBtn || onSaveBtn || onSvc || onMoreHeld) }
     // High contrast: a solid panel behind the words, whatever the picture is.
     val backing = if (LocalHighContrast.current) Modifier.clip(RoundedCornerShape((Ds.R_PANEL * s).dp)).background(Color.Black.copy(alpha = 0.78f)).padding((8 * s).dp) else Modifier
-    Column(modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp).width((330 * s).dp).then(backing)) {
+    Column(modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp).width(((if (LocalHighContrast.current) 380 else 330) * s).dp).then(backing)) {
         AnimatedContent(
             targetState = item, contentKey = { it.key },
             transitionSpec = { fadeIn(tween(settings.transitionMs)) togetherWith fadeOut(tween((settings.transitionMs * 0.4f).toInt())) },

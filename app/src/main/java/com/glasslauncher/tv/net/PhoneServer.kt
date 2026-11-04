@@ -349,13 +349,13 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         /** The phone page. Its script's strings in single quotes: no apostrophes in them (’ instead), or none of it runs. */
         const val PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Glassio</title><style>
-body{margin:0;background:#0b0d16;color:#eef1fb;font:16px/1.5 -apple-system,Roboto,Segoe UI,sans-serif}
-main{max-width:620px;margin:0 auto;padding:22px 16px 60px}h1{font-size:26px;margin:6px 0 0}h2{font-size:13px;letter-spacing:.12em;color:#9d8cff;margin:30px 0 8px;text-transform:uppercase}
-p{color:#98a2bd;margin:4px 0 12px}input[type=text],input[type=password],textarea{width:100%;box-sizing:border-box;background:#141827;color:#eef1fb;border:1px solid #232a40;border-radius:12px;padding:12px;font:15px monospace}
-button{background:#7b61ff;color:#fff;border:0;border-radius:12px;padding:11px 16px;font-size:15px;font-weight:600;margin-top:8px}
-button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin:0 4px 0 0}button.d{background:#3a1f2b;color:#ff8f9b}
+body{margin:0;background:#0b0b0d;color:#fff;font:16px/1.5 -apple-system,Roboto,Segoe UI,sans-serif}
+main{max-width:620px;margin:0 auto;padding:22px 16px 60px}h1{font-size:26px;margin:6px 0 0}h2{font-size:13px;letter-spacing:.12em;color:#b3b3b8;margin:30px 0 8px;text-transform:uppercase}
+p{color:#b3b3b8;margin:4px 0 12px}input[type=text],input[type=password],textarea{width:100%;box-sizing:border-box;background:#1c1c1f;color:#fff;border:1px solid #2a2a2f;border-radius:12px;padding:12px;font:15px monospace}
+button{background:#fff;color:#0b0b0d;border:0;border-radius:12px;padding:11px 16px;font-size:15px;font-weight:600;margin-top:8px}
+button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 4px 0 0}button.d{background:#3a1f2b;color:#ff8f9b}
 #msg{position:sticky;top:0;padding:10px 0;min-height:1.4em;font-weight:600}.ok{color:#6ee7b7}.bad{color:#ff8f9b}
-.card{background:#141827;border-radius:14px;padding:12px 14px;margin-bottom:8px}.card b{display:block}.card small{color:#6b7794;word-break:break-all}
+.card{background:#1c1c1f;border-radius:14px;padding:12px 14px;margin-bottom:8px}.card b{display:block}.card small{color:#8a8a90;word-break:break-all}
 .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .pad{display:grid;grid-template-columns:repeat(3,72px);gap:8px;justify-content:center;margin:6px 0 4px}.pad button{height:64px;margin:0;font-size:20px}.pad .okb{border-radius:50%}.tag{font-size:11px;background:#2a2150;color:#c8bdff;border-radius:6px;padding:1px 6px;margin-left:6px}
 </style></head><body><main>

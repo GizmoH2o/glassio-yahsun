@@ -816,7 +816,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         modifier = Modifier.fillMaxWidth().padding(bottom = (6 * s).dp).clip(RoundedCornerShape((Ds.R_CONTROL * s).dp))
                             .background(if (searchFocused) Color.White else Ds.Surface)
                             .onFocusChanged { searchFocused = it.isFocused }
-                            .tvPress(onClick = { dialog = TextEntry("Search settings", query, "A setting's name, or what it does (empty: all pages)") { query = it.trim() } })
+                            .tvPress(onClick = { dialog = TextEntry("Search settings", query, "A setting's name, or what it does (empty: all pages)", action = "Search") { query = it.trim() } })
                             .padding(horizontal = (11 * s).dp, vertical = (6.5f * s).dp),
                     )
                     categories.forEachIndexed { i, c ->

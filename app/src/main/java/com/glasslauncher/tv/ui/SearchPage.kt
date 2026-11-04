@@ -138,14 +138,14 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     Spacer(Modifier.height((10 * s).dp))
                     DsHeading("Live TV", s)
                     LazyRow(state = channelRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                        itemsIndexed(channels, key = { _, a -> a.channel }) { i, a -> ChannelCard(a, s, channelRow.of(i).nav(up = above(channelRow), down = below(channelRow), left = if (i == 0) keyFocus else null)) { runCatching { ctx.startActivity(LiveHome.open(ctx, a.channel, false)) } } }
+                        itemsIndexed(channels, key = { _, a -> a.channel }) { i, a -> ChannelCard(a, s, channelRow.of(i).nav(up = above(channelRow), down = below(channelRow), left = if (i == 0) keyFocus else null, right = edge(i == channels.lastIndex))) { runCatching { ctx.startActivity(LiveHome.open(ctx, a.channel, false)) } } }
                     }
                 }
                 if (apps.isNotEmpty()) {
                     Spacer(Modifier.height((10 * s).dp))
                     DsHeading("Apps", s)
                     LazyRow(state = appRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                        itemsIndexed(apps, key = { _, e -> e.pkg }) { i, e -> TextCard(e.label, "", s, appRow.of(i).nav(up = above(appRow), down = FocusRequester.Cancel, left = if (i == 0) keyFocus else null)) { app.apps.open(ctx, e) } }
+                        itemsIndexed(apps, key = { _, e -> e.pkg }) { i, e -> TextCard(e.label, "", s, appRow.of(i).nav(up = above(appRow), down = FocusRequester.Cancel, left = if (i == 0) keyFocus else null, right = edge(i == apps.lastIndex))) { app.apps.open(ctx, e) } }
                     }
                 }
             }
@@ -158,7 +158,7 @@ private fun TitlesRow(title: String, list: List<HeroItem>, s: Float, entry: RowE
     DsHeading(title, s)
     LazyRow(state = entry.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
         itemsIndexed(list, key = { _, h -> h.key }) { i, h ->
-            SmallPoster(h, s, entry.of(i).nav(down = down, left = if (i == 0) keys else null).then(if (h.key == lastTitle.value) Modifier.focusRequester(lastFocus) else Modifier), onFocused = { lastTitle.value = h.key }) { onTitle(h) }
+            SmallPoster(h, s, entry.of(i).nav(down = down, left = if (i == 0) keys else null, right = edge(i == list.lastIndex)).then(if (h.key == lastTitle.value) Modifier.focusRequester(lastFocus) else Modifier), onFocused = { lastTitle.value = h.key }) { onTitle(h) }
         }
     }
 }
