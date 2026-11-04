@@ -730,3 +730,7 @@ Clear all	Очистить
 Today %s	Сегодня %s
 Tomorrow %s	Завтра %s
 Voice search	Голосовой поиск
+Hide scores	Скрыть счёт
+Show scores	Показать счёт
+Scores hidden · %s	Счёт скрыт · %s
+Scores shown · %s	Счёт показан · %s

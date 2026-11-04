@@ -729,3 +729,7 @@ Clear all	Limpar
 Today %s	Hoje %s
 Tomorrow %s	Amanhã %s
 Voice search	Busca por voz
+Hide scores	Ocultar placar
+Show scores	Mostrar placar
+Scores hidden · %s	Placar oculto · %s
+Scores shown · %s	Placar visível · %s

@@ -122,7 +122,7 @@ final class LiveScores {
     /** The score for a show (its title, folded, has a followed team's words), or null. */
     Score forTitle(String folded) {
         if (scores.isEmpty() || folded == null) return null;
-        for (Score s : scores.values()) if (LiveFollow.matches(s.term, folded)) return s;
+        for (Score s : scores.values()) if (LiveFollow.matches(s.term, folded)) return hidden(s.term) ? null : s;
         return null;
     }
 
@@ -132,7 +132,12 @@ final class LiveScores {
     }
 
     Score forTerm(String folded) {
-        return scores.get(folded);
+        return hidden(folded) ? null : scores.get(folded);
+    }
+
+    /** A team kept spoiler-free: its score is still read, but shown nowhere and no goal is told. */
+    private boolean hidden(String folded) {
+        return LiveOptions.spoilerFree(c).contains(folded);
     }
 
     // MARK: - Background
@@ -332,6 +337,7 @@ final class LiveScores {
     }
 
     private void goal(Score s, boolean forHome) {
+        if (hidden(s.term)) return;
         main.post(() -> { for (Listener l : listeners) l.goal(s, forHome); });
     }
 

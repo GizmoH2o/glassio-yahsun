@@ -850,8 +850,8 @@ final class LiveSettings {
                             "When what you follow gets a reminder: only when it's on live, or for replays too.");
                     case MATCH_STYLE_ROW: return Ui.tr("Quando um time seguido começa: um painel com todos os canais que mostram o jogo, ou um aviso só.",
                             "When a team you follow comes on: a panel with every channel showing the match, or one card.");
-                    case SCORES_ROW: return Ui.tr("O placar e o tempo de jogo dos times que você segue, na barra do canal e no painel do jogo.",
-                            "The score and match minute for the teams you follow, on the info bar and the match panel.");
+                    case SCORES_ROW: return Ui.tr("O placar e o tempo de jogo dos times que você segue, na barra do canal e no painel do jogo. Para esconder o placar de um time, segure OK nele em Seguindo.",
+                            "The score and match minute for the teams you follow, on the info bar and the match panel. To hide one team's score, hold OK on it in Following.");
                     case GOALS_ROW: return Ui.tr("Um aviso quando sai um gol num jogo de um time que você segue, enquanto a TV ao vivo está aberta.",
                             "A card when there's a goal in a followed team's match, while Live TV is open.");
                     case REMIND_WATCHING_ROW: return Ui.tr("Um lembrete do canal que já está passando na TV ao vivo: aparece mesmo assim, ou não.",
@@ -1637,7 +1637,7 @@ final class LiveSettings {
                     Ui.tr("O mais estável; alguns segundos a mais para começar", "Steadiest; a few seconds slower to start")};
             case CHANNEL_SORT_ROW: return new String[] {Ui.tr("Como o provedor lista", "As your provider lists them"),
                     "1, 2, 3…", Ui.tr("De A a Z", "A to Z")};
-            case CATEGORY_SORT_ROW: return new String[] {Ui.tr("Como o provedor lista", "As your provider lists them"), Ui.tr("De A a Z", "A to Z")};
+            case CATEGORY_SORT_ROW: return new String[] {Ui.tr("Como o provedor lista", "As your provider lists them"), Ui.tr("De A a Z; o mesmo nome, pelo país", "A to Z; the same name by country")};
             case REMIND_AUTO_ROW: return new String[] {Ui.tr("Um aviso pergunta antes de mudar de canal", "A card asks before changing channel"),
                     Ui.tr("Muda de canal sozinho quando começa", "Changes channel by itself when it starts")};
             case MATCH_ROW: return new String[] {Ui.tr("Um lembrete quando o jogo passa ao vivo", "A reminder when the game is on live"),

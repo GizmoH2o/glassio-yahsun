@@ -730,3 +730,7 @@ Clear all	Leeren
 Today %s	Heute %s
 Tomorrow %s	Morgen %s
 Voice search	Sprachsuche
+Hide scores	Spielstand ausblenden
+Show scores	Spielstand zeigen
+Scores hidden · %s	Spielstand ausgeblendet · %s
+Scores shown · %s	Spielstand sichtbar · %s

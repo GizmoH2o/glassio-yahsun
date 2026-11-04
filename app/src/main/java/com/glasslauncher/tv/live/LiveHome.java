@@ -23,6 +23,15 @@ public final class LiveHome {
         Ui.applyLanguage();
     }
 
+    /** A followed team whose scores stay hidden (for watching it later). */
+    public static boolean spoilerFree(Context c, String term) {
+        return LiveOptions.spoilerFree(c).contains(Xtream.fold(term));
+    }
+
+    public static void setSpoilerFree(Context c, String term, boolean on) {
+        LiveOptions.setSpoilerFree(c, Xtream.fold(term), on);
+    }
+
     /** Reduce motion, for Live TV's process too: a file, as it can't see the preferences change. */
     public static void setReduceMotion(Context c, boolean on) {
         java.io.File f = new java.io.File(c.getFilesDir(), "ui_still");

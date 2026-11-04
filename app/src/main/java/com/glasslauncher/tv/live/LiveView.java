@@ -252,7 +252,7 @@ final class LiveView extends View {
             Xtream.Category cg = providerOrder.get(i);
             if (i < 2 || cg == search || cg == recordings || cg == history) allCategories.add(cg); else mine.add(cg);
         }
-        if (byCategory == LiveOptions.BY_NAME) Collections.sort(mine, (a, b) -> fold(a.name).compareTo(fold(b.name)));
+        if (byCategory == LiveOptions.BY_NAME) Collections.sort(mine, (a, b) -> LiveCountry.compareCategories(a.name, b.name));
         allCategories.addAll(mine);
         java.util.Comparator<Xtream.Channel> order;
         if (byChannel == LiveOptions.BY_NAME) {

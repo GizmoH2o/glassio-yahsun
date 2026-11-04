@@ -6,6 +6,7 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "A to Z; the same name by country": return "De la A a la Z; el mismo nombre, por país";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Seguimos intentando este canal  ·  ▲ ▼ para otro";
             case "Still trying this channel": return "Seguimos intentando este canal";
             case "Sleep": return "Dormir";
@@ -856,7 +857,7 @@ final class Spanish {
             case "Tonight": return "Esta noche";
             case "Live scores": return "Marcadores en vivo";
             case "Goal alerts": return "Avisos de gol";
-            case "The score and match minute for the teams you follow, on the info bar and the match panel.": return "El marcador y el minuto de juego de los equipos que sigues, en la barra del canal y en el panel del partido.";
+            case "The score and match minute for the teams you follow, on the info bar and the match panel. To hide one team's score, hold OK on it in Following.": return "El marcador y el minuto de juego de los equipos que sigues, en la barra del canal y en el panel del partido. Para ocultar el marcador de un equipo, mantén OK sobre él en Siguiendo.";
             case "A card when there's a goal in a followed team's match, while Live TV is open.": return "Un aviso cuando hay un gol en un partido de un equipo que sigues, mientras la TV en vivo está abierta.";
             case "GOAL!  ": return "¡GOL!  ";
             case "Goal! ": return "¡Gol! ";

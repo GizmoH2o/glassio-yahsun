@@ -729,3 +729,7 @@ Clear all	Vaciar
 Today %s	Hoy %s
 Tomorrow %s	Mañana %s
 Voice search	Búsqueda por voz
+Hide scores	Ocultar marcador
+Show scores	Mostrar marcador
+Scores hidden · %s	Marcador oculto · %s
+Scores shown · %s	Marcador visible · %s

@@ -140,6 +140,13 @@ final class LiveCountry {
         return cat == null ? "" : cat;
     }
 
+    /** Categories A to Z by the name they show, then the same name by its country tag: Sports, Sports UK, Sports US. Pure. */
+    static int compareCategories(String a, String b) {
+        Split sa = split(a, true), sb = split(b, true);
+        int c = Xtream.fold(sa.name).compareTo(Xtream.fold(sb.name));
+        return c != 0 ? c : sa.code.compareTo(sb.code);
+    }
+
     /** Each category's country (the ones whose names have one), by category id. */
     static Map<String, String> categories(Xtream.Lineup l) {
         Map<String, String> out = new HashMap<>();

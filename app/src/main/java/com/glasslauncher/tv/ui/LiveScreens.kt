@@ -190,6 +190,16 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
     }
 }
 
+/** Spoiler-free: a followed team's scores hidden or shown again; [done]: the page reads them anew. */
+private fun scoresChoice(ctx: Context, term: String, done: () -> Unit): Pair<String, () -> Unit> {
+    val hidden = LiveHome.spoilerFree(ctx, term)
+    return (if (hidden) "Show scores" else "Hide scores") to {
+        LiveHome.setSpoilerFree(ctx, term, !hidden)
+        toast(ctx, (if (hidden) "Scores shown · " else "Scores hidden · ") + term)
+        done()
+    }
+}
+
 /** Following: the next match of what you follow in a spotlight, then what you follow, then what's coming up. */
 @Composable
 fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
@@ -272,6 +282,7 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                         ChipView(term, s, (if (i == 0) first else Modifier).then(if (term == cameFrom) Modifier.focusRequester(chip) else Modifier), onLong = {
                             dialog = MenuDialog(term, listOf(
                                 "Open" to { stopArmedAt = 0; team = term },
+                                scoresChoice(ctx, term) { reload++ },
                                 "Stop following" to {
                                     scope.launch { withContext(Dispatchers.IO) { LiveHome.unfollow(app, term) }; toast(ctx, "Stopped following $term"); reload++ }
                                 },
@@ -290,6 +301,7 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
             item(key = "teamChips") {
                 Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                     ChipView("‹  Following", s, Modifier.focusRequester(first), null) { leaveTeam() }
+                    scoresChoice(ctx, t) { reload++ }.let { (label, act) -> ChipView(label, s, Modifier, null, act) }
                     ChipView(if (armed) "OK again to stop following" else "Stop following", s, Modifier, null) {
                         val now = System.currentTimeMillis()
                         if (stopArmedAt == 0L || now - stopArmedAt > 5_000) stopArmedAt = now

@@ -13,6 +13,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.io.File;
 import java.util.List;
 import java.util.Set;
 
@@ -572,6 +573,43 @@ final class LiveOptions {
 
     static void setChannelSort(Context c, int s) {
         sp(c).edit().putInt("channelSort", s).apply();
+    }
+
+    private static Set<String> spoilerFree;
+    private static long spoilerReadAt;
+
+    /**
+     * The followed teams (folded) whose scores stay hidden, for watching later. In a file, not the preferences: the home
+     * screen's process sets it, Live TV's reads it too, so it's looked at again every few seconds.
+     */
+    static synchronized Set<String> spoilerFree(Context c) {
+        long up = android.os.SystemClock.uptimeMillis();
+        if (spoilerFree == null || up - spoilerReadAt > 3000) {
+            spoilerReadAt = up;
+            Set<String> read = new java.util.HashSet<>();
+            File f = new File(c.getFilesDir(), "live-spoiler-free");
+            if (f.exists()) {
+                try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                    for (String line : Xtream.read(in).split("\n")) if (!line.trim().isEmpty()) read.add(line.trim());
+                } catch (java.io.IOException | RuntimeException ignored) {
+                }
+            }
+            spoilerFree = read;
+        }
+        return spoilerFree;
+    }
+
+    static synchronized void setSpoilerFree(Context c, String folded, boolean on) {
+        Set<String> now = new java.util.HashSet<>(spoilerFree(c));
+        if (on) now.add(folded);
+        else now.remove(folded);
+        try {
+            Xtream.write(new File(c.getFilesDir(), "live-spoiler-free"), android.text.TextUtils.join("\n", now));
+        } catch (java.io.IOException e) {
+            AppLog.w("live: couldn't save the spoiler-free teams");
+        }
+        spoilerFree = now;
+        spoilerReadAt = android.os.SystemClock.uptimeMillis();
     }
 
     /** How the provider's categories are sorted: PROVIDER or BY_NAME. */

@@ -13,6 +13,7 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "A to Z; the same name by country": return "От А до Я; одинаковые названия по стране";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Пробуем этот канал  ·  ▲ ▼ другой канал";
             case "Still trying this channel": return "Пробуем этот канал";
             case "Sleep": return "Сон";
@@ -861,7 +862,7 @@ final class Russian {
             case "Tonight": return "Сегодня вечером";
             case "Live scores": return "Счёт в прямом эфире";
             case "Goal alerts": return "Уведомления о голах";
-            case "The score and match minute for the teams you follow, on the info bar and the match panel.": return "Счёт и минута матча команд, за которыми вы следите, — на инфопанели и в панели матча.";
+            case "The score and match minute for the teams you follow, on the info bar and the match panel. To hide one team's score, hold OK on it in Following.": return "Счёт и минута матча команд, за которыми вы следите, — на инфопанели и в панели матча. Чтобы скрыть счёт команды, удерживайте на ней OK в разделе «Отслеживаемое».";
             case "A card when there's a goal in a followed team's match, while Live TV is open.": return "Уведомление, когда в матче вашей команды забит гол, пока открыто ТВ в прямом эфире.";
             case "GOAL!  ": return "ГОЛ!  ";
             case "Goal! ": return "Гол! ";
