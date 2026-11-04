@@ -88,8 +88,10 @@ final class LiveOverlay {
         w = width;
         h = height;
         title = Ui.text(Ui.displaySemibold, 52 * k, WHITE);
-        meta = Ui.text(Ui.medium, 26 * k, 0xD9FFFFFF);
-        small = Ui.text(Ui.medium, 23 * k, 0xA6FFFFFF);
+        // Glassio 3: the words stay readable over the brightest picture (with the stronger shade below).
+        boolean clear = LiveTheme.cinemaBar();
+        meta = Ui.text(Ui.medium, 26 * k, clear ? 0xFFFFFFFF : 0xD9FFFFFF);
+        small = Ui.text(Ui.medium, 23 * k, clear ? 0xF2FFFFFF : 0xA6FFFFFF);
         badge = Ui.text(Ui.semibold, 18 * k, 0xE6FFFFFF);
         badge.setLetterSpacing(0.06f);
         clockPaint = Ui.numbers(Ui.displaySemibold, 46 * k, WHITE);
@@ -98,7 +100,7 @@ final class LiveOverlay {
         label.setTextAlign(Paint.Align.CENTER);
         iconText = Ui.numbers(Ui.semibold, 20 * k, WHITE);
         iconText.setTextAlign(Paint.Align.CENTER);
-        aboutPaint = new TextPaint(Ui.text(Ui.regular, 24 * k, 0xA6FFFFFF));
+        aboutPaint = new TextPaint(Ui.text(Ui.regular, 24 * k, clear ? 0xF2FFFFFF : 0xA6FFFFFF));
         episodePaint = Ui.text(Ui.medium, 25 * k, 0xE6FFFFFF);
         fill = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         glow = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -108,11 +110,15 @@ final class LiveOverlay {
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         stroke.setStrokeJoin(Paint.Join.ROUND);
-        topShade = new LinearGradient(0, 0, 0, 240 * k, 0x99000000, 0x00000000, Shader.TileMode.CLAMP);
+        topShade = new LinearGradient(0, 0, 0, 240 * k, clear ? 0xCC000000 : 0x99000000, 0x00000000, Shader.TileMode.CLAMP);
         // The fade under the text, into the style's own background (black for Glassio's).
         int base = LiveTheme.bg & 0x00FFFFFF;
-        bottomShade = new LinearGradient(0, 480 * k, 0, h, new int[] {base, 0xB3000000 | base, 0xF2000000 | base},
-                new float[] {0, 0.4f, 1}, Shader.TileMode.CLAMP);
+        bottomShade = clear
+                // Dark well before the title starts (about y 640), nearly solid under the buttons.
+                ? new LinearGradient(0, 480 * k, 0, h, new int[] {base, 0xD9000000 | base, 0xF0000000 | base, 0xFA000000 | base},
+                        new float[] {0, 0.25f, 0.55f, 1}, Shader.TileMode.CLAMP)
+                : new LinearGradient(0, 480 * k, 0, h, new int[] {base, 0xB3000000 | base, 0xF2000000 | base},
+                        new float[] {0, 0.4f, 1}, Shader.TileMode.CLAMP);
         // Sky Q's band: the style's blue, solid from just above the title.
         band = new LinearGradient(0, 590 * k, 0, h, (LiveTheme.bgTop & 0x00FFFFFF) | 0xF0000000,
                 (LiveTheme.bg & 0x00FFFFFF) | 0xFA000000, Shader.TileMode.CLAMP);
@@ -599,7 +605,7 @@ final class LiveOverlay {
             float bx = buttonX(i) * k, bw = buttonW(i) * k;
             boolean on = focused && i == focus && Math.abs(focusX.value - buttonX(i)) < BTN / 2;
             if (!on) {
-                fill.setColor(0x2EFFFFFF);
+                fill.setColor(0xFF2A2A2F);      // solid: it reads whatever's playing
                 r.set(bx, cy - rad, bx + bw, cy + rad);
                 c.drawRoundRect(r, rr, rr, fill);
             }
