@@ -6,6 +6,10 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Sleep": return "Dormir";
+            case "Stop": return "Parar";
+            case "NOW": return "AHORA";
+            case "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons": return "Como la pantalla de inicio: casi negro, selección blanca, esquinas redondas; el vídeo a la derecha, botones con nombre";
             case "Live TV": return "TV en vivo";
             case "All Apps": return "Todas las apps";
             case "Settings": return "Ajustes";

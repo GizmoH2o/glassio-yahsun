@@ -13,6 +13,10 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Sleep": return "Сон";
+            case "Stop": return "Стоп";
+            case "NOW": return "СЕЙЧАС";
+            case "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons": return "Как на главном экране: почти чёрный, белый выбор, круглые углы; видео справа, кнопки с названиями";
             case "Live TV": return "Телеканалы";
             case "All Apps": return "Приложения";
             case "Settings": return "Настройки";

@@ -1123,7 +1123,7 @@ final class LiveSettings {
     private final Paint switchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF switchRect = new RectF();
     /** Glassio's switch: its purple when on, faint when off, the white knob at the side it's set to. */
-    private static final int SWITCH_ON = 0xFF7B61FF;
+    private static int switchOn() { return LiveTheme.style() == LiveTheme.CINEMA ? 0xFF34C759 : 0xFF7B61FF; }
 
     /**
      * A switch with its right edge at `right`, centered on `cy`, `scale` of a row's size; returns how wide it is.
@@ -1134,7 +1134,7 @@ final class LiveSettings {
         switchRect.set(right - w, cy - h / 2, right, cy + h / 2);
         boolean lightPlate = ink && ((LiveTheme.ink >>> 16 & 255) < 128);     // dark text on the focus: a light plate
         int off = lightPlate ? 0x33000000 : 0x38FFFFFF;
-        int track = on ? SWITCH_ON : off;
+        int track = on ? switchOn() : off;
         if (!usable) track = (track & 0x00FFFFFF) | 0x59000000;
         switchPaint.setStyle(Paint.Style.FILL);
         switchPaint.setColor(track);

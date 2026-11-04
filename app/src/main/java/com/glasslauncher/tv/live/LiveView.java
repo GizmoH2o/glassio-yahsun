@@ -944,6 +944,7 @@ final class LiveView extends View {
 
     /** A new theme: the paints with its color made again (on the next frame). */
     void themeChanged() {
+        liftPaint = null;
         lName = null;
         listShade = null;
         gTitle = null;
@@ -1031,7 +1032,7 @@ final class LiveView extends View {
             lShow.setColor(LiveTheme.onTile(LiveTheme.text, onTile));
             float rs = C_STEP / 126f, half = Math.min(34, 34 * rs);
             dst.set(r.left + 20 * k, r.centerY() - half * k, r.left + (20 + half * 104 / 34) * k, r.centerY() + half * k);
-            drawLogo(c, channel, dst, 1);
+            drawLogo(c, channel, dst, 1, onTile > 0.5f && LiveTheme.lightFocus());
             float x = r.left + (42 + half * 104 / 34) * k, right = r.right - 22 * k;
             // The marks at the top right: playing, catch-up, favorite.
             float mx = right - 14 * k, my = r.top + 36 * rs * k;
@@ -3072,6 +3073,9 @@ final class LiveView extends View {
             case LiveTheme.PLEX:        // a small video, 3 hours across and many rows
                 pw = 432; ph = 243; infoX = 496; lines = 1; chipY = 286; rowH = 66; minutes = 180; artX = 1300; artH = 300;
                 break;
+            case LiveTheme.CINEMA:      // the details at the left, the video at the right, room for the rows
+                px = 1312; pw = 576; ph = 324; infoX = 32; infoR = 1280; lines = 2; chipY = 312; rowH = 76; art = false;
+                break;
             case LiveTheme.PLUTO:       // a guide first: slim rows, 1½ hours across
                 pw = 592; ph = 333; infoX = 656; lines = 2; chipY = 312; rowH = 64; minutes = 90; art = false;
                 break;
@@ -3082,7 +3086,7 @@ final class LiveView extends View {
         times = Math.max(chipY, P_Y + ph) + 50;
         top = times + 28;
         if (compact) rowH = Math.round(rowH * 0.76f);
-        step = rowH + 4;
+        step = rowH + (LiveTheme.cinema() ? 6 : 4);
         rows = Math.max(4, (int) ((1080 - 12 - top) / step));
         P_X = px;
         P_W = pw;
@@ -3964,7 +3968,13 @@ final class LiveView extends View {
         // Dark everywhere but the preview window, where the video shows through.
         preview.set(P_X * k, P_Y * k, (P_X + P_W) * k, (P_Y + P_H) * k);
         c.save();
-        c.clipOutRect(preview);
+        if (LiveTheme.cinema()) {       // its corners as round as the home screen's pictures
+            previewHole.rewind();
+            previewHole.addRoundRect(preview, 12 * k, 12 * k, android.graphics.Path.Direction.CW);
+            c.clipOutPath(previewHole);
+        } else {
+            c.clipOutRect(preview);
+        }
         LiveTheme.background(c, w, h, 1);
         c.restore();
         List<Xtream.Channel> rows = guideChannels();
@@ -4017,7 +4027,7 @@ final class LiveView extends View {
             float left = G_LOGO_X * k, right = (G_COL_R - G_MARKS_W) * k, mid = (left + right) / 2;
             boolean atLeft = LiveOptions.guideLogosLeft(getContext());
             cell.set(left + 8 * k, y + 5 * k, right - 8 * k, y + (G_ROW_H - (compact ? 23 : 28)) * k);
-            drawLogo(c, channel, cell, 1, false, atLeft);
+            drawLogo(c, channel, cell, 1, onTile > 0.5f && LiveTheme.lightFocus(), atLeft);
             Paint np = r == gRow ? gNameOn : gName;
             np.setColor(r == gRow ? LiveTheme.onTile(LiveTheme.text, onTile) : 0xB3FFFFFF);
             String nm = nameOf(channel), label = channel.num > 0 ? channel.num + "  " + nm : nm, tag = tagOf(channel);
@@ -4062,6 +4072,15 @@ final class LiveView extends View {
             focusRect.set(x1, fy, Math.max(x1 + 12 * k, x2), fy + G_ROW_H * k);
             fill.setShader(null);
             fill.setColor(Ui.alpha(LiveTheme.tile, col * away));
+            if (LiveTheme.cinema() && gHead == 0) {     // lifted off the page, as a card on the home screen
+                focusRect.inset(-3 * k, -3 * k);
+                if (liftPaint == null) {
+                    liftPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+                    liftPaint.setColor(0xFF000000);
+                    liftPaint.setShadowLayer(26 * k, 0, 10 * k, 0xA6000000);
+                }
+                c.drawRoundRect(focusRect, 12 * k, 12 * k, liftPaint);
+            }
             c.drawRoundRect(focusRect, 10 * k * LiveTheme.round, 10 * k * LiveTheme.round, fill);
             if (col > 0.5f && gHead == 0) {    // the titles again over the red (where it covers them)
                 c.save();
@@ -4431,6 +4450,10 @@ final class LiveView extends View {
         }
         String titleText = p == null || p.title.isEmpty() ? channel.name : p.title;
         boolean badged = p != null && (p.live || p.fresh);
+        if (LiveTheme.cinema()) {
+            drawCinemaInfo(c, channel, p, titleText, badged, loading, now, x, room, cw, save);
+            return;
+        }
         // With the groups open the guide slides right: the title loses that much room at the screen's edge.
         float titleRoom = room - cw - 30 * k - (badged ? 140 * k : 0) - (art == null ? gShift() * k : 0);
         float drawn = guideMarquee.draw(c, titleText, x, 104 * k, titleRoom, gTitle, k);
@@ -4492,6 +4515,68 @@ final class LiveView extends View {
         }
         c.restoreToCount(save);
     }
+
+    /**
+     * Glassio 3's details: when it's on as a red line over the title (Hold OK to start over beside it, when it can),
+     * then the title, the channel's line and the synopsis. The category stays at the top right, by the video.
+     */
+    private void drawCinemaInfo(Canvas c, Xtream.Channel channel, Xtream.Program p, String titleText, boolean badged, boolean loading,
+            long now, float x, float room, float cw, int save) {
+        String kick = "", extra = "";
+        if (p != null && p.start <= now && p.end > now) {
+            kick = Ui.tr("AGORA", "NOW") + "  ·  " + minutesLeft((int) Math.max(1, Math.round((p.end - now) / 60_000.0))).toUpperCase(Ui.locale());
+            if (channel.archive > 0 && p.start >= catchupFrom(channel, now)) extra = "·  " + Ui.tr("Segure OK para começar do início", "Hold OK to start over");
+        } else if (p != null && p.end <= now) {
+            long[] r = replayable(channel, p, now) ? resumeOf(channel, p) : null;
+            extra = r != null ? Ui.tr("Reprise  ·  Você parou em ", "Catch-up  ·  You stopped at ") + clock(r[0]) + Ui.tr("  ·  OK para continuar", "  ·  OK to resume")
+                    : replayable(channel, p, now) ? Ui.tr("Reprise  ·  OK para assistir", "Catch-up  ·  Press OK to watch") : Ui.tr("Já passou", "Already aired");
+        } else if (p != null) {
+            extra = Ui.tr("Começa às ", "Starts at ") + Ui.time(p.start);
+        }
+        gLeft.setColor(LIVE_RED);
+        c.drawText(kick, x, 56 * k, gLeft);
+        if (!extra.isEmpty()) {
+            gLeft.setColor(PAST);
+            float kw = kick.isEmpty() ? 0 : gLeft.measureText(kick) + 16 * k;
+            c.drawText(ellipsize(extra, gLeft, room - cw - kw - 30 * k), x + kw, 56 * k, gLeft);
+            gLeft.setColor(LIVE_RED);
+        }
+        float titleRoom = room - (badged ? 140 * k : 0) - gShift() * k;
+        float drawn = guideMarquee.draw(c, titleText, x, 122 * k, titleRoom, gTitle, k);
+        if (badged) {
+            drawBadge(c, p, x + drawn + 20 * k, 122 * k - Ui.halfCap(gTitle), false);
+            drawPendingBadge(c);
+        }
+        String when = p == null ? (loading ? "" : Ui.tr("Sem guia para este canal", "No guide for this channel"))
+                : Ui.time(p.start) + " – " + Ui.time(p.end);
+        textAndTag(c, (when.isEmpty() ? "" : when + "  ·  ") + (channel.num > 0 ? channel.num + "  " : "") + nameOf(channel), tagOf(channel),
+                x, 176 * k, gMeta, room);
+        LiveEpisode ep = LiveEpisode.of(getContext(), p, true, this::postInvalidate);
+        String about = p == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
+        float aboutTop = 200 * k;
+        int lines = G_ABOUT_LINES;
+        if (ep != null) {
+            LiveEpisode.draw(c, ep, x, 200 * k + gEpisode.getTextSize(), gEpisode, room, k);
+            aboutTop += gEpisode.getTextSize() * 1.55f;
+            lines--;
+        }
+        if (lines <= 0) about = "";
+        if (!about.equals(gAboutText) || gAbout == null || gAbout.getWidth() != Math.max(1, Math.round(room)) || gAboutMax != lines) {
+            gAboutText = about;
+            gAboutMax = lines;
+            gAbout = about.isEmpty() ? null : StaticLayout.Builder.obtain(about, 0, about.length(), gAboutPaint,
+                    Math.max(1, Math.round(room))).setMaxLines(lines).setEllipsize(TextUtils.TruncateAt.END)
+                    .setLineSpacing(0, 1.08f).build();
+        }
+        if (gAbout != null) {
+            c.translate(x, aboutTop);
+            gAbout.draw(c);
+        }
+        c.restoreToCount(save);
+    }
+
+    private final android.graphics.Path previewHole = new android.graphics.Path();
+    private Paint liftPaint;
 
     /** Under the playing channel's window, how far its current program is. */
     private void drawPreviewFrame(Canvas c, long now) {

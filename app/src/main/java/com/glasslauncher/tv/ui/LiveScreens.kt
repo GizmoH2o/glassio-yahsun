@@ -162,8 +162,8 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
     val p = page
     val sp = sports
     val shown = rev
-    LivePage(s) {
-        header("Live TV", if (r == false) "Watch your TV channels with a full guide" else "OK watches · in the guide, hold OK for a channel's menu", s)
+    LivePage(s, top = if (r == false || p == null) 82f else 0f) {
+        if (r == false || p == null) header("Live TV", if (r == false) "Watch your TV channels with a full guide" else "OK watches · in the guide, hold OK for a channel's menu", s)
         if (r == false) {
             item(key = "setup") {
                 EmptyCardView("Set up Live TV", "Sign in with your provider's details: Xtream Codes, an M3U link or a MAG portal. They stay on the TV.",
@@ -173,14 +173,11 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
         }
         if (p == null) return@LivePage
         item(key = "top") {
-            Row(Modifier.fillMaxWidth().height((150 * s).dp), horizontalArrangement = Arrangement.spacedBy((16 * s).dp)) {
-                FeatureCard(p.last, s, shown, Modifier.width((520 * s).dp).fillMaxHeight().focusRequester(first)) {
-                    open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false))
-                }
-                ActionTile("TV guide", "guide", s, Modifier.weight(1f).fillMaxHeight()) { open(ctx, LiveHome.open(ctx, -1, true)) }
-                ActionTile("Search", "search", s, Modifier.weight(1f).fillMaxHeight()) { open(ctx, LiveHome.search(ctx)) }
-                ActionTile("Following", "star", s, Modifier.weight(1f).fillMaxHeight()) { onFollowing() }
-            }
+            LiveHero(p.last, s, shown, first,
+                onWatch = { open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false)) },
+                onGuide = { open(ctx, LiveHome.open(ctx, -1, true)) },
+                onSearch = { open(ctx, LiveHome.search(ctx)) },
+                onFollowing = onFollowing)
         }
         // The channels watched lately (newest first; the last one is the big card above), with what's on them now.
         cardRow("Recently watched", p.recent, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
@@ -323,12 +320,12 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
 /** The graphite page: one scrolling column, the selected row kept at the same height (as the Library does). */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun LivePage(s: Float, content: LazyListScope.() -> Unit) {
+private fun LivePage(s: Float, top: Float = 34f, content: LazyListScope.() -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
         val rowScroll = androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
         CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides RowPivot, LocalRowScroll provides rowScroll) {
             LazyColumn(
-                contentPadding = PaddingValues(start = (MARGIN * s).dp, end = (MARGIN * s).dp, top = (34 * s).dp, bottom = (60 * s).dp),
+                contentPadding = PaddingValues(start = (MARGIN * s).dp, end = (MARGIN * s).dp, top = (top * s).dp, bottom = (60 * s).dp),
                 verticalArrangement = Arrangement.spacedBy((12 * s).dp),
                 modifier = Modifier.fillMaxSize(),
                 content = content,
@@ -452,44 +449,45 @@ private fun EmptyCardView(title: String, sub: String, s: Float, modifier: Modifi
     }
 }
 
-/** The channel last watched: its program's picture behind, the title and how far in it is. */
+/**
+ * The top of the page: the channel last watched, its program's picture across the screen behind the tabs, fading into
+ * the page; what's on, how far in, and the page's buttons (Watch first). No picture: the same on the plain page.
+ */
 @Composable
-private fun FeatureCard(a: LiveHome.Airing?, s: Float, rev: Int, modifier: Modifier, onClick: () -> Unit) {
-    rev.hashCode()     // read: a refresh (the program found, its picture) redraws the card
-    Focusable(modifier, (18 * s).dp, onClick = onClick, grow = 1.03f) { _ ->
+private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusRequester, onWatch: () -> Unit, onGuide: () -> Unit, onSearch: () -> Unit, onFollowing: () -> Unit) {
+    rev.hashCode()     // read: a refresh (the program found, its picture) redraws it
+    Box(Modifier.requiredWidth((960 * s).dp).height((290 * s).dp)) {
         if (a != null && a.art.isNotEmpty()) {
-            Picture(a.art, Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha = 0.82f), Color.Black.copy(alpha = 0.35f), Color.Transparent))))
+            Picture(a.art, Modifier.fillMaxSize(), 1280, 720)
+            Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0.1f to Ds.Bg, 0.6f to Ds.Bg.copy(alpha = 0.55f), 1f to Color.Transparent)))
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Ds.Bg)))
+        } else if (a != null && a.logo.isNotEmpty()) {      // no picture of the show: the channel's logo, large, at the right
+            Logo(a.logo, Modifier.align(Alignment.TopEnd).padding(end = (MARGIN * s).dp, top = (92 * s).dp).size((150 * s).dp, (70 * s).dp))
         }
-        Column(Modifier.align(Alignment.BottomStart).padding((20 * s).dp)) {
-            Text(if (a == null) "LIVE TV" else "CONTINUE WATCHING", color = Color.White.copy(alpha = 0.7f), fontSize = (8.5f * s).sp,
-                fontWeight = FontWeight.SemiBold, letterSpacing = (1f * s).sp)
-            Spacer(Modifier.height((4 * s).dp))
-            Text(when { a == null -> "Open Live TV"; a.title.isNotEmpty() -> a.title; else -> a.channelName }, color = Color.White,
-                fontSize = (19 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Spacer(Modifier.height((4 * s).dp))
+        Column(Modifier.align(Alignment.BottomStart).padding(start = (MARGIN * s).dp, end = (MARGIN * s).dp, bottom = (8 * s).dp)) {
             if (a != null) Row(verticalAlignment = Alignment.CenterVertically) {
+                LivePill(s, Modifier)
+                Spacer(Modifier.width((8 * s).dp))
                 if (a.logo.isNotEmpty()) { Logo(a.logo, Modifier.size((30 * s).dp, (16 * s).dp)); Spacer(Modifier.width((8 * s).dp)) }
-                Text(channelLine(a), color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false))
+                RawText(channelLine(a), color = Color(0xFFE8E8EC), fontSize = (10.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (a.country.isNotEmpty()) { Spacer(Modifier.width((6 * s).dp)); CountryTag(a.country, s) }
             }
+            Spacer(Modifier.height((6 * s).dp))
+            RawText(when { a == null -> Lang.tr("Live TV"); a.title.isNotEmpty() -> a.title; else -> a.channelName }, color = Color.White, fontSize = (26 * s).sp,
+                fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width((640 * s).dp))
             if (a != null && a.end > a.start) {
-                Spacer(Modifier.height((8 * s).dp))
-                Progress(a, s, Modifier.width((200 * s).dp))
+                Spacer(Modifier.height((5 * s).dp))
+                RawText(LiveHome.time(a.start) + " – " + LiveHome.time(a.end), color = Color(0xFFD0D0D4), fontSize = (10.5f * s).sp, fontWeight = FontWeight.Medium)
+                Spacer(Modifier.height((6 * s).dp))
+                Progress(a, s, Modifier.width((180 * s).dp), LocalAccent.current)
             }
-        }
-    }
-}
-
-@Composable
-private fun ActionTile(label: String, glyph: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
-    Focusable(modifier, (18 * s).dp, onClick = onClick, grow = 1.05f, look = Look.PLATE) { f ->
-        val c = lerp(Color.White, INK, f)
-        Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(Modifier.size((26 * s).dp)) { liveGlyph(glyph, c) }
-            Spacer(Modifier.height((10 * s).dp))
-            Text(label, color = c, fontSize = (11.5f * s).sp, fontWeight = FontWeight.Medium, maxLines = 1)
+            Spacer(Modifier.height((12 * s).dp))
+            Row(horizontalArrangement = dsGap(s)) {
+                DsButton("Watch", s, Modifier.focusRequester(first), primary = true, onClick = onWatch)
+                DsButton("TV guide", s, onClick = onGuide)
+                DsButton("Search", s, onClick = onSearch)
+                DsButton("Following", s, onClick = onFollowing)
+            }
         }
     }
 }
@@ -640,19 +638,19 @@ private fun LivePill(s: Float, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Progress(a: LiveHome.Airing, s: Float, modifier: Modifier) {
+private fun Progress(a: LiveHome.Airing, s: Float, modifier: Modifier, color: Color = Color.White) {
     val k = ((System.currentTimeMillis() - a.start).toFloat() / (a.end - a.start).coerceAtLeast(1)).coerceIn(0f, 1f)
     Canvas(modifier.height((3 * s).dp)) {
         val r = CornerRadius(size.height / 2)
         drawRoundRect(Color.White.copy(alpha = 0.25f), cornerRadius = r)
-        drawRoundRect(Color.White, size = Size(size.width * k, size.height), cornerRadius = r)
+        drawRoundRect(color, size = Size(size.width * k, size.height), cornerRadius = r)
     }
 }
 
 @Composable
-private fun Picture(url: String, modifier: Modifier) {
+private fun Picture(url: String, modifier: Modifier, w: Int = 640, h: Int = 360) {
     val ctx = LocalContext.current
-    val req = remember(url) { ImageRequest.Builder(ctx).data(url).size(640, 360).build() }
+    val req = remember(url) { ImageRequest.Builder(ctx).data(url).size(w, h).build() }
     AsyncImage(req, null, contentScale = ContentScale.Crop, modifier = modifier)
 }
 

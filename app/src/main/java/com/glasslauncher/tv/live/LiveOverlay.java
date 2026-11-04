@@ -268,13 +268,38 @@ final class LiveOverlay {
     }
 
     private float buttonW(int i) {
+        if (LiveTheme.cinemaBar()) return pillWidth(i);
         return buttons[i] == LIVE ? LIVE_W : BTN;
     }
 
     private float buttonX(int i) {
-        float x = X;
-        for (int j = 0; j < i; j++) x += buttonW(j) + GAP;
+        float x = X, gap = LiveTheme.cinemaBar() ? 10 : GAP;
+        for (int j = 0; j < i; j++) x += buttonW(j) + gap;
         return x;
+    }
+
+    private Paint pillText;
+
+    /** A named button's width in the 1920 space: its longest name, so it doesn't change size as it changes state. */
+    private float pillWidth(int i) {
+        if (pillText == null) pillText = Ui.text(Ui.semibold, 25, WHITE);
+        pillText.setTextSize(25);
+        float wd = pillText.measureText(pillLabel(buttons[i], false));
+        if (buttons[i] == PLAY) wd = Math.max(wd, pillText.measureText(pillLabel(PLAY, true)));
+        return wd + (buttons[i] == RECORD ? 62 : 40);
+    }
+
+    /** A button's short name on its pill ([other]: its other state, for measuring). */
+    private String pillLabel(int b, boolean other) {
+        switch (b) {
+            case ABOUT: return Ui.tr("Sobre", "About");
+            case PLAY: return live.paused() != other ? Ui.tr("Continuar", "Play") : Ui.tr("Pausar", "Pause");
+            case LIVE: return Ui.tr("Ao vivo", "Live");
+            case RECORD: return view.recordingNow() ? Ui.tr("Parar", "Stop") : Ui.tr("Gravar", "Record");
+            case FAVORITE: return Ui.tr("Favorito", "Favorite");
+            case SLEEP: return Ui.tr("Dormir", "Sleep");
+            default: return name(b);
+        }
     }
 
     // MARK: - Drawing
@@ -451,8 +476,13 @@ final class LiveOverlay {
             String label = nextEp == null ? "" : nextEp.label();
             float base = ROW_Y * k + Ui.halfCap(small), chipW = label.isEmpty() ? 0 : LiveEpisode.chipWidth(label, small, k) + 14 * k;
             String upNext = Ui.tr("A seguir", "Up next") + "  ·  " + Ui.time(next.start) + "  " + next.title;
-            c.drawText(ellipsize(upNext, small, 760 * k - chipW), barR - chipW, base, small);
-            if (chipW > 0) LiveEpisode.drawChip(c, label, barR - chipW + 14 * k, base, small, k);
+            if (LiveTheme.cinemaBar()) {        // the buttons take the whole row: beside the time left, over the bar's end
+                float rightW = small.measureText(right) + 36 * k;
+                c.drawText(ellipsize(upNext, small, 900 * k), barR - rightW, barY + 36 * k, small);
+            } else {
+                c.drawText(ellipsize(upNext, small, 760 * k - chipW), barR - chipW, base, small);
+                if (chipW > 0) LiveEpisode.drawChip(c, label, barR - chipW + 14 * k, base, small, k);
+            }
         }
         small.setTextAlign(Paint.Align.LEFT);
 
@@ -552,7 +582,43 @@ final class LiveOverlay {
         }
     }
 
+    /** Glassio 3's buttons: named pills, the selected one white. */
+    private void drawPills(Canvas c) {
+        float cy = ROW_Y * k, rad = 31 * k, rr = 12 * k;
+        boolean focused = armed && !onBar;
+        if (pillText == null) pillText = Ui.text(Ui.semibold, 25, WHITE);
+        pillText.setTextSize(25 * k);
+        if (focused) {
+            float fx = focusX.value * k, fw = focusW.value * k, grow = 3 * k;
+            r.set(fx - grow, cy - rad - grow, fx + fw + grow, cy + rad + grow);
+            glow.setColor(LiveTheme.tile);
+            c.drawRoundRect(r, rr + grow, rr + grow, glow);
+        }
+        for (int i = 0; i < count; i++) {
+            float bx = buttonX(i) * k, bw = buttonW(i) * k;
+            boolean on = focused && i == focus && Math.abs(focusX.value - buttonX(i)) < BTN / 2;
+            if (!on) {
+                fill.setColor(0x2EFFFFFF);
+                r.set(bx, cy - rad, bx + bw, cy + rad);
+                c.drawRoundRect(r, rr, rr, fill);
+            }
+            float tx = bx + 20 * k;
+            if (buttons[i] == RECORD) {
+                fill.setColor(RED);
+                if (view.recordingNow()) c.drawRoundRect(tx, cy - 8 * k, tx + 16 * k, cy + 8 * k, 3 * k, 3 * k, fill);
+                else c.drawCircle(tx + 8 * k, cy, 8 * k, fill);
+                tx += 22 * k;
+            }
+            pillText.setColor(on ? LiveTheme.ink : WHITE);
+            c.drawText(pillLabel(buttons[i], false), tx, cy + Ui.halfCap(pillText), pillText);
+        }
+    }
+
     private void drawButtons(Canvas c, Xtream.Channel ch) {
+        if (LiveTheme.cinemaBar()) {
+            drawPills(c);
+            return;
+        }
         float cy = ROW_Y * k, rad = BTN / 2 * k;
         // The focus: a pill in the theme's color gliding between them, a little bigger.
         glow.setColor(LiveTheme.tile);

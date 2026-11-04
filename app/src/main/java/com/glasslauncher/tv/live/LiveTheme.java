@@ -39,10 +39,10 @@ final class LiveTheme {
      * design picked for it). The number is what's saved, so a new design only ever goes at the end.
      */
     static final int ZERO = 0, APPLE = 1, YOUTUBE = 2, NOW = 3, SKY = 4, SLING = 5, HULU = 6, CUSTOM = 7,
-            NETFLIX = 8, PRIME = 9, DISNEY = 10, MAX = 11, PLEX = 12, PLUTO = 13, STYLES = 14;
+            NETFLIX = 8, PRIME = 9, DISNEY = 10, MAX = 11, PLEX = 12, PLUTO = 13, CINEMA = 14, STYLES = 15;
 
     /** The styles in the order the lists show them: Custom last. */
-    private static final int[] ORDER = {ZERO, APPLE, YOUTUBE, NOW, SKY, SLING, HULU, NETFLIX, PRIME, DISNEY, MAX, PLEX, PLUTO, CUSTOM};
+    private static final int[] ORDER = {CINEMA, ZERO, APPLE, YOUTUBE, NOW, SKY, SLING, HULU, NETFLIX, PRIME, DISNEY, MAX, PLEX, PLUTO, CUSTOM};
 
     /** The style at place `i` of the lists. */
     static int ordered(int i) {
@@ -123,9 +123,9 @@ final class LiveTheme {
         return TILES[Math.max(0, Math.min(COUNT - 1, i))];
     }
 
-    /** Design as it first was: Glassio, white, the same all day, Custom all Glassio's. */
+    /** Design as it first is: Glassio 3, white, the same all day, Custom all Glassio's. */
     static void resetAll(Context c) {
-        style = ZERO;
+        style = CINEMA;
         night = morning = late = -1;
         java.util.Arrays.fill(custom, ZERO);
         tick(c);
@@ -145,7 +145,22 @@ final class LiveTheme {
 
     /** Whether the colors are Glassio's own (its dark glass for menus and dialogs, its faint chips). */
     static boolean glassio() {
-        return part(COLORS) == ZERO;
+        return part(COLORS) == ZERO || part(COLORS) == CINEMA;
+    }
+
+    /** Glassio 3's guide on screen: the video at the right, the details beside it, what's on as a red line over the title. */
+    static boolean cinema() {
+        return layoutStyle() == CINEMA;
+    }
+
+    /** The focus is light: what's under it needs a dark plate (a white logo would vanish). */
+    static boolean lightFocus() {
+        return ((tile >> 16) & 255) * 3 + ((tile >> 8) & 255) * 6 + (tile & 255) > 1700;
+    }
+
+    /** Glassio 3's info bar on screen: its buttons are named pills. */
+    static boolean cinemaBar() {
+        return infoStyle() == CINEMA;
     }
 
     /** Whether the focus color picked applies (the focus is Glassio's; the others bring their own). */
@@ -429,6 +444,7 @@ final class LiveTheme {
             case MAX: return "Max";
             case PLEX: return "Plex";
             case PLUTO: return "Pluto TV";
+            case CINEMA: return "Glassio 3";
             case -1: return Ui.tr("Desligado", "Off");
             default: return "Glassio";
         }
@@ -437,6 +453,8 @@ final class LiveTheme {
     /** What a design looks like, in a few words (the setting's line). */
     static String styleAbout(int i) {
         switch (i) {
+            case CINEMA: return Ui.tr("Como a tela inicial: quase preto, seleção branca, cantos redondos; o vídeo à direita, botões com nome",
+                    "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons");
             case APPLE: return Ui.tr("Vidro claro sobre azul profundo, foco branco, cantos bem redondos; a barra num cartão de vidro.",
                     "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.");
             case YOUTUBE: return Ui.tr("Quase preto, foco branco, detalhes vermelhos, letras Roboto; o guia com o topo compacto e 2 h e meia.",
@@ -668,9 +686,10 @@ final class LiveTheme {
 
     /** Reads the theme in use (each process, as it starts). */
     static void load(Context c) {
-        int i = WHITE, s = ZERO;
+        int i = WHITE, s = CINEMA;      // a new install; one with a file keeps what it chose
         File f = file(c);
         if (f.exists()) {
+            s = ZERO;
             try (FileInputStream in = new FileInputStream(f)) {
                 String[] parts = Xtream.read(in).trim().split(",");
                 i = Integer.parseInt(parts[0].trim());
@@ -739,6 +758,13 @@ final class LiveTheme {
     private static void colors(int d) {
         rim = 0;
         switch (d) {
+            case CINEMA:    // the home screen's: near-black, its two greys
+                bg = bgTop = 0xFF0B0B0D;
+                surface = 0x1FFFFFFF;
+                cellNow = 0xFF2A2A2F;
+                cellLater = 0xFF1C1C1F;
+                cellPast = 0xFF141416;
+                break;
             case APPLE:     // Liquid Glass: light glass tiles with a bright edge over deep blue
                 bgTop = 0xFF1C2742;
                 bg = 0xFF06070B;
@@ -860,6 +886,7 @@ final class LiveTheme {
             case MAX: tile = 0xFF002BE7; ink = 0xFFFFFFFF; text = 0xFF7D96FF; break;       // Max's blue
             case PLEX: tile = 0xFFE5A00D; ink = 0xFF1F1F1F; text = 0xFFF0B429; break;      // amber
             case PLUTO: tile = 0xFFFFF200; ink = 0xFF000000; text = 0xFFFFF200; break;     // yellow
+            case CINEMA: tile = 0xFFFFFFFF; ink = 0xFF0B0B0D; text = 0xFFD0D0D4; break;    // white; red only for what's live
             default: {      // the color picked; a light one (white) takes dark text on it
                 int lum = ((tile >> 16) & 255) * 3 + ((tile >> 8) & 255) * 6 + (tile & 255);
                 ink = lum > 1700 ? 0xFF1C1C1E : 0xFFF5F5F7;
@@ -871,6 +898,7 @@ final class LiveTheme {
     /** How round design `d`'s corners are (1: about Glassio's home screen's lists). */
     private static float corners(int d) {
         switch (d) {
+            case CINEMA: return 2f;
             case APPLE: return 1.8f;
             case YOUTUBE: return 1.1f;
             case NOW:

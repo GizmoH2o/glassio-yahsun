@@ -45,7 +45,7 @@ final class TestHook {
     /** A style's index for its name, -1 for off (or an unknown name). */
     static int style(String name) {
         String[] names = {"zero", "apple", "youtube", "now", "sky", "sling", "hulu", "custom", "netflix", "prime", "disney", "max",
-                "plex", "pluto"};
+                "plex", "pluto", "cinema"};
         for (int i = 0; i < names.length; i++) if (names[i].equals(name)) return i;
         return -1;
     }

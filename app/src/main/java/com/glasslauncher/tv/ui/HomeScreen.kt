@@ -570,11 +570,14 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 Modifier.fillMaxSize().background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
             ) {
                 val onTop = screen != Screen.Title
-                Box(Modifier.fillMaxSize().padding(top = (48 * s).dp)) {
+                // Live TV's picture runs up behind the tabs; the others start under them.
+                Box(Modifier.fillMaxSize().padding(top = if (tabPage == Screen.LiveTv) 0.dp else (48 * s).dp)) {
                     if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
                     if (tabPage == Screen.LiveTv) LiveTvScreen(app, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
                     if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
                 }
+                // What scrolls up goes dark behind the tabs, so nothing reads through them.
+                if (onTop) Box(Modifier.fillMaxWidth().height((58 * s).dp).background(Brush.verticalGradient(0.72f to Ds.Bg, 1f to Color.Transparent)))
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp)) { to -> onScreen(to) }
             }
             if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
