@@ -89,8 +89,7 @@ internal fun QuickPanelView(onDismiss: () -> Unit) {
     }
     Dialog(onDismissRequest = onDismiss) {
         Column(
-            Modifier.width(560.dp).clip(RoundedCornerShape(18.dp)).background(Color(0xF0181820))
-                .border(0.8.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(18.dp)).padding(18.dp),
+            Modifier.width(560.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(18.dp),
         ) {
             Text("Quick settings", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             if (inputs.isNotEmpty()) {
@@ -148,10 +147,10 @@ private fun Chips(content: @Composable () -> Unit) {
 private fun Chip(text: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Text(
-        text, color = if (focused) Color.Black else Color.White, fontSize = 13.sp, fontWeight = if (focused || on) FontWeight.SemiBold else FontWeight.Normal,
+        text, color = if (focused) Ds.Ink else Color.White, fontSize = 13.sp, fontWeight = if (focused || on) FontWeight.SemiBold else FontWeight.Normal,
         maxLines = 1, softWrap = false,
         modifier = modifier.clip(RoundedCornerShape(50))
-            .background(when { focused -> Color.White.copy(alpha = 0.95f); on -> Color.White.copy(alpha = 0.22f); else -> Color.White.copy(alpha = 0.07f) })
+            .background(when { focused -> Color.White.copy(alpha = 0.95f); on -> Color.White.copy(alpha = 0.26f); else -> Ds.SurfaceHi })
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),

@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import com.glasslauncher.tv.ui.backGoesBack
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,7 +59,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            com.glasslauncher.tv.ui.GlassType(app.settings.accent, app.settings.textSize) { com.glasslauncher.tv.ui.QuietSemantics { HomeScreen(app, screen) { screen = it } } }
+            com.glasslauncher.tv.ui.GlassType(app.settings.accent, app.settings.textSize, app.settings.reduceMotion, app.settings.highContrast) { com.glasslauncher.tv.ui.QuietSemantics { androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.backGoesBack()) { HomeScreen(app, screen) { screen = it } } } }
             // Watch on Home and the kick-off alert: over everything, last.
             com.glasslauncher.tv.ui.MiniLiveWindow()
             com.glasslauncher.tv.ui.KickOffCard()
@@ -138,6 +139,9 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("theme")?.let { app.settings.applyTheme(it) }
         i?.getStringExtra("accent")?.let { if (com.glasslauncher.tv.ui.ACCENTS.any { a -> a.first == it }) app.settings.accent = it }
         i?.getStringExtra("text_size")?.let { if (com.glasslauncher.tv.ui.TEXT_SIZES.any { t -> t.first == it }) app.settings.textSize = it }
+        // Test only: the first run's welcome again.
+        if (i?.getBooleanExtra("show_whatsnew", false) == true) app.settings.seenVersion = ""
+        if (i?.getBooleanExtra("show_welcome", false) == true) com.glasslauncher.tv.ui.WelcomeTest.value = true
         i?.getStringExtra("ticker_test")?.let { com.glasslauncher.tv.ui.TickerTest.value = it }
         i?.getStringExtra("hero_hidden")?.let { if (it == "clear") app.settings.heroHidden = emptyList() }
         if (i?.hasExtra("season_month") == true) app.settings.seasonMonth = i.getIntExtra("season_month", 0)

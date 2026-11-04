@@ -92,6 +92,93 @@ if(navigator.mediaCapabilities){var d=navigator.mediaCapabilities.decodingInfo.b
 val trailersPlay by lazy { runCatching { WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT) }.getOrDefault(false) }
 
 /**
+ * Keeps a TV whose graphics driver or web view can't take trailers working: armed while one is on screen. Glassio coming
+ * back up still armed means it went down during one (a driver crash leaves nothing else to see); a web view renderer
+ * that dies counts too. Two in a row, with Trailers on Auto: no more trailers on this TV. One that plays well clears it.
+ */
+object TrailerGuard {
+    private fun sp(ctx: android.content.Context) = ctx.getSharedPreferences("glass_trailer", android.content.Context.MODE_PRIVATE)
+    /** Once, as Glassio starts. */
+    fun started(ctx: android.content.Context) {
+        val p = sp(ctx)
+        if (p.getBoolean("armed", false)) p.edit().putBoolean("armed", false).putInt("fails", p.getInt("fails", 0) + 1).apply()
+    }
+    fun arm(ctx: android.content.Context) { sp(ctx).edit().putBoolean("armed", true).apply() }
+    fun disarm(ctx: android.content.Context) { sp(ctx).edit().putBoolean("armed", false).apply() }
+    fun failed(ctx: android.content.Context) { sp(ctx).let { it.edit().putBoolean("armed", false).putInt("fails", it.getInt("fails", 0) + 1).apply() } }
+    fun playedWell(ctx: android.content.Context) { sp(ctx).edit().putInt("fails", 0).apply() }
+    fun tripped(ctx: android.content.Context) = sp(ctx).getInt("fails", 0) >= 2
+    /** Should trailers play? Settings › Home › Trailers: off, on (even after failures), or auto. */
+    fun allowed(ctx: android.content.Context, mode: String): Boolean {
+        if (!trailersPlay || mode == "off") return false
+        if (mode == "on") return true
+        val am = ctx.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+        return !tripped(ctx) && !am.isLowRamDevice
+    }
+}
+
+/** The web view with YouTube's page in it, [muted] or not, in the shape both players need. */
+@SuppressLint("SetJavaScriptEnabled")
+private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolean, onPlaying: () -> Unit, onWaiting: () -> Unit, onEnded: () -> Unit): WebView = WebView(ctx).apply {
+    val list = ids.split(',')
+    var at = 0
+    val mute = if (muted) 1 else 0
+    fun load() = loadUrl(
+        "https://www.youtube.com/embed/${list[at]}?autoplay=1&mute=$mute&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&rel=0&playsinline=1",
+        mapOf("Referer" to "https://glassio.tv/"),
+    )
+    // The whole screen (wrapping its content, YouTube's page sizes its player to a height of 0).
+    layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    setBackgroundColor(AColor.BLACK)
+    isFocusable = false; isFocusableInTouchMode = false
+    settings.javaScriptEnabled = true
+    settings.domStorageEnabled = true
+    settings.mediaPlaybackRequiresUserGesture = false
+    webChromeClient = WebChromeClient()
+    webViewClient = object : WebViewClient() {
+        override fun onPageFinished(view: WebView, url: String) {
+            if (url.contains("youtube.com/embed/")) view.evaluateJavascript(if (muted) WATCH else WATCH.replace("v.muted=true;", "v.muted=false;"), null)
+        }
+        // Its renderer gone (out of memory, a driver): this trailer is over, Glassio stays up. Unhandled, it takes the app down.
+        override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {
+            TrailerGuard.failed(view.context)
+            onEnded()
+            return true
+        }
+    }
+    WebViewCompat.addDocumentStartJavaScript(this, H264, setOf("https://www.youtube.com"))
+    val played = Handler(Looper.getMainLooper())
+    addJavascriptInterface(TrailerBridge({
+        onPlaying()
+        // Half a minute on screen without trouble: this TV takes trailers.
+        played.removeCallbacksAndMessages(null)
+        played.postDelayed({ TrailerGuard.playedWell(context) }, 30_000)
+    }, onEnded) {
+        at++
+        // The next one: the picture back over it while it loads (YouTube's loading screen never shows).
+        if (at < list.size) { onWaiting(); load() } else onEnded()
+    }, "Glassio")
+    TrailerGuard.arm(context)
+    load()
+}
+
+private fun releaseTrailer(v: WebView) {
+    TrailerGuard.disarm(v.context)
+    v.stopLoading(); v.loadUrl("about:blank"); v.destroy()
+}
+
+/** A trailer full screen with its sound (a title page's Trailer). Back, or its end, closes it. */
+@Composable
+fun TrailerPlayer(ids: String, onClose: () -> Unit) {
+    androidx.activity.compose.BackHandler { onClose() }
+    AndroidView(
+        factory = { ctx -> trailerView(ctx, ids, muted = false, onPlaying = {}, onWaiting = {}, onEnded = onClose) },
+        onRelease = { releaseTrailer(it) },
+        modifier = Modifier.fillMaxSize(),
+    )
+}
+
+/**
  * The trailer behind the big picture: YouTube's player page loaded as it is, muted and without its overlays, under the
  * same shades as the backdrops so the text stays readable. Drawn under the page's picture, which fades away once it
  * plays ([shown], 0 to 1): the video is the TV's own video plane, under the app, seen through the web view's hole (made
@@ -105,37 +192,8 @@ fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaitin
     key(ids) {
         Box(Modifier.fillMaxSize()) {
             AndroidView(
-                factory = { ctx ->
-                    WebView(ctx).apply {
-                        val list = ids.split(',')
-                        var at = 0
-                        fun load() = loadUrl(
-                            "https://www.youtube.com/embed/${list[at]}?autoplay=1&mute=1&controls=0&disablekb=1&fs=0&iv_load_policy=3&modestbranding=1&rel=0&playsinline=1",
-                            mapOf("Referer" to "https://glassio.tv/"),
-                        )
-                        // The whole screen (wrapping its content, YouTube's page sizes its player to a height of 0).
-                        layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
-                        setBackgroundColor(AColor.BLACK)
-                        isFocusable = false; isFocusableInTouchMode = false
-                        settings.javaScriptEnabled = true
-                        settings.domStorageEnabled = true
-                        settings.mediaPlaybackRequiresUserGesture = false
-                        webChromeClient = WebChromeClient()
-                        webViewClient = object : WebViewClient() {
-                            override fun onPageFinished(view: WebView, url: String) {
-                                if (url.contains("youtube.com/embed/")) view.evaluateJavascript(WATCH, null)
-                            }
-                        }
-                        WebViewCompat.addDocumentStartJavaScript(this, H264, setOf("https://www.youtube.com"))
-                        addJavascriptInterface(TrailerBridge(onPlaying, onEnded) {
-                            at++
-                            // The next one: the picture back over it while it loads (YouTube's loading screen never shows).
-                            if (at < list.size) { onWaiting(); load() } else onEnded()
-                        }, "Glassio")
-                        load()
-                    }
-                },
-                onRelease = { it.stopLoading(); it.loadUrl("about:blank"); it.destroy() },
+                factory = { ctx -> trailerView(ctx, ids, muted = true, onPlaying, onWaiting, onEnded) },
+                onRelease = { releaseTrailer(it) },
                 modifier = Modifier.fillMaxSize(),
             )
             // The backdrops' own shades (baked into them, so gone as they fade): dark at the left (the text) and the bottom.

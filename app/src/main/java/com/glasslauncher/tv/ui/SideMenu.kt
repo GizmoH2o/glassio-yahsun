@@ -82,7 +82,8 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
     var target by remember { mutableIntStateOf(0) }
     var current by remember { mutableIntStateOf(0) }
     val enter = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { enter.animateTo(1f, tween(260, easing = EASE)) }
+    val still = LocalReduceMotion.current
+    LaunchedEffect(Unit) { if (still) enter.snapTo(1f) else enter.animateTo(1f, tween(260, easing = EASE)) }
     var inside by remember { mutableStateOf(false) }
     // Take focus from the settings button (or wherever it is): retry until a row has it.
     LaunchedEffect(themes, bgPage, style) { inside = false; repeat(16) { delay(25); if (inside) return@LaunchedEffect; runCatching { reqs[target.coerceIn(0, reqs.lastIndex)].requestFocus() } } }
@@ -155,17 +156,16 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                             onClick = {
                                 target = i
                                 when {
-                                    key == "image" && st.bgImage.isBlank() -> toast(ctx, "Choose a picture first: Glassio settings › Clock & glass")
-                                    key == "video" && st.bgVideo.isBlank() -> toast(ctx, "Choose a video first: Glassio settings › Clock & glass")
+                                    key == "image" && st.bgImage.isBlank() -> toast(ctx, "Choose a picture first: Settings › Look & motion")
+                                    key == "video" && st.bgVideo.isBlank() -> toast(ctx, "Choose a video first: Settings › Look & motion")
                                     else -> st.bgMode = key
                                 }
                             })
                     }
                 } else if (!themes) {
                     val rows = buildList<Triple<String, String, () -> Unit>> {
-                        if (st.menuLive) add(Triple("live", "Live TV") { onLiveTv() })
+                        // Live TV and the Library are tabs now; here, what the tabs don't cover.
                         if (st.menuLive) add(Triple("following", "Following") { onFollowing() })
-                        if (st.menuLibrary) add(Triple("library", "Library") { onLibrary() })
                         add(Triple("sliders", "Glassio settings") { onSettings() })
                         if (st.menuAndroid) add(Triple("gear", "Android settings") { open(ctx, android.provider.Settings.ACTION_SETTINGS) })
                         if (st.menuWifi) add(Triple("wifi", "Wi-Fi") { open(ctx, android.provider.Settings.ACTION_WIFI_SETTINGS) })

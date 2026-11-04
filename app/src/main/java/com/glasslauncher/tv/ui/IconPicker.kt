@@ -416,7 +416,7 @@ private fun PickButton(text: String, s: Float, onClick: () -> Unit) {
 @Composable
 private fun PickTile(s: Float, label: String?, onClick: () -> Unit, content: @Composable () -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.1f else 1f, spring(0.72f, 520f), label = "pick")
+    val scale by animateFloatAsState(if (focused && !LocalReduceMotion.current) 1.1f else 1f, spring(0.72f, 520f), label = "pick")
     val shape = RoundedCornerShape((10 * s).dp)
     Column(
         Modifier.onFocusChanged { focused = it.isFocused }.tvPress(onClick = onClick),

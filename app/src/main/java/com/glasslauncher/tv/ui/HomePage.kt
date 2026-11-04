@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -52,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
@@ -90,8 +92,10 @@ import com.glasslauncher.tv.data.HeroPicks
 import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.LiveCards
 import com.glasslauncher.tv.data.NuvioLaunch
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 
 /** The page's left edge, as the big picture's text (dp at 960 wide). */
@@ -109,7 +113,7 @@ private val IMDB = Color(0xFFF5C518)
 internal val CARD = Color(0xFF1C1C1F)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, Movies, Series, Apps, Widgets }
+private enum class Part { Hero, Airing, Watch, Movies, Series, Trending, RecFilms, RecSeries, Apps, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -129,12 +133,31 @@ internal fun HomePage(
     onTrailer: (String?) -> Unit, trailerOver: Boolean,
     /** How far down the page is, 0 (the top) to 1: the top bar fades as it goes. */
     down: androidx.compose.runtime.MutableFloatState,
+    /** The tab bar's Home tab, where Up from the big picture goes (none in Kids mode). */
+    tabFocus: FocusRequester,
+    /** A title's page. */
+    onTitle: (HeroItem) -> Unit,
+    /** Goes up by one when Home's in front again after a title's page: the focus back where it was. */
+    restoreFocus: Int,
 ) {
     val settings = app.settings
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current.density
-    val catalogItems by app.catalogs.items.collectAsState()
+    val catalogTitles by app.catalogs.items.collectAsState()
+    // Recommendations (Settings › Home): for whoever has no Nuvio or Stremio account signed in, or always.
+    val recRows by app.recs.rows.collectAsState()
+    val recsOn = app.recs.on(app.library.nuvio.connected || app.library.stremio.connected)
+    LaunchedEffect(recsOn) { if (recsOn && recRows.trending.isEmpty()) withContext(Dispatchers.IO) { runCatching { app.recs.refresh() } } }
+    // The big picture: the catalogs' titles; none, what's trending; both when Always is chosen.
+    val catalogItems = remember(catalogTitles, recRows, recsOn, settings.recsMode) {
+        when {
+            !recsOn -> catalogTitles
+            catalogTitles.isEmpty() -> recRows.trending
+            settings.recsMode == "always" -> (catalogTitles + recRows.trending).distinctBy { it.key }
+            else -> catalogTitles
+        }
+    }
     val enriched by app.catalogs.enrichedItems.collectAsState()
     val status by app.catalogs.status.collectAsState()
     val cwItems by app.cw.items.collectAsState()
@@ -200,12 +223,20 @@ internal fun HomePage(
         readings.forEach { add("ha:" + it.id) }
     }
     val showWidgets = settings.widgetsRow && widgetKeys.isNotEmpty()
+    // The rows of recommendations (family titles only in Kids mode).
+    fun forKids(l: List<HeroItem>) = if (kids) l.filter { HeroPicks.isKids(it) } else l
+    val recTrending = if (recsOn) forKids(recRows.trending) else emptyList()
+    val recFilms = if (recsOn) forKids(recRows.films) else emptyList()
+    val recSeries = if (recsOn) forKids(recRows.series) else emptyList()
     val parts = buildList {
         add(Part.Hero)
         if (showAiring) add(Part.Airing)
         if (watchItems.isNotEmpty()) add(Part.Watch)
         if (showMovies) add(Part.Movies)
         if (showSeries) add(Part.Series)
+        if (recTrending.isNotEmpty()) add(Part.Trending)
+        if (recFilms.isNotEmpty()) add(Part.RecFilms)
+        if (recSeries.isNotEmpty()) add(Part.RecSeries)
         if (anyApps) add(Part.Apps)
         if (showWidgets) add(Part.Widgets)
     }
@@ -214,6 +245,16 @@ internal fun HomePage(
     fun above(p: Part) = req(parts.getOrNull(parts.indexOf(p) - 1) ?: Part.Hero)
     fun below(p: Part) = parts.getOrNull(parts.indexOf(p) + 1)?.let { req(it) } ?: FocusRequester.Cancel
     var inPart by remember { mutableStateOf(Part.Hero) }
+    // Back from a title's page: where it was opened from.
+    var titleFromPart by remember { mutableStateOf(Part.Hero) }
+    val heroMore = remember { FocusRequester() }
+    var fromMore by remember { mutableStateOf(false) }
+    val toTitle: (HeroItem) -> Unit = { item -> titleFromPart = inPart; onTitle(item) }
+    /** OK on a card: its page, or straight to playing (Settings › Home › OK on a card); with no player app, always its page. */
+    val openCard: (HeroItem) -> Unit = { item ->
+        if (settings.cardOk == "play" && NuvioLaunch.playable(ctx, settings)) NuvioLaunch.open(ctx, settings, app.http, item) else toTitle(item)
+    }
+    LaunchedEffect(restoreFocus) { if (restoreFocus > 0) { delay(60); inPart = titleFromPart; runCatching { (if (fromMore) heroMore else req(titleFromPart)).requestFocus() }; fromMore = false } }
     // The row with the focus went (its last card taken out, a row turned off): the focus to the row below, else the
     // big picture, not lost.
     val partsNow = parts
@@ -276,7 +317,7 @@ internal fun HomePage(
     }
     // Its trailer (Settings › Home › Trailers): after a few seconds on the big picture with a title, behind it; any
     // move (another title, a row, another screen) stops it.
-    val restingOn = textItem?.takeIf { settings.heroTrailers && trailersPlay && inPart == Part.Hero && visible && !paused && resumed }
+    val restingOn = textItem?.takeIf { TrailerGuard.allowed(ctx, settings.trailerMode) && inPart == Part.Hero && visible && !paused && resumed }
     var trailerOn by remember { mutableStateOf(false) }
     LaunchedEffect(restingOn?.key) {
         onTrailer(null); trailerOn = false
@@ -313,6 +354,7 @@ internal fun HomePage(
     val appRows = remember { mutableStateMapOf<Int, Pair<Float, Float>>() }
     var appRow by remember { mutableIntStateOf(0) }
     val offset = remember { Animatable(0f) }
+    val reduceMotion = LocalReduceMotion.current
     val screenPx = screenH * density
     val spot = if (inPart == Part.Apps && appRow > 0) appRows[appRow] else tops[inPart]?.let { t ->
         // The apps' first row: from the "Apps" title to that row's bottom.
@@ -324,7 +366,7 @@ internal fun HomePage(
         // a row taller than the screen from its top.
         val margin = 26 * s * density
         val target = if (inPart == Part.Hero) 0f else minOf(bottom - screenPx + margin, top - 70 * s * density).coerceAtLeast(0f)
-        offset.animateTo(target, tween(420, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
+        if (reduceMotion) offset.snapTo(target) else offset.animateTo(target, tween(420, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
     }
     val heroH = screenH * 0.66f
     LaunchedEffect(Unit) { androidx.compose.runtime.snapshotFlow { offset.value }.collect { down.floatValue = (it / (40 * s * density)).coerceIn(0f, 1f) } }
@@ -353,10 +395,14 @@ internal fun HomePage(
                     if (shown != null && !app.showSetup.value) {
                         HeroText(app, shown, s, savedList.any { it.key == shown.key }, heroFocus,
                             down = parts.getOrNull(1)?.let { req(it) } ?: FocusRequester.Cancel,
+                            up = if (kids) FocusRequester.Default else tabFocus,
                             onFocus = { f -> if (f) { inPart = Part.Hero; selected = null }; onHeroFocus(f) },
                             onPrev = { app.navAt = System.currentTimeMillis(); SlideDir.dir = -1; index-- },
                             onNext = { app.navAt = System.currentTimeMillis(); SlideDir.dir = 1; index++ },
-                            onPlay = { NuvioLaunch.open(ctx, settings, app.http, shown) },
+                            moreFocus = heroMore,
+                            onMore = { fromMore = true; toTitle(shown) },
+                            // No app that plays titles on this TV: its page (its trailer, any streaming app it's on).
+                            onPlay = { if (NuvioLaunch.playable(ctx, settings)) NuvioLaunch.open(ctx, settings, app.http, shown) else toTitle(shown) },
                             onSave = {
                                 val now = app.library.toggle(shown)
                                 toast(ctx, if (now) "Saved to Library · ${shown.name}" else "Removed from Library · ${shown.name}")
@@ -420,7 +466,7 @@ internal fun HomePage(
                 if (showAiring) section(Part.Airing, "Airing this week", "New episodes of shows in your library") {
                     CardRow(s, req(Part.Airing), above(Part.Airing), below(Part.Airing), airing.map { it.item.key + ":" + it.episode.season + ":" + it.episode.episode }) { i, mod ->
                         val a = airing[i]
-                        AiringCard(a, s, mod, onFocused = { selected = a.item }, onOpen = { NuvioLaunch.open(ctx, settings, app.http, a.item) },
+                        AiringCard(a, s, mod, onFocused = { selected = a.item }, onOpen = { openCard(a.item) },
                             onHold = { onDialog(titleMenu(app, ctx, a.item)) })
                     }
                 }
@@ -429,7 +475,7 @@ internal fun HomePage(
                     CardRow(s, req(Part.Watch), above(Part.Watch), below(Part.Watch), watchItems.map { it.key }) { i, mod ->
                         val item = watchItems[i]
                         WatchCard(item, newEps[item.key] ?: 0, s, mod, onFocused = { selected = if (LiveCards.isLive(item)) null else item },
-                            onOpen = { if (LiveCards.isLive(item)) LiveCards.open(ctx, item) else NuvioLaunch.open(ctx, settings, app.http, item) },
+                            onOpen = { if (LiveCards.isLive(item)) LiveCards.open(ctx, item) else openCard(item) },
                             onHold = { watchMenu(app, ctx, scope, item, onDialog) })
                     }
                 }
@@ -440,13 +486,24 @@ internal fun HomePage(
                         else {
                             val item = list[i]
                             PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item },
-                                onOpen = { NuvioLaunch.open(ctx, settings, app.http, item) },
+                                onOpen = { openCard(item) },
                                 onHold = { if (!kids) onDialog(titleMenu(app, ctx, item)) })
                         }
                     }
                 }
                 if (showMovies) posters(Part.Movies, "Movies in your library", kidsMovies)
                 if (showSeries) posters(Part.Series, "Series in your library", kidsSeries)
+                // ── recommendations
+                @Composable fun recs(part: Part, title: String, list: List<HeroItem>) = section(part, title) {
+                    CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
+                        val item = list[i]
+                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item }, onOpen = { openCard(item) },
+                            onHold = { if (!kids) onDialog(titleMenu(app, ctx, item)) })
+                    }
+                }
+                if (recTrending.isNotEmpty()) recs(Part.Trending, "Trending now", recTrending)
+                if (recFilms.isNotEmpty()) recs(Part.RecFilms, "Popular films", recFilms)
+                if (recSeries.isNotEmpty()) recs(Part.RecSeries, "Popular series", recSeries)
                 // ── apps (Kids mode: only with apps chosen for it)
                 if (anyApps) section(Part.Apps, "Apps") {
                     AppsGrid(app, s, settings.appsPerRow, appsFocus, above(Part.Apps), below(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu,
@@ -531,8 +588,8 @@ private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: F
 
 @Composable
 private fun HeroText(
-    app: GlassApp, item: HeroItem, s: Float, saved: Boolean, heroFocus: FocusRequester, down: FocusRequester,
-    onFocus: (Boolean) -> Unit, onPrev: () -> Unit, onNext: () -> Unit, onPlay: () -> Unit, onSave: () -> Unit, onArt: () -> Unit,
+    app: GlassApp, item: HeroItem, s: Float, saved: Boolean, heroFocus: FocusRequester, down: FocusRequester, up: FocusRequester,
+    onFocus: (Boolean) -> Unit, onPrev: () -> Unit, onNext: () -> Unit, moreFocus: FocusRequester, onMore: () -> Unit, onPlay: () -> Unit, onSave: () -> Unit, onArt: () -> Unit,
     /** Why it's here ("Because you watched …"), after the kind line; null for none. */
     reason: String?,
     modifier: Modifier,
@@ -543,8 +600,11 @@ private fun HeroText(
     var onPlayBtn by remember { mutableStateOf(false) }
     var onSaveBtn by remember { mutableStateOf(false) }
     var onSvc by remember { mutableStateOf(false) }
-    LaunchedEffect(onPlayBtn || onSaveBtn || onSvc) { onFocus(onPlayBtn || onSaveBtn || onSvc) }
-    Column(modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp).width((330 * s).dp)) {
+    var onMoreHeld by remember { mutableStateOf(false) }
+    LaunchedEffect(onPlayBtn || onSaveBtn || onSvc || onMoreHeld) { onFocus(onPlayBtn || onSaveBtn || onSvc || onMoreHeld) }
+    // High contrast: a solid panel behind the words, whatever the picture is.
+    val backing = if (LocalHighContrast.current) Modifier.clip(RoundedCornerShape((Ds.R_PANEL * s).dp)).background(Color.Black.copy(alpha = 0.78f)).padding((8 * s).dp) else Modifier
+    Column(modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp).width((330 * s).dp).then(backing)) {
         AnimatedContent(
             targetState = item, contentKey = { it.key },
             transitionSpec = { fadeIn(tween(settings.transitionMs)) togetherWith fadeOut(tween((settings.transitionMs * 0.4f).toInt())) },
@@ -591,28 +651,35 @@ private fun HeroText(
             value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { StreamLinks.forTitle(ctx, app.http, item.id, item.name, item.platform).firstOrNull() }.getOrNull() }
         }
         val svcFocus = remember { FocusRequester() }
+        var onMoreBtn by remember { mutableStateOf(false) }
+        LaunchedEffect(onMoreBtn) { onMoreHeld = onMoreBtn }
         var onSvcBtn by remember { mutableStateOf(false) }
         LaunchedEffect(onSvcBtn) { onSvc = onSvcBtn }
         // Play, then the title in its streaming app, and + to save it to your Library (✓ once it's there). ◀ on Play
         // and ▶ on + change the title.
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.wrapContentWidth(unbounded = true, align = Alignment.Start), verticalAlignment = Alignment.CenterVertically) {
             val svc = link
             HeroButton("Play", true, s, onPlayBtn,
-                Modifier.focusRequester(heroFocus).focusProperties { this.down = down; right = if (svc != null) svcFocus else saveFocus }
+                Modifier.focusRequester(heroFocus).focusProperties { this.down = down; this.up = up; right = moreFocus }
                     .onFocusChanged { onPlayBtn = it.isFocused }
                     .tvPress(onLong = onArt, onKey = { ev -> if (ev.key == Key.DirectionLeft && ev.type == KeyEventType.KeyDown) { onPrev(); true } else back(ev) }, onClick = onPlay))
+            Spacer(Modifier.width((8 * s).dp))
+            HeroButton("More info", false, s, onMoreBtn,
+                Modifier.focusRequester(moreFocus).focusProperties { this.down = down; this.up = up; left = heroFocus; right = if (svc != null) svcFocus else saveFocus }
+                    .onFocusChanged { onMoreBtn = it.isFocused }
+                    .tvPress(onKey = back, onClick = onMore), info = true)
             if (svc != null) {
                 Spacer(Modifier.width((8 * s).dp))
                 HeroButton(svc.service, false, s, onSvcBtn,
-                    Modifier.focusRequester(svcFocus).focusProperties { this.down = down; left = heroFocus; right = saveFocus }
+                    Modifier.focusRequester(svcFocus).focusProperties { this.down = down; this.up = up; left = moreFocus; right = saveFocus }
                         .onFocusChanged { onSvcBtn = it.isFocused }
                         .tvPress(onKey = back, onClick = {
                             runCatching { ctx.startActivity(svc.intent()) }.onFailure { toast(ctx, "${svc.service} couldn't open it") }
-                        }))
+                        }), info = true)
             }
             Spacer(Modifier.width((8 * s).dp))
             HeroButton(if (saved) "In Library" else "My Library", false, s, onSaveBtn,
-                Modifier.focusRequester(saveFocus).focusProperties { this.down = down; left = if (svc != null) svcFocus else heroFocus }
+                Modifier.focusRequester(saveFocus).focusProperties { this.down = down; this.up = up; left = if (svc != null) svcFocus else moreFocus }
                     .onFocusChanged { onSaveBtn = it.isFocused }
                     .tvPress(onKey = { ev -> if (ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown) { onNext(); true } else back(ev) }, onClick = onSave),
                 saved = saved)
@@ -622,20 +689,21 @@ private fun HeroText(
 
 /** Play (white, with its triangle) or + My Library (grey, ✓ when saved); the selected one grows and lights up. */
 @Composable
-private fun HeroButton(label: String, play: Boolean, s: Float, focused: Boolean, modifier: Modifier, saved: Boolean = false) {
-    val sc by animateFloatAsState(if (focused) 1.07f else 1f, spring(0.7f, 700f), label = "heroBtn")
+private fun HeroButton(label: String, play: Boolean, s: Float, focused: Boolean, modifier: Modifier, saved: Boolean = false, info: Boolean = false) {
+    val sc = liftOf(focused, 1.06f)
     val bg = when {
         focused -> Color.White
         play -> Color.White.copy(alpha = 0.88f)
-        else -> Color(0xFF6D6D6E).copy(alpha = 0.7f)
+        else -> Ds.Glass
     }
-    val fg = if (focused || play) Color.Black else Color.White
+    val fg = if (focused || play) Ds.Ink else Color.White
     Row(
-        modifier.graphicsLayer { scaleX = sc; scaleY = sc }.clip(RoundedCornerShape((4 * s).dp)).background(bg)
-            .padding(horizontal = (12 * s).dp, vertical = (5.5f * s).dp),
+        modifier.graphicsLayer { scaleX = sc; scaleY = sc }.clip(RoundedCornerShape((Ds.R_CONTROL * s).dp)).background(bg)
+            .padding(horizontal = (13 * s).dp, vertical = (7f * s).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (play) PlayGlyph(Modifier.size((8.5f * s).dp), fg)
+        else if (info) Spacer(Modifier.width(0.dp))
         else Canvas(Modifier.size((9 * s).dp)) {
             val w = size.width; val h = size.height
             val st = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.14f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
@@ -644,8 +712,8 @@ private fun HeroButton(label: String, play: Boolean, s: Float, focused: Boolean,
             else { p.moveTo(w * 0.5f, h * 0.1f); p.lineTo(w * 0.5f, h * 0.9f); p.moveTo(w * 0.1f, h * 0.5f); p.lineTo(w * 0.9f, h * 0.5f) }
             drawPath(p, fg, style = st)
         }
-        Spacer(Modifier.width((6 * s).dp))
-        Text(label, color = fg, fontSize = (10 * s).sp, fontWeight = FontWeight.SemiBold)
+        if (!info) Spacer(Modifier.width((6 * s).dp))
+        Text(label, color = fg, fontSize = (11 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, softWrap = false)
     }
 }
 
@@ -665,7 +733,7 @@ private fun Dashes(total: Int, current: Int, s: Float, modifier: Modifier) {
 
 /** IMDb's yellow tag, then the rating. */
 @Composable
-private fun ImdbBadge(rating: String, s: Float, small: Boolean = false) {
+internal fun ImdbBadge(rating: String, s: Float, small: Boolean = false) {
     val f = if (small) 0.8f else 1f
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text("IMDb", color = Color.Black, fontSize = (6.5f * s * f).sp, fontWeight = FontWeight.Black,
@@ -694,11 +762,14 @@ internal fun backKey(): (KeyEvent) -> Boolean {
 
 /** A card's selected look: it grows a little and gets a white outline. */
 @Composable
-internal fun Modifier.cardFocus(s: Float, focused: Boolean, radius: Float = 6f, grow: Float = 1.06f): Modifier {
-    val sc by animateFloatAsState(if (focused) grow else 1f, spring(0.75f, 600f), label = "cardScale")
+internal fun Modifier.cardFocus(s: Float, focused: Boolean, radius: Float = Ds.R_CARD, grow: Float = 1.07f): Modifier {
+    val sc = liftOf(focused, grow)
     val shape = RoundedCornerShape((radius * s).dp)
+    val strong = LocalHighContrast.current
     return this.zIndex(if (focused) 1f else 0f).graphicsLayer { scaleX = sc; scaleY = sc }
-        .border(if (focused) (1.6f * s).dp else 0.dp, if (focused) Color.White else Color.Transparent, shape).clip(shape)
+        // The soft shadow under what's selected (one picture, drawn only for it): lifted off the page, like tvOS.
+        .then(if (focused) Modifier.drawBehind { drawCardShadow() } else Modifier)
+        .border(if (focused) ((if (strong) 3f else 1.8f) * s).dp else 0.dp, if (focused) Color.White else Color.Transparent, shape).clip(shape)
 }
 
 private fun req(ctx: android.content.Context, url: String, w: Int, h: Int) = ImageRequest.Builder(ctx).data(url).size(w, h).build()
@@ -898,7 +969,7 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         delay(650)
         open = true
     }
-    val w by animateDpAsState(((if (open) POSTER_W * OPEN_W else POSTER_W) * s).dp, tween(260, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "posterW")
+    val w by animateDpAsState(((if (open) POSTER_W * OPEN_W else POSTER_W) * s).dp, tween(if (LocalReduceMotion.current) 0 else 260, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "posterW")
     val h = (POSTER_W * 1.5f * s).dp
     Box(
         modifier.width(w).height(h)

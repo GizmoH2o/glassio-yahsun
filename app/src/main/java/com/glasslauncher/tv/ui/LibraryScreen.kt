@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -68,7 +69,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
+fun LibraryScreen(app: GlassApp, active: Boolean = true, onTitle: (HeroItem) -> Unit, onClose: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     val st = app.settings
@@ -103,13 +104,13 @@ fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
     val shown = tab?.items.orEmpty()
     val hasAny = tabs.any { it.items.isNotEmpty() }
     LaunchedEffect(hasAny) { if (hasAny) { delay(60); runCatching { first.requestFocus() } } }
+    // Back from a title's page: on the poster it came from.
+    var lastKey by remember { mutableStateOf<String?>(null) }
+    val lastFocus = remember { FocusRequester() }
+    var wasActive by remember { mutableStateOf(active) }
+    LaunchedEffect(active) { if (active && !wasActive) { delay(60); runCatching { lastFocus.requestFocus() } }; wasActive = active }
 
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Color(0xFF26262B))) {
-        // The grey page is painted once into a picture with dithering: a gradient drawn live on the TV showed bands.
-        val density = androidx.compose.ui.platform.LocalDensity.current
-        val bw = with(density) { maxWidth.roundToPx() }; val bh = with(density) { maxHeight.roundToPx() }
-        val bg = remember(bw, bh) { greyPage(bw, bh) }
-        androidx.compose.foundation.Image(bg, null, Modifier.fillMaxSize(), contentScale = ContentScale.FillBounds)
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
         // TV scrolling: the selected row always sits at the same height. Moving left / right inside a row never
         // scrolls (the default "just bring it into view" nudged the page up and down with every poster).
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides PivotScroll) {
@@ -143,8 +144,9 @@ fun LibraryScreen(app: GlassApp, onClose: () -> Unit) {
                     Text("Nothing in this list yet.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
                 }
                 itemsIndexed(shown, key = { _, it -> tab.key + ":" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, if (i == 0) Modifier.focusRequester(first) else Modifier,
-                        onOpen = { NuvioLaunch.open(ctx, st, app.http, it) },
+                    Poster(it, s, st.libraryTitles, (if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
+                        onFocused = { lastKey = it.key },
+                        onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })
                 }
             }
@@ -169,12 +171,12 @@ private fun TabPill(label: String, selected: Boolean, first: Boolean, last: Bool
                 e.type == KeyEventType.KeyDown && (first && e.key == Key.DirectionLeft || last && e.key == Key.DirectionRight)
             }
             .clip(RoundedCornerShape(50))
-            .background(when { focused -> Color.White; selected -> Color.White.copy(alpha = 0.18f); else -> Color.Transparent })
+            .background(when { focused -> Color.White; selected -> Ds.Glass; else -> Color.Transparent })
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .focusable()
             .padding(horizontal = (16 * s).dp, vertical = (6 * s).dp),
     ) {
-        Text(label, color = if (focused) Color(0xFF1C1C1E) else Color.White.copy(alpha = if (selected) 1f else 0.6f),
+        Text(label, color = if (focused) Ds.Ink else if (selected) Color.White else Text2,
             fontSize = (12 * s).sp, fontWeight = if (selected || focused) FontWeight.SemiBold else FontWeight.Medium)
     }
 }
@@ -197,11 +199,11 @@ private fun Section(title: String, s: Float) {
 }
 
 @Composable
-private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier, onOpen: () -> Unit, onRemove: () -> Unit) {
+private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier, onFocused: () -> Unit = {}, onOpen: () -> Unit, onRemove: () -> Unit) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     // No overshoot: a bouncy grow made the posters wobble while you moved along a row.
-    val k by animateFloatAsState(if (focused) 1.07f else 1f, androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "poster")
+    val k by animateFloatAsState(if (focused && !LocalReduceMotion.current) 1.07f else 1f, androidx.compose.animation.core.tween(160, easing = androidx.compose.animation.core.FastOutSlowInEasing), label = "poster")
     val shape = RoundedCornerShape((10 * s).dp)
     val req = remember(item.poster) {
         ImageRequest.Builder(ctx).data(sharpPoster(item.poster).ifBlank { item.background }).size((180 * s * 2f).toInt(), (270 * s * 2f).toInt()).build()
@@ -218,8 +220,9 @@ private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier
                         alpha = if (focused) 0.75f else 0.45f, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
                 }
                 .clip(shape)
-                .background(Color(0xFF4A4A50))
-                .onFocusChanged { focused = it.isFocused }
+                .background(Ds.Surface)
+                .border(if (focused) (1.8f * s).dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
+                .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
                 .tvPress(onLong = onRemove, onKey = { ev ->
                     if (ev.key == Key.Menu) { if (ev.type == KeyEventType.KeyDown) onRemove(); true } else false
                 }, onClick = onOpen),
@@ -234,15 +237,14 @@ private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier
     }
 }
 
-/** The Library's grey page: a soft vertical gradient, dithered so the TV shows no steps. */
-private fun greyPage(w: Int, h: Int): ImageBitmap {
-    val b = android.graphics.Bitmap.createBitmap(w.coerceAtLeast(1), h.coerceAtLeast(1), android.graphics.Bitmap.Config.ARGB_8888)
-    val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
-    p.shader = android.graphics.LinearGradient(0f, 0f, w * 0.25f, h.toFloat(),
-        intArrayOf(0xFF3B3B41.toInt(), 0xFF2B2B30.toInt(), 0xFF1E1E22.toInt()), floatArrayOf(0f, 0.55f, 1f), android.graphics.Shader.TileMode.CLAMP)
-    android.graphics.Canvas(b).drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
-    b.setHasAlpha(false)
-    return b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap()
+
+/** The soft shadow under a selected card: the one blurred picture below, scaled to it. */
+internal fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCardShadow() {
+    val sh = PosterShadow.get()
+    val pad = size.minDimension * PosterShadow.PAD
+    drawImage(sh, dstOffset = androidx.compose.ui.unit.IntOffset((-pad).toInt(), (-pad + size.height * 0.05f).toInt()),
+        dstSize = androidx.compose.ui.unit.IntSize((size.width + 2 * pad).toInt(), (size.height + 2 * pad).toInt()),
+        alpha = 0.8f, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
 }
 
 /** One blurred rounded shape, drawn behind every poster (scaled), for a light, soft shadow. */

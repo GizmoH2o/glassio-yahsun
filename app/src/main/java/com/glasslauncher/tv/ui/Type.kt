@@ -46,12 +46,14 @@ val TEXT_SIZES = listOf("small" to ("Small" to 0.9f), "normal" to ("Normal" to 1
  * [textSize] of TEXT_SIZES): every sp of the screens inside grows or shrinks by it.
  */
 @Composable
-fun GlassType(accent: String = "red", textSize: String = "normal", content: @Composable () -> Unit) {
+fun GlassType(accent: String = "red", textSize: String = "normal", reduceMotion: Boolean = false, highContrast: Boolean = false, content: @Composable () -> Unit) {
     val color = androidx.compose.ui.graphics.Color((ACCENTS.firstOrNull { it.first == accent } ?: ACCENTS[0]).second.second)
     val scale = (TEXT_SIZES.firstOrNull { it.first == textSize } ?: TEXT_SIZES[1]).second.second
     val d = androidx.compose.ui.platform.LocalDensity.current
     CompositionLocalProvider(
         LocalAccent provides color,
+        LocalReduceMotion provides reduceMotion,
+        LocalHighContrast provides highContrast,
         androidx.compose.ui.platform.LocalDensity provides androidx.compose.ui.unit.Density(d.density, d.fontScale * scale),
         LocalTextStyle provides LocalTextStyle.current.copy(
             fontFamily = Inter,

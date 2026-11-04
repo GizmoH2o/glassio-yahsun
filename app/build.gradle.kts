@@ -22,11 +22,12 @@ android {
         resValue("string", "live_search_authority", "$applicationId.live.search")
         minSdk = 28
         targetSdk = 35
-        versionCode = 39
-        versionName = "2.5.0"
+        versionCode = 40
+        versionName = "3.0.0"
         // Trakt app (PKCE, no secret).
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"${localProps.getProperty("TRAKT_CLIENT_ID", "")}\"")
         buildConfigField("String", "NUVIO_ANON_KEY", "\"${localProps.getProperty("NUVIO_ANON_KEY", "")}\"")
+        buildConfigField("String", "TMDB_READ_TOKEN", "\"${localProps.getProperty("TMDB_READ_TOKEN", "")}\"")
     }
     // Glassio Yahsun's release key (RELEASE_STORE_FILE and the rest in local.properties). Without it, a release build
     // is signed with the local debug key instead: fine to try, but it won't update a published release
@@ -95,4 +96,13 @@ dependencies {
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     // The backup's lock, checked on the computer: ./gradlew testReleaseUnitTest (tools/release.sh runs it).
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20240303")
 }
+
+// The changelog goes into the app, for What's new after an update.
+val copyChangelog by tasks.registering(Copy::class) {
+    from(rootProject.file("CHANGELOG.md"))
+    into(layout.buildDirectory.dir("generated/changelog"))
+}
+android.sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("generated/changelog"))
+tasks.named("preBuild") { dependsOn(copyChangelog) }

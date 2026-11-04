@@ -847,6 +847,31 @@ public final class LiveHome {
         return out;
     }
 
+    /**
+     * Channels whose name has all of `words` in it, from the list kept on the TV, favourites first, with what's on now;
+     * locked groups left out. Empty before Live TV is set up.
+     */
+    public static List<Airing> findChannels(Context c, String words, int max) {
+        List<Airing> out = new ArrayList<>();
+        if (!Xtream.ready(c)) return out;
+        Xtream.Lineup l = Xtream.saved(c);
+        if (l == null) return out;
+        String[] parts = Xtream.fold(words).trim().split("\\s+");
+        long now = System.currentTimeMillis();
+        List<Xtream.Channel> order = new ArrayList<>(Xtream.favorites(c));
+        order.addAll(l.all());
+        Set<Integer> seen = new HashSet<>();
+        for (Xtream.Channel ch : order) {
+            if (out.size() >= max) break;
+            if (ch.name == null || !seen.add(ch.id) || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
+            String name = Xtream.fold(ch.name);
+            boolean all = true;
+            for (String p : parts) if (!name.contains(p)) { all = false; break; }
+            if (all) out.add(airing(c, ch, onNow(c, ch, now)));
+        }
+        return out;
+    }
+
     /** Sports live now (read apart from the page: it searches the whole guide once for each sport). */
     public static List<Airing> sportsNow(Context c) {
         List<Airing> out = new ArrayList<>();

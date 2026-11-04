@@ -87,6 +87,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     lateinit var library: com.glasslauncher.tv.data.Library; private set
     /** The home screen's library rows: Airing this week, Movies, Series, and Continue Watching's new episodes. */
     lateinit var shelf: com.glasslauncher.tv.data.HomeShelf; private set
+    lateinit var recs: com.glasslauncher.tv.data.Recs
     lateinit var profiles: com.glasslauncher.tv.data.HomeProfiles; private set
 
     override fun onCreate() {
@@ -123,11 +124,13 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         library.onStremioConnected = { cw.syncStremioNow() }
         shelf = com.glasslauncher.tv.data.HomeShelf(settings, http, library, cw, scope).also { it.start() }
         updater = com.glasslauncher.tv.data.Updater(this, scope).also { it.start() }
+        recs = com.glasslauncher.tv.data.Recs(settings, http).also { r -> r.start(scope) { library.nuvio.connected || library.stremio.connected } }
         // If Glass was closed while the TV screensaver was being started, put the screen timeout back.
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()
         icons.importDropFolder(apps.apps.value.map { it.pkg })
         com.glasslauncher.tv.net.PhoneRemote.apply(this)     // the phone remote, when it's on
         ensureHomeService()
+        com.glasslauncher.tv.ui.TrailerGuard.started(this)
         // TCL: a restart (Open Glassio when the TV starts) and Live TV's alarms reach Glassio only once it may auto-start.
         if (BootReceiver.TCL && (settings.bootGlassio || com.glasslauncher.tv.live.LiveHome.ready(this)))
             Thread({ runCatching { Thread.sleep(15_000); BootReceiver.allowAutoStart(this) } }, "tcl-autostart").apply { isDaemon = true }.start()

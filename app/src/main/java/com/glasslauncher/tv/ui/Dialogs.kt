@@ -5,6 +5,10 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import androidx.compose.foundation.background
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -65,6 +69,38 @@ fun DialogHost(state: DialogState?, onDismiss: () -> Unit) {
             is MenuDialog -> MenuDialogView(state, onDismiss)
             is QrCodeDialog -> QrCodeDialogView(state, onDismiss)
             QuickPanelState -> QuickPanelView(onDismiss)
+            is WhatsNew -> WhatsNewView(state, onDismiss)
+        }
+    }
+}
+
+/** What's new after an update: the changelog's section for this version. */
+class WhatsNew(val version: String, val lines: List<com.glasslauncher.tv.data.Changelog.Line>) : DialogState
+
+@Composable
+private fun WhatsNewView(d: WhatsNew, onDismiss: () -> Unit) {
+    val fr = remember { FocusRequester() }
+    val scroll = androidx.compose.foundation.rememberScrollState()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        DialogSurface(width = 560) {
+            Text("What's new in ${d.version}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Column(Modifier.height(300.dp).verticalScroll(scroll)) {
+                d.lines.forEachIndexed { i, l ->
+                    Text(l.text, color = if (l.heading) Color.White else Color(0xFFD0D0D4), fontSize = if (l.heading) 13.sp else 12.sp,
+                        fontWeight = if (l.heading) FontWeight.Bold else FontWeight.Medium,
+                        modifier = Modifier.padding(top = if (l.heading && i > 0) 10.dp else 3.dp))
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            // Close keeps the focus; Up and Down scroll the text.
+            DialogButton("Close", Modifier.focusRequester(fr).onPreviewKeyEvent { ev ->
+                val by = when (ev.nativeKeyEvent.keyCode) { android.view.KeyEvent.KEYCODE_DPAD_DOWN -> 220f; android.view.KeyEvent.KEYCODE_DPAD_UP -> -220f; else -> 0f }
+                if (by != 0f && ev.type == KeyEventType.KeyDown) scope.launch { scroll.animateScrollBy(by) }
+                by != 0f
+            }, onClick = onDismiss)
+            LaunchedEffect(Unit) { delay(60); runCatching { fr.requestFocus() } }
         }
     }
 }
@@ -72,8 +108,7 @@ fun DialogHost(state: DialogState?, onDismiss: () -> Unit) {
 @Composable
 private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(
-        modifier.width(width.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xF0181820))
-            .border(0.8.dp, Color.White.copy(alpha = 0.22f), RoundedCornerShape(16.dp)).padding(14.dp),
+        modifier.width(width.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(14.dp),
     ) { content() }
 }
 
@@ -81,10 +116,9 @@ private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, conte
 private fun DialogButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Text(
-        text, color = if (focused) Color.Black else Color.White, fontSize = 13.sp,
-        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Normal,
+        text, color = if (focused) Ds.Ink else Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
         modifier = modifier.clip(RoundedCornerShape(9.dp))
-            .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.06f))
+            .background(if (focused) Color.White else Ds.SurfaceHi)
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
@@ -95,6 +129,8 @@ private fun DialogButton(text: String, modifier: Modifier = Modifier, onClick: (
 private fun TextEntryDialog(d: TextEntry, onDismiss: () -> Unit) {
     var text by remember { mutableStateOf(d.initial) }
     val fr = remember { FocusRequester() }
+    val saveFocus = remember { FocusRequester() }
+    var boxFocused by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
         DialogSurface {
             Text(d.title, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Medium)
@@ -108,12 +144,18 @@ private fun TextEntryDialog(d: TextEntry, onDismiss: () -> Unit) {
                     keyboardType = if (d.secret) androidx.compose.ui.text.input.KeyboardType.Password else androidx.compose.ui.text.input.KeyboardType.Text),
                 visualTransformation = if (d.secret) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
                 keyboardActions = KeyboardActions(onDone = { d.onDone(text); onDismiss() }),
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .background(Color.White.copy(alpha = 0.10f)).padding(10.dp).focusRequester(fr),
+                // Selected: an outline, so you can see where you are with the keyboard closed. Down: straight to Save (a text
+                // box keeps the arrows otherwise, and Save couldn't be reached with the remote).
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(9.dp))
+                    .background(Ds.SurfaceHi).border(if (boxFocused) 2.dp else 0.dp, if (boxFocused) Color.White else Color.Transparent, RoundedCornerShape(9.dp))
+                    .padding(10.dp).focusRequester(fr).onFocusChanged { boxFocused = it.isFocused }
+                    .onPreviewKeyEvent { ev ->
+                        if (ev.nativeKeyEvent.keyCode == android.view.KeyEvent.KEYCODE_DPAD_DOWN) { if (ev.type == KeyEventType.KeyDown) runCatching { saveFocus.requestFocus() }; true } else false
+                    },
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DialogButton("Save") { d.onDone(text); onDismiss() }
+                DialogButton("Save", Modifier.focusRequester(saveFocus)) { d.onDone(text); onDismiss() }
                 DialogButton("Cancel", onClick = onDismiss)
             }
         }

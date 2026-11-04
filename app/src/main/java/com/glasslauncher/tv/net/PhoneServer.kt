@@ -299,6 +299,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             val n = com.glasslauncher.tv.data.HomeWidgets.all(st.haBase, st.haToken).size
             "Home Assistant works: $n entities. Choose which show on Home in Settings › Home › Home Assistant readings"
         }
+        "/api/report" -> com.glasslauncher.tv.data.ProblemReport.build(app, app.updater.current)
         "/api/aerial/add" -> {
             val u = j.optString("url").trim()
             require(u.startsWith("http")) { "The link must start with http" }
@@ -383,6 +384,7 @@ button.s{background:#232a40;color:#eef1fb;padding:8px 12px;font-size:13px;margin
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>
 <h2>Calendars on Home</h2><p>An iCal link: in Google Calendar on a computer, the calendar's Settings &rarr; <b>Secret address in iCal format</b>. Its next events show in Home's "At a glance" row.</p><div id="cals"></div><input type="text" id="cl" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"><button onclick="send('/api/cal/add',{url:v('cl')},'cl')">Add calendar</button>
 <h2>Home Assistant readings on Home</h2><p>Its address and a <b>long-lived access token</b> (your Home Assistant profile &rarr; Security &rarr; Long-lived access tokens). Then choose the readings on the TV: Settings &rsaquo; Home &rsaquo; Home Assistant readings.</p><p id="hab"></p><input type="text" id="hu" placeholder="http://homeassistant.local:8123"><input type="password" id="ht" placeholder="Long-lived access token" autocomplete="off" style="margin-top:8px"><button onclick="send('/api/hastate',{url:v('hu'),token:v('ht')},'ht')">Save and check</button>
+<h2>Report a problem</h2><p>A text file to send with your report: the version, your TV, your settings and the recent log. Tokens, links, addresses and e-mails are taken out.</p><button onclick="rep()">Download the report</button>
 <h2>Backup</h2><p>Everything Glassio has on this TV (settings, sign-ins, app icons, Live TV) in one file, locked with a code you choose: at least 6 characters. Keep the code safe: without it the file can't be opened.</p>
 <input type="password" id="bc" placeholder="Code for the backup" autocomplete="new-password"><button onclick="bk()">Download a backup</button>
 <p style="margin-top:14px">Restore one: Glassio's settings on the TV are replaced, then it restarts.</p>
@@ -400,6 +402,7 @@ api('/api/backup/make',{code:c}).then(function(r){if(!r.ok){say(r.error,false);r
 function rs(){var f=document.getElementById('bkf').files[0],c=v('rc');if(!f){say('Choose the backup file first',false);return}if(!c){say('Type its code',false);return}
 if(!confirm('Replace Glassio’s settings on the TV with this backup?'))return;say('Restoring...',true);var fr=new FileReader();
 fr.onload=function(){api('/api/backup/restore',{code:c,file:fr.result}).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok)document.getElementById('rc').value=''}).catch(function(){say('Cannot reach the TV',false)})};fr.readAsText(f)}
+function rep(){say('...',true);api('/api/report',{}).then(function(r){if(!r.ok){say(r.error,false);return}var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.message],{type:'text/plain'}));a.download='glassio-report.txt';document.body.appendChild(a);a.click();a.remove();say('Report downloaded',true)}).catch(function(){say('Cannot reach the TV',false)})}
 function k(key){api('/api/key',{key:key}).then(function(r){if(!r.ok)say(r.error,false)}).catch(function(){say('Cannot reach the TV',false)})}
 function addAddon(){var u=v('au');if(u)send('/api/addon/add',{url:u},'au')}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}

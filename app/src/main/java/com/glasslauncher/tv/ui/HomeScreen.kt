@@ -127,22 +127,25 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-enum class Screen { Home, Settings, Library, LiveTv, Following }
+enum class Screen { Home, Settings, Library, LiveTv, Following, Search, Title }
 
 /**
  * Test only (am start --ei dbg_hide <bits>): 1 backdrop, 2 carousel text, 4 top bar, 8 dock; 1048576 Continue
  * Watching's shade, 2097152 its row, 4194304 the Live TV pages' card shadows. Finds what the GPU spends a frame on.
  */
 val DebugHide = androidx.compose.runtime.mutableIntStateOf(0)
+val WelcomeTest = androidx.compose.runtime.mutableStateOf(false)
 
 const val DOCK_COLUMNS = 6
 /** Index of the "Manage from phone" category in the settings list. */
-const val PHONE_CATEGORY = 9
+const val PHONE_CATEGORY = 7
 /** Index of the "Catalogs" category in the settings list. */
-const val CATALOGS_CATEGORY = 5
+const val CATALOGS_CATEGORY = 3
 /** Index of "Nuvio, Stremio & Home Assistant" and of "System" (backup, Home button, TV access) in the settings list. */
-const val NUVIO_CATEGORY = 7
-const val SYSTEM_CATEGORY = 10
+private val darkLogos = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+const val NUVIO_CATEGORY = 5
+const val SYSTEM_CATEGORY = 8
 /** Pseudo package used by move mode for the Apps folder tile. */
 private const val FOLDER = FOLDER_KEY
 
@@ -190,7 +193,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
         }
     }
     // Kids mode: anything but Home (Settings, the Library, Live TV, the menu's pages) asks for the PIN.
-    val onScreen: (Screen) -> Unit = { to -> if (to == Screen.Home || !settings.kidsMode) onScreenAsked(to) else askPin { onScreenAsked(to) } }
+    val onScreen: (Screen) -> Unit = { to -> if (to == Screen.Home || to == Screen.Title || !settings.kidsMode) onScreenAsked(to) else askPin { onScreenAsked(to) } }
     // Who's watching? as Glassio starts (Settings › Home), with more than one profile.
     LaunchedEffect(Unit) {
         if (settings.askProfile && app.profiles.all().size > 1) {
@@ -211,6 +214,44 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
         if (trailer == null) trailerShown.snapTo(0f) else trailerShown.animateTo(if (trailerPlaying) 1f else 0f, tween(700))
     }
     var settingsCat by remember { mutableIntStateOf(0) }
+    /** A title's page: the titles gone through (More like this adds to it; Back goes back), and the page it was opened from. */
+    val titleStack = remember { androidx.compose.runtime.mutableStateListOf<com.glasslauncher.tv.data.HeroItem>() }
+    var titleFrom by remember { mutableStateOf(Screen.Home) }
+    var restoreFocus by remember { mutableIntStateOf(0) }
+    var seenRestore by remember { mutableIntStateOf(0) }
+    val searchQuery = remember { mutableStateOf("") }
+    val openTitle: (com.glasslauncher.tv.data.HeroItem) -> Unit = { item ->
+        if (screen != Screen.Title) { titleFrom = screen; titleStack.clear() }
+        titleStack.add(item)
+        onScreen(Screen.Title)
+    }
+    val closeTitle: () -> Unit = {
+        if (titleStack.size > 1) titleStack.removeAt(titleStack.lastIndex)
+        else {
+            titleStack.clear()
+            if (titleFrom == Screen.Home) restoreFocus++
+            onScreen(titleFrom)
+        }
+    }
+    /** The welcome, on a first run; What's new, after an update. */
+    var welcomeOn by remember { mutableStateOf(false) }
+    val welcomeStep = remember { mutableIntStateOf(0) }
+    LaunchedEffect(WelcomeTest.value) { if (WelcomeTest.value) { WelcomeTest.value = false; welcomeStep.intValue = 0; welcomeOn = true } }
+    LaunchedEffect(Unit) {
+        val st = settings
+        val current = app.updater.current
+        val used = app.library.nuvio.connected || app.library.stremio.connected || app.catalogs.addons.isNotEmpty() || app.profiles.all().size > 1
+        if (!st.welcomeDone && !used && st.seenVersion.isBlank()) { welcomeOn = true; st.seenVersion = current; return@LaunchedEffect }
+        st.welcomeDone = true
+        if (st.seenVersion != current) {
+            val lines = com.glasslauncher.tv.data.Changelog.forVersion(ctx, current)
+            if (lines.isNotEmpty()) { delay(2000); if (dialog == null) dialog = WhatsNew(current, lines) }
+            st.seenVersion = current
+        }
+    }
+    /** The tab of the page on, and whether a tab is selected (it keeps an auto-hidden top bar showing). */
+    val tabFocus = remember { FocusRequester() }
+    var tabFocused by remember { mutableStateOf(false) }
     /** The big picture's Play button, and the apps row: where the page starts, and where the apps are. */
     val heroFocus = remember { FocusRequester() }
     val appsFocus = remember { FocusRequester() }
@@ -360,10 +401,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     LaunchedEffect(screen) { if (screen == Screen.Home) withContext(Dispatchers.IO) { app.shelf.refreshLists() } }
 
     LaunchedEffect(screen) {
+        // Back from a title's page: HomePage puts the focus back on its card, not on the big picture.
+        if (screen == Screen.Home && restoreFocus != seenRestore) { seenRestore = restoreFocus; return@LaunchedEffect }
         // The big picture first. Tried for a few seconds: on a cold start it comes a moment after the screen. As it
         // starts, the system may hand the focus to the first thing on screen (the settings button) a moment later:
         // done once it has stayed where it belongs for half a second.
-        if (screen == Screen.Home) {
+        if (screen == Screen.Home && restoreFocus == seenRestore) {
             delay(400)
             var held = 0
             repeat(50) {
@@ -373,6 +416,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
         }
     }
+    // Back from the top bar (a tab, the buttons): down to the big picture.
+    var topBarFocused by remember { mutableStateOf(false) }
+    BackHandler(enabled = screen == Screen.Home && (tabFocused || topBarFocused) && !menuOpen) { runCatching { heroFocus.requestFocus() } }
     BackHandler(enabled = screen == Screen.Home && movingPkg != null) { movingPkg = null }
     BackHandler(enabled = settings.backSaver && screen == Screen.Home && movingPkg == null && !folderOpen && pickerFor == null && onHero) {
         runCatching { ctx.startActivity(android.content.Intent(ctx, com.glasslauncher.tv.saver.ScreensaverActivity::class.java)) }
@@ -442,16 +488,17 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     scope.launch { delay(700); if (trailer == id) { trailer = null; trailerOver = true } }
                 }
             }
-            if (!folderOpen && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade") {
+            if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade") {
                 if (trailerDrawn) 1f - trailerShown.value else 1f
             }
 
             // Fully covered by settings or the folder: stop drawing it at all.
             val homeAlphaState = animateFloatAsState(if (screen == Screen.Home && !folderOpen) 1f else 0f, tween(180), label = "homeAlpha")
             val homeVisible by remember { androidx.compose.runtime.derivedStateOf { homeAlphaState.value > 0.001f } }
-            if (homeVisible || (screen == Screen.Home && !folderOpen)) Box(
+            // Kept under a title's page opened from Home (its row, its scroll stay as they were).
+            if (homeVisible || (screen == Screen.Home && !folderOpen) || (screen == Screen.Title && titleFrom == Screen.Home)) Box(
                 Modifier.fillMaxSize().graphicsLayer { alpha = homeAlphaState.value }
-                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen }
+                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn }
             ) {
                 HomePage(
                     app, s, screenHdp, visible = screen == Screen.Home && !folderOpen, paused = screen != Screen.Home,
@@ -471,18 +518,26 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     onLibrary = { onScreen(Screen.Library) },
                     onTrailer = { trailer = it; trailerPlaying = false; if (it != null) trailerOver = false }, trailerOver = trailerOver,
                     down = pageDown,
+                    tabFocus = tabFocus,
+                    onTitle = openTitle,
+                    restoreFocus = restoreFocus,
                 )
                 if (DebugHide.intValue and 4 == 0) Box(Modifier.fillMaxWidth().align(Alignment.TopStart).graphicsLayer { alpha = 1f - pageDown.floatValue }) {
+                    // So the clock, tabs and weather read on a bright picture too.
+                    Box(Modifier.fillMaxWidth().height((64 * s).dp).background(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent)))
                     TopBar(app, s, gearReq, onSettings = { onScreen(Screen.Settings) }, onMenu = { pressed ->
                         // Kids mode: the menu only when asked for (OK on the button), and after the PIN.
                         if (settings.kidsMode) { if (pressed && !menuOpen) askPin { menuOpen = true } }
                         else if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
-                    }, modifier = Modifier.fillMaxWidth(),
+                    }, modifier = Modifier.fillMaxWidth().onFocusChanged { topBarFocused = it.hasFocus },
                         onProfile = { dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } } },
-                        onQuick = { dialog = QuickPanelState })
-                    // A followed team playing now: its score in the top bar's middle, going with it as the page scrolls
-                    // (at the bottom it covered the rows) (Settings › Home › Live match ticker).
-                    if (settings.homeTicker) MatchTicker(app, s, Modifier.align(Alignment.TopCenter).padding(top = (24 * s).dp))
+                        onQuick = { dialog = QuickPanelState }, keepShown = tabFocused)
+                    val tabsShown = !settings.topAutoHide || tabFocused
+                    TabBar(app, Screen.Home, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (17 * s).dp).graphicsLayer { alpha = if (tabsShown) 1f else 0f },
+                        onFocus = { tabFocused = it }) { to -> if (to == Screen.Home) runCatching { heroFocus.requestFocus() } else onScreen(to) }
+                    // A followed team playing now: its score under the tabs, going with them as the page scrolls
+                    // (Settings › Home › Live match ticker).
+                    if (settings.homeTicker) MatchTicker(app, s, Modifier.align(Alignment.TopCenter).padding(top = (50 * s).dp))
                 }
             }
             if (folderOpen) {
@@ -511,8 +566,23 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 onSettings = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Settings) },
             )
             if (screen == Screen.Settings) SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
-            if (screen == Screen.Library) LibraryScreen(app) { onScreen(Screen.Home) }
-            if (screen == Screen.LiveTv) LiveTvScreen(app, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
+            // The pages with tabs: the bar above them, the page below it.
+            // (Library and Search stay there under a title's page opened from them, as they were.)
+            val tabPage = if (screen == Screen.Title) titleFrom else screen
+            if (tabPage == Screen.Library || tabPage == Screen.LiveTv || tabPage == Screen.Search) Box(
+                Modifier.fillMaxSize().background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
+            ) {
+                val onTop = screen != Screen.Title
+                Box(Modifier.fillMaxSize().padding(top = (48 * s).dp)) {
+                    if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
+                    if (tabPage == Screen.LiveTv) LiveTvScreen(app, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
+                    if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
+                }
+                if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp)) { to -> onScreen(to) }
+            }
+            if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
+                androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle) }
+            }
             if (screen == Screen.Following) FollowingScreen(app) { onScreen(Screen.Home) }
             pickerFor?.let { e ->
                 IconPicker(
@@ -525,6 +595,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     },
                 )
             }
+            if (welcomeOn && screen == Screen.Home) Welcome(app, s, welcomeStep, onSettings = { settingsCat = it; onScreen(Screen.Settings) }) { settings.welcomeDone = true; welcomeOn = false; scope.launch { delay(120); runCatching { heroFocus.requestFocus() } } }
             DialogHost(dialog) { dialog = null }
         }
     }
@@ -847,7 +918,7 @@ private class SetupStep(val title: String, val about: String, val done: Boolean?
 @Composable
 private fun SetupRow(step: SetupStep, s: Float, modifier: Modifier, onFocus: (Boolean) -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(if (focused) 1.03f else 1f, spring(0.6f, 450f), label = "setupRow")
+    val scale by animateFloatAsState(if (focused && !LocalReduceMotion.current) 1.03f else 1f, spring(0.6f, 450f), label = "setupRow")
     val ink = if (focused) Color.Black else Color.White
     Row(
         modifier
@@ -902,7 +973,9 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
     val pinnedLogo = GlassCache.pinnedLogo[item.logo] ?: GlassCache.logos.get(item.logo)
     // Logos that fail to download are tried twice more before the title is shown as text.
     var attempt by remember(item.logo) { mutableIntStateOf(0) }
-    val req = remember(item.logo, attempt) { imgReq(ctx, item.logo, 1000, 400) }
+    // In software: its pixels are read once, to see if it's a black logo.
+    val req = remember(item.logo, attempt) { ImageRequest.Builder(ctx).data(item.logo).size(1000, 400).allowHardware(false).build() }
+    var dark by remember(item.logo) { mutableStateOf(darkLogos[item.logo] == true) }
     var ratio by remember(item.logo) { mutableStateOf<Float?>(null) }
     var failed by remember(item.logo) { mutableStateOf(false) }
     var retryAt by remember(item.logo) { mutableIntStateOf(0) }
@@ -930,7 +1003,15 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
         onSuccess = { st ->
             val sz = st.painter.intrinsicSize
             if (sz.width > 0f && sz.height > 0f) ratio = sz.width / sz.height
+            if (!darkLogos.containsKey(item.logo)) runCatching {
+                val small = android.graphics.Bitmap.createScaledBitmap((st.result.image as coil3.BitmapImage).bitmap, 48, 24, false)
+                val px = IntArray(48 * 24)
+                small.getPixels(px, 0, 48, 0, 0, 48, 24)
+                darkLogos[item.logo] = logoIsDark(px)
+                dark = darkLogos[item.logo] == true
+            }
         },
+        colorFilter = if (dark) ColorFilter.tint(Color.White) else null,
         onError = { e ->
             if (retryAt < 2) retryAt++ else failed = true
             com.glasslauncher.tv.data.Glog.w("Logo ${item.logo} failed", e.result.throwable)
@@ -943,7 +1024,7 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
 
 @Composable
 private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: (pressed: Boolean) -> Unit, modifier: Modifier,
-                   onProfile: () -> Unit = {}, onQuick: () -> Unit = {}) {
+                   onProfile: () -> Unit = {}, onQuick: () -> Unit = {}, keepShown: Boolean = false) {
     val settings = app.settings
     // The settings button opens the menu (as soon as it is selected, or with OK), or Settings when the menu is off.
     // A key pressed on it (OK, or Up again when it is already selected) always opens it: that is never by accident.
@@ -974,7 +1055,7 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
     // and only appear when focus goes up to the settings button. (A few seconds at first, so you see where it is.)
     var intro by remember { mutableStateOf(true) }
     LaunchedEffect(settings.topAutoHide, settings.topHideSec) { intro = true; delay(settings.topHideSec * 1000L); intro = false }
-    val visible = !settings.topAutoHide || barFocused || intro
+    val visible = !settings.topAutoHide || barFocused || intro || keepShown
     val a by animateFloatAsState(if (visible) 1f else 0f, tween(if (visible) 140 else 350), label = "topAlpha")
     val date by produceState(dateText(), Unit) { while (true) { value = dateText(); delay(60_000) } }
     val wx by app.weather.now.collectAsState()
@@ -1001,7 +1082,9 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                     if (settings.weatherMode == "condition" || settings.weatherMode == "all") w.condition.takeIf { it.isNotBlank() }?.let { add(it) }
                     if (settings.weatherMode == "city" || settings.weatherMode == "all") add(w.city)
                 }
-                Text(parts.joinToString("  ·  "), color = Color.White.copy(alpha = 0.9f), fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, style = shade)
+                // At most what leaves the tabs clear.
+                Text(parts.joinToString("  ·  "), color = Color.White.copy(alpha = 0.9f), fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, style = shade,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = (170 * s).dp))
             }
         }
         if (right) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
@@ -1101,7 +1184,7 @@ private fun dateText(): String =
 private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp: () -> Boolean = { false }, onFocus: (Boolean) -> Unit) {
     // tvOS 26 top-right button: a small glass circle with the gearshape glyph; selected it turns white.
     var focused by remember { mutableStateOf(false) }
-    val scale = animateFloatAsState(if (focused) 1.16f else 1f, spring(0.8f, 900f), label = "gear")
+    val scale = animateFloatAsState(if (focused && !LocalReduceMotion.current) 1.16f else 1f, spring(0.8f, 900f), label = "gear")
     val lit = animateFloatAsState(if (focused) 1f else 0f, tween(120), label = "gearLit")
     Box(
         Modifier.size((20 * s).dp)
@@ -1119,7 +1202,7 @@ private fun GearButton(s: Float, onClick: () -> Unit, req: FocusRequester, onUp:
 @Composable
 private fun TopCircle(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit, content: @Composable (Boolean) -> Unit) {
     var focused by remember { mutableStateOf(false) }
-    val scale = animateFloatAsState(if (focused) 1.16f else 1f, spring(0.8f, 900f), label = "topCircle")
+    val scale = animateFloatAsState(if (focused && !LocalReduceMotion.current) 1.16f else 1f, spring(0.8f, 900f), label = "topCircle")
     Box(
         Modifier.size((20 * s).dp)
             .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
@@ -1334,6 +1417,7 @@ private fun TileFrame(
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val nudge = remember { androidx.compose.animation.core.Animatable(androidx.compose.ui.geometry.Offset.Zero, androidx.compose.ui.geometry.Offset.VectorConverter) }
     val tileScope = rememberCoroutineScope()
+    val still = LocalReduceMotion.current
     val backOwner = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current
     val keys: (KeyEvent) -> Boolean = keys@{ ev ->
         if (onMoveKey(ev)) return@keys true
@@ -1358,7 +1442,7 @@ private fun TileFrame(
                 androidx.compose.ui.focus.FocusDirection.Down -> androidx.compose.ui.geometry.Offset(0f, d * 0.7f)
                 else -> androidx.compose.ui.geometry.Offset(0f, -d * 0.7f)
             }
-            tileScope.launch {
+            if (!still) tileScope.launch {
                 nudge.animateTo(push, tween(90, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
                 nudge.animateTo(androidx.compose.ui.geometry.Offset.Zero, spring(0.45f, 380f))
             }
@@ -1366,9 +1450,9 @@ private fun TileFrame(
         true
     }
     // tvOS: the selected icon rises. Done as a layout offset so the glass behind it follows the icon.
-    val rise by animateDpAsState(if (focused && lift) (-7 * s).dp else 0.dp, spring(0.7f, 420f), label = "tileRise")
+    val rise by animateDpAsState(if (focused && lift && !still) (-7 * s).dp else 0.dp, spring(0.7f, 420f), label = "tileRise")
     // Apple TV style: no frame. The icon lifts, grows a little and casts a soft shadow.
-    val scale by animateFloatAsState(if (focused) (if (moving) 1.14f else 1.09f) else 1f, spring(0.72f, 520f), label = "tileScale")
+    val scale by animateFloatAsState(if (focused && !still) (if (moving) 1.14f else 1.09f) else 1f, spring(0.72f, 520f), label = "tileScale")
     val shadow by animateDpAsState(if (focused && solid) (16 * s).dp else 0.dp, tween(180), label = "tileShadow")
     val r = (radius * 0.75f * s).dp
     val shape = RoundedCornerShape(r)

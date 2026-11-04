@@ -35,8 +35,8 @@ object HomeWidgets {
 
     /** Home Assistant's REST API, with its long-lived token (never cached: readings change). */
     private fun ha(base: String, token: String, path: String): String {
-        require(base.startsWith("http")) { "Set Home Assistant's address first (Settings › Nuvio, Stremio & Home Assistant)" }
-        require(token.isNotBlank()) { "Set Home Assistant's token first (Settings › Nuvio, Stremio & Home Assistant)" }
+        require(base.startsWith("http")) { "Set Home Assistant's address first (Settings › Accounts & Home Assistant)" }
+        require(token.isNotBlank()) { "Set Home Assistant's token first (Settings › Accounts & Home Assistant)" }
         val c = URL(base.trimEnd('/') + path).openConnection() as HttpURLConnection
         c.connectTimeout = 5000; c.readTimeout = 8000
         c.setRequestProperty("Authorization", "Bearer $token")

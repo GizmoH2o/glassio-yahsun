@@ -61,7 +61,8 @@ fun MatchTicker(app: GlassApp, s: Float, modifier: Modifier) {
     val label = test?.get(0) ?: real?.label
     val line = test?.get(1) ?: real?.headline
     val where = test?.get(2) ?: real?.where?.substringAfter("·")?.trim()
-    AnimatedVisibility(line != null, modifier, enter = fadeIn() + slideInVertically { it }, exit = fadeOut() + slideOutVertically { it }) {
+    val still = LocalReduceMotion.current
+    AnimatedVisibility(line != null, modifier, enter = if (still) fadeIn() else fadeIn() + slideInVertically { it }, exit = if (still) fadeOut() else fadeOut() + slideOutVertically { it }) {
         Row(
             // At most the room between the clock and the weather. The score line keeps its room; the competition gets
             // what's left (none: it goes), the channel a little.

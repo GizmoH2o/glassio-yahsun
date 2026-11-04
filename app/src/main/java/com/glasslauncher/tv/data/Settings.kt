@@ -239,7 +239,6 @@ class Settings(private val ctx: Context) {
     /** Test only: the month the season picks go by (0: this month). */
     var seasonMonth: Int get() = i("seasonMonth", 0); set(v) = putI("seasonMonth", v)
     /** A muted trailer behind the big picture after a few seconds on a title (YouTube, through Cinemeta). */
-    var heroTrailers: Boolean get() = b("heroTrailers", true); set(v) = putB("heroTrailers", v)
     /** A followed team's match on now, as a ticker in Home's top bar. */
     var homeTicker: Boolean get() = b("homeTicker", true); set(v) = putB("homeTicker", v)
     /**
@@ -256,6 +255,18 @@ class Settings(private val ctx: Context) {
     val haBase: String get() = haUrl.ifBlank {
         runCatching { java.net.URI(haWebhook).let { u -> if (u.scheme == null || u.host == null) "" else u.scheme + "://" + u.host + (if (u.port > 0) ":" + u.port else "") } }.getOrDefault("")
     }
+    /** Look & motion: no lift, slide or zoom; a stronger selection and solid backing behind text. */
+    var reduceMotion: Boolean get() = b("reduceMotion", false); set(v) = putB("reduceMotion", v)
+    var highContrast: Boolean get() = b("highContrast", false); set(v) = putB("highContrast", v)
+    /** OK on a card: "title" opens its title page, "play" plays straight away. */
+    var cardOk: String get() = s("cardOk", "title"); set(v) = putS("cardOk", v)
+    /** Trailers behind the big picture: auto (off by itself if they keep failing on this TV) | on | off. */
+    var trailerMode: String get() = s("trailerMode", if (b("heroTrailers", true)) "auto" else "off"); set(v) = putS("trailerMode", v)
+    /** Recommendations (trending and popular rows): auto (with no account or add-on) | always | off. */
+    var recsMode: String get() = s("recsMode", "auto"); set(v) = putS("recsMode", v)
+    /** The version whose What's new has been shown, and whether the welcome is done. */
+    var seenVersion: String get() = s("seenVersion", ""); set(v) = putS("seenVersion", v)
+    var welcomeDone: Boolean get() = b("welcomeDone", false); set(v) = putB("welcomeDone", v)
     /** Kids mode (a kids profile, HomeProfiles): family titles only, these apps only, the PIN to leave. */
     var kidsMode: Boolean get() = b("kidsMode", false); set(v) = putB("kidsMode", v)
     var kidsApps: List<String> get() = list("kidsApps"); set(v) = putList("kidsApps", v)

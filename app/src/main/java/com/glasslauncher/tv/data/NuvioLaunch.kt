@@ -87,6 +87,30 @@ object NuvioLaunch {
         return Intent(Intent.ACTION_VIEW, uri).setPackage(pkg).addFlags(flags)
     }
 
+    /** Is there an app on this TV that plays titles (a Nuvio app or Stremio)? */
+    fun playable(ctx: Context, s: Settings) = TARGETS.values.any { installed(ctx, it) }
+
+    /**
+     * An episode. Stremio goes straight to it; Nuvio's links only know a title, so its page opens, and a note says which
+     * episode you picked.
+     */
+    fun openEpisode(ctx: Context, s: Settings, http: Http, item: HeroItem, season: Int, episode: Int) {
+        val target = resolve(ctx, s, item)
+        if (target != "stremio") {
+            open(ctx, s, http, item, target)
+            Toast.makeText(ctx, "${shortName(target)} opens on the series: choose S$season · E$episode", Toast.LENGTH_LONG).show()
+            return
+        }
+        val id = item.id.trim()
+        val uri = Uri.parse("stremio:///detail/series/" + Uri.encode(id, ":") + "/" + Uri.encode("$id:$season:$episode", ":"))
+        try {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(STREMIO_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        } catch (e: Exception) {
+            Glog.w("Open episode in Stremio", e)
+            open(ctx, s, http, item, target)
+        }
+    }
+
     /** Opens [item] in the app it came from, else where "Open titles in" says; or in [target] when given. */
     fun open(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) {
         val pkg = TARGETS.getValue(target)

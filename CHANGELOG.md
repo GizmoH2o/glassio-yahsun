@@ -2,6 +2,37 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.0.0 — 2026-11-03
+
+**A new look**
+- **One design everywhere**: a near-black page, what's selected lifts and turns white, red only for what's live, new or in progress.
+- **Tabs in the top bar**: Home, Live TV, Library and Search.
+- **A page for every title**: Resume or Play, its trailer with sound, seasons and episodes, More like this. *OK on a card* in Settings › Home can play straight away instead.
+- **Search everything**: titles, Live TV channels and apps from one box.
+- **Settings redone**: clearer rows, pages merged, and a search box.
+
+**For everyone, with or without an account**
+- **Recommendations**: with no Nuvio or Stremio account signed in, Home fills with what's trending and popular, from TMDB (Settings › Home › Recommendations: Auto, Always or Off).
+- **A welcome** on the first run, and this page after an update.
+
+**New on Home**
+- **Trailers** behind the big picture (Auto, On or Off); on Auto they turn themselves off if they keep failing on a TV.
+- **Because you watched** picks, **Not interested**, and **seasonal picks** on the big picture.
+- **Profiles and Kids mode**, with a PIN.
+- **Quick panel**: TV inputs, sleep timer, volume.
+- **Live match ticker** under the tabs.
+- **At a glance**: weather forecast, your calendars and Home Assistant readings.
+
+**Accessibility and support**
+- **Reduce motion** and **High contrast** (Settings › Look & motion).
+- **Report a problem** on the phone page: a file with tokens, links and addresses taken out.
+
+**Fixes**
+- **The phone page's buttons work again**: the remote, typing and search did nothing since 2.2.0.
+- **The Home button** keeps opening Glassio right after an update.
+- Settings › Continue Watching lists titles by name.
+- The match ticker, screensaver and kick-off alert keep a match after kick-off.
+
 ## 2.5.0 — 2026-10-31
 
 **A new home screen**
