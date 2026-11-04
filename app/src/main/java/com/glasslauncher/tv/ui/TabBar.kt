@@ -15,6 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -28,7 +32,7 @@ import com.glasslauncher.tv.GlassApp
  * only page is Home. [current]'s tab holds [entry], so Up from a page lands on the tab of that page.
  */
 @Composable
-fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modifier: Modifier = Modifier, onFocus: (Boolean) -> Unit = {}, onTab: (Screen) -> Unit) {
+fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modifier: Modifier = Modifier, onFocus: (Boolean) -> Unit = {}, onDown: (() -> Unit)? = null, onTab: (Screen) -> Unit) {
     val st = app.settings
     if (st.kidsMode) return
     val tabs = buildList {
@@ -50,7 +54,10 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
                 fontWeight = if (focused || on) FontWeight.Bold else FontWeight.SemiBold,
                 modifier = (if (on) Modifier.focusRequester(entry) else Modifier)
                     .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
-                    .tvPress(onClick = { onTab(to) })
+                    // Down to the page: asked of the page itself, as the arrow alone can land on a list as a whole, with nothing selected.
+                    .tvPress(onKey = { ev ->
+                        if (onDown != null && ev.key == Key.DirectionDown) { if (ev.type == KeyEventType.KeyDown) onDown(); true } else false
+                    }, onClick = { onTab(to) })
                     .clip(RoundedCornerShape(50))
                     .background(if (focused) Color.White else if (on) Color.White.copy(alpha = 0.2f) else Color.Transparent)
                     .padding(horizontal = (13 * s).dp, vertical = (5.5f * s).dp),

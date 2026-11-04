@@ -55,7 +55,7 @@ private val KEYS = "abcdefghijklmnopqrstuvwxyz1234567890".map { it.toString() }
  * title finds it as you left it; [active]: this page is the one on (not under a title's page).
  */
 @Composable
-fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boolean, onClose: () -> Unit, onTitle: (HeroItem) -> Unit) {
+fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boolean, downAsk: Int = 0, toTabs: FocusRequester? = null, onClose: () -> Unit, onTitle: (HeroItem) -> Unit) {
     val ctx = LocalContext.current
     val lastKey = remember { mutableStateOf("a") }
     val keyFocus = remember { FocusRequester() }
@@ -85,6 +85,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     LaunchedEffect(Unit) { if (rows.trending.isEmpty()) withContext(Dispatchers.IO) { runCatching { app.recs.refresh() } } }
     val lastTitle = remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }
+    LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { keyFocus.requestFocus() } }     // Down from the tabs
     // In front again: back on the title you came from, else the keyboard.
     LaunchedEffect(active) {
         if (!active) return@LaunchedEffect
@@ -124,10 +125,10 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                 Text(q.ifEmpty { "Type with the keys below" }, color = if (q.isEmpty()) Text2 else Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height((8 * s).dp))
-            KEYS.chunked(6).forEach { line ->
+            KEYS.chunked(6).forEachIndexed { rowAt, line ->
                 Row(Modifier.padding(bottom = (3.5f * s).dp), horizontalArrangement = Arrangement.spacedBy((3.5f * s).dp)) {
                     line.forEach { k ->
-                        Key(k, s, lastKey, keyFocus, Modifier.weight(1f).then(if (k == line.last()) Modifier.nav(right = toResults) else Modifier)) { query.value = (q + k).take(60) }
+                        Key(k, s, lastKey, keyFocus, Modifier.weight(1f).then(if (k == line.last()) Modifier.nav(right = toResults) else Modifier).then(if (rowAt == 0) Modifier.nav(up = toTabs) else Modifier)) { query.value = (q + k).take(60) }
                     }
                 }
             }
@@ -144,10 +145,10 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         Column(Modifier.weight(1f).fillMaxHeight().onFocusChanged { inResults = it.hasFocus }) {
             // Nothing typed: what's trending, so the page is never empty.
             if (q.length < 2) {
-                if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, lastTitle, lastFocus, onTitle)
+                if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, toTabs, lastTitle, lastFocus, onTitle)
             } else {
                 if (titles.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
-                if (titles.isNotEmpty()) TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, lastTitle, lastFocus, onTitle)
+                if (titles.isNotEmpty()) TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, toTabs, lastTitle, lastFocus, onTitle)
                 if (channels.isNotEmpty()) {
                     Spacer(Modifier.height((10 * s).dp))
                     DsHeading("Live TV", s)
@@ -168,11 +169,11 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
 }
 
 @Composable
-private fun TitlesRow(title: String, list: List<HeroItem>, s: Float, entry: RowEntry, down: FocusRequester, keys: FocusRequester, lastTitle: MutableState<String?>, lastFocus: FocusRequester, onTitle: (HeroItem) -> Unit) {
+private fun TitlesRow(title: String, list: List<HeroItem>, s: Float, entry: RowEntry, down: FocusRequester, keys: FocusRequester, toTabs: FocusRequester?, lastTitle: MutableState<String?>, lastFocus: FocusRequester, onTitle: (HeroItem) -> Unit) {
     DsHeading(title, s)
     LazyRow(state = entry.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
         itemsIndexed(list, key = { _, h -> h.key }) { i, h ->
-            SmallPoster(h, s, entry.of(i).nav(down = down, left = if (i == 0) keys else null, right = edge(i == list.lastIndex)).then(if (h.key == lastTitle.value) Modifier.focusRequester(lastFocus) else Modifier), onFocused = { lastTitle.value = h.key }) { onTitle(h) }
+            SmallPoster(h, s, entry.of(i).nav(up = toTabs, down = down, left = if (i == 0) keys else null, right = edge(i == list.lastIndex)).then(if (h.key == lastTitle.value) Modifier.focusRequester(lastFocus) else Modifier), onFocused = { lastTitle.value = h.key }) { onTitle(h) }
         }
     }
 }

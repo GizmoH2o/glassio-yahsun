@@ -127,7 +127,7 @@ private val INK = Color(0xFF111114)
 
 /** Live TV: the channel last watched, the guide, On now (favorites and recent channels), sports, starting soon. */
 @Composable
-fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
+fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null, onClose: () -> Unit, onFollowing: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     BackHandler { onClose() }
@@ -158,6 +158,7 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
     }
     val first = remember { FocusRequester() }
     LaunchedEffect(ready, page != null) { if (ready != null) focusFirst(first) }
+    LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { first.requestFocus() } }     // Down from the tabs
     val r = ready
     val p = page
     val sp = sports
@@ -173,7 +174,7 @@ fun LiveTvScreen(app: GlassApp, onClose: () -> Unit, onFollowing: () -> Unit) {
         }
         if (p == null) return@LivePage
         item(key = "top") {
-            LiveHero(p.last, s, shown, first,
+            LiveHero(p.last, s, shown, first, toTabs,
                 onWatch = { open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false)) },
                 onGuide = { open(ctx, LiveHome.open(ctx, -1, true)) },
                 onSearch = { open(ctx, LiveHome.search(ctx)) },
@@ -454,7 +455,7 @@ private fun EmptyCardView(title: String, sub: String, s: Float, modifier: Modifi
  * the page; what's on, how far in, and the page's buttons (Watch first). No picture: the same on the plain page.
  */
 @Composable
-private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusRequester, onWatch: () -> Unit, onGuide: () -> Unit, onSearch: () -> Unit, onFollowing: () -> Unit) {
+private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusRequester, toTabs: FocusRequester?, onWatch: () -> Unit, onGuide: () -> Unit, onSearch: () -> Unit, onFollowing: () -> Unit) {
     rev.hashCode()     // read: a refresh (the program found, its picture) redraws it
     Box(Modifier.requiredWidth((960 * s).dp).height((290 * s).dp)) {
         if (a != null && a.art.isNotEmpty()) {
@@ -481,10 +482,10 @@ private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusReques
             }
             Spacer(Modifier.height((12 * s).dp))
             Row(horizontalArrangement = dsGap(s)) {
-                DsButton("Watch", s, Modifier.focusRequester(first), primary = true, onClick = onWatch)
-                DsButton("TV guide", s, onClick = onGuide)
-                DsButton("Search", s, onClick = onSearch)
-                DsButton("Following", s, onClick = onFollowing)
+                DsButton("Watch", s, Modifier.nav(up = toTabs).focusRequester(first), primary = true, onClick = onWatch)
+                DsButton("TV guide", s, Modifier.nav(up = toTabs), onClick = onGuide)
+                DsButton("Search", s, Modifier.nav(up = toTabs), onClick = onSearch)
+                DsButton("Following", s, Modifier.nav(up = toTabs), onClick = onFollowing)
             }
         }
     }
