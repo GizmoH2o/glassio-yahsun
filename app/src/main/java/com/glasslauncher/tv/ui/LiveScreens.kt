@@ -461,8 +461,6 @@ private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusReques
             Picture(a.art, Modifier.fillMaxSize(), 1280, 720)
             Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0.1f to Ds.Bg, 0.6f to Ds.Bg.copy(alpha = 0.55f), 1f to Color.Transparent)))
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Ds.Bg)))
-        } else if (a != null && a.logo.isNotEmpty()) {      // no picture of the show: the channel's logo, large, at the right
-            Logo(a.logo, Modifier.align(Alignment.TopEnd).padding(end = (MARGIN * s).dp, top = (92 * s).dp).size((150 * s).dp, (70 * s).dp))
         }
         Column(Modifier.align(Alignment.BottomStart).padding(start = (MARGIN * s).dp, end = (MARGIN * s).dp, bottom = (8 * s).dp)) {
             if (a != null) Row(verticalAlignment = Alignment.CenterVertically) {

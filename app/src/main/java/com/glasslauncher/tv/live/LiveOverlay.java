@@ -298,6 +298,7 @@ final class LiveOverlay {
             case RECORD: return view.recordingNow() ? Ui.tr("Parar", "Stop") : Ui.tr("Gravar", "Record");
             case FAVORITE: return Ui.tr("Favorito", "Favorite");
             case SLEEP: return Ui.tr("Dormir", "Sleep");
+            case SOURCE: return Ui.tr("Fonte", "Source");
             default: return name(b);
         }
     }
