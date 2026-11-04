@@ -778,7 +778,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Adjust("Language", "Glassio and Live TV. Auto follows the TV's language",
                     { Lang.CHOICES.first { it.first == Lang.choice.value }.second },
                     { Lang.choose(ctx, cycle(Lang.CHOICES.map { c -> c.first }, Lang.choice.value, it)) }))
-                add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it }))
+                add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it; com.glasslauncher.tv.live.LiveHome.setReduceMotion(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
                 addAll(page("Clock & glass").rows().filterNot { it is Adjust && it.title == "Glass refraction" })
                 addAll(page("Performance").rows())

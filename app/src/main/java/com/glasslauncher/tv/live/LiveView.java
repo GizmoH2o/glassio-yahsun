@@ -529,9 +529,31 @@ final class LiveView extends View {
         invalidate();
     }
 
+    /** A channel that keeps loading: since when (its retries in between count as the same wait), and for which channel. */
+    private long troubleSince, bufferEnded;
+    private Xtream.Channel troubleFor;
+    private static final long STILL_AFTER_MS = 12_000;
+
+    /** Under the spinner, once a channel has kept you waiting: what's happening and the way out. */
+    private void drawStillTrying(Canvas c, float cx, float y, long up) {
+        Xtream.Channel on = live.playing();
+        if (on != troubleFor) {
+            troubleFor = on;
+            troubleSince = up;
+        }
+        if (up - troubleSince < STILL_AFTER_MS) return;
+        String s = Ui.tr("Ainda tentando este canal  ·  ▲ ▼ para outro", "Still trying this channel  ·  ▲ ▼ for another");
+        if (mode == GUIDE) s = Ui.tr("Ainda tentando este canal", "Still trying this channel");
+        small.setTextAlign(Paint.Align.LEFT);
+        c.drawText(s, cx - small.measureText(s) / 2, y, small);
+    }
+
     void setBuffering(boolean on) {
         if (on == buffering) return;
         buffering = on;
+        long nowUp = SystemClock.uptimeMillis();
+        if (!on) bufferEnded = nowUp;
+        else if (nowUp - bufferEnded > 3000) troubleSince = nowUp;
         spinAt = SystemClock.uptimeMillis();
         invalidate();
     }
@@ -634,12 +656,13 @@ final class LiveView extends View {
             else if (mode == SETTINGS) settings.draw(c, Ui.clamp(appear.value), w, h);
             else overlay.draw(c, up);
             drawSubtitle(c);
-            if (buffering && status.isEmpty()) {
+            if (buffering && status.isEmpty() && mode != SETTINGS) {
                 // Over the video: the preview's middle in the guide, the right side beside the list, else the screen's.
-                float cx = mode == GUIDE ? (P_X + P_W / 2 + gShift()) * k : mode == LIST || mode == SETTINGS ? (PANEL_W + 1920) / 2f * k : w / 2f;
-                float cy = mode == GUIDE ? (P_Y + P_H / 2) * k : mode == WATCH && overlay.visible() ? 380 * k : h / 2f;   // above the overlay
+                float cx = mode == GUIDE ? (P_X + P_W / 2 + gShift()) * k : mode == LIST ? (PANEL_W + 1920) / 2f * k : w / 2f;
+                float cy = mode == GUIDE ? (P_Y + P_H / 2) * k : mode == WATCH && overlay.visible() ? 380 * k : mode == LIST ? h - 150 * k : h / 2f;   // above the overlay; under the list's show card
                 Ui.spinner(c, cx, cy, (mode == GUIDE ? 22 : 30) * k, (up - spinAt) / 1000f * 1.3f, spinner);
                 moving = true;
+                drawStillTrying(c, cx, cy + (mode == GUIDE ? 60 : 76) * k, up);
             }
             drawStatus(c);
             if (drawDigits(c, up)) moving = true;
@@ -1072,7 +1095,7 @@ final class LiveView extends View {
                 float by = r.top + 104 * rs * k;
                 fill.setColor(0x33FFFFFF);
                 c.drawRect(x, by, right, by + 4 * k, fill);
-                fill.setColor(0xB3FFFFFF);
+                fill.setColor(LiveTheme.cinema() ? LIVE_RED : 0xB3FFFFFF);
                 c.drawRect(x, by, x + (right - x) * f, by + 4 * k, fill);
             }
         }
@@ -4081,7 +4104,8 @@ final class LiveView extends View {
                 }
                 c.drawRoundRect(focusRect, 12 * k, 12 * k, liftPaint);
             }
-            c.drawRoundRect(focusRect, 10 * k * LiveTheme.round, 10 * k * LiveTheme.round, fill);
+            float focusR = LiveTheme.cinema() ? 12 * k : 10 * k * LiveTheme.round;
+            c.drawRoundRect(focusRect, focusR, focusR, fill);
             if (col > 0.5f && gHead == 0) {    // the titles again over the red (where it covers them)
                 c.save();
                 c.clipRect(focusRect);
@@ -4164,7 +4188,7 @@ final class LiveView extends View {
     private void drawPendingBadge(Canvas c) {
         if (pendingBadge == 0) return;
         fill.setShader(null);
-        fill.setColor(pendingBadge == 2 ? LIVE_RED : TAG_NEW);
+        fill.setColor(pendingBadge == 2 ? LIVE_RED : newTag());
         c.drawRoundRect(badgeRect, 6 * k, 6 * k, fill);
         c.drawText(pendingBadgeText, badgeRect.left + 10 * k, badgeRect.centerY() + Ui.halfCap(gBadge), gBadge);
         pendingBadge = 0;
@@ -4180,7 +4204,7 @@ final class LiveView extends View {
         if (!ink) {
             fill.setShader(null);
             fill.setColor(color);
-            c.drawRoundRect(cell, 5 * k * LiveTheme.round, 5 * k * LiveTheme.round, fill);
+            c.drawRoundRect(cell, tileRadius(), tileRadius(), fill);
             if (LiveTheme.rim != 0) {       // glass: a light edge
                 if (rimPaint == null) {
                     rimPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -4219,7 +4243,7 @@ final class LiveView extends View {
             if (tagText != null) {
                 badgeRect.set(tx, mid - 12 * k * Math.min(1, rs + 0.1f), tx + tagW, mid + 12 * k * Math.min(1, rs + 0.1f));
                 fill.setShader(null);
-                fill.setColor(tag == 1 || tag == 4 ? LIVE_RED : tag == 2 ? TAG_NEW : TAG_REPEAT);
+                fill.setColor(tag == 1 || tag == 4 ? LIVE_RED : tag == 2 ? newTag() : LiveTheme.cinema() ? 0x59FFFFFF : TAG_REPEAT);
                 c.drawRoundRect(badgeRect, 5 * k, 5 * k, fill);
                 c.drawText(tagText, tx + 7 * k, mid + Ui.halfCap(gBadge), gBadge);
                 tx += tagW + 10 * k;
@@ -4242,6 +4266,21 @@ final class LiveView extends View {
     }
 
     private static final int TAG_NEW = 0xFF2E9E5B, TAG_REPEAT = 0xFF4E6B82;
+
+    /** NEW: Glassio 3's is the same red as on Home. */
+    private static int newTag() {
+        return LiveTheme.cinema() ? LIVE_RED : TAG_NEW;
+    }
+
+    /** What's about the past (catch-up, already aired): Glassio 3 keeps it grey, with one accent on the page. */
+    private static int pastColor() {
+        return LiveTheme.cinema() ? 0xFFB3B3B8 : PAST;
+    }
+
+    /** A program tile's corners. */
+    private float tileRadius() {
+        return LiveTheme.cinema() ? 12 * k : 5 * k * LiveTheme.round;
+    }
 
     private String goalTeam = "", goalLine = "";
     private long goalAt;
@@ -4472,13 +4511,13 @@ final class LiveView extends View {
             String left = minutesLeft((int) Math.max(1, Math.round((p.end - now) / 60_000.0)));
             c.drawText(left, x + bar + 18 * k, y + 2 * k, gLeft);
             if (channel.archive > 0 && p.start >= catchupFrom(channel, now)) {    // it can start over
-                gLeft.setColor(PAST);
+                gLeft.setColor(pastColor());
                 c.drawText("·  " + Ui.tr("Segure OK para começar do início", "Hold OK to start over"),
                         x + bar + 18 * k + gLeft.measureText(left) + 16 * k, y + 2 * k, gLeft);
                 gLeft.setColor(LIVE_RED);
             }
         } else if (p != null && p.end <= now) {
-            gLeft.setColor(PAST);
+            gLeft.setColor(pastColor());
             long[] r = replayable(channel, p, now) ? resumeOf(channel, p) : null;
             c.drawText(r != null ? Ui.tr("Reprise  ·  Você parou em ", "Catch-up  ·  You stopped at ") + clock(r[0]) + Ui.tr("  ·  OK para continuar", "  ·  OK to resume")
                     : replayable(channel, p, now) ? Ui.tr("Reprise  ·  OK para assistir", "Catch-up  ·  Press OK to watch")
@@ -4536,7 +4575,7 @@ final class LiveView extends View {
         gLeft.setColor(LIVE_RED);
         c.drawText(kick, x, 56 * k, gLeft);
         if (!extra.isEmpty()) {
-            gLeft.setColor(PAST);
+            gLeft.setColor(pastColor());
             float kw = kick.isEmpty() ? 0 : gLeft.measureText(kick) + 16 * k;
             c.drawText(ellipsize(extra, gLeft, room - cw - kw - 30 * k), x + kw, 56 * k, gLeft);
             gLeft.setColor(LIVE_RED);
@@ -4594,7 +4633,7 @@ final class LiveView extends View {
             float f = (now - p.start) / (float) (p.end - p.start);
             fill.setColor(0x40FFFFFF);
             c.drawRect(preview.left, preview.bottom + 4 * k, preview.right, preview.bottom + 9 * k, fill);
-            fill.setColor(LiveTheme.text);
+            fill.setColor(LiveTheme.cinema() ? LIVE_RED : LiveTheme.text);
             c.drawRect(preview.left, preview.bottom + 4 * k, preview.left + preview.width() * Ui.clamp(f), preview.bottom + 9 * k, fill);
         }
     }

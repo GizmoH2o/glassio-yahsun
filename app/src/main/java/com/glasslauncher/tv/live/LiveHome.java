@@ -23,6 +23,17 @@ public final class LiveHome {
         Ui.applyLanguage();
     }
 
+    /** Reduce motion, for Live TV's process too: a file, as it can't see the preferences change. */
+    public static void setReduceMotion(Context c, boolean on) {
+        java.io.File f = new java.io.File(c.getFilesDir(), "ui_still");
+        try {
+            if (!on) f.delete();
+            else if (!f.exists()) f.createNewFile();
+        } catch (java.io.IOException ignored) {
+        }
+        Spring.still = on;
+    }
+
     private LiveHome() {}
 
     /** One program on one channel, as a page shows it. */

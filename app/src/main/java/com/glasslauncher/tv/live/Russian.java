@@ -13,6 +13,8 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Still trying this channel  ·  ▲ ▼ for another": return "Пробуем этот канал  ·  ▲ ▼ другой канал";
+            case "Still trying this channel": return "Пробуем этот канал";
             case "Sleep": return "Сон";
             case "Stop": return "Стоп";
             case "NOW": return "СЕЙЧАС";

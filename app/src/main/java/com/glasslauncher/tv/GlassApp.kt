@@ -125,6 +125,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         shelf = com.glasslauncher.tv.data.HomeShelf(settings, http, library, cw, scope).also { it.start() }
         updater = com.glasslauncher.tv.data.Updater(this, scope).also { it.start() }
         com.glasslauncher.tv.ui.Lang.load(this)
+        com.glasslauncher.tv.live.LiveHome.setReduceMotion(this, settings.reduceMotion)
         recs = com.glasslauncher.tv.data.Recs(settings, http).also { r -> r.start(scope) { library.nuvio.connected || library.stremio.connected } }
         // If Glass was closed while the TV screensaver was being started, put the screen timeout back.
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()

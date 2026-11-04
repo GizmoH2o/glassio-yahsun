@@ -898,7 +898,7 @@ final class LiveTheme {
     /** How round design `d`'s corners are (1: about Glassio's home screen's lists). */
     private static float corners(int d) {
         switch (d) {
-            case CINEMA: return 2f;
+            case CINEMA: return 1.25f;
             case APPLE: return 1.8f;
             case YOUTUBE: return 1.1f;
             case NOW:

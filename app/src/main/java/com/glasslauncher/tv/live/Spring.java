@@ -2,6 +2,9 @@ package com.glasslauncher.tv.live;
 
 /** Damped spring, like macOS animations: response (s) and damping (1 = no bounce). */
 final class Spring {
+    /** Settings › Look & motion › Reduce motion: everything arrives at once. */
+    static volatile boolean still;
+
     float value, velocity, target;
     private final float response, damping;
 
@@ -18,7 +21,7 @@ final class Spring {
 
     /** Advances `dt` seconds; returns true while still moving. */
     boolean step(float dt) {
-        if (settled()) {
+        if (still || settled()) {
             value = target;
             velocity = 0;
             return false;

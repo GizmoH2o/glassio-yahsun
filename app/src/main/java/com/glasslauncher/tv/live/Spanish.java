@@ -6,6 +6,8 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Still trying this channel  ·  ▲ ▼ for another": return "Seguimos intentando este canal  ·  ▲ ▼ para otro";
+            case "Still trying this channel": return "Seguimos intentando este canal";
             case "Sleep": return "Dormir";
             case "Stop": return "Parar";
             case "NOW": return "AHORA";

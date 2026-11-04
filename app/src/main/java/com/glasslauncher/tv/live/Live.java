@@ -374,6 +374,10 @@ public class Live extends Activity {
     /** Back from the choice of players without picking one (Glassio stayed underneath): the channel again. */
     @Override protected void onResume() {
         super.onResume();
+        // Back from Settings: its language or Reduce motion may have changed while this stayed open.
+        String languageWas = Ui.language;
+        Prefs.init(this);
+        if (!languageWas.equals(Ui.language) && view != null) view.restyle();
         if (!handedOff) return;
         handedOff = false;
         createPlayer();

@@ -358,7 +358,7 @@ final class LiveOverlay {
         String pill = past == null ? Ui.tr("AO VIVO", "LIVE") : live.recorded() ? Ui.tr("GRAVADO", "RECORDED") : Ui.tr("REPRISE", "CATCH-UP");
         // Behind live: LIVE greyed (YouTube TV's), as it isn't now.
         if (later != null) pill = Ui.tr("DEPOIS", "LATER");
-        x = drawPill(c, pill, x, y, past != null ? BLUE : behind || later != null ? 0x59FFFFFF : RED, true) + 18 * k;
+        x = drawPill(c, pill, x, y, past != null ? (LiveTheme.cinemaBar() ? 0x59FFFFFF : BLUE) : behind || later != null ? 0x59FFFFFF : RED, true) + 18 * k;
         // A followed team's match on live: its score (Live scores), looked up again every second.
         if (shown != scoreFor || up - scoreAt > 1000) {
             if (shown != scoreFor) scoreTitle = shown == null ? "" : Xtream.fold(shown.title);
@@ -455,7 +455,7 @@ final class LiveOverlay {
         fill.setColor(0x40FFFFFF);
         c.drawRoundRect(barL, barY - 3 * k, barR, barY + 3 * k, 3 * k, 3 * k, fill);
         if (later == null && (past != null || behind || onNow != null)) {
-            fill.setColor(past != null ? BLUE : RED);
+            fill.setColor(past != null ? (LiveTheme.cinemaBar() ? WHITE : BLUE) : RED);
             float end = barL + (barR - barL) * f;
             c.drawRoundRect(barL, barY - 3 * k, Math.max(barL + 6 * k, end), barY + 3 * k, 3 * k, 3 * k, fill);
             fill.setColor(WHITE);

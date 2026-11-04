@@ -302,9 +302,14 @@ final class LiveRecordingsPage extends Dialog {
                     + (size > 0 ? "  ·  " + sizeOf(size) : "") + (later.isEmpty() ? "" : "  ·  " + later.size() + Ui.tr(" marcadas", " set for later"));
             c.drawText(info, X * k + title.measureText(Ui.tr("Gravações", "Recordings")) + 28 * k, TITLE_Y * k, meta);
             if (rows.isEmpty()) {
-                c.drawText(Ui.tr("Nenhuma gravação ainda.", "No recordings yet."), X * k, (TOP + 80) * k, empty);
-                c.drawText(Ui.tr("No guia, aperte OK num programa e escolha Gravar; ou o botão vermelho do player.",
-                        "In the guide, press OK on a show and choose Record; or the player's red button."), X * k, (TOP + 130) * k, sub);
+                // In the middle of the page: what's missing and how to get it.
+                float mid = getWidth() / 2f, top = getHeight() * 0.36f;
+                Symbols.draw(getContext(), c, "recordings", mid, top, 72 * k, 0x99FFFFFF);
+                String none = Ui.tr("Nenhuma gravação ainda.", "No recordings yet.");
+                c.drawText(none, mid - empty.measureText(none) / 2, top + 96 * k, empty);
+                String how = Ui.tr("No guia, aperte OK num programa e escolha Gravar; ou o botão vermelho do player.",
+                        "In the guide, press OK on a show and choose Record; or the player's red button.");
+                c.drawText(how, mid - sub.measureText(how) / 2, top + 144 * k, sub);
                 c.restore();
                 if (moving) postInvalidateOnAnimation(); else last = 0;     // the page still fading in
                 return;

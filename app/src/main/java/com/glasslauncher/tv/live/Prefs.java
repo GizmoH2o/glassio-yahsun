@@ -14,6 +14,7 @@ final class Prefs {
     static void init(Context c) {
         app = c.getApplicationContext();
         Ui.applyLanguage();
+        Spring.still = new java.io.File(app.getFilesDir(), "ui_still").exists();
     }
 
     /** Live TV reads as Glassio does (Settings › Look & motion). "auto": the TV's own language. */
