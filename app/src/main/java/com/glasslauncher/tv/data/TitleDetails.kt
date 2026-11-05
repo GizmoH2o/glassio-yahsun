@@ -41,7 +41,7 @@ data class TitleDetails(
             return TitleDetails(
                 overview = m.text("description"), background = m.text("background"), logo = m.text("logo"),
                 rating = m.optString("imdbRating").toDoubleOrNull()?.let { String.format(java.util.Locale.US, "%.1f", it) }.orEmpty(),
-                year = year, runtime = m.text("runtime"), genres = strings("genres").take(3), cast = strings("cast").take(5), seasons = ordered,
+                year = year, runtime = m.text("runtime"), genres = strings("genres").take(3), cast = strings("cast").take(5).map { android.text.Html.fromHtml(it, 0).toString() }, seasons = ordered,
             )
         }
 

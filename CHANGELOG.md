@@ -2,6 +2,41 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.1.0 — 2026-11-04
+
+**A new Live TV**
+- **Glassio 3**, a new design for the player, guide and settings, with text you can read over any picture. New installs start with it.
+- **The guide updates by itself**, even with Live TV closed.
+- **Choose your favorite channels** from the Live TV page, and **make your own groups**: hold OK on a channel, then Groups.
+- **A channel that won't play tries another copy** of itself, and says so.
+- **Each channel remembers** its audio and subtitle languages. **Stream info** is under About.
+- **New settings**: hide channels with no guide, lock adult categories in one go, delete old recordings, keep only the newest of each show.
+- **Sort categories by name** keeps the same name together by country: Sports UK, then Sports US.
+
+**Following**
+- **Teams under any name**: Manchester United also finds Man Utd, for the big European clubs, the NBA and the NFL. Add your own names with **Also called** on a team's page. Live TV's search finds them too.
+- **Spoiler-free**: hide a team's scores for 24 hours, 3 days or until you show them. Its goal alerts, descriptions and results in titles stay hidden too.
+- **A team's page** has its league table, results, fixtures and, during a match, stats and lineups. Chips show crests.
+- **Today in sport**: the guide's live matches for the rest of today.
+- **Record every match** for a team, and lines for half-time, full-time and red cards, each with its own switch.
+
+**Home and Library**
+- **Home rows**: put the rows in your order, hide them or rename them (Settings › Home). Each profile has its own.
+- **Collections**: rows of Pixar, Studio Ghibli and Marvel Studios films, off until you turn them on.
+- **Library**: an All tab, **Surprise me**, and NEW on series with an episode out.
+- Where to watch goes by your TV's country first.
+
+**Settings**
+- **Set up Live TV from your phone**: the phone page has a sign-in form.
+- **Weekly backup**, **Storage** with a clear button, and **Test the connection** to tell your internet from your provider (Settings › System).
+- **Beta updates**, for test builds.
+- **Night mode** dims Glassio and Live TV from the hour you choose until 7, and lowers Live TV's volume. **Remote guide** lists what the buttons do (Settings › Look & motion).
+
+**Fixes**
+- Following a team no longer catches a match of two other teams that happen to share its words.
+- A live score that has stopped updating is no longer shown as live.
+- Faster searches of the guide.
+
 ## 3.0.0 — 2026-11-03
 
 **A new look**
