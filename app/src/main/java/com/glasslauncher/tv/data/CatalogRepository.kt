@@ -204,15 +204,27 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
             }
             val all = refs.sortedWith(compareBy({ it.addonName.lowercase() }, { it.name.lowercase() }))
             catalogs.value = all
-            var sel = selectedKeys.value
-            if (sel.isEmpty() && all.isNotEmpty()) {
-                sel = all.filter { it.type == "movie" || it.type == "series" }.take(8).map { it.key }.toSet()
-                saveSelected(sel)
-            }
+            val before = selectedKeys.value
+            val choice = CatalogChoice.of(before, all, urls)
+            val sel = choice.selected
+            if (sel != before) saveSelected(sel)
             val chosen = all.filter { it.key in sel }
+            // One line per refresh, by host only: an add-on's full address can hold a token.
+            fun host(u: String) = runCatching { java.net.URI(u).host }.getOrNull() ?: "?"
+            val answered = all.map { it.addon }.toSet()
+            val byAddon = before.groupBy { it.substringBefore('|') }
+            android.util.Log.i("GlassCatalogs", "refresh: ${urls.size} add-ons, ${answered.size} with catalogs, ${all.size} catalogs; " +
+                "selected ${before.size}, now ${sel.size}, matched ${chosen.size}; selected before, by add-on: " +
+                byAddon.entries.joinToString { (u, k) -> host(u) + " x" + k.size + (if (u in urls) (if (u in answered) " answered" else " no answer") else " not in the list") })
             if (chosen.isEmpty() && all.isEmpty() && urls.isNotEmpty() && fromSnapshot) {
                 // No add-on answered (no connection): last time's titles stay.
                 status.value = "Couldn't reach the add-ons"
+                return@withContext
+            }
+            if (chosen.isEmpty() && choice.waiting.isNotEmpty()) {
+                // Your catalogs' add-ons didn't answer this time: the titles showing stay, and the page says who.
+                val names = choice.waiting.map { addonName(it) }
+                status.value = "Couldn't reach " + names.take(2).joinToString(", ") + (if (names.size > 2) " and ${names.size - 2} more" else "")
                 return@withContext
             }
             if (chosen.isEmpty()) {
