@@ -6,6 +6,13 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "Red card": return "Rote Karte";
+            case "Full-time": return "Abpfiff";
+            case "Half-time": return "Halbzeit";
+            case "A line when there's a red card in a match of a team you follow, while Live TV is on.": return "Ein Hinweis bei einer Roten Karte im Spiel deines Teams, während Live-TV läuft.";
+            case "A line at half-time and full-time of a team you follow, while Live TV is on.": return "Ein Hinweis zur Halbzeit und zum Abpfiff deines Teams, während Live-TV läuft.";
+            case "Red cards": return "Rote Karten";
+            case "Half-time and full-time": return "Halbzeit und Abpfiff";
             case "Format": return "Format";
             case "Speed": return "Geschwindigkeit";
             case "Out of ": return "Raus aus ";

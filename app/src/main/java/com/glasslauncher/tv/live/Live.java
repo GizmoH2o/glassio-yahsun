@@ -371,6 +371,10 @@ public class Live extends Activity {
         @Override public void goal(LiveScores.Score s, boolean forHome) {
             view.goal(forHome ? s.home : s.away, s.line());
         }
+
+        @Override public void news(LiveScores.Score s, String line) {
+            view.flash(line);
+        }
     };
 
     /** Back from the choice of players without picking one (Glassio stayed underneath): the channel again. */
@@ -1037,7 +1041,7 @@ public class Live extends Activity {
             b.append(Ui.tr("Imagem", "Picture")).append(": ").append(v.width).append(" × ").append(v.height);
             float fps = v.frameRate > 0 ? v.frameRate : measuredFps;
             if (fps > 0) b.append("  ·  ").append(Math.round(fps)).append(" fps");
-            if (v.sampleMimeType != null) b.append("  ·  ").append(MimeTypes.getMediaMimeType(v.sampleMimeType) == null ? v.sampleMimeType : v.sampleMimeType.substring(v.sampleMimeType.indexOf('/') + 1).toUpperCase(java.util.Locale.ROOT));
+            if (v.sampleMimeType != null) b.append("  ·  ").append(v.sampleMimeType.substring(v.sampleMimeType.indexOf('/') + 1).toUpperCase(java.util.Locale.ROOT));
         }
         if (a != null) {
             if (b.length() > 0) b.append('\n');

@@ -748,3 +748,15 @@ Favorite channels	Любимые каналы
 OK adds or removes a channel · Back when you're done · %d chosen	OK добавляет или убирает канал · Назад, когда закончите · выбрано: %d
 Nothing to choose from yet: open Live TV once so it can load your channels.	Пока выбирать не из чего: откройте ТВ один раз, чтобы загрузить каналы.
 Favorite	Избранное
+Today in sport	Спорт сегодня
+Live matches in the guide for the rest of today	Прямые матчи в телегиде до конца дня
+Nothing live in the guide for the rest of today.	До конца дня в телегиде нет прямых трансляций.
+Record every match	Записывать каждый матч
+Recording every match	Записываются все матчи
+Recording every match · %s	Записываются все матчи · %s
+Reminders only · %s	Только напоминания · %s
+Match stats	Статистика матча
+Lineups	Составы
+League table	Турнирная таблица
+Results	Результаты
+Fixtures	Ближайшие матчи

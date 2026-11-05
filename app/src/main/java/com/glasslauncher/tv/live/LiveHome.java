@@ -88,6 +88,64 @@ public final class LiveHome {
         return out;
     }
 
+    /** A team's crest, as already saved on the TV ("": none or not looked for yet). */
+    public static String crest(Context c, String term) {
+        LiveTeamInfo.Found f = LiveTeamInfo.saved(c, Xtream.fold(term));
+        return f == null ? "" : f.crest;
+    }
+
+    /** Looks the followed teams up, for their crests. Background thread. */
+    public static void findTeams(Context c) {
+        for (String t : LiveFollow.all(c)) LiveTeamInfo.find(c, Xtream.fold(t));
+    }
+
+    /** A team's table, results, fixtures and match stats. Background thread: the network. */
+    public static LiveTeamInfo.Info teamInfo(Context c, String term) {
+        return LiveTeamInfo.info(c, Xtream.fold(term));
+    }
+
+    public static boolean recordsMatches(Context c, String term) {
+        return LiveFollow.recordsMatches(c, term);
+    }
+
+    public static void setRecordsMatches(Context c, String term, boolean on) {
+        LiveFollow.setRecordsMatches(c, term, on);
+    }
+
+    // What Today in sport also looks for, besides the sports rows' words.
+    private static final String[] TODAY = {"football", "soccer", "ligue 1", "motogp", "f1", "basketball", "hockey", "baseball"};
+
+    /** Today's matches and events across the guide, one per match, soonest first. Background thread. */
+    public static List<Airing> todayInSport(Context c) {
+        List<Airing> out = new ArrayList<>();
+        Map<String, Xtream.Channel> byEpg = LiveOptions.fullGuide(c) ? byEpg(c) : new HashMap<>();
+        if (byEpg.isEmpty()) return out;
+        List<String[]> phrases = new ArrayList<>();
+        for (String w : SPORTS) phrases.add(new String[] {w});
+        for (String w : TODAY) phrases.add(new String[] {w});
+        long now = System.currentTimeMillis();
+        java.util.Calendar end = java.util.Calendar.getInstance();
+        end.set(java.util.Calendar.HOUR_OF_DAY, 23);
+        end.set(java.util.Calendar.MINUTE, 59);
+        Set<String> seen = new HashSet<>(), marks = marks(c);
+        for (XmltvStore.Found f : XmltvStore.findAny(c, phrases, now, end.getTimeInMillis(), 1500)) {
+            Xtream.Channel ch = f.epg == null ? null : byEpg.get(f.epg.toLowerCase(Locale.ROOT));
+            if (ch == null || filler(f.title)) continue;
+            Xtream.Program p = new Xtream.Program();
+            p.title = f.title;
+            p.start = f.start;
+            p.end = f.end;
+            p.icon = f.icon == null ? "" : f.icon;
+            Xtream.mark(p);
+            if (!p.live) continue;
+            String k = teamsKey(p.title);
+            if (k == null || !seen.add(k)) continue;
+            out.add(airing(c, new Object[] {ch, p, ""}, marks));
+            if (out.size() >= 60) break;
+        }
+        return out;
+    }
+
     /** Home is showing: an old full guide is fetched in the background, with Live TV closed. */
     public static void guideLook(Context c) {
         GuideJob.look(c);

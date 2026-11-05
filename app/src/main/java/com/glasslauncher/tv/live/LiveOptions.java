@@ -344,6 +344,24 @@ final class LiveOptions {
         sp(c).edit().putInt("keepPerShow", n).apply();
     }
 
+    /** A line at half-time and full-time of a followed team's match, while Live TV is on. */
+    static boolean matchNews(Context c) {
+        return sp(c).getBoolean("matchNews", true);
+    }
+
+    static void setMatchNews(Context c, boolean on) {
+        sp(c).edit().putBoolean("matchNews", on).apply();
+    }
+
+    /** A line at a red card in a followed team's match, while Live TV is on. */
+    static boolean redCardAlerts(Context c) {
+        return sp(c).getBoolean("redCardAlerts", true);
+    }
+
+    static void setRedCardAlerts(Context c, boolean on) {
+        sp(c).edit().putBoolean("redCardAlerts", on).apply();
+    }
+
     /** Channels the full guide knows nothing about stay out of the categories. */
     static boolean hideNoGuide(Context c) {
         return sp(c).getBoolean("hideNoGuide", false);

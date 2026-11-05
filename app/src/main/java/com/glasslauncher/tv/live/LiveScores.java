@@ -40,6 +40,9 @@ final class LiveScores {
         long readAt;
         /** Just found (on the big board): its first reading from its own board isn't a goal. */
         boolean fresh = true;
+        /** Red cards seen so far (-1: not read yet, so the first reading isn't news). */
+        int reds = -1;
+        boolean toldHalf;
 
         /** MUN 1–0 BOU · 63' */
         String line() {
@@ -52,6 +55,9 @@ final class LiveScores {
 
         /** A goal (a score going up) for `s`, `forHome`: the home side scored. */
         void goal(Score s, boolean forHome);
+
+        /** Half-time, full-time or a red card: a line to show. */
+        default void news(Score s, String line) {}
     }
 
     private static final String ESPN = "https://site.api.espn.com/apis/site/v2/sports/";
@@ -316,7 +322,40 @@ final class LiveScores {
             if (s.homeScore > oldHome) goal(s, true);
             else if (s.awayScore > oldAway) goal(s, false);
         }
+        boolean half = type != null && halfTime(type.optString("name"), type.optString("shortDetail"));
+        if (tell && !hidden(s.term)) {
+            if (half && !s.toldHalf && LiveOptions.matchNews(c)) news(s, Ui.tr("Intervalo", "Half-time") + "  ·  " + s.line());
+            if (wasLive && s.state.equals("post") && LiveOptions.matchNews(c)) news(s, Ui.tr("Fim de jogo", "Full-time") + "  ·  " + s.line());
+        }
+        if (half) s.toldHalf = true;
+        JSONArray details = comp.optJSONArray("details");
+        int reds = redCards(details);
+        if (tell && s.reds >= 0 && reds > s.reds && !hidden(s.term) && LiveOptions.redCardAlerts(c)) {
+            news(s, Ui.tr("Cartão vermelho", "Red card") + "  ·  " + s.line());
+        }
+        s.reds = reds;
         return !before.equals(s.line() + s.state);
+    }
+
+    /** Whether a match's status says half-time. Pure. */
+    static boolean halfTime(String name, String detail) {
+        return "STATUS_HALFTIME".equals(name) || "HT".equalsIgnoreCase(detail == null ? "" : detail.trim());
+    }
+
+    /** How many red cards a match's events hold. Pure. */
+    static int redCards(JSONArray details) {
+        int n = 0;
+        for (int i = 0; details != null && i < details.length(); i++) {
+            JSONObject d = details.optJSONObject(i);
+            if (d == null) continue;
+            JSONObject type = d.optJSONObject("type");
+            if (d.optBoolean("redCard") || type != null && type.optString("text").toLowerCase(java.util.Locale.ROOT).contains("red card")) n++;
+        }
+        return n;
+    }
+
+    private void news(Score s, String line) {
+        main.post(() -> { for (Listener l : listeners) l.news(s, line); });
     }
 
     /** ESPN's times (2026-10-25T14:00Z, seconds or not), in ms; 0 when unreadable. */

@@ -237,7 +237,29 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
     /** The team whose page was just left: back on Following, the focus goes to its chip. */
     var cameFrom by remember { mutableStateOf<String?>(null) }
     val leaveTeam = { cameFrom = team; team = null; teamData = null }
-    BackHandler(enabled = dialog == null) { if (team != null) leaveTeam() else onClose() }
+    var todayShown by remember { mutableStateOf(false) }
+    var crests by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    val todayFocus = remember { FocusRequester() }
+    var today by remember { mutableStateOf<List<LiveHome.Airing>?>(null) }
+    var info by remember { mutableStateOf<com.glasslauncher.tv.live.LiveTeamInfo.Info?>(null) }
+    BackHandler(enabled = dialog == null) { if (todayShown) todayShown = false else if (team != null) leaveTeam() else onClose() }
+    LaunchedEffect(team) {
+        info = null
+        val t = team
+        if (t != null) info = withContext(Dispatchers.IO) { runCatching { LiveHome.teamInfo(app, t) }.getOrNull() }
+        else crests = withContext(Dispatchers.IO) {
+            runCatching { LiveHome.findTeams(app) }
+            LiveHome.followed(app).associateWith { LiveHome.crest(app, it) }
+        }
+    }
+    LaunchedEffect(todayShown) {
+        if (todayShown) {
+            today = null
+            today = withContext(Dispatchers.IO) { timed("Today in sport") { LiveHome.todayInSport(app) } }
+            delay(120)
+            runCatching { todayFocus.requestFocus() }
+        }
+    }
     LaunchedEffect(team, reload) {
         while (true) {
             val t = team
@@ -281,6 +303,18 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
     val armed = stopArmedAt != 0L && System.currentTimeMillis() - stopArmedAt < 5_000
 
     LivePage(s) {
+        if (todayShown) {
+            header("Today in sport", "Live matches in the guide for the rest of today", s)
+            val list = today
+            if (list == null) { hint("Looking in the guide…", s); return@LivePage }
+            if (list.isEmpty()) hint("Nothing live in the guide for the rest of today.", s)
+            list.forEachIndexed { i, a ->
+                item(key = "today:" + a.key()) {
+                    EventRowView(a, s, shown, true, toggle, if (i == 0) Modifier.focusRequester(todayFocus) else Modifier) { watch(a) }
+                }
+            }
+            return@LivePage
+        }
         if (t == null) {
             header("Following", if (!r) "Sign in to Live TV to see when your teams and shows are on" else "The teams and shows you follow, from the TV guide", s)
             if (d == null) return@LivePage
@@ -299,7 +333,7 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                 EdgeRow(s, (10 * s).dp, (4 * s).dp) { first ->
                     items(d.terms.size, key = { "t:" + d.terms[it] }) { i ->
                         val term = d.terms[i]
-                        ChipView(if (LiveHome.spoilerFree(ctx, term)) "$term · scores hidden" else term, s, (if (i == 0) first else Modifier).then(if (term == cameFrom) Modifier.focusRequester(chip) else Modifier), onLong = {
+                        CrestChip(if (LiveHome.spoilerFree(ctx, term)) "$term · scores hidden" else term, crests[term].orEmpty(), s, modifier = (if (i == 0) first else Modifier).then(if (term == cameFrom) Modifier.focusRequester(chip) else Modifier), onLong = {
                             dialog = MenuDialog(term, listOf(
                                 "Open" to { stopArmedAt = 0; team = term },
                                 scoresChoice(ctx, term, { dialog = it }) { reload++ },
@@ -307,9 +341,10 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                                     scope.launch { withContext(Dispatchers.IO) { LiveHome.unfollow(app, term) }; toast(ctx, "Stopped following $term"); reload++ }
                                 },
                             ))
-                        }) { stopArmedAt = 0; team = term }
+                        }, onClick = { stopArmedAt = 0; team = term })
                     }
                     item(key = "more") { ChipView("+  Follow a team or show", s, if (d.terms.isEmpty()) first else Modifier, null, follow) }
+                    if (r) item(key = "today") { ChipView("Today in sport", s, Modifier, null) { todayShown = true } }
                     if (r) item(key = "search") { ChipView("Search in Live TV", s, Modifier, null) { open(ctx, LiveHome.search(ctx)) } }
                 }
             }
@@ -322,6 +357,14 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                 Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                     ChipView("‹  Following", s, Modifier.focusRequester(first), null) { leaveTeam() }
                     scoresChoice(ctx, t, { dialog = it }) { reload++ }.let { (label, act) -> ChipView(label, s, Modifier, null, act) }
+                    ChipView(if (LiveHome.recordsMatches(ctx, t)) "Recording every match" else "Record every match", s, Modifier, null) {
+                        val on = !LiveHome.recordsMatches(ctx, t)
+                        scope.launch {
+                            withContext(Dispatchers.IO) { LiveHome.setRecordsMatches(app, t, on) }
+                            toast(ctx, if (on) "Recording every match · $t" else "Reminders only · $t")
+                            reload++
+                        }
+                    }
                     ChipView("Also called", s, Modifier, null) {
                         dialog = TextEntry("Also called", LiveHome.alsoCalled(ctx, t), "Other names it has in the guide, with commas between them") { names ->
                             scope.launch {
@@ -352,9 +395,76 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                 item(key = "m:" + a.key()) { EventRowView(a, s, shown, true, toggle) { watch(a) } }
             }
             eventRows("Replays and shows", td.shows, s, true, shown, toggle, watch)
+            info?.let { teamInfoRows(it, s) }
         }
     }
     DialogHost(dialog) { dialog = null }
+}
+
+/** A team's page, under its matches: the match's stats and lineups, the table, results and fixtures. Each row can be selected, so the remote can scroll to it. */
+private fun LazyListScope.teamInfoRows(info: com.glasslauncher.tv.live.LiveTeamInfo.Info, s: Float) {
+    if (info.stats.isNotEmpty()) {
+        section("Match stats", s, "stats")
+        item(key = "statsHead") { InfoRow(s, info.homeName, "", info.awayName) }
+        info.stats.forEach { st -> item(key = "stat:" + st.name) { InfoRow(s, st.home, st.name, st.away) } }
+    }
+    if (info.homeLineup.isNotEmpty() || info.awayLineup.isNotEmpty()) {
+        section("Lineups", s, "lineups")
+        if (info.homeLineup.isNotEmpty()) item(key = "lineupA") { InfoTextRow(s, info.homeName, info.homeLineup) }
+        if (info.awayLineup.isNotEmpty()) item(key = "lineupB") { InfoTextRow(s, info.awayName, info.awayLineup) }
+    }
+    if (info.table.isNotEmpty()) {
+        section(info.league.ifEmpty { "League table" }, s, "table")
+        item(key = "tableHead") { TableRowView(s, "", "", info.columns, false, false) }
+        info.table.forEach { r -> item(key = "tr:" + r.rank + r.team) { TableRowView(s, r.rank.toString(), r.team, r.numbers, r.mine, true) } }
+    }
+    if (info.results.isNotEmpty()) {
+        section("Results", s, "results")
+        info.results.forEach { g -> item(key = "res:" + g.start) { InfoTextRow(s, day(g.start), g.score) } }
+    }
+    if (info.fixtures.isNotEmpty()) {
+        section("Fixtures", s, "fixtures")
+        info.fixtures.forEach { g -> item(key = "fix:" + g.start) { InfoTextRow(s, day(g.start), g.title) } }
+    }
+}
+
+private fun day(at: Long): String = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(at))
+
+@Composable
+private fun InfoRow(s: Float, left: String, middle: String, right: String) {
+    Focusable(Modifier.fillMaxWidth().height((30 * s).dp), (9 * s).dp, onClick = {}, look = Look.ROW) { _ ->
+        RawText(left, color = Color.White, fontSize = (11 * s).sp, maxLines = 1, modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = (14 * s).dp))
+        RawText(middle, color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, modifier = Modifier.align(Alignment.Center))
+        RawText(right, color = Color.White, fontSize = (11 * s).sp, maxLines = 1, modifier = Modifier.align(Alignment.CenterEnd).padding(horizontal = (14 * s).dp))
+    }
+}
+
+@Composable
+private fun InfoTextRow(s: Float, label: String, text: String) {
+    Focusable(Modifier.fillMaxWidth().height((30 * s).dp), (9 * s).dp, onClick = {}, look = Look.ROW) { _ ->
+        Row(Modifier.align(Alignment.CenterStart).padding(horizontal = (14 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+            RawText(label, color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, modifier = Modifier.width((90 * s).dp))
+            RawText(text, color = Color.White, fontSize = (11 * s).sp, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun TableRowView(s: Float, rank: String, team: String, numbers: Array<String>, mine: Boolean, selectable: Boolean) {
+    val row: @Composable () -> Unit = {
+        Row(Modifier.fillMaxWidth().padding(horizontal = (14 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+            RawText(rank, color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, modifier = Modifier.width((30 * s).dp))
+            RawText(team, color = if (mine || !selectable) Color.White else AppleSecondary, fontSize = (11 * s).sp,
+                fontWeight = if (mine) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, modifier = Modifier.weight(1f))
+            numbers.forEach { n ->
+                RawText(n, color = if (selectable) Color.White else AppleSecondary, fontSize = (10.5f * s).sp, maxLines = 1, modifier = Modifier.width((46 * s).dp))
+            }
+        }
+    }
+    if (!selectable) { Box(Modifier.fillMaxWidth().height((22 * s).dp), contentAlignment = Alignment.CenterStart) { row() }; return }
+    Focusable(Modifier.fillMaxWidth().height((30 * s).dp), (9 * s).dp, onClick = {}, look = Look.ROW) { _ ->
+        Box(Modifier.align(Alignment.CenterStart)) { row() }
+    }
 }
 
 // MARK: - The page
@@ -569,10 +679,19 @@ private fun Focusable(
 }
 
 @Composable
-private fun ChipView(text: String, s: Float, modifier: Modifier, onLong: (() -> Unit)?, onClick: () -> Unit) {
+private fun ChipView(text: String, s: Float, modifier: Modifier, onLong: (() -> Unit)?, onClick: () -> Unit) =
+    CrestChip(text, "", s, modifier, onLong, onClick)
+
+@Composable
+private fun CrestChip(text: String, icon: String, s: Float, modifier: Modifier, onLong: (() -> Unit)?, onClick: () -> Unit) {
     Focusable(modifier.height((30 * s).dp), (15 * s).dp, onLong, onClick, grow = 1.04f, look = Look.PLATE) { f ->
-        Text(text, color = lerp(Color.White, INK, f), fontSize = (11 * s).sp, fontWeight = FontWeight.Medium,
-            maxLines = 1, modifier = Modifier.align(Alignment.Center).padding(horizontal = (16 * s).dp))
+        Row(Modifier.align(Alignment.Center).padding(horizontal = (16 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+            if (icon.isNotEmpty()) {       // a team's crest
+                AsyncImage(icon, null, contentScale = ContentScale.Fit, modifier = Modifier.size((16 * s).dp))
+                Spacer(Modifier.width((7 * s).dp))
+            }
+            Text(text, color = lerp(Color.White, INK, f), fontSize = (11 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
     }
 }
 
@@ -718,13 +837,13 @@ private fun Spotlight(a: LiveHome.Airing, s: Float, rev: Int, modifier: Modifier
 
 /** A row of what's coming up: the day and the time, the match and its competition, the channel; LIVE or the bell. */
 @Composable
-private fun EventRowView(a: LiveHome.Airing, s: Float, rev: Int, actions: Boolean, toggle: (LiveHome.Airing, Boolean) -> Unit, onOpen: () -> Unit) {
+private fun EventRowView(a: LiveHome.Airing, s: Float, rev: Int, actions: Boolean, toggle: (LiveHome.Airing, Boolean) -> Unit, modifier: Modifier = Modifier, onOpen: () -> Unit) {
     rev.hashCode()     // a reminder or a recording set: the bell and the dot redraw
     val now = System.currentTimeMillis()
     val on = a.start <= now
     val ahead = actions && a.start > now
     Row(Modifier.fillMaxWidth().height((50 * s).dp), horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
-        Focusable(Modifier.weight(1f).fillMaxHeight(), (14 * s).dp, onClick = onOpen, look = Look.ROW) { _ ->
+        Focusable(Modifier.weight(1f).fillMaxHeight().then(modifier), (14 * s).dp, onClick = onOpen, look = Look.ROW) { _ ->
             Row(Modifier.fillMaxSize().padding(horizontal = (18 * s).dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.width((96 * s).dp)) {
                     Text(LiveHome.day(a.start, now).uppercase(), color = Color.White.copy(alpha = 0.6f), fontSize = (8 * s).sp,

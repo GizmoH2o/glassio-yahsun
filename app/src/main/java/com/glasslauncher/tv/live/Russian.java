@@ -13,6 +13,13 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Red card": return "Красная карточка";
+            case "Full-time": return "Конец матча";
+            case "Half-time": return "Перерыв";
+            case "A line when there's a red card in a match of a team you follow, while Live TV is on.": return "Строка при красной карточке в матче вашей команды, пока открыт ТВ.";
+            case "A line at half-time and full-time of a team you follow, while Live TV is on.": return "Строка в перерыв и в конце матча вашей команды, пока открыт ТВ.";
+            case "Red cards": return "Красные карточки";
+            case "Half-time and full-time": return "Перерыв и конец матча";
             case "Format": return "Формат";
             case "Speed": return "Скорость";
             case "Out of ": return "Убрано из ";

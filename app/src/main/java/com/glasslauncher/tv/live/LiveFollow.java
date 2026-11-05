@@ -54,6 +54,34 @@ final class LiveFollow {
         return false;
     }
 
+    /** Whether every match of what's followed is recorded, not just reminded of. */
+    static synchronized boolean recordsMatches(Context c, String term) {
+        JSONArray a = read(c).optJSONArray("record");
+        String k = Xtream.fold(term);
+        for (int i = 0; a != null && i < a.length(); i++) if (k.equals(a.optString(i))) return true;
+        return false;
+    }
+
+    /** Sets it, and makes the airings ahead again that way. Background thread. */
+    static void setRecordsMatches(Context c, String term, boolean on) {
+        String k = Xtream.fold(term);
+        synchronized (LiveFollow.class) {
+            JSONObject o = read(c);
+            JSONArray a = o.optJSONArray("record"), out = new JSONArray();
+            for (int i = 0; a != null && i < a.length(); i++) if (!k.equals(a.optString(i))) out.put(a.optString(i));
+            if (on) out.put(k);
+            try {
+                o.put("record", out);
+            } catch (JSONException ignored) {
+            }
+            save(c, o);
+        }
+        for (LiveSchedule.Item it : LiveSchedule.all(c)) {
+            if ((SERIES + k).equals(it.series)) LiveSchedule.remove(c, it.key());
+        }
+        sync(c);
+    }
+
     /** The other names typed for what's followed ("Man U, MUFC"). */
     static synchronized String alsoCalled(Context c, String term) {
         JSONObject also = read(c).optJSONObject("also");
@@ -329,7 +357,7 @@ final class LiveFollow {
         }
         if (mine >= PER_TERM) return false;
         LiveSchedule.Item it = new LiveSchedule.Item();
-        it.kind = LiveSchedule.REMIND;
+        it.kind = match != null && recordsMatches(c, term) ? LiveSchedule.RECORD : LiveSchedule.REMIND;     // a show about it: a reminder
         it.ch = ch;
         it.start = p.start;
         it.end = p.end;

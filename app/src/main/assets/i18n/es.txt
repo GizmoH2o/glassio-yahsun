@@ -747,3 +747,15 @@ Favorite channels	Canales favoritos
 OK adds or removes a channel · Back when you're done · %d chosen	OK añade o quita un canal · Atrás al terminar · %d elegidos
 Nothing to choose from yet: open Live TV once so it can load your channels.	Aún no hay nada que elegir: abre TV en vivo una vez para que cargue tus canales.
 Favorite	Favorito
+Today in sport	Hoy en deportes
+Live matches in the guide for the rest of today	Partidos en vivo en la guía durante el resto del día
+Nothing live in the guide for the rest of today.	Nada en vivo en la guía durante el resto del día.
+Record every match	Grabar cada partido
+Recording every match	Grabando cada partido
+Recording every match · %s	Grabando cada partido · %s
+Reminders only · %s	Solo recordatorios · %s
+Match stats	Estadísticas del partido
+Lineups	Alineaciones
+League table	Clasificación
+Results	Resultados
+Fixtures	Próximos partidos

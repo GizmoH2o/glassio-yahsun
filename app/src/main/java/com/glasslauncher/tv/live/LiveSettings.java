@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, UPSCALE_ROW = 78,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MAIN_ROWS = 83;
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, MAIN_ROWS = 85;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
@@ -102,7 +102,7 @@ final class LiveSettings {
                     CUSTOM_LAYOUT_ROW, CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, PLAYER_LOGO_ROW, RESET_ROW},
             {BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {},
-            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, SCORES_ROW, GOALS_ROW,
+            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, SCORES_ROW, GOALS_ROW, MATCH_NEWS_ROW, RED_CARD_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
             {PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, RESET_ROW},
@@ -361,6 +361,8 @@ final class LiveSettings {
             case REMIND_WATCHING_ROW: return Ui.tr("Lembrar no canal que estou vendo", "Remind me on the channel I'm watching");
             case SCORES_ROW: return Ui.tr("Placar ao vivo", "Live scores");
             case GOALS_ROW: return Ui.tr("Avisos de gol", "Goal alerts");
+            case MATCH_NEWS_ROW: return Ui.tr("Intervalo e fim de jogo", "Half-time and full-time");
+            case RED_CARD_ROW: return Ui.tr("Cartões vermelhos", "Red cards");
             case THEME_ROW: return Ui.tr("Cor do foco", "Focus color");
             case STYLE_ROW: return Ui.tr("Design", "Design");
             case NIGHT_ROW: return Ui.tr("Design à noite", "Design at night");
@@ -526,6 +528,8 @@ final class LiveSettings {
             case REMIND_WATCHING_ROW: return onOff(LiveOptions.remindWatching(c));
             case SCORES_ROW: return onOff(LiveOptions.scores(c));
             case GOALS_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.goalAlerts(c)) : "—";
+            case MATCH_NEWS_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.matchNews(c)) : "—";
+            case RED_CARD_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.redCardAlerts(c)) : "—";
             case PREVIEW_ROW: return onOff(LiveOptions.homePreviews(c));
             case CHANNEL_SORT_ROW: {
                 int s = LiveOptions.channelSort(c);
@@ -880,6 +884,10 @@ final class LiveSettings {
                             "When a team you follow comes on: a panel with every channel showing the match, or one card.");
                     case SCORES_ROW: return Ui.tr("O placar e o tempo de jogo dos times que você segue, na barra do canal e no painel do jogo. Para esconder o placar de um time, segure OK nele em Seguindo.",
                             "The score and match minute for the teams you follow, on the info bar and the match panel. To hide one team's score, hold OK on it in Following.");
+                    case MATCH_NEWS_ROW: return Ui.tr("Uma linha no intervalo e no fim do jogo de um time que você segue, enquanto a TV ao vivo está aberta.",
+                            "A line at half-time and full-time of a team you follow, while Live TV is on.");
+                    case RED_CARD_ROW: return Ui.tr("Uma linha quando há um cartão vermelho no jogo de um time que você segue, enquanto a TV ao vivo está aberta.",
+                            "A line when there's a red card in a match of a team you follow, while Live TV is on.");
                     case GOALS_ROW: return Ui.tr("Um aviso quando sai um gol num jogo de um time que você segue, enquanto a TV ao vivo está aberta.",
                             "A card when there's a goal in a followed team's match, while Live TV is open.");
                     case REMIND_WATCHING_ROW: return Ui.tr("Um lembrete do canal que já está passando na TV ao vivo: aparece mesmo assim, ou não.",
@@ -1142,6 +1150,8 @@ final class LiveSettings {
             case REMIND_WATCHING_ROW: return LiveOptions.remindWatching(c);
             case SCORES_ROW: return LiveOptions.scores(c);
             case GOALS_ROW: return LiveOptions.scores(c) && LiveOptions.goalAlerts(c);
+            case MATCH_NEWS_ROW: return LiveOptions.scores(c) && LiveOptions.matchNews(c);
+            case RED_CARD_ROW: return LiveOptions.scores(c) && LiveOptions.redCardAlerts(c);
             case CC_ON_ROW: return LiveOptions.subtitles(c);
             case ASK_PROFILE_ROW: return LiveOptions.askProfile(c);
             case PIN_ROW: return LiveOptions.hasPin(c);
@@ -1154,7 +1164,7 @@ final class LiveSettings {
 
     /** A switch that can't change now (goal alerts without live scores) shows faint. */
     private boolean switchUsable(int id) {
-        return id != GOALS_ROW || LiveOptions.scores(context());
+        return id != GOALS_ROW && id != MATCH_NEWS_ROW && id != RED_CARD_ROW || LiveOptions.scores(context());
     }
 
     private final Paint switchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1294,7 +1304,7 @@ final class LiveSettings {
     private boolean steps() {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
-                || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
+                || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == GOALS_ROW
@@ -2054,6 +2064,14 @@ final class LiveSettings {
                 if (LiveOptions.scores(c)) LiveOptions.setGoalAlerts(c, !LiveOptions.goalAlerts(c));
                 announce();
                 return;
+            case MATCH_NEWS_ROW:
+                if (LiveOptions.scores(c)) LiveOptions.setMatchNews(c, !LiveOptions.matchNews(c));
+                announce();
+                return;
+            case RED_CARD_ROW:
+                if (LiveOptions.scores(c)) LiveOptions.setRedCardAlerts(c, !LiveOptions.redCardAlerts(c));
+                announce();
+                return;
             case AGE_ROW: {
                 final int age = LiveOptions.step(LiveOptions.AGE_LOCKS, LiveOptions.ageLock(c), dir);
                 if (age > 0 && !LiveOptions.hasPin(c)) {     // the lock needs a PIN: one now
@@ -2227,6 +2245,8 @@ final class LiveSettings {
             case REMIND_WATCHING_ROW:
             case SCORES_ROW:
             case GOALS_ROW:
+            case MATCH_NEWS_ROW:
+            case RED_CARD_ROW:
             case GUIDE_SIZE_ROW:
             case AGE_ROW:
             case PREVIEW_ROW:
