@@ -42,7 +42,7 @@ final class XmltvStore {
     private static final int ABOUT_MAX = 320;
     /** The database's layout: 2 added the shows' pictures (an older one is fetched again). */
     /** The guide's layout: 3 added each programme's rating, 4 the channels' logos (an older guide is fetched again). */
-    private static final int VERSION = 5;      // 5: sub-title and repeat kept apart
+    private static final int VERSION = 6;      // 5: sub-title and repeat kept apart; 6: NEW and LIVE carried between channels
 
     private static SQLiteDatabase db;
     /** The guide in use has the sub and rep columns (one from before VERSION 5 doesn't, until it's fetched again). */
@@ -485,6 +485,9 @@ final class XmltvStore {
             Set<String> seen = new HashSet<>();
             Map<String, Long> starts = new HashMap<>();
             Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
+            TimeZone zone = TimeZone.getDefault();
+            // By title, its listings marked NEW or LIVE ({start, live ? 1 : 0, episode}), to carry to its other listings.
+            Map<String, List<long[]>> marked = new HashMap<>();
             w.beginTransaction();
             for (int e = p.getEventType(); e != XmlPullParser.END_DOCUMENT; e = p.next()) {
                 if (e == XmlPullParser.START_TAG && "channel".equals(p.getName())) {     // its logo (<icon src=…>)
@@ -522,6 +525,7 @@ final class XmltvStore {
                 }
                 String title = "", sub = "", about = "", icon = "";
                 boolean fresh = false, live = false, inRating = false, repeat = false;
+                String shownDay = "", airDay = "";
                 int age = -1;
                 for (int depth = 1; depth > 0; ) {
                     int t = p.next();
@@ -539,6 +543,18 @@ final class XmltvStore {
                             else if ("desc".equals(n) && about.isEmpty()) about = text;
                             continue;
                         }
+                        if (depth == 1 && "date".equals(n)) {       // a whole date is when it was first shown; a year says nothing
+                            if (airDay.isEmpty()) airDay = LiveMarks.dayOf(p.nextText().trim());
+                            else p.nextText();
+                            continue;
+                        }
+                        if (depth == 1 && "episode-num".equals(n)) {
+                            boolean aired = "original-air-date".equals(p.getAttributeValue(null, "system"));
+                            String text = p.nextText().trim();
+                            if (aired) airDay = LiveMarks.dayOf(text);
+                            continue;
+                        }
+                        if (depth == 1 && "previously-shown".equals(n)) shownDay = LiveMarks.dayOf(p.getAttributeValue(null, "start"));
                         if (depth == 1 && ("new".equals(n) || "premiere".equals(n))) fresh = true;
                         if (depth == 1 && "live".equals(n)) live = true;
                         if (depth == 1 && "previously-shown".equals(n)) repeat = true;
@@ -554,6 +570,20 @@ final class XmltvStore {
                         break;
                     }
                 }
+                // What it says besides its marks: when it was first shown.
+                if (LiveMarks.firstShownBefore(shownDay.isEmpty() ? airDay : shownDay, start, zone)) repeat = true;
+                if (!repeat && !fresh && !live && LiveMarks.firstShownNow(airDay, start, zone)) fresh = true;
+                // The title without the marks written in it, and those marks.
+                Xtream.Program named = new Xtream.Program();
+                named.title = title;
+                named.about = "";
+                Xtream.mark(named);
+                String show = Xtream.fold(named.title);
+                if (fresh || live || named.fresh || named.live) {
+                    List<long[]> shows = marked.get(show);
+                    if (shows == null) marked.put(show, shows = new ArrayList<>(2));
+                    shows.add(new long[] {start, live || named.live ? 1 : 0, LiveMarks.episodeId(sub, about)});
+                }
                 // The same programme twice (two guide sources for one channel): the first one stays.
                 Long had = starts.get(key + start);
                 if (had != null) continue;
@@ -566,7 +596,7 @@ final class XmltvStore {
                 insert.bindLong(2, start);
                 insert.bindLong(3, stop);
                 insert.bindString(4, title + (fresh ? " [New]" : "") + (live ? " [Live]" : ""));
-                insert.bindString(5, Xtream.fold(title));
+                insert.bindString(5, show);
                 insert.bindString(6, about);
                 insert.bindString(7, icon);
                 insert.bindLong(8, age);
@@ -589,6 +619,7 @@ final class XmltvStore {
             w.execSQL("CREATE INDEX by_channel ON p (epg, start)");
             // Holds what searches compare, so they read this and not the long descriptions in the table.
             w.execSQL("CREATE INDEX by_search ON p (start, stop, key)");
+            carryMarks(w, marked);
             w.execSQL("INSERT INTO meta VALUES ('at', '" + now + "'), ('count', '" + count + "'), ('channels', '" + seen.size()
                     + "'), ('v', '" + VERSION + "')");
         } finally {
@@ -616,6 +647,57 @@ final class XmltvStore {
         progress = "";
         AppLog.w("guide: " + pictures + " with a picture");
         return count;
+    }
+
+    /**
+     * A big guide marks a show on one channel and not on the next: each marked title's mark carries to its other
+     * listings, where LiveMarks says they're the same showing. Never onto one the guide calls a repeat.
+     */
+    private static void carryMarks(SQLiteDatabase w, Map<String, List<long[]>> marked) {
+        w.execSQL("CREATE INDEX by_show ON p (key)");
+        int live = 0, fresh = 0;
+        w.beginTransaction();
+        try {
+            SQLiteStatement mark = w.compileStatement("UPDATE p SET title = title || ? WHERE rowid = ?");
+            for (Map.Entry<String, List<long[]>> e : marked.entrySet()) {
+                if (e.getKey().isEmpty()) continue;
+                List<Object[]> gained = new ArrayList<>();
+                try (Cursor q = w.rawQuery("SELECT rowid, start, title, sub, substr(about, 1, 91) FROM p WHERE key = ? AND rep = 0",
+                        new String[] {e.getKey()})) {
+                    while (q.moveToNext()) {
+                        long start = q.getLong(1);
+                        Xtream.Program row = new Xtream.Program();
+                        row.title = q.getString(2);
+                        row.about = "";
+                        Xtream.mark(row);
+                        if (row.live) continue;
+                        int episode = LiveMarks.episodeId(q.getString(3), q.getString(4));
+                        boolean asLive = false, asNew = false;
+                        for (long[] m : e.getValue()) {
+                            if (m[1] == 1 && LiveMarks.sameLiveShow(m[0], start)) asLive = true;
+                            else if (m[1] == 0 && LiveMarks.sameNewShow(m[0], (int) m[2], start, episode)) asNew = true;
+                        }
+                        if (asLive) {
+                            gained.add(new Object[] {q.getLong(0), " [Live]"});
+                            live++;
+                        } else if (asNew && !row.fresh) {
+                            gained.add(new Object[] {q.getLong(0), " [New]"});
+                            fresh++;
+                        }
+                    }
+                }
+                for (Object[] g : gained) {
+                    mark.bindString(1, (String) g[1]);
+                    mark.bindLong(2, (Long) g[0]);
+                    mark.executeUpdateDelete();
+                }
+            }
+            w.setTransactionSuccessful();
+        } finally {
+            w.endTransaction();
+        }
+        w.execSQL("DROP INDEX by_show");
+        AppLog.w("guide: marks carried to " + live + " more LIVE and " + fresh + " more NEW");
     }
 
     /** Past the element the parser is on (its start tag), children and all. */

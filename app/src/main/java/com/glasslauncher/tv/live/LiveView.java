@@ -4564,6 +4564,8 @@ final class LiveView extends View {
         }
         String kind = score != null ? score : tag == 1 ? badgeLive : tag == 2 ? badgeNew : tag == 3 ? badgeRepeat : null;
         String times = Ui.time(p.start) + " – " + Ui.time(p.end) + (kind == null ? "" : "  ·  " + kind);
+        // On a narrow tile the mark comes first: it's what would be cut off.
+        if (kind != null && sp.measureText(times) > room) times = kind + "  ·  " + Ui.time(p.start);
         c.drawText(ellipsize(times, sp, room), x, cell.centerY() + 22 * k, sp);
     }
 

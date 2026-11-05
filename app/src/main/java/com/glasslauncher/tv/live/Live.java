@@ -521,6 +521,10 @@ public class Live extends Activity {
                 LiveFollow.remove(Live.this, unfollow);
                 return;
             }
+            if (i.getBooleanExtra("fetchguide", false)) {     // the full guide again, now
+                XmltvStore.fetch(getApplicationContext(), Xtream.saved(getApplicationContext()), null);
+                return;
+            }
             if (i.getBooleanExtra("aboutshow", false)) {      // About the show, as the player's button opens it
                 view.aboutPlaying();
                 return;
