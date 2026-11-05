@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
             }
             com.glasslauncher.tv.ui.GlassType(app.settings.accent, app.settings.textSize, app.settings.reduceMotion, app.settings.highContrast) { com.glasslauncher.tv.ui.QuietSemantics { androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.backGoesBack()) { HomeScreen(app, screen) { screen = it } } } }
             // Watch on Home and the kick-off alert: over everything, last.
+            com.glasslauncher.tv.ui.NightDim()
             com.glasslauncher.tv.ui.MiniLiveWindow()
             com.glasslauncher.tv.ui.KickOffCard()
         }

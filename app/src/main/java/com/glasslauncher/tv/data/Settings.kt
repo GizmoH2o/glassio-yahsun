@@ -218,6 +218,8 @@ class Settings(private val ctx: Context) {
     /** The home screen's "Movies in your library" and "Series in your library" rows. */
     var homeMovies: Boolean get() = b("homeMovies", true); set(v) = putB("homeMovies", v)
     var homeSeries: Boolean get() = b("homeSeries", true); set(v) = putB("homeSeries", v)
+    /** Bumped when Night mode changes (it's in a file): its row reads again. */
+    var nightRev: Int get() = i("nightRev", 0); set(v) = putI("nightRev", v)
     /** Updates offer test builds too. */
     var betaUpdates: Boolean get() = b("betaUpdates", false); set(v) = putB("betaUpdates", v)
     /** The code the weekly backup is locked with ("": no weekly backup). */

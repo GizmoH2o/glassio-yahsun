@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -132,6 +133,23 @@ fun Modifier.nav(up: FocusRequester? = null, down: FocusRequester? = null, left:
         if (left != null) this.left = left
         if (right != null) this.right = right
     }
+
+/** Night mode: everything dimmed from its hour until the morning. */
+@Composable
+fun NightDim() {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var on by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        while (true) {
+            on = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.glasslauncher.tv.live.NightMode.now(ctx) }
+            kotlinx.coroutines.delay(15_000)
+        }
+    }
+    if (on) androidx.compose.foundation.layout.Box(
+        Modifier.fillMaxSize()
+            .background(Color.Black.copy(alpha = com.glasslauncher.tv.live.NightMode.DIM_PERCENT / 100f)),
+    )
+}
 
 /** A streaming app's own icon, as the TV has it installed (nothing when it isn't): beside its name on an "open in" button. */
 @Composable

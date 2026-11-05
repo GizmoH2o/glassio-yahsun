@@ -800,3 +800,22 @@ No internet	Sem internet
 Your provider isn't answering	Seu provedor não responde
 Internet slow for HD	Internet lenta para HD
 Internet and provider fine	Internet e provedor bem
+Night mode	Modo noturno
+Until 7 in the morning: dims Glassio and Live TV, and lowers Live TV's volume	Até as 7 da manhã: escurece o Glassio e a TV ao vivo, e abaixa o volume da TV ao vivo
+Remote guide	Guia do controle
+What the remote's buttons do	O que os botões do controle fazem
+opens what's selected	abre o que está selecionado
+Hold OK	Segurar OK
+its menu	o menu dele
+one step back; on Home, the first row, then the big picture	um passo atrás; no Início, a primeira linha e depois a imagem grande
+Glassio's Home, then the first title	Início do Glassio e depois o primeiro título
+Live TV: OK	TV ao vivo: OK
+the player's controls	os controles do player
+Live TV: Left	TV ao vivo: Esquerda
+the channel list	a lista de canais
+Live TV: Right	TV ao vivo: Direita
+the last channel	o último canal
+Live TV: Up / Down	TV ao vivo: Cima / Baixo
+other channels' shows	programas de outros canais
+Live TV: hold OK	TV ao vivo: segurar OK
+the menu	o menu

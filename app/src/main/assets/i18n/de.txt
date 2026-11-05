@@ -801,3 +801,22 @@ No internet	Kein Internet
 Your provider isn't answering	Anbieter antwortet nicht
 Internet slow for HD	Internet zu langsam für HD
 Internet and provider fine	Internet und Anbieter ok
+Night mode	Nachtmodus
+Until 7 in the morning: dims Glassio and Live TV, and lowers Live TV's volume	Bis 7 Uhr morgens: dunkelt Glassio und Live-TV ab und senkt die Lautstärke von Live-TV
+Remote guide	Fernbedienungs-Hilfe
+What the remote's buttons do	Was die Tasten der Fernbedienung tun
+opens what's selected	öffnet die Auswahl
+Hold OK	OK halten
+its menu	sein Menü
+one step back; on Home, the first row, then the big picture	einen Schritt zurück; auf der Startseite zur ersten Reihe, dann zum großen Bild
+Glassio's Home, then the first title	Glassios Startseite, dann der erste Titel
+Live TV: OK	Live-TV: OK
+the player's controls	die Player-Steuerung
+Live TV: Left	Live-TV: Links
+the channel list	die Senderliste
+Live TV: Right	Live-TV: Rechts
+the last channel	der letzte Sender
+Live TV: Up / Down	Live-TV: Hoch / Runter
+other channels' shows	Sendungen anderer Sender
+Live TV: hold OK	Live-TV: OK halten
+the menu	das Menü

@@ -801,3 +801,22 @@ No internet	Нет интернета
 Your provider isn't answering	Провайдер не отвечает
 Internet slow for HD	Интернет медленный для HD
 Internet and provider fine	Интернет и провайдер в порядке
+Night mode	Ночной режим
+Until 7 in the morning: dims Glassio and Live TV, and lowers Live TV's volume	До 7 утра: затемняет Glassio и ТВ и снижает громкость ТВ
+Remote guide	Подсказка по пульту
+What the remote's buttons do	Что делают кнопки пульта
+opens what's selected	открывает выбранное
+Hold OK	Удерживать OK
+its menu	его меню
+one step back; on Home, the first row, then the big picture	шаг назад; на главной — первый ряд, затем большая картинка
+Glassio's Home, then the first title	Главная Glassio, затем первый заголовок
+Live TV: OK	ТВ: OK
+the player's controls	управление плеером
+Live TV: Left	ТВ: Влево
+the channel list	список каналов
+Live TV: Right	ТВ: Вправо
+the last channel	последний канал
+Live TV: Up / Down	ТВ: Вверх / Вниз
+other channels' shows	передачи других каналов
+Live TV: hold OK	ТВ: удерживать OK
+the menu	меню

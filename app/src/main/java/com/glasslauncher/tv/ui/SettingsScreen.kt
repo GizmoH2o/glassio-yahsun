@@ -860,6 +860,29 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Adjust("Language", "Glassio and Live TV. Auto follows the TV's language",
                     { Lang.CHOICES.first { it.first == Lang.choice.value }.second },
                     { Lang.choose(ctx, cycle(Lang.CHOICES.map { c -> c.first }, Lang.choice.value, it)) }))
+                add(Adjust("Night mode", "Until 7 in the morning: dims Glassio and Live TV, and lowers Live TV's volume", {
+                    st.nightRev     // read again when it changes
+                    val from = com.glasslauncher.tv.live.NightMode.from(ctx)
+                    if (from <= 0) Lang.tr("Off") else java.text.SimpleDateFormat("h a", java.util.Locale.getDefault()).format(java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, from); set(java.util.Calendar.MINUTE, 0) }.time)
+                }, { dir ->
+                    val hours = listOf(0, 21, 22, 23)
+                    val now = hours.indexOf(com.glasslauncher.tv.live.NightMode.from(ctx)).coerceAtLeast(0)
+                    com.glasslauncher.tv.live.NightMode.setFrom(ctx, hours[(now + dir + hours.size) % hours.size])
+                    st.nightRev++
+                }))
+                add(Act("Remote guide", "What the remote's buttons do", "") {
+                    dialog = MenuDialog("Remote guide", listOf(
+                        "OK" to "opens what's selected",
+                        "Hold OK" to "its menu",
+                        "Back" to "one step back; on Home, the first row, then the big picture",
+                        "Home" to "Glassio's Home, then the first title",
+                        "Live TV: OK" to "the player's controls",
+                        "Live TV: Left" to "the channel list",
+                        "Live TV: Right" to "the last channel",
+                        "Live TV: Up / Down" to "other channels' shows",
+                        "Live TV: hold OK" to "the menu",
+                    ).map { (k, v) -> (Lang.tr(k) + "  ·  " + Lang.tr(v)) to {} })
+                })
                 add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it; com.glasslauncher.tv.live.LiveHome.setReduceMotion(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
                 addAll(page("Clock & glass").rows().filterNot { it is Adjust && it.title == "Glass refraction" })

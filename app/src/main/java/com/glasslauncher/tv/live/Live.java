@@ -331,6 +331,11 @@ public class Live extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER));
         view = new LiveView(this);
         root.addView(view, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        nightDim = new android.view.View(this);
+        nightDim.setBackgroundColor(android.graphics.Color.argb(NightMode.DIM_PERCENT * 255 / 100, 0, 0, 0));
+        nightDim.setVisibility(android.view.View.GONE);
+        nightDim.setFocusable(false);
+        root.addView(nightDim, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
         TestHook.register(this, testHook);
         readIntent(getIntent());
@@ -378,11 +383,27 @@ public class Live extends Activity {
     };
 
     /** Back from the choice of players without picking one (Glassio stayed underneath): the channel again. */
+    private android.view.View nightDim;
+    private final Runnable nightTick = new Runnable() {
+        @Override public void run() {
+            applyNight();
+            main.postDelayed(this, 60_000);
+        }
+    };
+
+    /** Night mode: dim over everything, and quieter (a player passing Dolby straight to the TV can't be made quieter). */
+    private void applyNight() {
+        boolean on = NightMode.now(this);
+        if (nightDim != null) nightDim.setVisibility(on ? android.view.View.VISIBLE : android.view.View.GONE);
+        if (player != null) player.setVolume(on ? NightMode.VOLUME_PERCENT / 100f : 1f);
+    }
+
     /** When the guide last read was fetched; left behind for another app, a new one may have come meanwhile. */
     private long guideSeen;
 
     @Override protected void onPause() {
         super.onPause();
+        main.removeCallbacks(nightTick);
         guideSeen = XmltvStore.updatedAt(this);
     }
 
@@ -398,6 +419,8 @@ public class Live extends Activity {
             relist();
         });
         if (guideSeen != 0 && guideSeen != XmltvStore.updatedAt(this)) XmltvStore.replaced.run();
+        main.removeCallbacks(nightTick);
+        main.post(nightTick);
         if (!handedOff) return;
         handedOff = false;
         createPlayer();
@@ -599,6 +622,7 @@ public class Live extends Activity {
         player.setWakeMode(C.WAKE_MODE_NETWORK);
         player.setVideoSurfaceView(surface);
         player.addListener(listener);
+        applyNight();
     }
 
     private DefaultTrackSelector trackSelector;
