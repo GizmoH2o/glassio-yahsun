@@ -2,6 +2,17 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.2.0 — 2026-11-05
+
+**Every Live TV design, up to date**
+- **All the designs now use the new guide, channel list, show page and Multiview**, in their own colors, focus, corners and lettering. Each keeps its own player and info bar.
+- The settings for the old guide layouts are gone: Logos and names in the guide, and Custom's guide.
+
+**Fixes**
+- **Show pages no longer borrow another show's details.** BBC Breakfast was showing a horror series' year and genres. Smaller shows may now show fewer details when TMDB's entry can't be confirmed.
+- **Country badges are back on show pages**, beside the channel at the top and on the cards.
+- A focused channel's logo stays visible on any focus color.
+
 ## 3.1.0 — 2026-11-05
 
 **Two more languages**
