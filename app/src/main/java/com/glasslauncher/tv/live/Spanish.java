@@ -6,6 +6,25 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Format": return "Formato";
+            case "Speed": return "Velocidad";
+            case "Out of ": return "Fuera de ";
+            case "Now in ": return "Ahora en ";
+            case "Group name": return "Nombre del grupo";
+            case "New group…": return "Grupo nuevo…";
+            case "Groups…": return "Grupos…";
+            case "Groups": return "Grupos";
+            case "Close": return "Cerrar";
+            case "Stream info": return "Datos de la señal";
+            case " categories locked": return " categorías bloqueadas";
+            case "Finds categories with an adult name and locks them behind the PIN. OK locks them.": return "Busca categorías con nombre para adultos y las bloquea con el PIN. OK las bloquea.";
+            case "Takes channels the guide knows nothing about out of the categories. Favorites stay.": return "Quita de las categorías los canales que la guía no conoce. Los favoritos se quedan.";
+            case "Keeps only the newest of each show and deletes the rest.": return "Conserva solo las más recientes de cada programa y borra el resto.";
+            case "Deletes recordings older than this by itself. Off keeps everything.": return "Borra solo las grabaciones más antiguas que esto. Desactivado: guarda todo.";
+            case "Lock adult categories": return "Bloquear categorías para adultos";
+            case "Hide channels with no guide": return "Ocultar canales sin guía";
+            case "Keep per show": return "Conservar por programa";
+            case "Delete old recordings": return "Borrar grabaciones antiguas";
             case "This channel failed: trying another copy": return "Este canal falló: probando otra copia";
             case "A to Z; the same name by country": return "De la A a la Z; el mismo nombre, por país";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Seguimos intentando este canal  ·  ▲ ▼ para otro";

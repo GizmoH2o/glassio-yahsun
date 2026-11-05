@@ -163,6 +163,11 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
     val p = page
     val sp = sports
     val shown = rev
+    var picking by remember { mutableStateOf(false) }
+    if (picking) {
+        FavoritesPicker(app) { picking = false; rev++ }
+        return
+    }
     LivePage(s, top = if (r == false || p == null) 82f else 0f) {
         if (r == false || p == null) header("Live TV", if (r == false) "Watch your TV channels with a full guide" else "OK watches · in the guide, hold OK for a channel's menu", s)
         if (r == false) {
@@ -180,13 +185,18 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
                 onSearch = { open(ctx, LiveHome.search(ctx)) },
                 onFollowing = onFollowing)
         }
+        if (p.onNow.isEmpty()) item(key = "pick") {
+            EmptyCardView("Choose your favorite channels", "They show here with what's on now, and first in Live TV.",
+                s, Modifier.width((520 * s).dp).height((120 * s).dp)) { picking = true }
+        }
         // The channels watched lately (newest first; the last one is the big card above), with what's on them now.
         cardRow("Recently watched", p.recent, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
         cardRow("Favorites on now", p.onNow, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
         cardRow("Sports live now", sp, s, now = true, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
         cardRow("Starting soon", p.soon, s, now = false, shown) { open(ctx, LiveHome.open(ctx, it.channel, false)) }
-        if (p.onNow.isEmpty() && p.recent.isEmpty() && sp.isEmpty() && p.soon.isEmpty())
-            hint("Your favorite channels show here, with what's on now. Add some in Live TV: hold OK on a channel.", s)
+        if (p.onNow.isNotEmpty()) item(key = "pickMore") {
+            ChipView("Change favorite channels", s, Modifier, null) { picking = true }
+        }
     }
 }
 
@@ -362,6 +372,104 @@ private fun LivePage(s: Float, top: Float = 34f, content: LazyListScope.() -> Un
                 modifier = Modifier.fillMaxSize(),
                 content = content,
             )
+        }
+    }
+}
+
+/** Favorite channels by category: a list at the left, its channels at the right; OK puts one in or takes it out. */
+@Composable
+private fun FavoritesPicker(app: GlassApp, onClose: () -> Unit) {
+    val s = LocalScale.current
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    BackHandler { onClose() }
+    var picker by remember { mutableStateOf<LiveHome.Picker?>(null) }
+    var names by remember { mutableStateOf(emptyList<String>()) }
+    var at by remember { mutableIntStateOf(0) }
+    var rows by remember { mutableStateOf(emptyList<LiveHome.Picker.Pick>()) }
+    var rev by remember { mutableIntStateOf(0) }
+    val firstCategory = remember { FocusRequester() }
+    val shownCategory = remember { FocusRequester() }
+    val firstChannel = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        val p = withContext(Dispatchers.IO) { LiveHome.picker(app) }
+        val n = p.categories()
+        rows = if (n.isEmpty()) emptyList() else withContext(Dispatchers.IO) { p.channels(0) }
+        picker = p
+        names = n
+    }
+    LaunchedEffect(names.isNotEmpty()) { if (names.isNotEmpty()) focusFirst(firstCategory) }
+    val p = picker
+    val count = rev.let { p?.count() ?: 0 }
+    Column(Modifier.fillMaxSize().background(Ds.Bg).padding(start = (MARGIN * s).dp, end = (MARGIN * s).dp, top = (82 * s).dp)) {
+        Text("Favorite channels", color = Color.White, fontSize = (22 * s).sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height((3 * s).dp))
+        Text("OK adds or removes a channel · Back when you're done · %d chosen".format(count), color = AppleSecondary, fontSize = (10.5f * s).sp)
+        Spacer(Modifier.height((14 * s).dp))
+        if (p == null) return@Column
+        if (names.isEmpty()) {
+            Text("Nothing to choose from yet: open Live TV once so it can load your channels.", color = AppleSecondary, fontSize = (11 * s).sp)
+            return@Column
+        }
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy((18 * s).dp)) {
+            LazyColumn(
+                Modifier.width((250 * s).dp).fillMaxHeight(),
+                contentPadding = PaddingValues(top = (4 * s).dp, bottom = (40 * s).dp),
+                verticalArrangement = Arrangement.spacedBy((5 * s).dp),
+            ) {
+                items(names.size, key = { "c:$it" }) { i ->
+                    Focusable(
+                        Modifier.fillMaxWidth().height((30 * s).dp)
+                            .then(if (i == 0) Modifier.focusRequester(firstCategory) else Modifier)
+                            .then(if (i == at) Modifier.focusRequester(shownCategory) else Modifier)
+                            .nav(right = firstChannel),
+                        (9 * s).dp,
+                        onClick = {
+                            scope.launch {
+                                rows = withContext(Dispatchers.IO) { p.channels(i) }
+                                at = i
+                                delay(60)
+                                runCatching { firstChannel.requestFocus() }
+                            }
+                        },
+                        look = Look.ROW,
+                    ) { f ->
+                        RawText(names[i], color = lerp(if (i == at) Color.White else AppleSecondary, Color.White, f), fontSize = (10.5f * s).sp,
+                            maxLines = 1, modifier = Modifier.align(Alignment.CenterStart).padding(horizontal = (12 * s).dp))
+                    }
+                }
+            }
+            LazyColumn(
+                Modifier.weight(1f).fillMaxHeight(),
+                contentPadding = PaddingValues(top = (4 * s).dp, bottom = (40 * s).dp),
+                verticalArrangement = Arrangement.spacedBy((5 * s).dp),
+            ) {
+                items(rows.size, key = { "r:" + at + ":" + rows[it].id }) { i ->
+                    val ch = rows[i]
+                    val on = rev.let { p.favorite(ch.id) }
+                    Focusable(
+                        Modifier.fillMaxWidth().height((30 * s).dp)
+                            .then(if (i == 0) Modifier.focusRequester(firstChannel) else Modifier)
+                            .nav(left = shownCategory),
+                        (9 * s).dp,
+                        onClick = {
+                            scope.launch {
+                                withContext(Dispatchers.IO) { p.toggle(app, ch.id) }
+                                rev++
+                            }
+                        },
+                        look = Look.ROW,
+                    ) { f ->
+                        Row(Modifier.align(Alignment.CenterStart).padding(horizontal = (12 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+                            if (ch.num > 0) {
+                                RawText(ch.num.toString(), color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1, modifier = Modifier.width((44 * s).dp))
+                            }
+                            RawText(ch.name, color = Color.White, fontSize = (11 * s).sp, maxLines = 1, modifier = Modifier.weight(1f))
+                            if (on) Text("Favorite", color = Color.White, fontSize = (9.5f * s).sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                        }
+                    }
+                }
+            }
         }
     }
 }

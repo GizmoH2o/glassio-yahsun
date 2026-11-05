@@ -13,6 +13,25 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Format": return "Формат";
+            case "Speed": return "Скорость";
+            case "Out of ": return "Убрано из ";
+            case "Now in ": return "Теперь в ";
+            case "Group name": return "Название группы";
+            case "New group…": return "Новая группа…";
+            case "Groups…": return "Группы…";
+            case "Groups": return "Группы";
+            case "Close": return "Закрыть";
+            case "Stream info": return "О потоке";
+            case " categories locked": return " категорий заблокировано";
+            case "Finds categories with an adult name and locks them behind the PIN. OK locks them.": return "Находит категории для взрослых и закрывает их PIN-кодом. OK блокирует.";
+            case "Takes channels the guide knows nothing about out of the categories. Favorites stay.": return "Убирает из категорий каналы, о которых телегид ничего не знает. Избранное остаётся.";
+            case "Keeps only the newest of each show and deletes the rest.": return "Хранит только самые новые записи передачи, остальные удаляет.";
+            case "Deletes recordings older than this by itself. Off keeps everything.": return "Сам удаляет записи старше этого срока. Выкл.: хранить всё.";
+            case "Lock adult categories": return "Заблокировать категории для взрослых";
+            case "Hide channels with no guide": return "Скрыть каналы без телегида";
+            case "Keep per show": return "Хранить на передачу";
+            case "Delete old recordings": return "Удалять старые записи";
             case "This channel failed: trying another copy": return "Канал не работает: пробуем другую копию";
             case "A to Z; the same name by country": return "От А до Я; одинаковые названия по стране";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Пробуем этот канал  ·  ▲ ▼ другой канал";

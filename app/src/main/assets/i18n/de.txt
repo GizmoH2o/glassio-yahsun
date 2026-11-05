@@ -741,3 +741,10 @@ For 24 hours	Für 24 Stunden
 For 3 days	Für 3 Tage
 Until I show them	Bis ich sie einblende
 %s · scores hidden	%s · Spielstand ausgeblendet
+Choose your favorite channels	Wähle deine Lieblingssender
+They show here with what's on now, and first in Live TV.	Sie erscheinen hier mit dem laufenden Programm und zuerst in Live-TV.
+Change favorite channels	Lieblingssender ändern
+Favorite channels	Lieblingssender
+OK adds or removes a channel · Back when you're done · %d chosen	OK fügt einen Sender hinzu oder entfernt ihn · Zurück, wenn fertig · %d gewählt
+Nothing to choose from yet: open Live TV once so it can load your channels.	Noch nichts zur Auswahl: Öffne Live-TV einmal, damit deine Sender geladen werden.
+Favorite	Favorit

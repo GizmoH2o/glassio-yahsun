@@ -39,7 +39,8 @@ final class LiveSettings {
             RESET_ROW = 56, MATCH_ROW = 57, MATCH_STYLE_ROW = 58, REMIND_WATCHING_ROW = 59, GUIDE_SHIFT_ROW = 60, GUIDE_SIZE_ROW = 61, SCORES_ROW = 62, GOALS_ROW = 63, RECORD_LIST_ROW = 64, RECORDINGS_ROW = 65,
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
-            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, UPSCALE_ROW = 78, MAIN_ROWS = 79;
+            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, UPSCALE_ROW = 78,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MAIN_ROWS = 83;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
@@ -93,7 +94,7 @@ final class LiveSettings {
     private static final int[][] SECTION_ROWS = {
             {FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, UPSCALE_ROW, FRAME_RATE_ROW, PASSTHROUGH_ROW, AUDIO_LANG_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
                     RESET_ROW},
-            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
+            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
             {GUIDE_SIZE_ROW, GUIDE_ALIGN_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
@@ -103,8 +104,8 @@ final class LiveSettings {
             {},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, SCORES_ROW, GOALS_ROW,
                     RESET_ROW},
-            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, RESET_ROW},
-            {PIN_ROW, LOCKED_ROW, AGE_ROW, RESET_ROW},
+            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
+            {PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, RESET_ROW},
             {SUBSCRIPTION_ROW, PROFILES_ROW, ASK_PROFILE_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW, RESET_ROW},
             {CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW, RESET_ROW}};
     /** The section open (ROWS). */
@@ -348,6 +349,10 @@ final class LiveSettings {
             case REMIND_LEAD_ROW: return Ui.tr("Lembrar antes", "Remind me before");
             case RECORD_EARLY_ROW: return Ui.tr("Começar a gravar", "Start recordings");
             case RECORD_LATE_ROW: return Ui.tr("Continuar gravando", "Keep recording");
+            case KEEP_DAYS_ROW: return Ui.tr("Apagar gravações antigas", "Delete old recordings");
+            case KEEP_SHOW_ROW: return Ui.tr("Guardar por programa", "Keep per show");
+            case HIDE_NO_GUIDE_ROW: return Ui.tr("Ocultar canais sem guia", "Hide channels with no guide");
+            case LOCK_ADULT_ROW: return Ui.tr("Bloquear categorias adultas", "Lock adult categories");
             case SERIES_ROW: return Ui.tr("Lembretes de séries", "Series reminders");
             case SERIES_RECORD_ROW: return Ui.tr("Gravações de séries", "Series recordings");
             case FOLLOW_ROW: return Ui.tr("Seguindo", "Following");
@@ -477,6 +482,10 @@ final class LiveSettings {
             }
             case RECORD_EARLY_ROW: return numberName(RECORD_EARLY_ROW, LiveOptions.recordEarly(c));
             case RECORD_LATE_ROW: return numberName(RECORD_LATE_ROW, LiveOptions.recordLate(c));
+            case KEEP_DAYS_ROW: return numberName(KEEP_DAYS_ROW, LiveOptions.keepDays(c));
+            case KEEP_SHOW_ROW: return numberName(KEEP_SHOW_ROW, LiveOptions.keepPerShow(c));
+            case HIDE_NO_GUIDE_ROW: return onOff(LiveOptions.hideNoGuide(c));
+            case LOCK_ADULT_ROW: return String.valueOf(adultCategories().size());
             case REMIND_AUTO_ROW:
                 return LiveOptions.remindAuto(c) ? Ui.tr("Mudar de canal sozinho", "Switch automatically") : Ui.tr("Perguntar", "Ask");
             case GUIDE_HOURS_ROW: return LiveOptions.guideHours(c) + " h";
@@ -662,6 +671,25 @@ final class LiveSettings {
     }
 
     /** Whether OK on row `id` opens a picker (choose / words). */
+    /** The categories whose name says they're for adults. */
+    private List<Xtream.Category> adultCategories() {
+        List<Xtream.Category> out = new java.util.ArrayList<>();
+        for (Xtream.Category cg : view.providerCategories()) if (LiveOptions.looksAdult(cg.name)) out.add(cg);
+        return out;
+    }
+
+    private void lockAdult() {
+        final android.content.Context c = context();
+        Runnable lock = () -> {
+            List<Xtream.Category> found = adultCategories();
+            for (Xtream.Category cg : found) LiveOptions.setLocked(c, cg.id, true);
+            view.flash(found.size() + Ui.tr(" categorias bloqueadas", " categories locked"));
+            announce();
+        };
+        if (LiveOptions.hasPin(c)) lock.run();
+        else view.askNewPin(lock);
+    }
+
     private boolean pickable(int id) {
         switch (id) {
             case STYLE_ROW: case MORNING_ROW: case NIGHT_ROW: case LATE_ROW: case CUSTOM_LAYOUT_ROW: case CUSTOM_BG_ROW:
@@ -669,7 +697,7 @@ final class LiveSettings {
             case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_HOURS_ROW:
             case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW:
             case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW:
-            case RECORD_EARLY_ROW: case RECORD_LATE_ROW:
+            case RECORD_EARLY_ROW: case RECORD_LATE_ROW: case KEEP_DAYS_ROW: case KEEP_SHOW_ROW:
             case GUIDE_SHIFT_ROW:
                 return true;
             case THEME_ROW:
@@ -862,6 +890,14 @@ final class LiveSettings {
                             "Shows you're reminded of every time they air (OK on a later show in the guide → Every episode…).");
                     case RECORD_EARLY_ROW: return Ui.tr("Quanto antes do programa a gravação começa, para não perder o começo.",
                             "How long before the show a recording starts, so the beginning isn't missed.");
+                    case KEEP_DAYS_ROW: return Ui.tr("Apaga sozinho as gravações mais velhas que isto. Desligado: guarda tudo.",
+                            "Deletes recordings older than this by itself. Off keeps everything.");
+                    case KEEP_SHOW_ROW: return Ui.tr("Guarda só as últimas de cada programa e apaga as outras.",
+                            "Keeps only the newest of each show and deletes the rest.");
+                    case HIDE_NO_GUIDE_ROW: return Ui.tr("Tira das categorias os canais de que o guia não sabe nada. Os favoritos ficam.",
+                            "Takes channels the guide knows nothing about out of the categories. Favorites stay.");
+                    case LOCK_ADULT_ROW: return Ui.tr("Encontra as categorias com nome adulto e as bloqueia com o PIN. OK bloqueia.",
+                            "Finds categories with an adult name and locks them behind the PIN. OK locks them.");
                     case RECORD_LATE_ROW: return Ui.tr("Quanto tempo a gravação continua depois do fim: um jogo com acréscimos ou prorrogação.",
                             "How long a recording keeps going after the end: for a match's stoppage time or extra time.");
                     case REMIND_LEAD_ROW: return Ui.tr("Quanto antes do programa o aviso aparece (OK num programa futuro no guia marca um).",
@@ -1110,6 +1146,7 @@ final class LiveSettings {
             case ASK_PROFILE_ROW: return LiveOptions.askProfile(c);
             case PIN_ROW: return LiveOptions.hasPin(c);
             case COUNTRY_ROW: return LiveOptions.countryTags(c);
+            case HIDE_NO_GUIDE_ROW: return LiveOptions.hideNoGuide(c);
             case VOICE_ROW: return LiveOptions.voiceChannels(c);
             default: return null;
         }
@@ -1257,7 +1294,7 @@ final class LiveSettings {
     private boolean steps() {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
-                || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW
+                || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == GOALS_ROW
@@ -1555,6 +1592,8 @@ final class LiveSettings {
             case REMIND_LEAD_ROW: values = LiveOptions.REMIND_LEAD; now = LiveOptions.remindLead(c); labels = null; break;
             case RECORD_EARLY_ROW: values = LiveOptions.RECORD_EARLY; now = LiveOptions.recordEarly(c); labels = null; break;
             case RECORD_LATE_ROW: values = LiveOptions.RECORD_LATE; now = LiveOptions.recordLate(c); labels = null; break;
+            case KEEP_DAYS_ROW: values = LiveOptions.KEEP_DAYS; now = LiveOptions.keepDays(c); labels = null; break;
+            case KEEP_SHOW_ROW: values = LiveOptions.KEEP_SHOW; now = LiveOptions.keepPerShow(c); labels = null; break;
             case HISTORY_ROW: values = LiveOptions.HISTORY_MAX; now = LiveOptions.historyMax(c); labels = null; break;
             case OPACITY_ROW: values = LiveOptions.PANEL_OPACITY; now = LiveOptions.panelOpacity(c); labels = null; break;
             case AGE_ROW: values = LiveOptions.AGE_LOCKS; now = LiveOptions.ageLock(c); labels = null; break;
@@ -1597,6 +1636,8 @@ final class LiveSettings {
                     LiveSchedule.armAll(c);     // the recordings set: their alarms that much earlier
                     break;
                 case RECORD_LATE_ROW: LiveOptions.setRecordPadding(c, LiveOptions.recordEarly(c), values[i]); break;
+                case KEEP_DAYS_ROW: LiveOptions.setKeepDays(c, values[i]); break;
+                case KEEP_SHOW_ROW: LiveOptions.setKeepPerShow(c, values[i]); break;
                 case HISTORY_ROW:
                     LiveOptions.setHistoryMax(c, values[i]);
                     Xtream.trimRecent(c);
@@ -1671,6 +1712,8 @@ final class LiveSettings {
             case REMIND_LEAD_ROW: return v == 0 ? Ui.tr("Na hora", "As it starts") : v + " min";
             case RECORD_EARLY_ROW: return v == 0 ? Ui.tr("Na hora", "On time") : v + Ui.tr(" min antes", " min early");
             case RECORD_LATE_ROW: return v == 0 ? Ui.tr("Até o fim", "Until the end") : v + Ui.tr(" min depois", " min after");
+            case KEEP_DAYS_ROW: return v == 0 ? Ui.tr("Desligado", "Off") : v + " " + Ui.tr("dias", "days");
+            case KEEP_SHOW_ROW: return v == 0 ? Ui.tr("Todas", "All") : String.valueOf(v);
             case OPACITY_ROW: return v >= 100 ? Ui.tr("Sólido", "Solid") : v + "%";
             case AGE_ROW: return v <= 0 ? Ui.tr("Desligado", "Off") : v + "+";
             default: return String.valueOf(v);
@@ -1891,6 +1934,9 @@ final class LiveSettings {
             case TUNNELING_ROW: LiveOptions.setTunneling(c, !LiveOptions.tunneling(c)); live.playbackChanged(); announce(); return;
             case MERGE_ROW: LiveOptions.setMerge(c, !LiveOptions.merge(c)); live.relist(); announce(); return;
             case COUNTRY_ROW: LiveOptions.setCountryTags(c, !LiveOptions.countryTags(c)); view.invalidate(); announce(); return;
+            case HIDE_NO_GUIDE_ROW: LiveOptions.setHideNoGuide(c, !LiveOptions.hideNoGuide(c)); live.relist(); announce(); return;
+            case KEEP_DAYS_ROW: LiveOptions.setKeepDays(c, LiveOptions.step(LiveOptions.KEEP_DAYS, LiveOptions.keepDays(c), dir)); announce(); return;
+            case KEEP_SHOW_ROW: LiveOptions.setKeepPerShow(c, LiveOptions.step(LiveOptions.KEEP_SHOW, LiveOptions.keepPerShow(c), dir)); announce(); return;
             case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, !LiveOptions.guideLogosLeft(c)); view.invalidate(); announce(); return;
             case PLAYER_LOGO_ROW: LiveOptions.setPlayerLogoSteady(c, !LiveOptions.playerLogoSteady(c)); view.invalidate(); announce(); return;
             case LOGO_SOURCE_ROW: setLogoSource(c, (LiveOptions.logoSource(c) + dir + 3) % 3); announce(); return;
@@ -2162,6 +2208,7 @@ final class LiveSettings {
             case CHANNEL_SORT_ROW:
             case CATEGORY_SORT_ROW:
             case COUNTRY_ROW:
+            case HIDE_NO_GUIDE_ROW:
             case VOICE_ROW:
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:
@@ -2186,6 +2233,8 @@ final class LiveSettings {
             case REMIND_LEAD_ROW:
             case RECORD_EARLY_ROW:
             case RECORD_LATE_ROW:
+            case KEEP_DAYS_ROW:
+            case KEEP_SHOW_ROW:
             case REMIND_AUTO_ROW:
             case THEME_ROW:
             case STYLE_ROW:
@@ -2242,6 +2291,9 @@ final class LiveSettings {
                 if (!LiveOptions.merge(c)) view.flash(Ui.tr("Primeiro ligue Juntar canais parecidos.", "Turn on Merge similar channels first."));
                 else if (separate.isEmpty()) view.flash(Ui.tr("Nenhum: segure OK num canal juntado no guia.", "None: hold OK on a merged channel in the guide."));
                 else show(SEPARATE, 0);
+                break;
+            case LOCK_ADULT_ROW:
+                lockAdult();
                 break;
             case HIDDEN_ROW:
                 show(HIDDEN, 0);

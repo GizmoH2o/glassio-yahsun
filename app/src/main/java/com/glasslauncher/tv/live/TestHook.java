@@ -20,6 +20,7 @@ import android.content.IntentFilter;
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es unfollow "Arsenal"  and stops following it
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es recproblem missed   Live TV (open): a missed recording
  *                                                                    of the channel on, told as a real one is (off: deleted)
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez streaminfo true    Live TV (open): Stream info
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es scores URL          Live TV (open): live scores from a
  *                                                                    stand-in (URL/soccer/all/scoreboard, …: ESPN's
  *                                                                    layout; off: ESPN's)

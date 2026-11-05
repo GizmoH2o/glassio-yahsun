@@ -741,3 +741,10 @@ For 24 hours	На 24 часа
 For 3 days	На 3 дня
 Until I show them	Пока не покажу
 %s · scores hidden	%s · счёт скрыт
+Choose your favorite channels	Выберите любимые каналы
+They show here with what's on now, and first in Live TV.	Они появятся здесь с текущими передачами и первыми в ТВ.
+Change favorite channels	Изменить любимые каналы
+Favorite channels	Любимые каналы
+OK adds or removes a channel · Back when you're done · %d chosen	OK добавляет или убирает канал · Назад, когда закончите · выбрано: %d
+Nothing to choose from yet: open Live TV once so it can load your channels.	Пока выбирать не из чего: откройте ТВ один раз, чтобы загрузить каналы.
+Favorite	Избранное

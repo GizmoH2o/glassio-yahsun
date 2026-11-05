@@ -23,6 +23,71 @@ public final class LiveHome {
         Ui.applyLanguage();
     }
 
+    /** Choosing favorite channels from the Live TV page: the list's categories and channels. */
+    public static final class Picker {
+        public static final class Pick {
+            public int id, num;
+            public String name;
+        }
+
+        private final List<Xtream.Category> categories = new ArrayList<>();
+        private final Map<Integer, Xtream.Channel> byId = new HashMap<>();
+        private final Set<Integer> favorites = new HashSet<>();
+
+        public List<String> categories() {
+            List<String> out = new ArrayList<>();
+            for (Xtream.Category cg : categories) out.add(cg.name);
+            return out;
+        }
+
+        public List<Pick> channels(int category) {
+            List<Pick> out = new ArrayList<>();
+            for (Xtream.Channel ch : categories.get(category).channels) {
+                Pick p = new Pick();
+                p.id = ch.id;
+                p.num = ch.num;
+                p.name = ch.name;
+                out.add(p);
+            }
+            return out;
+        }
+
+        public boolean favorite(int id) {
+            return favorites.contains(id);
+        }
+
+        public int count() {
+            return favorites.size();
+        }
+
+        /** In or out of the favorites; true when it's in now. Background thread: it writes the file. */
+        public boolean toggle(Context c, int id) {
+            boolean on = !favorites.contains(id);
+            if (on) favorites.add(id);
+            else favorites.remove(id);
+            Xtream.Channel ch = byId.get(id);
+            if (ch != null) Xtream.setFavorite(c, ch, on);
+            return on;
+        }
+    }
+
+    /** What the picker lists: the saved list without hidden or locked categories (a Kids profile: its own). Background thread. */
+    public static Picker picker(Context c) {
+        Picker out = new Picker();
+        Xtream.Lineup l = Xtream.saved(c);
+        if (l == null) return out;
+        if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(l);
+        Set<String> hidden = LiveOptions.hidden(c);
+        for (int i = 1; i < l.categories.size(); i++) {
+            Xtream.Category cg = l.categories.get(i);
+            if (cg.channels.isEmpty() || hidden.contains(cg.id) || LiveOptions.isLockedAnyProcess(c, cg.id)) continue;
+            out.categories.add(cg);
+            for (Xtream.Channel ch : cg.channels) out.byId.put(ch.id, ch);
+        }
+        for (Xtream.Channel ch : Xtream.favorites(c)) out.favorites.add(ch.id);
+        return out;
+    }
+
     /** Home is showing: an old full guide is fetched in the background, with Live TV closed. */
     public static void guideLook(Context c) {
         GuideJob.look(c);

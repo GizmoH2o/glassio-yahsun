@@ -311,6 +311,26 @@ final class XmltvStore {
         return out;
     }
 
+    private static Set<String> guided;
+    private static long guidedStamp = -1;
+
+    /** The guide channels (lowercase) the full guide has programmes for; empty without one. Read once per guide. */
+    static Set<String> guided(Context c) {
+        synchronized (XmltvStore.class) {
+            SQLiteDatabase d = read(c);
+            if (d == null) return new HashSet<>();
+            if (guided != null && guidedStamp == dbStamp) return guided;
+            Set<String> out = new HashSet<>();
+            try (Cursor q = d.rawQuery("SELECT DISTINCT epg FROM p", null)) {
+                while (q.moveToNext()) out.add(q.getString(0));
+            } catch (RuntimeException ignored) {
+            }
+            guided = out;
+            guidedStamp = dbStamp;
+            return out;
+        }
+    }
+
     /** When the guide in use was fetched (0: none, or one in an older layout) and how many programs it has. */
     static long updatedAt(Context c) {
         return meta(c, "v") >= VERSION ? meta(c, "at") : 0;

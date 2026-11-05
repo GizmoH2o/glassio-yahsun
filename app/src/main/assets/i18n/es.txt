@@ -740,3 +740,10 @@ For 24 hours	Durante 24 horas
 For 3 days	Durante 3 días
 Until I show them	Hasta que los muestre
 %s · scores hidden	%s · marcador oculto
+Choose your favorite channels	Elige tus canales favoritos
+They show here with what's on now, and first in Live TV.	Aparecen aquí con lo que ponen ahora, y primero en TV en vivo.
+Change favorite channels	Cambiar canales favoritos
+Favorite channels	Canales favoritos
+OK adds or removes a channel · Back when you're done · %d chosen	OK añade o quita un canal · Atrás al terminar · %d elegidos
+Nothing to choose from yet: open Live TV once so it can load your channels.	Aún no hay nada que elegir: abre TV en vivo una vez para que cargue tus canales.
+Favorite	Favorito

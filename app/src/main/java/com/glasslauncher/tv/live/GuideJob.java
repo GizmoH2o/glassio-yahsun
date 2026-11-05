@@ -55,6 +55,7 @@ public class GuideJob extends JobService {
         new Thread(() -> {
             boolean fetching = false;
             try {
+                LiveRecordings.cleanup(app);
                 long age = System.currentTimeMillis() - XmltvStore.updatedAt(app);
                 if (!LiveOptions.fullGuide(app) || !overdue(age, LiveOptions.guideHours(app))) {
                     AppLog.w("guide: left alone, " + age / 60_000 + " min old, every " + LiveOptions.guideHours(app) + " h, on: " + LiveOptions.fullGuide(app));

@@ -6,6 +6,25 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "Format": return "Format";
+            case "Speed": return "Geschwindigkeit";
+            case "Out of ": return "Raus aus ";
+            case "Now in ": return "Jetzt in ";
+            case "Group name": return "Gruppenname";
+            case "New group…": return "Neue Gruppe…";
+            case "Groups…": return "Gruppen…";
+            case "Groups": return "Gruppen";
+            case "Close": return "Schließen";
+            case "Stream info": return "Stream-Infos";
+            case " categories locked": return " Kategorien gesperrt";
+            case "Finds categories with an adult name and locks them behind the PIN. OK locks them.": return "Findet Kategorien mit Erwachsenen-Namen und sperrt sie per PIN. OK sperrt sie.";
+            case "Takes channels the guide knows nothing about out of the categories. Favorites stay.": return "Nimmt Sender ohne Programmdaten aus den Kategorien. Favoriten bleiben.";
+            case "Keeps only the newest of each show and deletes the rest.": return "Behält nur die neuesten jeder Sendung und löscht den Rest.";
+            case "Deletes recordings older than this by itself. Off keeps everything.": return "Löscht ältere Aufnahmen von selbst. Aus behält alles.";
+            case "Lock adult categories": return "Erwachsenen-Kategorien sperren";
+            case "Hide channels with no guide": return "Sender ohne Programm ausblenden";
+            case "Keep per show": return "Pro Sendung behalten";
+            case "Delete old recordings": return "Alte Aufnahmen löschen";
             case "This channel failed: trying another copy": return "Dieser Sender ging nicht: andere Kopie wird versucht";
             case "A to Z; the same name by country": return "A bis Z; gleicher Name nach Land";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Dieser Sender wird weiter versucht  ·  ▲ ▼ für einen anderen";

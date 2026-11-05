@@ -292,6 +292,7 @@ public class Live extends Activity {
             windowBytes += bytes;
             long now = android.os.SystemClock.elapsedRealtime(), ms = now - windowAt;
             if (ms < 1000) return;
+            lastKbps = (int) (windowBytes * 8 / ms);
             if (now - openedAt < 15_000 && windowBytes >= 128 * 1024) LiveMerge.measured(Live.this, (int) (windowBytes * 8 / ms));
             windowAt = now;
             windowBytes = 0;
@@ -491,6 +492,10 @@ public class Live extends Activity {
             }
             if (unfollow != null) {
                 LiveFollow.remove(Live.this, unfollow);
+                return;
+            }
+            if (i.getBooleanExtra("streaminfo", false)) {     // Stream info, as About's button opens it
+                view.streamInfo();
                 return;
             }
             int remind = i.getIntExtra("remind", -1);
@@ -755,6 +760,8 @@ public class Live extends Activity {
             });
         }
         LiveChannelEdits.apply(this, l);        // names and numbers changed by hand
+        LiveGroups.apply(this, l);              // the groups made by hand
+        if (LiveOptions.hideNoGuide(this)) LiveGroups.onlyGuided(l, XmltvStore.guided(this));
         applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
         if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(l);     // a Kids profile: the children's channels only
         lineup = l;
@@ -1012,8 +1019,45 @@ public class Live extends Activity {
         view.showBanner(ch);
     }
 
+    /** What this channel was last left on: its own audio and subtitle languages, else the ones for every channel. */
+    private void channelTracks(Xtream.Channel ch) {
+        String audio = LiveOptions.channelAudio(this, ch.id), text = LiveOptions.channelText(this, ch.id);
+        androidx.media3.common.TrackSelectionParameters.Builder p = player.getTrackSelectionParameters().buildUpon();
+        p.setPreferredAudioLanguage(audio.isEmpty() ? audioPref() : audio);
+        if (!text.isEmpty()) p.setPreferredTextLanguage(text);
+        player.setTrackSelectionParameters(p.build());
+    }
+
+    /** What the stream is, for Stream info: picture, sound, speed and buffer, a line each. */
+    String streamInfo() {
+        if (player == null) return "";
+        StringBuilder b = new StringBuilder();
+        androidx.media3.common.Format v = player.getVideoFormat(), a = player.getAudioFormat();
+        if (v != null) {
+            b.append(Ui.tr("Imagem", "Picture")).append(": ").append(v.width).append(" × ").append(v.height);
+            float fps = v.frameRate > 0 ? v.frameRate : measuredFps;
+            if (fps > 0) b.append("  ·  ").append(Math.round(fps)).append(" fps");
+            if (v.sampleMimeType != null) b.append("  ·  ").append(MimeTypes.getMediaMimeType(v.sampleMimeType) == null ? v.sampleMimeType : v.sampleMimeType.substring(v.sampleMimeType.indexOf('/') + 1).toUpperCase(java.util.Locale.ROOT));
+        }
+        if (a != null) {
+            if (b.length() > 0) b.append('\n');
+            b.append(Ui.tr("Áudio", "Audio")).append(": ");
+            if (a.sampleMimeType != null) b.append(a.sampleMimeType.substring(a.sampleMimeType.indexOf('/') + 1).toUpperCase(java.util.Locale.ROOT));
+            if (a.channelCount > 0) b.append("  ·  ").append(a.channelCount).append(Ui.tr(" canais", " channels"));
+            if (a.language != null && !a.language.isEmpty() && !a.language.equals("und")) b.append("  ·  ").append(a.language);
+        }
+        if (b.length() > 0) b.append('\n');
+        if (lastKbps > 0) b.append(Ui.tr("Velocidade", "Speed")).append(": ").append(String.format(java.util.Locale.ROOT, "%.1f", lastKbps / 1000f)).append(" Mb/s  ·  ");
+        b.append(Ui.tr("Reserva", "Buffer")).append(": ").append(player.getTotalBufferedDuration() / 1000).append(" s");
+        b.append('\n').append(Ui.tr("Formato", "Format")).append(": ").append(format);
+        return b.toString();
+    }
+
+    private volatile int lastKbps;
+
     private void start(Xtream.Channel ch) {
         if (player == null) return;
+        channelTracks(ch);
         if (source == null) source = pickSource(false);
         if (source == null) source = ch;
         wasReady = false;
@@ -1239,6 +1283,10 @@ public class Live extends Activity {
                     if (type == C.TRACK_TYPE_AUDIO && lang != null && !lang.isEmpty() && !lang.equals("und")) {
                         LiveOptions.setAudioLanguage(this, lang);
                         p.setPreferredAudioLanguage(lang);
+                        if (playing != null) LiveOptions.setChannelAudio(this, playing.id, lang);
+                    }
+                    if (type == C.TRACK_TYPE_TEXT && playing != null && lang != null && !lang.isEmpty() && !lang.equals("und")) {
+                        LiveOptions.setChannelText(this, playing.id, lang);
                     }
                     player.setTrackSelectionParameters(p.setTrackTypeDisabled(type, false)
                             .setOverrideForType(new androidx.media3.common.TrackSelectionOverride(g.getMediaTrackGroup(), i)).build());

@@ -2832,8 +2832,8 @@ final class LiveView extends View {
         final Xtream.Channel channel = live.playing();
         final Xtream.Program p = playingShow();
         if (channel == null) return;
-        if (p == null) {
-            flash(Ui.tr("O guia não tem este programa", "The guide doesn't have this show"));
+        if (p == null) {        // nothing in the guide: what's known is the stream
+            streamInfo();
             return;
         }
         long now = System.currentTimeMillis();
@@ -2852,7 +2852,50 @@ final class LiveView extends View {
             icons.add("add");
             actions.add(() -> followMenu(p));
         }
+        labels.add(Ui.tr("Sobre o sinal", "Stream info"));
+        icons.add("list");
+        actions.add(this::streamInfo);
         openShowPage(channel, p, labels, icons, actions);
+    }
+
+    /** What the stream is: for working out why a channel looks bad. */
+    void streamInfo() {
+        LiveSheet.menu(getContext())
+                .setTitle(Ui.tr("Sobre o sinal", "Stream info"))
+                .setMessage(live.streamInfo())
+                .setItems(new String[] {Ui.tr("Fechar", "Close")}, (d, which) -> {})
+                .show();
+    }
+
+    /** Your own groups: this channel in or out of one, or in a new one. */
+    private void groupMenu(final Xtream.Channel channel) {
+        final android.content.Context c = getContext();
+        final List<String> names = LiveGroups.names(c);
+        String[] labels = new String[names.size() + 1], icons = new String[labels.length];
+        for (int i = 0; i < names.size(); i++) {
+            labels[i] = names.get(i);
+            icons[i] = LiveGroups.has(c, names.get(i), channel.id) ? "check" : "add";
+        }
+        labels[names.size()] = Ui.tr("Novo grupo…", "New group…");
+        icons[names.size()] = "edit";
+        LiveSheet.menu(c)
+                .setTitle(Ui.tr("Grupos", "Groups"))
+                .setIcons(icons)
+                .setItems(labels, (d, which) -> {
+                    if (which < names.size()) {
+                        boolean in = LiveGroups.toggle(c, names.get(which), channel.id);
+                        flash((in ? Ui.tr("Agora em ", "Now in ") : Ui.tr("Fora de ", "Out of ")) + names.get(which));
+                        live.relist();
+                        return;
+                    }
+                    LiveNamePad.ask(c, Ui.tr("Nome do grupo", "Group name"), "", name -> {
+                        if (name.trim().isEmpty()) return;
+                        LiveGroups.toggle(c, name.trim(), channel.id);
+                        flash(Ui.tr("Agora em ", "Now in ") + name.trim());
+                        live.relist();
+                    });
+                })
+                .show();
     }
 
     /** A show's own page; another airing on it opens that one's choices (on now: watched). */
@@ -5010,6 +5053,9 @@ final class LiveView extends View {
         labels.add(fav ? Ui.tr("Tirar dos favoritos", "Remove from favorites") : Ui.tr("Pôr nos favoritos", "Add to favorites"));
         icons.add(fav ? "heart_off" : "heart");
         acts.add(() -> toggleFavorite(channel));
+        labels.add(Ui.tr("Grupos…", "Groups…"));
+        icons.add("list");
+        acts.add(() -> groupMenu(channel));
         labels.add(Ui.tr("Renomear", "Rename"));
         icons.add("edit");
         acts.add(() -> LiveNamePad.ask(c, Ui.tr("Nome do canal", "Channel name"), channel.name, name -> {

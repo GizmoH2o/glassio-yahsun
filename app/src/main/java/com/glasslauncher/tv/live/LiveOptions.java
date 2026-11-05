@@ -324,6 +324,61 @@ final class LiveOptions {
     static final int[] REMIND_LEAD = {0, 1, 2, 5, 10};
     /** Recordings: minutes started before the show, and kept going after it (a match's stoppage time). */
     static final int[] RECORD_EARLY = {0, 1, 2, 5, 10}, RECORD_LATE = {0, 2, 5, 10, 15, 30};
+    static final int[] KEEP_DAYS = {0, 7, 14, 30, 60, 90}, KEEP_SHOW = {0, 1, 3, 5, 10};
+
+    /** Recordings older than this many days go by themselves (0: none). */
+    static int keepDays(Context c) {
+        return sp(c).getInt("keepDays", 0);
+    }
+
+    static void setKeepDays(Context c, int days) {
+        sp(c).edit().putInt("keepDays", days).apply();
+    }
+
+    /** Only this many of each show's recordings stay, the newest (0: all). */
+    static int keepPerShow(Context c) {
+        return sp(c).getInt("keepPerShow", 0);
+    }
+
+    static void setKeepPerShow(Context c, int n) {
+        sp(c).edit().putInt("keepPerShow", n).apply();
+    }
+
+    /** Channels the full guide knows nothing about stay out of the categories. */
+    static boolean hideNoGuide(Context c) {
+        return sp(c).getBoolean("hideNoGuide", false);
+    }
+
+    static void setHideNoGuide(Context c, boolean on) {
+        sp(c).edit().putBoolean("hideNoGuide", on).apply();
+    }
+
+    private static final java.util.Set<String> ADULT = new java.util.HashSet<>(java.util.Arrays.asList(
+            "adult", "adults", "xxx", "18", "porn", "erotic", "erotica", "erotik", "adulto", "adultos"));
+
+    /** Whether a category's name says it's for adults ("XXX", "For Adults", "18+"; U18 isn't). Pure. */
+    static boolean looksAdult(String name) {
+        for (String w : Xtream.fold(name).split(" ")) if (ADULT.contains(w)) return true;
+        return false;
+    }
+
+    /** The audio language picked on this channel, whatever the others do ("": none picked). */
+    static String channelAudio(Context c, int channel) {
+        return sp(c).getString("audio:" + channel, "");
+    }
+
+    static void setChannelAudio(Context c, int channel, String language) {
+        sp(c).edit().putString("audio:" + channel, language).apply();
+    }
+
+    /** The subtitle language picked on this channel ("": none picked). */
+    static String channelText(Context c, int channel) {
+        return sp(c).getString("text:" + channel, "");
+    }
+
+    static void setChannelText(Context c, int channel, String language) {
+        sp(c).edit().putString("text:" + channel, language).apply();
+    }
 
     /**
      * How many minutes early a recording starts (0: on time, still half a minute ahead for the stream to start), and

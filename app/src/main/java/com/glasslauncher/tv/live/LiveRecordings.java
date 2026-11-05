@@ -53,6 +53,35 @@ final class LiveRecordings {
         }
     }
 
+    /**
+     * Which finished recordings the settings would delete: older than `days` (0: none), then beyond the newest
+     * `perShow` of each show (0: all stay). Pure.
+     */
+    static List<Rec> toDelete(List<Rec> all, int days, int perShow, long now) {
+        List<Rec> out = new java.util.ArrayList<>();
+        List<Rec> done = new java.util.ArrayList<>();
+        for (Rec r : all) if (DONE.equals(r.state)) done.add(r);
+        java.util.Collections.sort(done, (a, b) -> Long.compare(b.start, a.start));
+        java.util.Map<String, Integer> seen = new java.util.HashMap<>();
+        for (Rec r : done) {
+            String show = Xtream.fold(r.title);
+            int n = seen.containsKey(show) ? seen.get(show) + 1 : 1;
+            seen.put(show, n);
+            if (days > 0 && now - r.end > days * 24 * 3600_000L || perShow > 0 && n > perShow) out.add(r);
+        }
+        return out;
+    }
+
+    /** Deletes what Delete old recordings and Keep per show say. Background thread. */
+    static void cleanup(Context c) {
+        int days = LiveOptions.keepDays(c), perShow = LiveOptions.keepPerShow(c);
+        if (days <= 0 && perShow <= 0) return;
+        for (Rec r : toDelete(all(c), days, perShow, System.currentTimeMillis())) {
+            AppLog.w("recordings: cleaned one up");
+            delete(c, r.id);
+        }
+    }
+
     static final String PROBLEM = "com.glasslauncher.tv.live.action.RECORDING_PROBLEM", EXTRA_HEAD = "head", EXTRA_LINE = "line";
 
     /**
