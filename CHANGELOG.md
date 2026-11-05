@@ -2,13 +2,13 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
-## 3.1.0 — 2026-11-04
+## 3.1.0 — 2026-11-05
 
 **Two more languages**
 - **French and Italian**, for Glassio and Live TV (Settings › Look & motion › Language; Auto follows the TV).
 
 **A new Live TV**
-- **Glassio 3**, a new design for the player, guide and settings, with text you can read over any picture. New installs start with it.
+- **Glassio 3**, a new design for the player, guide, channel list, show page, Multiview and settings, with text you can read over any picture. New installs start with it.
 - **The guide updates by itself**, even with Live TV closed.
 - **More NEW and LIVE badges.** When your guide marks a show on one channel and not another, the mark now carries to the same show elsewhere, and narrow tiles keep their badge.
 - **Channel logos in the guide and channel list**, in place of the number most remotes no longer have. Prefer the number, or both? Live TV › Settings › Channels and categories › Beside the channel's name.
@@ -40,6 +40,7 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 **Fixes**
 - Following a team no longer catches a match of two other teams that happen to share its words.
 - A live score that has stopped updating is no longer shown as live.
+- US local channels no longer get another country's tag: AL, AR or CA in a name is the state, not Albania, Arabic or Canada.
 - Faster searches of the guide.
 
 ## 3.0.0 — 2026-11-03
