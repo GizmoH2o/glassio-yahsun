@@ -10,6 +10,7 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 **A new Live TV**
 - **Glassio 3**, a new design for the player, guide and settings, with text you can read over any picture. New installs start with it.
 - **The guide updates by itself**, even with Live TV closed.
+- **Channel logos in the guide and channel list**, in place of the number most remotes no longer have. Prefer the number, or both? Live TV › Settings › Channels and categories › Beside the channel's name.
 - **Choose your favorite channels** from the Live TV page, and **make your own groups**: hold OK on a channel, then Groups.
 - **A channel that won't play tries another copy** of itself, and says so.
 - **Each channel remembers** its audio and subtitle languages. **Stream info** is under About.

@@ -13,6 +13,10 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.": return "В телегиде и списке каналов оформления Glassio 3. Ввод номера с пульта по-прежнему работает.";
+            case "Logo and number": return "Логотип и номер";
+            case "Number": return "Номер";
+            case "Beside the channel's name": return "Рядом с названием канала";
             case "Sound on": return "Со звуком";
             case "Move to choose  ·  The selected channel plays its sound": return "Перемещайтесь для выбора  ·  Звук у выбранного канала";
             case "PLAYING": return "ИДЁТ";

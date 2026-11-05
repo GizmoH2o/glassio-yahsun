@@ -218,6 +218,18 @@ final class LiveOptions {
         sp(c).edit().putInt("logoSource", source).apply();
     }
 
+    /** What stands beside a channel's name in Glassio 3's guide and list. */
+    static final int MARK_LOGO = 0, MARK_NUMBER = 1, MARK_BOTH = 2;
+
+    static int channelMark(Context c) {
+        int v = sp(c).getInt("channelMark", MARK_LOGO);
+        return v < MARK_LOGO || v > MARK_BOTH ? MARK_LOGO : v;
+    }
+
+    static void setChannelMark(Context c, int mark) {
+        sp(c).edit().putInt("channelMark", mark).apply();
+    }
+
     static boolean guideCompact(Context c) {
         return sp(c).getBoolean("guideCompact", false);
     }

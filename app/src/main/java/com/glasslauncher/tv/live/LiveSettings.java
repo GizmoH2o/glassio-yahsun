@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, UPSCALE_ROW = 78,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, MAIN_ROWS = 85;
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, MAIN_ROWS = 85;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
@@ -94,7 +94,7 @@ final class LiveSettings {
     private static final int[][] SECTION_ROWS = {
             {FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, UPSCALE_ROW, FRAME_RATE_ROW, PASSTHROUGH_ROW, AUDIO_LANG_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
                     RESET_ROW},
-            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
+            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
             {GUIDE_SIZE_ROW, GUIDE_ALIGN_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
@@ -333,6 +333,7 @@ final class LiveSettings {
             case GUIDE_ALIGN_ROW: return Ui.tr("Logos e nomes no guia", "Logos and names in the guide");
             case PLAYER_LOGO_ROW: return Ui.tr("Logo no player", "Logo in the player");
             case LOGO_SOURCE_ROW: return Ui.tr("Logos dos canais", "Channel logos");
+            case CHANNEL_MARK_ROW: return Ui.tr("Ao lado do nome do canal", "Beside the channel's name");
             case GUIDE_SOURCE_ROW: return Ui.tr("Fonte do guia", "Guide source");
             case GUIDE_NOW_ROW: return Ui.tr("Atualizar o guia completo agora", "Update the full guide now");
             case BOOT_ROW: return Ui.tr("Abrir quando a TV liga", "Open when the TV starts");
@@ -507,6 +508,7 @@ final class LiveSettings {
             case PLAYER_LOGO_ROW: return LiveOptions.playerLogoSteady(c) ? Ui.tr("No centro, fixo", "Centered, steady")
                     : Ui.tr("Junto ao texto", "With the text");
             case LOGO_SOURCE_ROW: return logoSourceName(LiveOptions.logoSource(c));
+            case CHANNEL_MARK_ROW: return channelMarkName(LiveOptions.channelMark(c));
             case GUIDE_SOURCE_ROW:
                 return LiveOptions.guideUrl(c).isEmpty() ? Ui.tr("Provedor", "Provider") : Ui.tr("Link próprio", "Custom link");
             case GUIDE_NOW_ROW: {
@@ -699,7 +701,7 @@ final class LiveSettings {
             case STYLE_ROW: case MORNING_ROW: case NIGHT_ROW: case LATE_ROW: case CUSTOM_LAYOUT_ROW: case CUSTOM_BG_ROW:
             case CUSTOM_ROUND_ROW: case CUSTOM_FOCUS_ROW: case CUSTOM_INFO_ROW: case CUSTOM_FONT_ROW: case CC_SIZE_ROW: case CC_STYLE_ROW: case CC_COLOR_ROW: case FORMAT_ROW: case BUFFER_ROW:
             case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_HOURS_ROW:
-            case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW:
+            case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW: case CHANNEL_MARK_ROW:
             case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW:
             case RECORD_EARLY_ROW: case RECORD_LATE_ROW: case KEEP_DAYS_ROW: case KEEP_SHOW_ROW:
             case GUIDE_SHIFT_ROW:
@@ -790,6 +792,8 @@ final class LiveSettings {
                             "Each channel's logo and name in the guide's column: at the left, lined up, or in the middle.");
                     case PLAYER_LOGO_ROW: return Ui.tr("Fixo no centro do seu espaço, ou centrado no texto ao lado (mexe quando há pouco texto).",
                             "Steady in the middle of its space, or centered on the text beside it (it moves when there's little text).");
+                    case CHANNEL_MARK_ROW: return Ui.tr("No guia e na lista de canais do visual Glassio 3. Digitar um número no controle continua funcionando.",
+                            "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.");
                     case LOGO_SOURCE_ROW: return Ui.tr("De onde vêm os logos; os outros completam os que faltam. Base pública: iptv-org, logos nítidos de mais de 30 mil canais.",
                             "Where logos come from; the others fill in the missing ones. Public database: iptv-org, sharp logos for over 30,000 channels.");
                     case GUIDE_SHIFT_ROW: return Ui.tr("Os programas começam antes ou depois do que o guia diz? Move o guia todo (só desta lista).",
@@ -1308,7 +1312,7 @@ final class LiveSettings {
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW;
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -1584,6 +1588,12 @@ final class LiveSettings {
                 now = LiveOptions.playerLogoSteady(c) ? 0 : 1;
                 values = null;
                 break;
+            case CHANNEL_MARK_ROW:
+                labels = new String[] {channelMarkName(LiveOptions.MARK_LOGO), channelMarkName(LiveOptions.MARK_NUMBER),
+                        channelMarkName(LiveOptions.MARK_BOTH)};
+                now = LiveOptions.channelMark(c);
+                values = null;
+                break;
             case LOGO_SOURCE_ROW:
                 labels = new String[] {logoSourceName(LiveOptions.LOGOS_PROVIDER), logoSourceName(LiveOptions.LOGOS_GUIDE),
                         logoSourceName(LiveOptions.LOGOS_PUBLIC)};
@@ -1633,6 +1643,7 @@ final class LiveSettings {
                 case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, i == 0); view.invalidate(); break;
                 case PLAYER_LOGO_ROW: LiveOptions.setPlayerLogoSteady(c, i == 0); view.invalidate(); break;
                 case LOGO_SOURCE_ROW: setLogoSource(c, i); break;
+                case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, i); view.invalidate(); break;
                 case GUIDE_HOURS_ROW: LiveOptions.setGuideHours(c, values[i]); break;
                 case PAST_DAYS_ROW: LiveOptions.setPastDays(c, values[i]); break;
                 case DAYS_AHEAD_ROW: LiveOptions.setDaysAhead(c, values[i]); break;
@@ -1783,6 +1794,11 @@ final class LiveSettings {
      * guide redrawn. Reminders and recordings already set keep their times.
      */
     /** Compact or comfortable rows: the layout again, at once. */
+    private static String channelMarkName(int mark) {
+        return mark == LiveOptions.MARK_NUMBER ? Ui.tr("Número", "Number")
+                : mark == LiveOptions.MARK_BOTH ? Ui.tr("Logo e número", "Logo and number") : Ui.tr("Logo", "Logo");
+    }
+
     private static String logoSourceName(int source) {
         switch (source) {
             case LiveOptions.LOGOS_GUIDE: return Ui.tr("Guia (EPG)", "TV guide (EPG)");
@@ -1950,6 +1966,7 @@ final class LiveSettings {
             case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, !LiveOptions.guideLogosLeft(c)); view.invalidate(); announce(); return;
             case PLAYER_LOGO_ROW: LiveOptions.setPlayerLogoSteady(c, !LiveOptions.playerLogoSteady(c)); view.invalidate(); announce(); return;
             case LOGO_SOURCE_ROW: setLogoSource(c, (LiveOptions.logoSource(c) + dir + 3) % 3); announce(); return;
+            case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, (LiveOptions.channelMark(c) + dir + 3) % 3); view.invalidate(); announce(); return;
             case VOICE_ROW: LiveOptions.setVoiceChannels(c, !LiveOptions.voiceChannels(c)); announce(); return;
             case RECORD_EARLY_ROW:
                 LiveOptions.setRecordPadding(c, LiveOptions.step(LiveOptions.RECORD_EARLY, LiveOptions.recordEarly(c), dir), LiveOptions.recordLate(c));
@@ -2231,6 +2248,7 @@ final class LiveSettings {
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:
             case LOGO_SOURCE_ROW:
+            case CHANNEL_MARK_ROW:
             case GUIDE_HOURS_ROW:
             case PAST_DAYS_ROW:
             case GUIDE_START_ROW:

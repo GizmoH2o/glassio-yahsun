@@ -982,9 +982,16 @@ final class LiveView extends View {
             c3Name.setColor(ink);
             c3Sub.setColor(sub);
             c3Num.setColor(sub);
-            String num = channel.num > 0 ? String.valueOf(channel.num) : "";
-            c.drawText(ellipsize(num, c3Num, 72 * k), r.left + 21 * k, r.centerY() + Ui.halfCap(c3Num), c3Num);
+            int mark = LiveOptions.channelMark(getContext());
+            String num = channel.num > 0 && mark != LiveOptions.MARK_LOGO ? String.valueOf(channel.num) : "";
             float x = r.left + 21 * k + 72 * k + 12 * k, right = r.right - 21 * k;
+            if (mark == LiveOptions.MARK_NUMBER) {
+                c.drawText(ellipsize(num, c3Num, 72 * k), r.left + 21 * k, r.centerY() + Ui.halfCap(c3Num), c3Num);
+            } else {
+                markBox.set(r.left + 15 * k, r.centerY() - 32 * k, r.left + 105 * k, r.centerY() + 32 * k);
+                drawLogo(c, channel, markBox, 1, on);
+                x = markBox.right + 15 * k;
+            }
             // At the right: how far the show is, then what's special about the channel.
             String second;
             float f = -1;
@@ -1021,7 +1028,12 @@ final class LiveView extends View {
             }
             boolean two = second != null && !second.isEmpty();
             float nameY = two ? r.centerY() - 5 * k : r.centerY() + Ui.halfCap(c3Name);
-            textAndTag(c, nameOf(channel), tagOf(channel), x, nameY, c3Name, mx - x);
+            float nameX = x;
+            if (mark == LiveOptions.MARK_BOTH && !num.isEmpty()) {     // on the name's line
+                c.drawText(num, x, nameY, c3Num);
+                nameX += c3Num.measureText(num) + 12 * k;
+            }
+            textAndTag(c, nameOf(channel), tagOf(channel), nameX, nameY, c3Name, mx - nameX);
             if (two && i == ch) listMarquee.draw(c, second, x, r.centerY() + 24 * k, mx - x, c3Sub, k);
             else if (two) c.drawText(ellipsize(second, c3Sub, mx - x), x, r.centerY() + 24 * k, c3Sub);
         }
@@ -1634,8 +1646,8 @@ final class LiveView extends View {
             box = tileBox;
         }
         fill.setShader(null);
-        if (b == null || onLight) {
-            // On the white focus: a dark tile (a white logo would vanish); else the style's card.
+        if (b == null || onLight && !LiveLogos.isDark(b)) {
+            // On the white focus: a dark tile (a white logo would vanish; a dark one shows on the white); else the style's card.
             fill.setColor(Ui.alpha(onLight ? 0xFF2C2C2E : LiveTheme.card, alpha));
             c.drawRoundRect(box, 10 * k * LiveTheme.round, 10 * k * LiveTheme.round, fill);
         }
@@ -3385,8 +3397,8 @@ final class LiveView extends View {
         boolean c3 = LiveTheme.cinema();
         P_Y = c3 ? 45 : 24;
         G_LOGO_X = c3 ? 72 : 32;
-        G_COL_R = c3 ? 363 : 296;
-        G_GRID_X = c3 ? 372 : 308;
+        G_COL_R = c3 ? 423 : 296;       // Glassio 3: room for a logo and the name
+        G_GRID_X = c3 ? 432 : 308;
         G_GRID_R = c3 ? 1920 : 1900;
         if (c3) {       // the mockup's places: the hours across at 391, the rows from 420, half an hour 387 wide
             times = 391;
@@ -4480,7 +4492,13 @@ final class LiveView extends View {
         boolean second = !tag.isEmpty() || isPlaying || fav || channel.archive > 0;
         float x = cell.left + 18 * k, right = cell.right - 15 * k, cy = cell.centerY();
         float base = second ? cy - 3 * k : cy + Ui.halfCap(gName);
-        String num = channel.num > 0 ? String.valueOf(channel.num) : "";
+        int mark = LiveOptions.channelMark(getContext());
+        if (mark != LiveOptions.MARK_NUMBER) {
+            markBox.set(cell.left + 12 * k, cy - 30 * k, cell.left + 96 * k, cy + 30 * k);
+            drawLogo(c, channel, markBox, 1, on);
+            x = markBox.right + 12 * k;
+        }
+        String num = channel.num > 0 && mark != LiveOptions.MARK_LOGO ? String.valueOf(channel.num) : "";
         gSub.setColor(sub);
         c.drawText(num, x, base, gSub);
         float nx = num.isEmpty() ? x : x + gSub.measureText(num) + 12 * k;
@@ -4503,6 +4521,8 @@ final class LiveView extends View {
         }
         if (fav) drawHeart(c, mx + 8 * k, my, 15 * k, LIVE_RED);
     }
+
+    private final RectF markBox = new RectF();
 
     /** Glassio 3's programme: its title, under it its times and what kind it is; a recording's dot and the bell at the title's end. */
     private void drawTileGlassio3(Canvas c, String title, Xtream.Program p, boolean ink, int color, float indent, int tag, String score, boolean rec, boolean bell) {

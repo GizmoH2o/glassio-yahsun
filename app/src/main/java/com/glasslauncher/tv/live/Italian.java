@@ -6,6 +6,10 @@ final class Italian {
 
     static String text(String english) {
         switch (english) {
+            case "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.": return "Nella guida e nell'elenco dei canali dello stile Glassio 3. Digitare un numero sul telecomando funziona ancora.";
+            case "Logo and number": return "Logo e numero";
+            case "Number": return "Numero";
+            case "Beside the channel's name": return "Accanto al nome del canale";
             case "Sound on": return "Audio attivo";
             case "Move to choose  ·  The selected channel plays its sound": return "Spostati per scegliere  ·  Il canale selezionato ha l'audio";
             case "PLAYING": return "IN RIPRODUZIONE";
