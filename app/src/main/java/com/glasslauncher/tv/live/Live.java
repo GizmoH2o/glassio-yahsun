@@ -651,7 +651,8 @@ public class Live extends Activity {
                         .setSampleMimeType(MimeTypes.APPLICATION_CEA608).setAccessibilityChannel(1)
                         .setLabel(Ui.tr("Legendas (CC)", "Closed captions")).build()));
         player = new ExoPlayer.Builder(this, renderers)
-                .setMediaSourceFactory(new DefaultMediaSourceFactory(Xtream.resolving(this, new DefaultDataSource.Factory(this, http)), extractors))
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(new LiveGrowingSource.Factory(
+                        Xtream.resolving(this, new DefaultDataSource.Factory(this, http)), this::catchupGrowing), extractors))
                 .setTrackSelector(tracks)
                 .setLoadControl(LiveOptions.loadControl(LiveOptions.buffer(this)))
                 .build();
@@ -661,6 +662,12 @@ public class Live extends Activity {
         player.setVideoSurfaceView(surface);
         player.addListener(listener);
         applyNight();
+    }
+
+    /** Whether what's loading is a past show's MPEG-TS the provider is still adding to (LiveGrowingFile). Loading thread. */
+    private boolean catchupGrowing() {
+        Xtream.Program p = catchup;
+        return p != null && recordingFile == null && "ts".equals(format) && LiveCatchup.stillGrowing(p.end, System.currentTimeMillis());
     }
 
     private DefaultTrackSelector trackSelector;

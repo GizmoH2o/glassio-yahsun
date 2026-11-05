@@ -20,10 +20,16 @@ final class LiveCatchup {
     /** Further on than this since the last try, a stream wasn't stuck. */
     private static final long PROGRESS_MS = 30_000;
     private static final long MINUTE = 60_000;
+    private static final long GROWS_AFTER_MS = 10 * MINUTE;
 
     /** Where in the show (ms from `start`, can be just under 0) the address for `from` begins: its clock minute. */
     static long minute(long start, long from) {
         return Math.floorDiv(start + from, MINUTE) * MINUTE - start;
+    }
+
+    /** Whether a show ending at `end` may still be growing at the provider: while it airs, and a while after. Pure. */
+    static boolean stillGrowing(long end, long now) {
+        return now < end + GROWS_AFTER_MS;
     }
 
     /** How many calendar days before `now` that moment was (0: today). Pure. */
