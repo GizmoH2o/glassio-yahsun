@@ -75,11 +75,11 @@ final class LivePlayerPanel {
         w = width;
         h = height;
         heading = Ui.text(Ui.displaySemibold, 38 * k, 0xFFF5F5F7);
-        line = Ui.text(Ui.medium, 27 * k, 0xFFF5F5F7);
-        value = Ui.text(Ui.medium, 24 * k, 0xCCF5F5F7);
+        line = Ui.text(Ui.medium, 29 * k, 0xFFF5F5F7);
+        value = Ui.text(Ui.medium, 26 * k, 0xF2F5F5F7);
         value.setTextAlign(Paint.Align.RIGHT);
-        header = Ui.text(Ui.semibold, 23 * k, 0xB3F5F5F7);
-        words = new TextPaint(Ui.text(Ui.regular, 26 * k, 0xE6F5F5F7));
+        header = Ui.text(Ui.semibold, 25 * k, 0xE6F5F5F7);
+        words = new TextPaint(Ui.text(Ui.regular, 28 * k, 0xFFF5F5F7));
         about = null;
     }
 
@@ -158,7 +158,7 @@ final class LivePlayerPanel {
     private void layout() {
         int width = Math.max(1, Math.round((W - 2 * PAD) * k));
         if (about != null || body.isEmpty() || words == null) return;
-        about = StaticLayout.Builder.obtain(body, 0, body.length(), words, width).setMaxLines(7)
+        about = StaticLayout.Builder.obtain(body, 0, body.length(), words, width).setMaxLines(6)
                 .setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 1.1f).build();
     }
 
@@ -230,7 +230,7 @@ final class LivePlayerPanel {
                 float round = LiveTheme.panelRound(14 * k);
                 c.drawRoundRect(row, round, round, fill);
             }
-            int ink = on ? LiveTheme.ink : one.press == null ? 0xB3F5F5F7 : 0xFFF5F5F7;
+            int ink = on ? LiveTheme.ink : one.press == null ? 0xE6F5F5F7 : 0xFFF5F5F7;
             float mid = row.centerY();
             float end = right;
             if (one.checked) {
@@ -239,7 +239,7 @@ final class LivePlayerPanel {
                 end -= 40 * k;
             }
             if (!one.value.isEmpty()) {
-                value.setColor(on ? LiveTheme.inkSoft() : 0xCCF5F5F7);
+                value.setColor(on ? LiveTheme.ink : 0xF2F5F5F7);
                 String v = ellipsize(one.value, value, (right - left) * 0.52f);
                 c.drawText(v, end, mid + Ui.halfCap(value), value);
                 end -= value.measureText(v) + 20 * k;

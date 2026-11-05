@@ -31,7 +31,7 @@ final class LiveOverlay {
     private static final long HIDE_MS = 6000, BRIEF_MS = 3500;
     private static final float X = 96, R = 1824, GAP = 12, TOP_Y = 668, TITLE_Y = 748, SUB_Y = 800, BAR_Y = 880,
             LABEL_Y = 920, ROW_Y = 976, TAB_H = 64;
-    private static final int INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7, RED = 0xFFFF453A, BLUE = 0xFF0A84FF;
+    private static final int INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7, RED = 0xFFD92D20;
     private static final int SCORE = 0xE6202A36;       // the score's pill: dark, the white numbers on it
     private static final int MARK = 0xFFFFB340;        // a goal or a card on the bar
 
@@ -109,14 +109,19 @@ final class LiveOverlay {
         title = Ui.text(Ui.displaySemibold, 72 * k, WHITE);
         cardTitle = Ui.text(Ui.displaySemibold, 42 * k, WHITE);
         // Glassio 3: the words stay readable over the brightest picture (with the stronger shade below).
-        boolean clear = LiveTheme.cinemaBar();
-        meta = Ui.text(Ui.medium, 28 * k, clear ? 0xFFFFFFFF : 0xD9FFFFFF);
-        small = Ui.text(Ui.medium, 23 * k, clear ? 0xF2FFFFFF : 0xA6FFFFFF);
-        badge = Ui.text(Ui.semibold, 18 * k, 0xE6FFFFFF);
-        badge.setLetterSpacing(0.06f);
+        // Every design: solid white on a dark fade, each word with a soft shadow, to read over the brightest picture.
+        meta = Ui.text(Ui.medium, 30 * k, 0xFFFFFFFF);
+        small = Ui.text(Ui.medium, 26 * k, 0xFFFFFFFF);
+        title.setLetterSpacing(0.008f);
+        title.setShadowLayer(10 * k, 0, 3 * k, 0xB3000000);
+        meta.setShadowLayer(7 * k, 0, 2 * k, 0xCC000000);
+        small.setShadowLayer(7 * k, 0, 2 * k, 0xCC000000);
+        badge = Ui.text(Ui.semibold, 22 * k, 0xFFFFFFFF);
+        badge.setLetterSpacing(0.04f);
         clockPaint = Ui.numbers(Ui.displaySemibold, 46 * k, WHITE);
         clockPaint.setTextAlign(Paint.Align.RIGHT);
-        aboutPaint = new TextPaint(Ui.text(Ui.regular, 24 * k, clear ? 0xF2FFFFFF : 0xA6FFFFFF));
+        clockPaint.setShadowLayer(8 * k, 0, 2 * k, 0xCC000000);
+        aboutPaint = new TextPaint(Ui.text(Ui.regular, 26 * k, 0xFFFFFFFF));
         fill = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         glow = new Paint(Paint.ANTI_ALIAS_FLAG);
         glow.setColor(WHITE);
@@ -124,15 +129,12 @@ final class LiveOverlay {
         stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
-        topShade = new LinearGradient(0, 0, 0, 240 * k, clear ? 0xCC000000 : 0x99000000, 0x00000000, Shader.TileMode.CLAMP);
+        topShade = new LinearGradient(0, 0, 0, 240 * k, 0xD9000000, 0x00000000, Shader.TileMode.CLAMP);
         // The fade under the text, into the style's own background (black for Glassio's).
         int base = LiveTheme.bg & 0x00FFFFFF;
-        bottomShade = clear
-                // Dark well before the title starts (about y 640), nearly solid under the buttons.
-                ? new LinearGradient(0, 480 * k, 0, h, new int[] {base, 0xD9000000 | base, 0xF0000000 | base, 0xFA000000 | base},
-                        new float[] {0, 0.25f, 0.55f, 1}, Shader.TileMode.CLAMP)
-                : new LinearGradient(0, 480 * k, 0, h, new int[] {base, 0xB3000000 | base, 0xF2000000 | base},
-                        new float[] {0, 0.4f, 1}, Shader.TileMode.CLAMP);
+        // Dark well before the pills start (about y 640), nearly solid under the tabs.
+        bottomShade = new LinearGradient(0, 480 * k, 0, h, new int[] {base, 0xE6000000 | base, 0xF5000000 | base, 0xFC000000 | base},
+                new float[] {0, 0.25f, 0.55f, 1}, Shader.TileMode.CLAMP);
         // Sky Q's band: the style's blue, solid from just above the title.
         band = new LinearGradient(0, 590 * k, 0, h, (LiveTheme.bgTop & 0x00FFFFFF) | 0xF0000000,
                 (LiveTheme.bg & 0x00FFFFFF) | 0xFA000000, Shader.TileMode.CLAMP);
@@ -337,8 +339,8 @@ final class LiveOverlay {
 
     /** A tab's width in the 1920 space: its longest name, so it doesn't change size as it changes state. */
     private float pillWidth(int i) {
-        if (pillText == null) pillText = Ui.text(Ui.semibold, 27, WHITE);
-        pillText.setTextSize(27);
+        if (pillText == null) pillText = Ui.text(Ui.semibold, 29, WHITE);
+        pillText.setTextSize(29);
         float wd = pillText.measureText(name(buttons[i], false));
         if (buttons[i] == PLAY) wd = Math.max(wd, pillText.measureText(name(PLAY, true)));
         return wd + 60;
@@ -403,11 +405,8 @@ final class LiveOverlay {
             if (showing) view.postInvalidateDelayed(1000 - now % 1000);
             return false;
         }
-        fill.setShader(topShade);
-        c.drawRect(0, 0, w, 240 * k, fill);
-        fill.setShader(bottomShade);
-        c.drawRect(0, 480 * k, w, h, fill);
-        fill.setShader(null);
+        shade(c, topShade, 0, 0, w, 240 * k);
+        shade(c, bottomShade, 0, 480 * k, w, h);
         drawPanel(c);
         drawTop(c, ch, now);
         if (rail.open()) {
@@ -537,6 +536,7 @@ final class LiveOverlay {
                 }
             }
             fill.setColor(WHITE);
+            glow.setColor(WHITE);       // the tabs leave it in the focus color
             if (focused) c.drawCircle(end, barY, 14 * k, glow);
             else c.drawCircle(end, barY, 8 * k, fill);
             if (target >= 0 && length > 0) drawTarget(c, target, at, length, past, barL, barR, barY);
@@ -564,7 +564,7 @@ final class LiveOverlay {
             String hint = later != null ? Ui.tr("OK para lembrar ou gravar   ·   ◀ ▶ outros programas", "OK to remind or record   ·   ◀ ▶ other shows")
                     : Ui.tr("OK para assistir   ·   ▶ mais tarde", "OK to watch   ·   ▶ later shows");
             drawAbout(c, shown, ep);
-            c.drawText(hint, X * k, 1030 * k, small);
+            c.drawText(hint, X * k, 1036 * k, small);
         }
         c.restoreToCount(save);
         if (showing) view.postInvalidateDelayed(1000 - now % 1000);
@@ -606,8 +606,8 @@ final class LiveOverlay {
         c.drawCircle(tx, barY, 12 * k, fill);
         c.drawCircle(tx, barY, 12 * k, stroke);
         String t = LiveCatchup.skipLabel(target, at) + (past == null ? "" : "  ·  " + Ui.time(past.start + target));
-        float tw = meta.measureText(t), pw = tw + 36 * k, ph = 44 * k;
-        float left = Math.max(barL, Math.min(barR - pw, tx - pw / 2)), top = barY - 22 * k - ph;
+        float tw = meta.measureText(t), pw = tw + 36 * k, ph = 46 * k;
+        float left = Math.max(barL, Math.min(barR - pw, tx - pw / 2)), top = barY - 20 * k - ph;
         r.set(left, top, left + pw, top + ph);
         fill.setColor(LiveTheme.tile);
         float rr = LiveTheme.panelRound(12 * k);
@@ -630,7 +630,7 @@ final class LiveOverlay {
         }
         if (about == null) return;
         c.save();
-        c.translate(X * k, 938 * k);
+        c.translate(X * k, 930 * k);
         about.draw(c);
         c.restore();
     }
@@ -663,6 +663,17 @@ final class LiveOverlay {
         c.drawText(ellipsize(name, meta, textW), textX, top + 42 * k, meta);
         c.drawText(ellipsize(show, meta, textW), textX, top + 80 * k, meta);
         c.drawText(ellipsize(note, small, textW), textX, top + 112 * k, small);
+    }
+
+    /**
+     * A fade over the video. A shader takes its paint's alpha, and `fill` keeps whatever was drawn last (the tabs'
+     * faint light would leave the next frame's fade nearly gone), so it's made opaque first.
+     */
+    private void shade(Canvas c, Shader shader, float left, float top, float right, float bottom) {
+        fill.setColor(0xFF000000);
+        fill.setShader(shader);
+        c.drawRect(left, top, right, bottom, fill);
+        fill.setShader(null);
     }
 
     /** Whether the Up next card is on screen (nothing else is, and a show's about to end). */
@@ -818,7 +829,7 @@ final class LiveOverlay {
 
     private float drawPill(Canvas c, String text, float x, float baseline, int color, boolean big) {
         Paint p = badge;
-        float tw = p.measureText(text), ph = (big ? 34 : 30) * k, pw = tw + (big ? 26 : 20) * k;
+        float tw = p.measureText(text), ph = (big ? 40 : 36) * k, pw = tw + (big ? 30 : 24) * k;
         float top = baseline - ph / 2 - Ui.halfCap(meta) + 2 * k;
         r.set(x, top, x + pw, top + ph);
         fill.setColor(color);
@@ -850,18 +861,14 @@ final class LiveOverlay {
             }
             case LiveTheme.BAR_BAND_LINE:
             case LiveTheme.BAR_BAND:
-                fill.setShader(band);
-                c.drawRect(0, 590 * k, w, h, fill);
-                fill.setShader(null);
+                shade(c, band, 0, 590 * k, w, h);
                 if (LiveTheme.infoBar() == LiveTheme.BAR_BAND_LINE) {
                     fill.setColor(LiveTheme.tile);
                     c.drawRect(0, 590 * k, w, 594 * k, fill);
                 }
                 break;
             case LiveTheme.BAR_SIDE:
-                fill.setShader(side);
-                c.drawRect(0, 480 * k, w * 0.62f, h, fill);
-                fill.setShader(null);
+                shade(c, side, 0, 480 * k, w * 0.62f, h);
                 break;
             default:
                 break;
@@ -872,8 +879,8 @@ final class LiveOverlay {
     private void drawTabs(Canvas c) {
         float cy = ROW_Y * k, rad = TAB_H / 2 * k, rr = LiveTheme.panelRound(14 * k);
         boolean focused = armed && !onBar;
-        if (pillText == null) pillText = Ui.text(Ui.semibold, 27, WHITE);
-        pillText.setTextSize(27 * k);
+        if (pillText == null) pillText = Ui.text(Ui.semibold, 29, WHITE);
+        pillText.setTextSize(29 * k);
         if (focused) {
             float fx = focusX.value * k, fw = focusW.value * k, grow = 4 * k;
             r.set(fx - grow, cy - rad - grow, fx + fw + grow, cy + rad + grow);

@@ -53,10 +53,10 @@ final class LiveRail {
 
     void size(float scale) {
         k = scale;
-        name = Ui.text(Ui.medium, 22 * k, 0xFFFFFFFF);
-        show = Ui.text(Ui.semibold, 27 * k, 0xFFFFFFFF);
-        note = Ui.text(Ui.medium, 22 * k, 0xCCFFFFFF);
-        chip = Ui.text(Ui.semibold, 24 * k, 0xFFFFFFFF);
+        name = Ui.text(Ui.medium, 24 * k, 0xFFFFFFFF);
+        show = Ui.text(Ui.semibold, 30 * k, 0xFFFFFFFF);
+        note = Ui.text(Ui.medium, 25 * k, 0xFFFFFFFF);
+        chip = Ui.text(Ui.semibold, 26 * k, 0xFFFFFFFF);
         fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     }
 
@@ -194,7 +194,7 @@ final class LiveRail {
         view.drawLogo(c, ch, logo, 1, on && LiveTheme.lightFocus(), true);
         if (ch.num > 0) {
             note.setColor(ink);
-            note.setAlpha(190);
+            note.setAlpha(235);
             note.setTextAlign(Paint.Align.RIGHT);
             c.drawText(String.valueOf(ch.num), left + wd - pad, top + 52 * k, note);
             note.setTextAlign(Paint.Align.LEFT);
@@ -205,7 +205,7 @@ final class LiveRail {
         c.drawText(ellipsize(p == null ? ch.name : p.title, show, inner), left + pad, top + 122 * k, show);
         if (p != null) {
             note.setColor(ink);
-            note.setAlpha(205);
+            note.setAlpha(240);
             boolean here = live.playing() != null && live.playing().id == ch.id;
             String left2 = LiveView.minutesLeft((int) Math.max(1, Math.round((p.end - now) / 60_000.0)));
             c.drawText(ellipsize(here ? Ui.tr("Assistindo", "Watching") + "  ·  " + left2 : left2, note, inner), left + pad, top + 158 * k, note);
@@ -227,7 +227,7 @@ final class LiveRail {
     private void later(Canvas c, Xtream.Channel ch) {
         long now = System.currentTimeMillis();
         float x = X * k, base = LATER_Y * k + Ui.halfCap(chip);
-        chip.setColor(0xCCFFFFFF);
+        chip.setColor(0xFFFFFFFF);
         String head = Ui.tr("Depois em ", "Later on ") + ch.name;
         head = ellipsize(head, chip, 460 * k);
         c.drawText(head, x, base, chip);
@@ -250,7 +250,7 @@ final class LiveRail {
             x = r.right + 14 * k;
             shown++;
         }
-        note.setColor(0xCCFFFFFF);
+        note.setColor(0xFFFFFFFF);
         note.setTextAlign(Paint.Align.RIGHT);
         c.drawText(Ui.tr("OK para assistir  ·  Voltar fecha", "OK tunes  ·  Back closes"), (1920 - X) * k, base, note);
         note.setTextAlign(Paint.Align.LEFT);

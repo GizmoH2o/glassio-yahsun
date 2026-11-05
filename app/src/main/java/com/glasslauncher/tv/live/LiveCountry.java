@@ -109,7 +109,8 @@ final class LiveCountry {
         if ((m = PUNCT_PREFIX.matcher(s)).matches() && tag(m.group(1), false) != null) return new Split(tag(m.group(1), false), tidy(m.group(2)));
         if ((m = BRACKET_SUFFIX.matcher(s)).matches() && tag(m.group(2), false) != null) return new Split(tag(m.group(2), false), tidy(m.group(1)));
         if ((m = PUNCT_SUFFIX.matcher(s)).matches() && tag(m.group(2), false) != null) return new Split(tag(m.group(2), false), tidy(m.group(1)));
-        if ((m = PLAIN_SUFFIX.matcher(s)).matches() && code(m.group(2), true) != null) return new Split(code(m.group(2), true), tidy(m.group(1)));
+        // "5 USA" is the channel 5USA: a word has to be left for the name, or the country word is part of it.
+        if ((m = PLAIN_SUFFIX.matcher(s)).matches() && m.group(1).matches(".*\\p{L}.*") && code(m.group(2), true) != null) return new Split(code(m.group(2), true), tidy(m.group(1)));
         if (category && (m = PLAIN_PREFIX.matcher(s)).matches() && code(m.group(1), true) != null) return new Split(code(m.group(1), true), tidy(m.group(2)));
         return new Split("", s);
     }

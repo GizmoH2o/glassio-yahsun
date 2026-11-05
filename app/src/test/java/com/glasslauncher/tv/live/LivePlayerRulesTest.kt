@@ -113,6 +113,18 @@ class LivePlayerRulesTest {
         assertTrue(LiveMoments.hidden(false, true, false, false))
     }
 
+    // Channel names: a country word at the end needs a name left before it.
+
+    @Test fun `a number with a country word is the channel's name`() {
+        assertEquals("", LiveCountry.split("5 USA").code)
+        assertEquals("5 USA", LiveCountry.split("5 USA").name)
+    }
+
+    @Test fun `a real name keeps losing its country word`() {
+        assertEquals("US", LiveCountry.split("TLC USA").code)
+        assertEquals("TLC", LiveCountry.split("TLC USA").name)
+    }
+
     // Up next.
 
     @Test fun `the card comes in the show's last two minutes`() {
