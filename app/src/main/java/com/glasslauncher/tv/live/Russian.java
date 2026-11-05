@@ -13,6 +13,8 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "Sound on": return "Со звуком";
+            case "Move to choose  ·  The selected channel plays its sound": return "Перемещайтесь для выбора  ·  Звук у выбранного канала";
             case "PLAYING": return "ИДЁТ";
             case "OK switches to ": return "OK переключает на ";
             case " on ": return " на ";

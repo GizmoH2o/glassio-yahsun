@@ -6,6 +6,8 @@ final class Italian {
 
     static String text(String english) {
         switch (english) {
+            case "Sound on": return "Audio attivo";
+            case "Move to choose  ·  The selected channel plays its sound": return "Spostati per scegliere  ·  Il canale selezionato ha l'audio";
             case "PLAYING": return "IN RIPRODUZIONE";
             case "OK switches to ": return "OK passa a ";
             case " on ": return " su ";

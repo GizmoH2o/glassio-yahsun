@@ -6,6 +6,8 @@ final class Spanish {
 
     static String text(String english) {
         switch (english) {
+            case "Sound on": return "Con sonido";
+            case "Move to choose  ·  The selected channel plays its sound": return "Muévete para elegir  ·  El canal seleccionado suena";
             case "PLAYING": return "REPRODUCIENDO";
             case "OK switches to ": return "OK cambia a ";
             case " on ": return " en ";

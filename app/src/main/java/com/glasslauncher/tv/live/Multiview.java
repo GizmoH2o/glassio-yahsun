@@ -96,7 +96,8 @@ public class Multiview extends Activity {
                 if (allowed < 2) {
                     grid.say(Ui.tr("Seu provedor permite só um canal por vez.", "Your provider allows only one stream at a time."));
                 }
-                layout = Math.max(1, Math.min(2, allowed));
+                // Glassio 3: the 2×2 grid, the empty boxes ready for a channel (they play nothing until one's chosen).
+                layout = Math.max(1, Math.min(LiveTheme.cinema() ? 4 : 2, allowed));
                 Xtream.Channel ch = l == null ? null : l.find(first);
                 if (ch != null) setChannel(0, ch);
                 relayout();
@@ -132,9 +133,10 @@ public class Multiview extends Activity {
             if (i == 0) out.set(24, 191, 1264, 889);
             else out.set(1288, 191 + (i - 1) * 354, 1896, 191 + (i - 1) * 354 + 344);
         } else {
-            float w = 924, h = 520;
+            // 16:9 boxes above the line of help at the foot.
+            float w = 805, h = 453, x0 = 143, y0 = 36, gap = 24;
             int col = i % 2, row = i / 2;
-            out.set(24 + col * (w + 24), 14 + row * (h + 12), 24 + col * (w + 24) + w, 14 + row * (h + 12) + h);
+            out.set(x0 + col * (w + gap), y0 + row * (h + gap), x0 + col * (w + gap) + w, y0 + row * (h + gap) + h);
         }
     }
 
@@ -557,6 +559,7 @@ public class Multiview extends Activity {
         private Paint name, meta, big, hint;
         private float k;
         private String message = "";
+        private Paint pill, shade;
         private long messageAt;
 
         Grid(Context c) {
@@ -575,11 +578,13 @@ public class Multiview extends Activity {
 
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
             k = w / 1920f;
-            name = Ui.text(Ui.semibold, 28 * k, 0xFFF5F5F7);
-            meta = Ui.text(Ui.regular, 22 * k, 0xB3FFFFFF);
-            big = Ui.text(Ui.medium, 30 * k, 0xCCFFFFFF);
-            hint = Ui.text(Ui.regular, 22 * k, 0x99FFFFFF);
-            frame.setStrokeWidth(6 * k);
+            name = Ui.text(Ui.semibold, 27 * k, 0xFFFFFFFF);
+            meta = Ui.text(Ui.regular, 19.5f * k, 0xFFD0D0D4);
+            big = Ui.text(Ui.medium, 27 * k, 0xCCFFFFFF);
+            hint = Ui.text(Ui.medium, 21 * k, 0xFFD0D0D4);
+            pill = Ui.text(Ui.semibold, 18 * k, 0xFF0B0B0D);
+            shade = new android.graphics.Paint();
+            frame.setStrokeWidth(4.5f * k);
             relayout();
         }
 
@@ -595,41 +600,47 @@ public class Multiview extends Activity {
                 r.set(r.left * k, r.top * k, r.right * k, r.bottom * k);
                 if (b.channel == null) {        // an empty box: + Add channel
                     fill.setColor(0xFF1C1C1F);
-                    c.drawRoundRect(r, 14 * k, 14 * k, fill);
+                    c.drawRoundRect(r, 18 * k, 18 * k, fill);
                     String t = "+  " + Ui.tr("Adicionar canal", "Add channel");
                     c.drawText(t, r.centerX() - big.measureText(t) / 2, r.centerY() + Ui.halfCap(big), big);
                 } else {
-                    // The label at the bottom: logo, name, what's on now (or the box's state).
-                    float lh = 74 * k;
-                    fill.setColor(0xB3000000);
-                    c.drawRect(r.left, r.bottom - lh, r.right, r.bottom, fill);
-                    Bitmap bm = LiveLogos.get(getContext(), b.channel.logo, this::postInvalidate);
-                    float x = r.left + 18 * k;
-                    if (bm != null) {
-                        float bh = 44 * k, bw = Math.min(90 * k, bm.getWidth() * bh / Math.max(1, bm.getHeight()));
-                        logo.set(x, r.bottom - lh / 2 - bh / 2, x + bw, r.bottom - lh / 2 + bh / 2);
-                        c.drawBitmap(bm, null, logo, fill);
-                        x = logo.right + 16 * k;
+                    // At the bottom, shaded: what's on now (or the box's state), then the channel.
+                    float lh = 165 * k;
+                    shade.setShader(new android.graphics.LinearGradient(0, r.bottom - lh, 0, r.bottom, 0x000B0B0D, 0xE00B0B0D, android.graphics.Shader.TileMode.CLAMP));
+                    c.drawRect(r.left, r.bottom - lh, r.right, r.bottom, shade);
+                    float x = r.left + 24 * k, room = r.width() - 48 * k;
+                    String line2 = (b.channel.num > 0 ? b.channel.num + "  " : "") + b.channel.name;
+                    String line1 = !b.status.isEmpty() && !b.status.equals("…") ? b.status
+                            : b.onNow == null ? b.channel.name : b.onNow.title;
+                    c.drawText(ellipsize(line1, name, room), x, r.bottom - 48 * k, name);
+                    c.drawText(ellipsize(line2, meta, room), x, r.bottom - 20 * k, meta);
+                    if (i == focus) {       // the box whose sound is playing
+                        String on = Ui.tr("Com som", "Sound on");
+                        float pw = pill.measureText(on) + 30 * k;
+                        logo.set(r.left + 21 * k, r.top + 21 * k, r.left + 21 * k + pw, r.top + 21 * k + 42 * k);
+                        fill.setColor(0xFFFFFFFF);
+                        c.drawRoundRect(logo, 12 * k, 12 * k, fill);
+                        c.drawText(on, logo.left + 15 * k, logo.centerY() + Ui.halfCap(pill), pill);
                     }
-                    String line1 = (b.channel.num > 0 ? b.channel.num + "  " : "") + b.channel.name;
-                    String line2 = !b.status.isEmpty() && !b.status.equals("…") ? b.status
-                            : b.onNow == null ? "" : b.onNow.title + "  ·  " + Ui.time(b.onNow.start) + " – " + Ui.time(b.onNow.end);
-                    float room = r.right - 18 * k - x - (i == focus ? 40 * k : 0);
-                    c.drawText(ellipsize(line1, name, room), x, r.bottom - lh + 32 * k, name);
-                    c.drawText(ellipsize(line2, meta, room), x, r.bottom - 14 * k, meta);
-                    if (i == focus) drawSpeaker(c, r.right - 34 * k, r.bottom - lh / 2);
                     if (b.status.equals("…")) Ui.spinner(c, r.centerX(), r.centerY(), 24 * k,
                             SystemClock.uptimeMillis() / 1000f * 1.3f, frame);
                 }
                 if (i == focus) {       // the focus: a frame in the theme's color around it
-                    frame.setColor(LiveTheme.text);
-                    r.inset(-4 * k, -4 * k);
-                    c.drawRoundRect(r, 16 * k, 16 * k, frame);
+                    frame.setColor(0xFFFFFFFF);
+                    r.inset(-2 * k, -2 * k);
+                    c.drawRoundRect(r, 18 * k, 18 * k, frame);
                 }
             }
             String help = Ui.tr("OK escolhe o canal · segure OK: opções · Voltar: tela cheia",
                     "OK picks the channel · hold OK: options · Back: full screen");
-            if (layout == 2) c.drawText(help, 24 * k, 860 * k, hint);
+            // At the foot: moving, and what OK does (only where there's room under the boxes).
+            if (layout >= 2) {
+                String moveHelp = Ui.tr("Mova para escolher  ·  O canal selecionado toca o som", "Move to choose  ·  The selected channel plays its sound");
+                float hy = 1040 * k;
+                float inset = layout == 4 ? 143 : 24;       // in line with the boxes
+                c.drawText(moveHelp, inset * k, hy, hint);
+                c.drawText(help, (1920 - inset) * k - hint.measureText(help), hy, hint);
+            }
             if (!message.isEmpty() && SystemClock.uptimeMillis() - messageAt < 3000) {
                 float tw = big.measureText(message);
                 r.set(960 * k - tw / 2 - 30 * k, 520 * k, 960 * k + tw / 2 + 30 * k, 590 * k);
@@ -640,10 +651,6 @@ public class Multiview extends Activity {
             boolean spinning = false;
             for (int i = 0; i < layout; i++) spinning |= boxes.get(i).channel != null && boxes.get(i).status.equals("…");
             if (spinning) postInvalidateOnAnimation();
-        }
-
-        private void drawSpeaker(Canvas c, float cx, float cy) {
-            Symbols.draw(getContext(), c, "speaker", cx, cy, 24 * k, 0xFFF5F5F7);
         }
 
         private String ellipsize(String s, Paint p, float w) {
