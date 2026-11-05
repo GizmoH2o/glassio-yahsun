@@ -200,6 +200,12 @@
             android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="Records a live TV programme the person scheduled"/>
         </service>
+        <!-- The full guide kept fresh with Live TV closed; in its process: it holds the guide's settings. -->
+        <service
+            android:name=".live.GuideJob"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:process=":live"/>
         <!-- The reminders' and recordings' alarms, and setting them again after a restart (or an update). -->
         <receiver
             android:name=".live.ScheduleReceiver"

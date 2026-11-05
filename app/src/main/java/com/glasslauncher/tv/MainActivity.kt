@@ -101,7 +101,10 @@ class MainActivity : ComponentActivity() {
         (application as GlassApp).ensureHomeService()     // the Home-button service, if an update switched it off
         com.glasslauncher.tv.data.HaEvents.home(this)     // back from watching: Home Assistant hears it
         // Live TV's "open when the TV starts" (its settings): the first time the home screen shows after a boot.
-        Thread { runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) } }.start()
+        Thread {
+            runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) }
+            runCatching { com.glasslauncher.tv.live.LiveHome.guideLook(this) }
+        }.start()
     }
 
     /** Terminal helper: am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity --es icon_pack <package> ("none" clears it). */

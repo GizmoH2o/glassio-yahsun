@@ -362,6 +362,19 @@ final class XmltvStore {
         long age = System.currentTimeMillis() - updatedAt(c);
         boolean stale = now || age > LiveOptions.guideHours(c) * HOUR || (LiveOptions.guideOnStart(c) && age > HOUR);
         if (!stale) return;
+        fetch(c, lineup, done);
+    }
+
+    /** Told each time a new guide is in use, whoever fetched it (Live TV, while it's open). */
+    static volatile Runnable replaced;
+
+    /**
+     * Fetches the full guide now, unless it's being fetched already (false). `ended` runs on the background thread when
+     * it's over, new guide or not. Never reads the settings' "old enough": the caller did.
+     */
+    static synchronized boolean fetch(Context context, Xtream.Lineup lineup, Runnable ended) {
+        Context c = context.getApplicationContext();
+        if (running || lineup == null) return false;
         running = true;
         progress = "";
         // A copy of what it needs: the lineup changes on the screen's thread.
@@ -378,14 +391,17 @@ final class XmltvStore {
                 long n = build(c, wanted, pastDays);
                 AppLog.w("guide: " + n + " programs for " + wanted.size() + " guide channels in "
                         + (System.currentTimeMillis() - t0) / 1000 + " s, " + c.getDatabasePath(DB).length() / 1_000_000 + " MB");
-                if (done != null) done.run();
+                Runnable r = replaced;
+                if (r != null) r.run();
             } catch (Exception e) {
                 AppLog.w("guide: couldn't fetch: " + e.getMessage());   // never the address: it carries the login
                 progress = Ui.tr("Falhou: ", "Failed: ") + e.getMessage();
             } finally {
                 running = false;
+                if (ended != null) ended.run();
             }
         }, "full-guide").start();
+        return true;
     }
 
     private static long build(Context c, Set<String> wanted, int pastDays) throws IOException, XmlPullParserException {

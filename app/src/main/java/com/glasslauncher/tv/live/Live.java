@@ -372,12 +372,26 @@ public class Live extends Activity {
     };
 
     /** Back from the choice of players without picking one (Glassio stayed underneath): the channel again. */
+    /** When the guide last read was fetched; left behind for another app, a new one may have come meanwhile. */
+    private long guideSeen;
+
+    @Override protected void onPause() {
+        super.onPause();
+        guideSeen = XmltvStore.updatedAt(this);
+    }
+
     @Override protected void onResume() {
         super.onResume();
         // Back from Settings: its language or Reduce motion may have changed while this stayed open.
         String languageWas = Ui.language;
         Prefs.init(this);
         if (!languageWas.equals(Ui.language) && view != null) view.restyle();
+        // A new guide, whoever fetched it: the guide reads it, and the list again with its logos.
+        XmltvStore.replaced = () -> main.post(() -> {
+            view.guideReplaced();
+            relist();
+        });
+        if (guideSeen != 0 && guideSeen != XmltvStore.updatedAt(this)) XmltvStore.replaced.run();
         if (!handedOff) return;
         handedOff = false;
         createPlayer();
@@ -522,6 +536,7 @@ public class Live extends Activity {
     };
 
     @Override protected void onDestroy() {
+        XmltvStore.replaced = null;
         TestHook.unregister(this, testHook);
         io.shutdownNow();
         view.release();
@@ -1233,10 +1248,7 @@ public class Live extends Activity {
 
     /** The full guide, when it's on and old (or now: the settings' Update now); the guide reads the new one after. */
     void updateGuide(boolean now) {
-        XmltvStore.updateIfStale(this, lineup, now, () -> main.post(() -> {
-            view.guideReplaced();
-            relist();       // the list again, with the new guide's logos
-        }));
+        XmltvStore.updateIfStale(this, lineup, now, null);
     }
 
     /**

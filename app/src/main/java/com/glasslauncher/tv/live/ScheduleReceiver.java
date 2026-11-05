@@ -12,6 +12,7 @@ public class ScheduleReceiver extends BroadcastReceiver {
                 || LiveSeries.ACTION.equals(action)) {
             if (!LiveSeries.ACTION.equals(action)) LiveSchedule.armAll(c);
             LiveSeries.arm(c);
+            GuideJob.arm(c);
             // The series' airings from the guide (the network: off the main thread, the broadcast kept open).
             final PendingResult done = goAsync();
             final Context app = c.getApplicationContext();

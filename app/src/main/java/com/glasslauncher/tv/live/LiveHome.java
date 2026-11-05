@@ -23,6 +23,11 @@ public final class LiveHome {
         Ui.applyLanguage();
     }
 
+    /** Home is showing: an old full guide is fetched in the background, with Live TV closed. */
+    public static void guideLook(Context c) {
+        GuideJob.look(c);
+    }
+
     /** A followed team whose scores stay hidden (for watching it later). */
     public static boolean spoilerFree(Context c, String term) {
         return LiveOptions.spoilerFree(c).contains(LiveNames.key(term));
