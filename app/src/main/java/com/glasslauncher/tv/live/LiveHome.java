@@ -146,6 +146,33 @@ public final class LiveHome {
         return out;
     }
 
+    /**
+     * Signs in to Live TV from the phone page. Refused when it's set up already: another provider is a playlist of its
+     * own, in Live TV's settings. Background thread: it asks the provider. A message for the phone.
+     */
+    public static String signIn(Context c, String kind, String server, String user, String pass) throws java.io.IOException {
+        if (Xtream.ready(c)) throw new java.io.IOException("Live TV is set up already. To add another provider: Live TV, Settings, Profiles and account, Add a playlist.");
+        if (server.isEmpty()) throw new java.io.IOException("The server or link is missing.");
+        if ("m3u".equals(kind)) Xtream.signInM3u(c, server, user);
+        else if ("mag".equals(kind)) Xtream.signInMag(c, server, user);
+        else Xtream.signIn(c, server, user, pass);
+        LivePlaylists.signedIn(c);
+        GuideJob.arm(c);
+        return "Signed in. Open Live TV on the TV: it loads your channels.";
+    }
+
+    /** How long the provider took to answer, in ms; 0: not signed in or a list with no account (M3U); -1: no answer. Background thread. */
+    public static long pingProvider(Context c) {
+        if (!Xtream.ready(c) || !Xtream.XTREAM.equals(Xtream.kind(c))) return 0;
+        long t0 = System.currentTimeMillis();
+        return Xtream.account(c) != null ? Math.max(1, System.currentTimeMillis() - t0) : -1;
+    }
+
+    /** What Live TV keeps on the TV, in bytes: the recordings, the guide. */
+    public static long[] storage(Context c) {
+        return new long[] {LiveRecordings.bytes(c), c.getDatabasePath("live-guide.db").length()};
+    }
+
     /** Home is showing: an old full guide is fetched in the background, with Live TV closed. */
     public static void guideLook(Context c) {
         GuideJob.look(c);

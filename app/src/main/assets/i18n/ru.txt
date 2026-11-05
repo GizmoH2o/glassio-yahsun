@@ -774,3 +774,30 @@ Leave it empty for the usual name	Оставьте пустым для обыч�
 All	Все
 Remove it from its own tab · %s	Удалите на его вкладке · %s
 Surprise me	Удиви меня
+Beta updates	Бета-обновления
+Also offer test builds: newer, and more likely to have problems	Предлагать и тестовые версии: новее, но возможны проблемы
+Weekly backup	Еженедельная копия
+Saves a backup in Downloads once a week, locked with your code	Раз в неделю сохраняет копию в Загрузки, защищённую вашим кодом
+Weekly backup on	Еженедельная копия включена
+Weekly backup off	Еженедельная копия выключена
+Storage	Память
+What Glassio keeps on this TV	Что Glassio хранит на этом телевизоре
+Recordings	Записи
+TV guide	Телегид
+Pictures and other temporary files	Изображения и другие временные файлы
+Clear	Очистить
+Cleared	Очищено
+Delete them in Live TV: Settings, Recordings, Recorded shows	Удаляйте их в ТВ: Настройки, Записи, Записанные передачи
+The guide is replaced each time it updates	Телегид заменяется при каждом обновлении
+Test the connection	Проверить соединение
+Whether the problem is your internet or your provider	Проблема в интернете или у провайдера
+Testing…	Проверка…
+Internet	Интернет
+no connection	нет соединения
+Speed	Скорость
+Provider	Провайдер
+no answer	нет ответа
+No internet	Нет интернета
+Your provider isn't answering	Провайдер не отвечает
+Internet slow for HD	Интернет медленный для HD
+Internet and provider fine	Интернет и провайдер в порядке

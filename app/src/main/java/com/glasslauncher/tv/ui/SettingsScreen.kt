@@ -724,6 +724,54 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             listOf(
                 Toggle("Phone remote", "The phone page stays on, at an address that doesn't change: keep it on your phone's home screen and use it as a remote any time (Manage from phone shows its code)",
                     { st.phoneRemote }, { st.phoneRemote = it; com.glasslauncher.tv.net.PhoneRemote.apply(app) }),
+                Toggle("Beta updates", "Also offer test builds: newer, and more likely to have problems", { st.betaUpdates }, { st.betaUpdates = it; scope.launch(Dispatchers.IO) { app.updater.check() } }),
+                Act("Weekly backup", "Saves a backup in Downloads once a week, locked with your code", if (st.backupAutoCode.isEmpty()) Lang.tr("Off") else Lang.tr("On")) {
+                    if (st.backupAutoCode.isNotEmpty()) {
+                        st.backupAutoCode = ""
+                        com.glasslauncher.tv.data.BackupJob.cancel(ctx)
+                        toast(ctx, "Weekly backup off")
+                    } else dialog = TextEntry("Backup code", "", "At least ${Backup.MIN_CODE} characters. You need it to restore: keep it somewhere safe", secret = true) { code ->
+                        if (code.length < Backup.MIN_CODE) { toast(ctx, "The code needs at least ${Backup.MIN_CODE} characters"); return@TextEntry }
+                        st.backupAutoCode = code
+                        com.glasslauncher.tv.data.BackupJob.arm(ctx)
+                        toast(ctx, "Weekly backup on")
+                    }
+                },
+                Act("Storage", "What Glassio keeps on this TV", "") {
+                    scope.launch {
+                        val sizes = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            val live = com.glasslauncher.tv.live.LiveHome.storage(app)
+                            Triple(live[0], live[1], ctx.cacheDir.walkTopDown().filter { it.isFile }.sumOf { it.length() })
+                        }
+                        fun size(b: Long) = android.text.format.Formatter.formatShortFileSize(ctx, b)
+                        dialog = MenuDialog("Storage", listOf(
+                            Lang.tr("Recordings") + "  ·  " + size(sizes.first) to { toast(ctx, "Delete them in Live TV: Settings, Recordings, Recorded shows") },
+                            Lang.tr("TV guide") + "  ·  " + size(sizes.second) to { toast(ctx, "The guide is replaced each time it updates") },
+                            Lang.tr("Pictures and other temporary files") + "  ·  " + size(sizes.third) + "  ·  " + Lang.tr("Clear") to {
+                                scope.launch(Dispatchers.IO) {
+                                    runCatching { coil3.SingletonImageLoader.get(ctx).diskCache?.clear() }
+                                    ctx.cacheDir.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+                                    toast(ctx, "Cleared")
+                                }
+                                Unit
+                            },
+                        ))
+                    }
+                },
+                Act("Test the connection", "Whether the problem is your internet or your provider", "") {
+                    toast(ctx, "Testing…")
+                    scope.launch {
+                        val r = kotlinx.coroutines.withContext(Dispatchers.IO) { com.glasslauncher.tv.data.ConnectionTest.run(ctx) }
+                        val internet = if (r.internetMs < 0) Lang.tr("Internet") + ": " + Lang.tr("no connection") else Lang.tr("Internet") + ": " + r.internetMs + " ms"
+                        val speed = if (r.mbps <= 0f) null else Lang.tr("Speed") + ": " + String.format(java.util.Locale.ROOT, "%.0f", r.mbps) + " Mb/s"
+                        val provider = when {
+                            r.providerMs == 0L -> null
+                            r.providerMs < 0 -> Lang.tr("Provider") + ": " + Lang.tr("no answer")
+                            else -> Lang.tr("Provider") + ": " + r.providerMs + " ms"
+                        }
+                        dialog = MenuDialog(Lang.tr(r.verdict), listOfNotNull(internet, speed, provider).map { it to {} })
+                    }
+                },
                 // A backup: everything in one file locked with a code (Backup), in the TV's Downloads and via the phone page.
                 Act("Back up settings", Backup.reminder(ctx), if (Backup.lastMade(ctx) <= 0L || System.currentTimeMillis() - Backup.lastMade(ctx) >= Backup.REMIND_AFTER_DAYS * 86_400_000L) "Due" else "") {
                     dialog = TextEntry("Backup code", "", "At least ${Backup.MIN_CODE} characters. You need it to restore: keep it somewhere safe", secret = true) { code ->

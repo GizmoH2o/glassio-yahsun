@@ -773,3 +773,30 @@ Leave it empty for the usual name	Déjalo vacío para el nombre habitual
 All	Todo
 Remove it from its own tab · %s	Quítalo desde su propia pestaña · %s
 Surprise me	Sorpréndeme
+Beta updates	Actualizaciones beta
+Also offer test builds: newer, and more likely to have problems	Ofrecer también versiones de prueba: más nuevas y con más probabilidad de fallos
+Weekly backup	Copia semanal
+Saves a backup in Downloads once a week, locked with your code	Guarda una copia en Descargas cada semana, bloqueada con tu código
+Weekly backup on	Copia semanal activada
+Weekly backup off	Copia semanal desactivada
+Storage	Almacenamiento
+What Glassio keeps on this TV	Lo que Glassio guarda en esta TV
+Recordings	Grabaciones
+TV guide	Guía de TV
+Pictures and other temporary files	Imágenes y otros archivos temporales
+Clear	Borrar
+Cleared	Borrado
+Delete them in Live TV: Settings, Recordings, Recorded shows	Bórralas en TV en vivo: Ajustes, Grabaciones, Programas grabados
+The guide is replaced each time it updates	La guía se reemplaza cada vez que se actualiza
+Test the connection	Probar la conexión
+Whether the problem is your internet or your provider	Si el problema es tu internet o tu proveedor
+Testing…	Probando…
+Internet	Internet
+no connection	sin conexión
+Speed	Velocidad
+Provider	Proveedor
+no answer	sin respuesta
+No internet	Sin internet
+Your provider isn't answering	Tu proveedor no responde
+Internet slow for HD	Internet lento para HD
+Internet and provider fine	Internet y proveedor bien

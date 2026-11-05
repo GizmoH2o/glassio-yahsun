@@ -32,6 +32,8 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
         const val REPO = "GizmoH2o/glassio-yahsun"
         const val REPO_URL = "https://github.com/$REPO"
         private const val API = "https://api.github.com/repos/$REPO/releases/latest"
+        /** Every release, newest first, test builds too. */
+        private const val ALL = "https://api.github.com/repos/$REPO/releases?per_page=10"
     }
 
     val current: String = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "0"
@@ -49,7 +51,8 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
 
     /** Returns a message for the Settings toast. */
     fun check(): String = try {
-        val c = URL(API).openConnection() as HttpURLConnection
+        val beta = ctx.getSharedPreferences("glass", Context.MODE_PRIVATE).getBoolean("betaUpdates", false)
+        val c = URL(if (beta) ALL else API).openConnection() as HttpURLConnection
         c.connectTimeout = 8000; c.readTimeout = 12000
         c.setRequestProperty("Accept", "application/vnd.github+json")
         c.setRequestProperty("User-Agent", "GlassioYahsun/$current")
@@ -57,7 +60,8 @@ class Updater(private val ctx: Context, private val scope: CoroutineScope) {
         if (code == 404) { c.disconnect(); "No release published yet" }
         else {
             check(code == 200) { "GitHub answered HTTP $code" }
-            val j = JSONObject(c.inputStream.bufferedReader().use { it.readText() }); c.disconnect()
+            val body = c.inputStream.bufferedReader().use { it.readText() }; c.disconnect()
+            val j = if (beta) org.json.JSONArray(body).let { a -> (0 until a.length()).map { a.getJSONObject(it) }.firstOrNull { !it.optBoolean("draft") } ?: JSONObject() } else JSONObject(body)
             lastCheck.value = System.currentTimeMillis()
             val tag = j.optString("tag_name").removePrefix("v")
             val assets = j.optJSONArray("assets")

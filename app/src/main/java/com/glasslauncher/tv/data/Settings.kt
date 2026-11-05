@@ -218,6 +218,10 @@ class Settings(private val ctx: Context) {
     /** The home screen's "Movies in your library" and "Series in your library" rows. */
     var homeMovies: Boolean get() = b("homeMovies", true); set(v) = putB("homeMovies", v)
     var homeSeries: Boolean get() = b("homeSeries", true); set(v) = putB("homeSeries", v)
+    /** Updates offer test builds too. */
+    var betaUpdates: Boolean get() = b("betaUpdates", false); set(v) = putB("betaUpdates", v)
+    /** The code the weekly backup is locked with ("": no weekly backup). */
+    var backupAutoCode: String get() = s("backupAutoCode", ""); set(v) = putS("backupAutoCode", v)
     /** The rows of Home in order, by name ("": HomeRows' order). */
     var homeOrder: String get() = s("homeOrder", ""); set(v) = putS("homeOrder", v)
     /** The rows turned off, by name, with commas. */

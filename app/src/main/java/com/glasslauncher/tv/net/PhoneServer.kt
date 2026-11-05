@@ -271,6 +271,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         "/api/addon/remove" -> runBlocking { app.catalogs.removeAddon(j.optString("url")) }
         "/api/icon/url" -> { app.icons.setFromUrl(j.optString("pkg"), j.optString("url").trim()); "Icon updated" }
         "/api/icon/reset" -> { app.icons.reset(j.optString("pkg")); "Icon reset" }
+        "/api/live/signin" -> com.glasslauncher.tv.live.LiveHome.signIn(app, j.optString("kind"), j.optString("server").trim(), j.optString("user").trim(), j.optString("pass").trim())
         "/api/tmdb" -> {
             val t = j.optString("token").trim()
             require(!com.glasslauncher.tv.data.Tmdb.looksLikeApiKey(t)) { "That's the API Key. Paste the API Read Access Token (the long one, starting eyJ...)" }
@@ -381,6 +382,7 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <p id="bgp"></p><div id="bgfiles"></div></div>
 <h2>Apps</h2><p>Open one on the TV, move it up or down on Home, or give it an icon: an image link or one from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
+<h2>Live TV sign-in</h2><p>Set up Live TV from here instead of typing with the remote. Xtream Codes: the server, your username and password. M3U: the playlist's link (and its guide's, if it has one). The details stay on your TV.</p><select id="lk" onchange="lkShow()"><option value="xtream">Xtream Codes</option><option value="m3u">M3U link</option><option value="mag">MAG portal</option></select><input type="text" id="ls" placeholder="Server (http://example.com:8080)"><input type="text" id="lu" placeholder="Username" autocomplete="off"><input type="password" id="lp" placeholder="Password" autocomplete="off"><button onclick="send('/api/live/signin',{kind:v('lk'),server:v('ls'),user:v('lu'),pass:v('lp')},'lp')">Sign in</button>
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>
 <h2>Calendars on Home</h2><p>An iCal link: in Google Calendar on a computer, the calendar's Settings &rarr; <b>Secret address in iCal format</b>. Its next events show in Home's "At a glance" row.</p><div id="cals"></div><input type="text" id="cl" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"><button onclick="send('/api/cal/add',{url:v('cl')},'cl')">Add calendar</button>
 <h2>Home Assistant readings on Home</h2><p>Its address and a <b>long-lived access token</b> (your Home Assistant profile &rarr; Security &rarr; Long-lived access tokens). Then choose the readings on the TV: Settings &rsaquo; Home &rsaquo; Home Assistant readings.</p><p id="hab"></p><input type="text" id="hu" placeholder="http://homeassistant.local:8123"><input type="password" id="ht" placeholder="Long-lived access token" autocomplete="off" style="margin-top:8px"><button onclick="send('/api/hastate',{url:v('hu'),token:v('ht')},'ht')">Save and check</button>
@@ -395,6 +397,7 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 var T=new URLSearchParams(location.search).get('t')||'';
 function v(i){return document.getElementById(i).value.trim()}
 function say(t,ok){var m=document.getElementById('msg');m.textContent=t;m.className=ok?'ok':'bad'}
+function lkShow(){var k=v('lk');document.getElementById('ls').placeholder=k=='xtream'?'Server (http://example.com:8080)':k=='m3u'?'Playlist link':'Portal address';document.getElementById('lu').placeholder=k=='xtream'?'Username':k=='m3u'?'Guide link (optional)':'MAC address (optional)';document.getElementById('lp').style.display=k=='xtream'?'':'none'}
 function api(p,b){return fetch(p+'?t='+encodeURIComponent(T),b?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}:{}).then(function(r){return r.json()})}
 function send(p,b,clear){say('...',true);api(p,b).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok){if(clear)document.getElementById(clear).value='';load()}}).catch(function(){say('Cannot reach the TV',false)})}
 function bk(){var c=v('bc');if(c.length<6){say('The code needs at least 6 characters',false);return}say('Making the backup... (a few seconds)',true);

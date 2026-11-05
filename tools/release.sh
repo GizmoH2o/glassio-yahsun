@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/release.sh [--dry-run] : builds the release APK and publishes it on GitHub (GizmoH2o/glassio-yahsun) as
+# tools/release.sh [--dry-run] [--beta] : builds the release APK and publishes it on GitHub (GizmoH2o/glassio-yahsun) as
 # v<versionName>, with that version's section of CHANGELOG.md as the release notes (the in-app update banner shows
 # them). Stops when CHANGELOG.md has no section for the version, so every release says what changed.
 #
@@ -12,7 +12,11 @@ cd "$(dirname "$0")/.."
 REPO=GizmoH2o/glassio-yahsun
 # The release key's certificate (SHA-256), public: every published APK must carry it.
 RELEASE_CERT=99a1d555c070a447a4e5d5e592425024e15523bee73f3da2705be0883ae94dda
-DRY=0; [ "${1:-}" = "--dry-run" ] && DRY=1
+DRY=0; BETA=()
+for a in "$@"; do
+  [ "$a" = "--dry-run" ] && DRY=1
+  [ "$a" = "--beta" ] && BETA=(--prerelease)     # a test build: only TVs with Beta updates on are offered it
+done
 
 VERSION=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' app/build.gradle.kts)
 [ -n "$VERSION" ] || { echo "No versionName in app/build.gradle.kts" >&2; exit 1; }
@@ -57,4 +61,4 @@ echo "== $TAG notes =="; cat "$NOTES"; echo "== $APK ($(wc -c < "$APK") bytes) =
 
 git tag -a "$TAG" -m "Glassio Yahsun $VERSION"
 git push origin "$TAG"
-gh release create "$TAG" "$APK" --repo "$REPO" --title "Glassio Yahsun $VERSION" --notes-file "$NOTES" --verify-tag
+gh release create "$TAG" "$APK" --repo "$REPO" --title "Glassio Yahsun $VERSION" --notes-file "$NOTES" --verify-tag "${BETA[@]}"
