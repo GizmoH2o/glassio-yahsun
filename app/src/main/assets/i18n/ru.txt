@@ -823,3 +823,5 @@ the menu	меню
 +  Follow a team or show	+  Подписаться на команду или передачу
 ‹  Following	‹  Отслеживаемое
 This trailer won't play on the TV	Этот трейлер не воспроизводится на телевизоре
+Colour from the picture	Цвет из изображения
+Home's dark background picks up a little colour from the selected title	Тёмный фон главного экрана принимает оттенок выбранного тайтла

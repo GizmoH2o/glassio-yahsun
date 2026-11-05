@@ -279,6 +279,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     var shownBackdrop by shownBackdropS
     val prevBackdropS = remember { mutableStateOf<ImageBitmap?>(null) }
     var prevBackdrop by prevBackdropS
+    // The page's colour from that picture (BackdropTint), null for neutral.
+    val pageTint = remember { mutableStateOf<Int?>(null) }
     // Which picture is on screen: the title text waits for it, so text and picture change together.
     val shownUrl = remember { mutableStateOf<String?>(null) }
     var fadeMs by remember { mutableIntStateOf(settings.transitionMs) }
@@ -289,7 +291,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     // The slide's picture, its glass copies and the switch to them. The picture's address is collected here instead
     // of being a key of this effect: read as a key, every slide recomposed this whole screen. A new address still
     // cancels the work for the old one (collectLatest), as restarting the effect did.
-    LaunchedEffect(settings.blurRadius, settings.glassRes, settings.slideAnim, settings.pageScale, settings.memTier, settings.bgMode, settings.bgImage, settings.bgVideo, CustomBackground.aerial.value, CustomBackground.frameRev.intValue) {
+    LaunchedEffect(settings.backdropTint, settings.highContrast, settings.blurRadius, settings.glassRes, settings.slideAnim, settings.pageScale, settings.memTier, settings.bgMode, settings.bgImage, settings.bgVideo, CustomBackground.aerial.value, CustomBackground.frameRev.intValue) {
         androidx.compose.runtime.snapshotFlow { backdropS.value }.collectLatest { backdrop ->
             GlassCache.res = settings.glassRes
             BakeCache.max = when (settings.memTier) { 0 -> 2; 2 -> 4; else -> 3 }
@@ -344,8 +346,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             val src = fullBmp
             // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
             val slide = false
-            val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier
-            val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide) }.also { BakeCache.put(bk, src, it) }
+            val tint = if (settings.backdropTint && !settings.highContrast) withContext(Dispatchers.Default) { BackdropTint.of(src.asAndroidBitmap()) } else null
+            val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier + "|" + tint
+            val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide, tint) }.also { BakeCache.put(bk, src, it) }
             if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
             if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Slide ready in ${android.os.SystemClock.uptimeMillis() - t0} ms (${u.substringAfterLast('/')})")
             // Page and glass fade in the same frames with the same timing, so the bar never runs ahead.
@@ -355,6 +358,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             slideDir = if (slide && !first && prevBackdrop != null) SlideDir.dir else 0
             if (!first && next != null) mix.snapTo(0f)
             shownBackdrop = baked
+            pageTint.value = tint
             shownUrl.value = u
             try {
                 if (first || next == null) mix.snapTo(1f)
@@ -374,7 +378,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             upgrade?.let { d -> bmpOf(d.await())?.let { hi ->
                 val dm = ctx.resources.displayMetrics
-                val b = withContext(Dispatchers.Default) { bakeBackdrop(hi, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide).also { GlassHalf.of(it) } }
+                val b = withContext(Dispatchers.Default) { bakeBackdrop(hi, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide, tint).also { GlassHalf.of(it) } }
                 fadeMs = 0; shownBackdrop = b
             } }
         }
@@ -502,7 +506,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 HomePage(
                     app, s, screenHdp, visible = screen == Screen.Home && !folderOpen, paused = screen != Screen.Home,
                     heroFocus = heroFocus, appsFocus = appsFocus, folderFocus = folderFocus, tileFocus = tileFocus,
-                    movingPkg = movingPkg, onMoveKey = onMoveKey, shownUrl = shownUrl, onBackdrop = { backdrop = it },
+                    movingPkg = movingPkg, onMoveKey = onMoveKey, shownUrl = shownUrl, tint = pageTint, onBackdrop = { backdrop = it },
                     onHeroFocus = { onHero = it }, onDialog = { dialog = it },
                     onAppMenu = { showMenu(it, false) },
                     onFolder = { folderOpen = true },
@@ -732,7 +736,7 @@ private object BakeCache {
  */
 @Volatile private var backdrop565 = false
 
-private fun bakeBackdrop(src: ImageBitmap, w: Int, h: Int, hScrim: Boolean = true): ImageBitmap {
+private fun bakeBackdrop(src: ImageBitmap, w: Int, h: Int, hScrim: Boolean = true, tint: Int? = null): ImageBitmap {
     var bmp = src.asAndroidBitmap()
     if (bmp.config == android.graphics.Bitmap.Config.HARDWARE) bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
     // Performance (small memory tier): 16-bit colour, dithered. Half the memory and half the GPU reads per frame.
@@ -745,7 +749,9 @@ private fun bakeBackdrop(src: ImageBitmap, w: Int, h: Int, hScrim: Boolean = tru
     val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
     p.shader = android.graphics.LinearGradient(0f, 0f, w * 0.62f, 0f, 0xE0000000.toInt(), 0x00000000, android.graphics.Shader.TileMode.CLAMP)
     if (hScrim) c.drawRect(0f, 0f, w * 0.62f, h.toFloat(), p)
-    p.shader = android.graphics.LinearGradient(0f, h * 0.58f, 0f, h.toFloat(), 0x00000000, 0xCC000000.toInt(), android.graphics.Shader.TileMode.CLAMP)
+    // The bottom shade, in the page's colour (BackdropTint) when it has one.
+    val floor = (tint ?: 0) and 0xFFFFFF
+    p.shader = android.graphics.LinearGradient(0f, h * 0.58f, 0f, h.toFloat(), floor, floor or 0xCC000000.toInt(), android.graphics.Shader.TileMode.CLAMP)
     c.drawRect(0f, h * 0.58f, w.toFloat(), h.toFloat(), p)
     // Fully covered: marked opaque, so it is drawn without blending.
     out.setHasAlpha(false)

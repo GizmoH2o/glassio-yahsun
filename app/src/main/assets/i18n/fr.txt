@@ -822,3 +822,5 @@ the menu	le menu
 +  Follow a team or show	+  Suivre une équipe ou une émission
 ‹  Following	‹  Suivis
 This trailer won't play on the TV	Cette bande-annonce ne se lit pas sur la TV
+Colour from the picture	Couleur de l'image
+Home's dark background picks up a little colour from the selected title	Le fond sombre de l'accueil prend un peu de la couleur du titre sélectionné

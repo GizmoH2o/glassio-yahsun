@@ -823,3 +823,5 @@ the menu	das Menü
 +  Follow a team or show	+  Team oder Sendung folgen
 ‹  Following	‹  Folge ich
 This trailer won't play on the TV	Dieser Trailer läuft nicht auf dem Fernseher
+Colour from the picture	Farbe aus dem Bild
+Home's dark background picks up a little colour from the selected title	Der dunkle Hintergrund der Startseite nimmt etwas Farbe des gewählten Titels an

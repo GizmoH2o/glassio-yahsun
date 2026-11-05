@@ -822,3 +822,5 @@ the menu	o menu
 +  Follow a team or show	+  Seguir um time ou programa
 ‹  Following	‹  Seguindo
 This trailer won't play on the TV	Este trailer não toca na TV
+Colour from the picture	Cor da imagem
+Home's dark background picks up a little colour from the selected title	O fundo escuro do Início ganha um pouco da cor do título selecionado

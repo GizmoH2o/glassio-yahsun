@@ -885,6 +885,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 })
                 add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it; com.glasslauncher.tv.live.LiveHome.setReduceMotion(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
+                add(Toggle("Colour from the picture", "Home's dark background picks up a little colour from the selected title", { st.backdropTint }, { st.backdropTint = it }))
                 addAll(page("Clock & glass").rows().filterNot { it is Adjust && it.title == "Glass refraction" })
                 addAll(page("Performance").rows())
                 addAll(page("Menu & themes").rows())

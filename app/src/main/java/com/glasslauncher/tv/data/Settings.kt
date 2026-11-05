@@ -272,6 +272,8 @@ class Settings(private val ctx: Context) {
     /** Look & motion: no lift, slide or zoom; a stronger selection and solid backing behind text. */
     var reduceMotion: Boolean get() = b("reduceMotion", false); set(v) = putB("reduceMotion", v)
     var highContrast: Boolean get() = b("highContrast", false); set(v) = putB("highContrast", v)
+    /** Home's dark page picks up a little of the title's colour (off with High contrast). */
+    var backdropTint: Boolean get() = b("backdropTint", true); set(v) = putB("backdropTint", v)
     /** OK on a card: "title" opens its title page, "play" plays straight away. */
     var cardOk: String get() = s("cardOk", "title"); set(v) = putS("cardOk", v)
     /** Trailers behind the big picture: auto (off by itself if they keep failing on this TV) | on | off. */

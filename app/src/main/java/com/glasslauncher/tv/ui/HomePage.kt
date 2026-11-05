@@ -125,7 +125,7 @@ internal fun HomePage(
     app: GlassApp, s: Float, screenH: Float, visible: Boolean, paused: Boolean,
     heroFocus: FocusRequester, appsFocus: FocusRequester, folderFocus: FocusRequester,
     tileFocus: HashMap<String, FocusRequester>, movingPkg: String?, onMoveKey: (KeyEvent) -> Boolean,
-    shownUrl: androidx.compose.runtime.State<String?>, onBackdrop: (String?) -> Unit,
+    shownUrl: androidx.compose.runtime.State<String?>, tint: androidx.compose.runtime.State<Int?>, onBackdrop: (String?) -> Unit,
     onHeroFocus: (Boolean) -> Unit, onDialog: (DialogState) -> Unit,
     onAppMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit, onLibrary: () -> Unit,
     /** The trailer to play behind the big picture (null: none), and whether the last one has ended. */
@@ -388,7 +388,10 @@ internal fun HomePage(
     val defaultSpec = LocalBringIntoViewSpec.current
     Box(Modifier.fillMaxSize().clipToBounds()) {
         // Further down the page the picture darkens, so the rows read over it.
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = (offset.value / (heroH * density * 0.6f)).coerceIn(0f, 0.72f) }.background(Color(0xFF0B0B0D)))
+        // In the title's colour, when it has one (read while drawing: a change of colour doesn't recompose the page).
+        val pageColor = androidx.compose.animation.animateColorAsState(tint.value?.let { Color(it) } ?: Color(0xFF0B0B0D),
+            if (reduceMotion) androidx.compose.animation.core.snap() else tween(600), label = "pageTint")
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = (offset.value / (heroH * density * 0.6f)).coerceIn(0f, 0.72f) }.drawBehind { drawRect(pageColor.value) })
         // Nothing scrolls by itself: the page moves (above) and each row scrolls along (its own default).
         CompositionLocalProvider(LocalBringIntoViewSpec provides NoPageScroll) {
             Column(
