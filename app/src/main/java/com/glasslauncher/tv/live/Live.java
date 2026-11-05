@@ -2215,6 +2215,7 @@ public class Live extends Activity {
         skipLast = up;
         skipStep = ms;
         long step = ms * (skipRun >= 12 ? 6 : skipRun >= 5 ? 3 : 1);
+        if (skipTo < 0) skipFrom = position();
         long to = Math.max(0, (skipTo >= 0 ? skipTo : position()) + step), end = length();
         long now = System.currentTimeMillis();
         boolean airing = shift == null && recordingFile == null && catchup.end > now;
@@ -2226,11 +2227,35 @@ public class Live extends Activity {
         skipOn = shift != null ? shift : catchup;
         if (rolling) atLive = false;        // the buffer, behind live (past its newest, applySkip goes back to live)
         main.removeCallbacks(applySkip);
-        main.postDelayed(applySkip, 600);
+        main.postDelayed(applySkip, minuteSkips() ? 1000 : 600);     // a new address for each stop: wait for the last press
         return true;
     }
 
-    private long skipStep;
+    private long skipStep, skipFrom;
+
+    /** Where the skips under way started from. */
+    long skipStart() {
+        return skipFrom;
+    }
+
+    /** A provider's past show: it moves by the minute, by opening the address again (LiveCatchup). */
+    boolean minuteSkips() {
+        return catchup != null && shift == null && recordingFile == null;
+    }
+
+    /** Where the skips pressed so far will land, -1 for none under way. */
+    long skipTarget() {
+        return skipTo;
+    }
+
+    /** To that place in the past show at once (Moments). */
+    void jump(long to) {
+        if (catchup == null) return;
+        skipTo = Math.max(0, to);
+        skipOn = catchup;
+        main.removeCallbacks(applySkip);
+        main.post(applySkip);
+    }
 
     /** The skips pressed, done: a seek, the stream again from the minute when it can't seek, or live at the end. */
     private final Runnable applySkip = () -> {

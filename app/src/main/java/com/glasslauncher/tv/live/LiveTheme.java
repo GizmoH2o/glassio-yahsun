@@ -556,20 +556,20 @@ final class LiveTheme {
             default:
                 break;
         }
-        // The title, the details, the progress (red, as LIVE stays) and the buttons, the focus on the first.
+        // The title, the details, the bar and the tabs, the focus on the first, as the player has them.
         p.setColor(0xF2FFFFFF);
-        c.drawRoundRect(320, 680, 1100, 736, 14, 14, p);
+        c.drawRoundRect(96, 690, 960, 756, 14, 14, p);
         p.setColor(0x99FFFFFF);
-        c.drawRoundRect(320, 770, 900, 794, 10, 10, p);
+        c.drawRoundRect(96, 780, 700, 804, 10, 10, p);
         p.setColor(0x40FFFFFF);
-        c.drawRect(96, 852, 1824, 860, p);
-        p.setColor(0xFFFF3B30);
-        c.drawRect(96, 852, 820, 860, p);
-        float rad = 36, br = rad * Math.min(1, round);
-        for (int i = 0; i < 6; i++) {
-            float x = 96 + i * 92;
-            p.setColor(i == 0 ? tile : (glassio() ? 0x2EFFFFFF : (surface | 0x14000000)));
-            c.drawRoundRect(x, 956 - rad, x + rad * 2, 956 + rad, br, br, p);
+        c.drawRect(96, 876, 1824, 884, p);
+        p.setColor(text);
+        c.drawRect(96, 876, 1120, 884, p);
+        float br = panelRound(14);
+        for (int i = 0; i < 5; i++) {
+            float x = 96 + i * 204;
+            p.setColor(i == 0 ? tile : (card & 0x00FFFFFF) | 0xF0000000);
+            c.drawRoundRect(x, 944, x + 190, 1008, br, br, p);
         }
         c.restore();
     }

@@ -433,7 +433,7 @@ final class LiveView extends View {
     void showBanner(Xtream.Channel c) {
         Xtream.Program past = live.catchup();
         announceForAccessibility((c.num > 0 ? c.num + " " : "") + c.name + (past == null ? "" : ", " + past.title));
-        overlay.show(false);     // drawn only while watching: from the guide or the list, it shows as they go
+        overlay.brief();     // drawn only while watching: from the guide or the list, it shows as they go
         invalidate();
     }
 
@@ -454,7 +454,7 @@ final class LiveView extends View {
     private void drawSubtitle(Canvas c) {
         if (subtitle.isEmpty() || mode != WATCH) return;
         if (subtitleLayout == null) subtitleLayout = captionLayout(subtitle);
-        drawCaption(c, subtitleLayout, w / 2f, overlay.visible() ? 560 * k : h - 64 * k);
+        drawCaption(c, subtitleLayout, w / 2f, overlay.tall() ? 560 * k : h - 64 * k);
     }
 
     /** A sample of the captions as set (the settings' Captions), centered on cx, its last line at `bottom`. */
@@ -659,7 +659,7 @@ final class LiveView extends View {
             if (buffering && status.isEmpty() && mode != SETTINGS) {
                 // Over the video: the preview's middle in the guide, the right side beside the list, else the screen's.
                 float cx = mode == GUIDE ? (P_X + P_W / 2 + gShift()) * k : mode == LIST ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
-                float cy = mode == GUIDE ? (P_Y + P_H / 2) * k : mode == WATCH && overlay.visible() ? 380 * k : mode == LIST ? h - 150 * k : h / 2f;   // above the overlay; under the list's show card
+                float cy = mode == GUIDE ? (P_Y + P_H / 2) * k : mode == WATCH && overlay.tall() ? 380 * k : mode == LIST ? h - 150 * k : h / 2f;   // above the overlay; under the list's show card
                 Ui.spinner(c, cx, cy, (mode == GUIDE ? 22 : 30) * k, (up - spinAt) / 1000f * 1.3f, spinner);
                 moving = true;
                 drawStillTrying(c, cx, cy + (mode == GUIDE ? 60 : 76) * k, up);
@@ -1686,15 +1686,26 @@ final class LiveView extends View {
 
     private final RectF logoRect = new RectF(), markRect = new RectF(), tileBox = new RectF();
 
+    private final Paint statusEdge = new Paint(Paint.ANTI_ALIAS_FLAG);
+
     private void drawStatus(Canvas c) {
         if (status.isEmpty()) return;
         float cx = mode == LIST || mode == SETTINGS ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
         String s = ellipsize(status, label, 900 * k);
         float tw = label.measureText(s);
-        r.set(cx - tw / 2 - 30 * k, h / 2f - 34 * k, cx + tw / 2 + 30 * k, h / 2f + 34 * k);
+        // Watching with the player up: above it, clear of the title. The design's card and edge.
+        float cy = mode == WATCH && overlay.tall() ? 380 * k : h / 2f;
+        r.set(cx - tw / 2 - 34 * k, cy - 38 * k, cx + tw / 2 + 34 * k, cy + 38 * k);
         fill.setShader(null);
-        fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xE6000000);
-        c.drawRoundRect(r, 34 * k, 34 * k, fill);
+        fill.setColor(LiveTheme.sheet());
+        float rr = LiveTheme.panelRound(26 * k);
+        c.drawRoundRect(r, rr, rr, fill);
+        if (LiveTheme.sheetRim() != 0) {
+            statusEdge.setStyle(Paint.Style.STROKE);
+            statusEdge.setStrokeWidth(1.5f * k);
+            statusEdge.setColor(LiveTheme.sheetRim());
+            c.drawRoundRect(r, rr, rr, statusEdge);
+        }
         c.drawText(s, cx - tw / 2, r.centerY() + Ui.halfCap(label), label);
     }
 
@@ -1740,8 +1751,12 @@ final class LiveView extends View {
                 clearDigits();
                 return true;
             }
+            if (mode == WATCH && overlay.cardShowing()) {     // the Up next card goes first
+                overlay.closeCard();
+                return true;
+            }
             if (mode == WATCH && overlay.visible()) {    // the overlay goes first
-                overlay.hide();
+                overlay.back();
                 return true;
             }
             // A past program, or live TV behind: Back goes to its channel live.
@@ -2702,6 +2717,10 @@ final class LiveView extends View {
     private void watchKey(int code) {
         if (lineup == null) return;
         if (overlay.armed() && overlay.key(code)) return;
+        if (ok(code) && overlay.cardShowing()) {     // the Up next card: what else is on
+            overlay.cardChannels();
+            return;
+        }
         Xtream.Channel peek = overlay.peeking();
         // The channel shown with ↑ ↓ (Sky's mini guide): ◀ ▶ its later shows; OK tunes it, or on a later show, remind
         // or record it.
@@ -2739,7 +2758,7 @@ final class LiveView extends View {
             case KeyEvent.KEYCODE_CHANNEL_UP: zap(1); return;
             case KeyEvent.KEYCODE_CHANNEL_DOWN: zap(-1); return;
             case KeyEvent.KEYCODE_INFO:
-                if (live.playing() != null) showBanner(live.playing());
+                if (live.playing() != null) overlay.show(false);
                 return;
             case KeyEvent.KEYCODE_GUIDE: openGuide(playCat); return;
             case KeyEvent.KEYCODE_MEDIA_RECORD: toggleRecording(); return;
@@ -2761,7 +2780,7 @@ final class LiveView extends View {
         Xtream.Channel playing = live.playing();
         switch (action) {
             case LiveKeys.CONTROLS: if (playing != null) overlay.show(true); break;
-            case LiveKeys.INFO: if (playing != null) showBanner(playing); break;
+            case LiveKeys.INFO: if (playing != null) overlay.show(false); break;
             case LiveKeys.CHANNEL_LIST: openList(); break;
             case LiveKeys.GROUPS:
                 openList();
@@ -3808,6 +3827,44 @@ final class LiveView extends View {
     private Paint gChip_text;
 
     /** The channel's programs, or null while they load (asked for the first time, or again when old). */
+    /** Watching full screen, nothing over it (the Up next card's place). */
+    boolean watching() {
+        return mode == WATCH && lineup != null;
+    }
+
+    /** The category ↑ ↓ go through now, or null. */
+    Xtream.Category playingCategory() {
+        return lineup == null || playCat >= lineup.categories.size() ? null : lineup.categories.get(playCat);
+    }
+
+    /** The rail's OK: that channel, live. */
+    void tuneFromPlayer(Xtream.Channel channel) {
+        overlay.hide();
+        tune(channel);
+    }
+
+    /** Info's Follow…: what to follow from what's playing. */
+    void followPlaying() {
+        Xtream.Program p = playingShow();
+        if (p != null) followMenu(p);
+    }
+
+    /** Info's later shows: remind or record one. */
+    void laterPlaying(Xtream.Channel channel, Xtream.Program p) {
+        laterMenu(channel, p, () -> {
+            overlay.hide();
+            tune(channel);
+        });
+    }
+
+    /** Moments: to that place in the show, into the catch-up when it's on now. */
+    void goToMoment(Xtream.Program p, long at) {
+        Xtream.Channel channel = live.playing();
+        if (channel == null) return;
+        if (live.catchup() != null) live.jump(at);
+        else live.playCatchup(channel, p, at);
+    }
+
     /** The channel's programs for the overlay (null while they load). */
     List<Xtream.Program> programsOf(Xtream.Channel channel) {
         return programs(channel);

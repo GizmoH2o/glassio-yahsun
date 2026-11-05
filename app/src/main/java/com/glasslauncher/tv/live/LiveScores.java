@@ -64,6 +64,11 @@ final class LiveScores {
     /** The boards' address: ESPN's, or a stand-in on the computer (TestHook), in memory only. */
     private static volatile String BASE = ESPN;
     /** Where a followed team's match is looked for: football everywhere, then the big American leagues. */
+    /** Where the boards are read from now. */
+    static String base() {
+        return BASE;
+    }
+
     private static final String[] BOARDS = {"soccer/all", "football/nfl", "basketball/nba", "hockey/nhl", "baseball/mlb"};
     private static final long FIND_EVERY = 20 * 60_000L, POLL = 60_000L, KEEP_ENDED = 30 * 60_000L;
 
@@ -268,7 +273,7 @@ final class LiveScores {
     }
 
     /** Whether a team in `teams` is the followed one, under any of its names. */
-    private static boolean plays(LiveNames.Names names, JSONArray teams) {
+    static boolean plays(LiveNames.Names names, JSONArray teams) {
         for (int i = 0; i < teams.length(); i++) {
             JSONObject team = teams.optJSONObject(i) == null ? null : teams.optJSONObject(i).optJSONObject("team");
             if (team == null) continue;
@@ -359,7 +364,7 @@ final class LiveScores {
     }
 
     /** ESPN's times (2026-10-25T14:00Z, seconds or not), in ms; 0 when unreadable. */
-    private static long when(String iso) {
+    static long when(String iso) {
         for (String f : new String[] {"yyyy-MM-dd'T'HH:mm'Z'", "yyyy-MM-dd'T'HH:mm:ss'Z'"}) {
             try {
                 java.text.SimpleDateFormat d = new java.text.SimpleDateFormat(f, java.util.Locale.ROOT);
@@ -392,7 +397,7 @@ final class LiveScores {
         main.post(() -> { for (Listener l : listeners) l.goal(s, forHome); });
     }
 
-    private static String text(String url) throws IOException {
+    static String text(String url) throws IOException {
         HttpURLConnection h = (HttpURLConnection) new URL(url).openConnection();
         h.setConnectTimeout(10_000);
         h.setReadTimeout(20_000);

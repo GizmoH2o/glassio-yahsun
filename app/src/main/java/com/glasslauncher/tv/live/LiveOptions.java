@@ -620,6 +620,24 @@ final class LiveOptions {
         setFlag(c, "live-scores-off", !on);
     }
 
+    /** On a past show, the score and its moments stay hidden until asked for (on unless turned off). */
+    static boolean spoilerGuard(Context c) {
+        return !flag(c, "live-spoiler-guard-off").exists();
+    }
+
+    static void setSpoilerGuard(Context c, boolean on) {
+        setFlag(c, "live-spoiler-guard-off", !on);
+    }
+
+    /** A card in a show's last two minutes with what's next (on unless turned off). */
+    static boolean upNextCard(Context c) {
+        return !flag(c, "live-up-next-off").exists();
+    }
+
+    static void setUpNextCard(Context c, boolean on) {
+        setFlag(c, "live-up-next-off", !on);
+    }
+
     /** A card when a followed team's match has a goal, while Live TV is on (on unless turned off). */
     static boolean goalAlerts(Context c) {
         return !flag(c, "live-goals-off").exists();

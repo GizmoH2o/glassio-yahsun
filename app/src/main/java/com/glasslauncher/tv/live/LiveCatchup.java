@@ -26,6 +26,18 @@ final class LiveCatchup {
         return Math.floorDiv(start + from, MINUTE) * MINUTE - start;
     }
 
+    /** One press of ◀ or ▶ on the bar: a minute on a provider's catch-up, else 10 s back and 30 s ahead. */
+    static long skipStep(boolean minutes, boolean back) {
+        return minutes ? (back ? -MINUTE : MINUTE) : (back ? -10_000 : 30_000);
+    }
+
+    /** The skips stacked so far, from `at` to `to`: "+3 min", "−2 min", under a minute "+30 s". */
+    static String skipLabel(long to, long at) {
+        long by = to - at, size = Math.abs(by);
+        String sign = by < 0 ? "−" : "+";
+        return size >= MINUTE ? sign + Math.round(size / (double) MINUTE) + " min" : sign + size / 1000 + " s";
+    }
+
     /** Where a skip to `to` from `at` asks to go: ahead, always further on than the minute it would otherwise start at. */
     static long skip(long start, long to, long at) {
         long minute = minute(start, to);
