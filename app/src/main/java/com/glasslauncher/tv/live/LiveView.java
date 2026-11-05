@@ -2721,10 +2721,7 @@ final class LiveView extends View {
     private void watchKey(int code) {
         if (lineup == null) return;
         if (overlay.armed() && overlay.key(code)) return;
-        if (ok(code) && overlay.cardShowing()) {     // the Up next card: what else is on
-            overlay.cardChannels();
-            return;
-        }
+        if (overlay.cardShowing() && overlay.cardKey(code)) return;     // the Up next card: ◀ ▶ and OK
         Xtream.Channel peek = overlay.peeking();
         // The channel shown with ↑ ↓ (Sky's mini guide): ◀ ▶ its later shows; OK tunes it, or on a later show, remind
         // or record it.
@@ -3096,6 +3093,10 @@ final class LiveView extends View {
     void seriesPlaying(Xtream.Program p) {
         Xtream.Channel channel = live.playing();
         if (channel != null) seriesMenu(channel, p);
+    }
+
+    void testUpNext() {
+        overlay.testUpNext();
     }
 
     void testMoments(int count, boolean locked) {

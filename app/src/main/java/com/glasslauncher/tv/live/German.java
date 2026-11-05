@@ -323,6 +323,11 @@ final class German {
             case "◀ Rewind": return "◀ Zurückspulen";
             case "◀ ▶ add up skips": return "◀ ▶ Sprünge addieren";
             case "Stopped pressing? It jumps here in 1 s": return "Nicht mehr gedrückt? Springt in 1 s hierher";
+            case "Night mode": return "Nachtmodus";
+            case "Remember for this channel": return "Für diesen Sender merken";
+            case "Stay here": return "Hier bleiben";
+            case "What else is on": return "Was läuft sonst";
+            case "Also starting at ": return "Beginnt ebenfalls um ";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

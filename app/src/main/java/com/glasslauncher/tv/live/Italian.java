@@ -311,6 +311,11 @@ final class Italian {
             case "◀ Rewind": return "◀ Indietro";
             case "◀ ▶ add up skips": return "◀ ▶ somma i salti";
             case "Stopped pressing? It jumps here in 1 s": return "Smesso di premere? Salta qui tra 1 s";
+            case "Night mode": return "Modalità notte";
+            case "Remember for this channel": return "Ricorda per questo canale";
+            case "Stay here": return "Resta qui";
+            case "What else is on": return "Cos'altro c'è";
+            case "Also starting at ": return "Inizia anche alle ";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";

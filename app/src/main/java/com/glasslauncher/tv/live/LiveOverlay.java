@@ -73,7 +73,25 @@ final class LiveOverlay {
     /** The Up next card: the show it's for, the show it was closed on, what else starts then; the check's running. */
     private Xtream.Program cardFor;
     private String cardClosed = "";
-    private final java.util.ArrayList<String> alsoOn = new java.util.ArrayList<>();
+    /** Another show starting then: where it's on, and why it's offered. */
+    private static final class Also {
+        final Xtream.Channel channel;
+        final String title, why;
+
+        Also(Xtream.Channel channel, String title, String why) {
+            this.channel = channel;
+            this.title = title;
+            this.why = why;
+        }
+    }
+
+    private final java.util.ArrayList<Also> alsoOn = new java.util.ArrayList<>();
+    /** On the card: the tiles, then Stay here, then What else is on. */
+    private int cardFocus;
+    /** The card as if a show were ending (the test broadcast's). */
+    private boolean testCard;
+    private Shader cardShade;
+    private Paint alsoHead, alsoWhy, alsoTitle, cardButton, cardMeta;
     private boolean checking;
     private long lastKey;
     /** Showing; and its buttons taking keys (shown by OK: not just after a channel changed). */
@@ -149,6 +167,15 @@ final class LiveOverlay {
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         topShade = new LinearGradient(0, 0, 0, 240 * k, 0xD9000000, 0x00000000, Shader.TileMode.CLAMP);
+        cardShade = new LinearGradient(0, 480 * k, 0, h, new int[] {0x00000000, 0xB8000000, 0xEB000000},
+                new float[] {0, 0.5f, 1}, Shader.TileMode.CLAMP);
+        alsoHead = Ui.text(Ui.semibold, 26 * k, WHITE);
+        alsoHead.setShadowLayer(7 * k, 0, 2 * k, 0xCC000000);
+        alsoWhy = Ui.text(Ui.semibold, 22 * k, WHITE);
+        alsoTitle = Ui.text(Ui.semibold, 26 * k, WHITE);
+        cardButton = Ui.text(Ui.semibold, 26 * k, WHITE);
+        cardButton.setTextAlign(Paint.Align.CENTER);
+        cardMeta = Ui.text(Ui.medium, 25 * k, 0xFFFFFFFF);
         // The fade under the text, into the style's own background (black for Glassio's).
         int base = LiveTheme.bg & 0x00FFFFFF;
         // Dark well before the pills start (about y 640), nearly solid under the tabs.
@@ -765,10 +792,55 @@ final class LiveOverlay {
     void closeCard() {
         if (cardFor != null) cardClosed = showKey(cardFor);
         cardFor = null;
+        testCard = false;
         view.invalidate();
     }
 
-    /** OK on the card: what else is on, Favorites first. */
+    /** A place on the card's row after ◀ or ▶: the `tiles`, then its two buttons. Pure. */
+    static int cardMove(int focus, int dir, int tiles) {
+        return Math.max(0, Math.min(tiles + 1, focus + dir));
+    }
+
+    /** The same place on the card's row once there are more `tiles`: a button stays that button. Pure. */
+    static int cardRefocus(int focus, int had, int tiles) {
+        return focus >= had ? focus - had + tiles : focus;
+    }
+
+    /** ◀ ▶ and OK on the card; false for the rest, which do what they do while watching. */
+    boolean cardKey(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                cardFocus = cardMove(cardFocus, code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1, alsoOn.size());
+                view.invalidate();
+                return true;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                if (cardFocus < alsoOn.size()) {
+                    Xtream.Channel to = alsoOn.get(cardFocus).channel;
+                    closeCard();
+                    view.tuneFromPlayer(to);
+                } else if (cardFocus == alsoOn.size()) {
+                    closeCard();
+                } else {
+                    cardChannels();
+                }
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    /** The card now, on whatever's on (the test broadcast's). */
+    void testUpNext() {
+        testCard = true;
+        cardClosed = "";
+        cardFor = dueCard(System.currentTimeMillis());
+        view.invalidate();
+    }
+
+    /** What else is on, Favorites first. */
     void cardChannels() {
         closeCard();
         show(true);
@@ -798,31 +870,51 @@ final class LiveOverlay {
         for (int i = 0; i + 1 < list.size(); i++) {
             Xtream.Program p = list.get(i);
             if (p.start > now || p.end <= now) continue;
-            if (!LiveRail.upNextDue(now, p.end) || showKey(p).equals(cardClosed)) return null;
-            if (p != cardFor) findAlsoOn(list.get(i + 1));
+            if (!testCard && !LiveRail.upNextDue(now, p.end) || showKey(p).equals(cardClosed)) return null;
+            // Again until it has its three: the other channels' guides are still loading the first time.
+            if (p != cardFor || alsoOn.size() < 3) findAlsoOn(list.get(i + 1), p != cardFor);
             return p;
         }
         return null;
     }
 
-    /** Up to two other shows starting then, on a favorite channel. */
-    private void findAlsoOn(Xtream.Program next) {
+    /** Up to three other shows starting then: on a favorite channel first, then a recent one. */
+    private void findAlsoOn(Xtream.Program next, boolean fresh) {
+        int had = alsoOn.size();
         alsoOn.clear();
         Xtream.Lineup lineup = view.lineup();
-        if (lineup == null || lineup.categories.isEmpty()) return;
+        if (lineup != null && !lineup.categories.isEmpty()) {
+            addAlso(lineup.categories.get(0).channels, next, Ui.tr("Favorito", "Favorite"));
+        }
+        addAlso(view.historyChannels(), next, Ui.tr("Recentes", "Recent"));
+        cardFocus = fresh ? alsoOn.size() : cardRefocus(cardFocus, had, alsoOn.size());      // Stay here to begin with
+        view.invalidate();
+    }
+
+    private void addAlso(List<Xtream.Channel> channels, Xtream.Program next, String why) {
         Xtream.Channel on = live.playing();
-        List<Xtream.Channel> favorites = lineup.categories.get(0).channels;
-        for (int i = 0; i < favorites.size() && i < 40 && alsoOn.size() < 2; i++) {
-            Xtream.Channel ch = favorites.get(i);
-            if (on != null && ch.id == on.id) continue;
+        for (int i = 0; i < channels.size() && i < 40 && alsoOn.size() < 3; i++) {
+            Xtream.Channel ch = channels.get(i);
+            if (on != null && ch.id == on.id || hasAlso(ch)) continue;
             List<Xtream.Program> shows = view.programsOf(ch);
             if (shows == null) continue;
             for (Xtream.Program p : shows) {
                 if (Math.abs(p.start - next.start) > 5 * 60_000L) continue;
-                alsoOn.add(p.title + "  ·  " + view.nameOf(ch));
+                alsoOn.add(new Also(ch, p.title, followed(p.title) ? Ui.tr("Seguindo", "Following") : why));
                 break;
             }
         }
+    }
+
+    private boolean hasAlso(Xtream.Channel ch) {
+        for (Also a : alsoOn) if (a.channel.id == ch.id) return true;
+        return false;
+    }
+
+    private boolean followed(String title) {
+        String folded = Xtream.fold(title);
+        for (String term : LiveFollow.all(live)) if (LiveNames.of(live, Xtream.fold(term)).in(folded)) return true;
+        return false;
     }
 
     private void drawUpNext(Canvas c, long now) {
@@ -832,8 +924,10 @@ final class LiveOverlay {
         int at = list == null ? -1 : list.indexOf(cardFor);
         if (at < 0 || at + 1 >= list.size()) return;
         Xtream.Program next = list.get(at + 1);
-        float wd = 620 * k, pad = 32 * k, ht = (216 + alsoOn.size() * 40 + (alsoOn.isEmpty() ? 0 : 12)) * k;
-        float right = R * k, bottom = 1016 * k, left = right - wd, top = bottom - ht;
+        shade(c, cardShade, 0, 480 * k, w, h);
+        drawAlso(c, next);
+        // The card: 600 wide, its bottom at 1008.
+        float wd = 600 * k, pad = 32 * k, ht = 312 * k, right = R * k, bottom = 1008 * k, left = right - wd, top = bottom - ht;
         r.set(left, top, right, bottom);
         float rr = LiveTheme.panelRound(28 * k);
         fill.setColor(LiveTheme.sheet());
@@ -845,24 +939,76 @@ final class LiveOverlay {
             stroke.setColor(LiveTheme.sheetRim());
             c.drawRoundRect(r, rr, rr, stroke);
         }
-        float room = wd - 2 * pad, x = left + pad, y = top + 50 * k;
-        long left2 = Math.max(0, cardFor.end - now) / 1000;
-        String in = Ui.tr("em ", "in ") + left2 / 60 + ":" + (left2 % 60 < 10 ? "0" : "") + left2 % 60;
-        c.drawText(ellipsize(Ui.tr("A seguir em ", "Next on ") + view.nameOf(ch), small, room - small.measureText(in) - 20 * k), x, y, small);
-        small.setTextAlign(Paint.Align.RIGHT);
-        c.drawText(in, right - pad, y, small);
-        small.setTextAlign(Paint.Align.LEFT);
-        y += 58 * k;
+        float room = wd - 2 * pad, x = left + pad, y = top + 56 * k;
+        long seconds = Math.max(0, cardFor.end - now) / 1000;
+        String in = Ui.tr("em ", "in ") + seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
+        c.drawText(ellipsize(Ui.tr("A seguir em ", "Next on ") + view.nameOf(ch), cardMeta, room - cardMeta.measureText(in) - 20 * k), x, y, cardMeta);
+        cardMeta.setTextAlign(Paint.Align.RIGHT);
+        c.drawText(in, right - pad, y, cardMeta);
+        cardMeta.setTextAlign(Paint.Align.LEFT);
+        y += 60 * k;
         c.drawText(ellipsize(next.title, cardTitle, room), x, y, cardTitle);
-        y += 42 * k;
-        c.drawText(Ui.time(next.start) + " – " + Ui.time(next.end), x, y, small);
-        for (String also : alsoOn) {
-            y += 40 * k;
-            c.drawText(ellipsize(Ui.tr("Também: ", "Also: ") + also, small, room), x, y, small);
-        }
-        y += 48 * k;
-        c.drawText(ellipsize(Ui.tr("OK: o que mais está passando  ·  Voltar fecha", "OK: what else is on  ·  Back closes"), small, room), x, y, small);
+        y += 44 * k;
+        c.drawText(Ui.time(next.start) + " – " + Ui.time(next.end), x, y, cardMeta);
+        // How near it is.
+        y += 24 * k;
+        float played = Ui.clamp(1 - (cardFor.end - now) / 120_000f);
+        fill.setColor(0x3DF5F5F7);
+        c.drawRoundRect(x, y, x + room, y + 6 * k, 3 * k, 3 * k, fill);
+        fill.setColor(LiveTheme.text);
+        c.drawRoundRect(x, y, x + Math.max(6 * k, room * played), y + 6 * k, 3 * k, 3 * k, fill);
+        y += 28 * k;
+        float buttonW = (room - 12 * k) / 2, buttonH = 64 * k;
+        drawCardButton(c, Ui.tr("Ficar aqui", "Stay here"), x, y, buttonW, buttonH, cardFocus == alsoOn.size());
+        drawCardButton(c, Ui.tr("O que mais está passando", "What else is on"), x + buttonW + 12 * k, y, buttonW, buttonH, cardFocus == alsoOn.size() + 1);
         view.postInvalidateDelayed(1000 - now % 1000);
+    }
+
+    private void drawCardButton(Canvas c, String text, float x, float y, float width, float height, boolean on) {
+        r.set(x, y, x + width, y + height);
+        float rr = LiveTheme.panelRound(14 * k);
+        if (on) {
+            glow.setColor(LiveTheme.tile);
+            c.drawRoundRect(r, rr, rr, glow);
+        } else {
+            fill.setColor(0x24F5F5F7);
+            c.drawRoundRect(r, rr, rr, fill);
+        }
+        cardButton.setColor(on ? LiveTheme.ink : WHITE);
+        c.drawText(ellipsize(text, cardButton, width - 16 * k), r.centerX(), r.centerY() + Ui.halfCap(cardButton), cardButton);
+    }
+
+    /** What else starts then: three tiles at the left; OK tunes the one in focus. */
+    private void drawAlso(Canvas c, Xtream.Program next) {
+        if (alsoOn.isEmpty()) return;
+        float gap = 18 * k, width = (1000 * k - 2 * gap) / 3, height = 118 * k, bottom = 1008 * k, top = bottom - height;
+        float round = LiveTheme.panelRound(18 * k);
+        c.drawText(Ui.tr("Também começando às ", "Also starting at ") + Ui.time(next.start), X * k, top - 22 * k, alsoHead);
+        for (int i = 0; i < alsoOn.size(); i++) {
+            Also a = alsoOn.get(i);
+            boolean on = i == cardFocus;
+            float left = (X * k) + i * (width + gap);
+            r.set(left, top, left + width, bottom);
+            int save = c.save();
+            if (on) {
+                c.scale(1.05f, 1.05f, r.centerX(), r.centerY());
+                glow.setColor(LiveTheme.tile);
+                c.drawRoundRect(r, round, round, glow);
+            } else {
+                fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xF0000000);
+                c.drawRoundRect(r, round, round, fill);
+                fill.setColor(0x1FFFFFFF);
+                c.drawRoundRect(r, round, round, fill);
+                LiveTheme.rim(c, r, round, 1.5f * k);
+            }
+            int ink = on ? LiveTheme.ink : WHITE;
+            alsoWhy.setColor((ink & 0x00FFFFFF) | 0xE6000000);
+            alsoTitle.setColor(ink);
+            float x = left + 20 * k, room = width - 40 * k;
+            c.drawText(ellipsize(view.nameOf(a.channel) + " · " + a.why, alsoWhy, room), x, top + 44 * k, alsoWhy);
+            c.drawText(ellipsize(a.title, alsoTitle, room), x, top + 86 * k, alsoTitle);
+            c.restoreToCount(save);
+        }
     }
 
     /** Whether the match stays hidden on `shown` for now (the guard, a team kept spoiler-free), until it's asked for. */
@@ -1113,7 +1259,7 @@ final class LiveOverlay {
                 rail.show(false);
                 return;
             case AUDIO:
-                panel.show(name(AUDIO, false), "", this::audioRows);
+                panel.show(name(AUDIO, false), this::audioRows);
                 return;
             case MOMENTS:
                 openMoments();
@@ -1211,7 +1357,7 @@ final class LiveOverlay {
         return out;
     }
 
-    /** Audio & Subtitles: the tracks, checked where they are, and the subtitles' size. */
+    /** Audio & Subtitles: the tracks, the one playing filled, the subtitles' size, and the switches at the bottom. */
     private java.util.List<LivePlayerPanel.Row> audioRows() {
         java.util.List<LivePlayerPanel.Row> rows = new java.util.ArrayList<>();
         int audio = androidx.media3.common.C.TRACK_TYPE_AUDIO, text = androidx.media3.common.C.TRACK_TYPE_TEXT;
@@ -1225,18 +1371,23 @@ final class LiveOverlay {
         rows.add(LivePlayerPanel.Row.header(Ui.tr("Legendas", "Subtitles")));
         if (names.isEmpty()) {
             rows.add(new LivePlayerPanel.Row(Ui.tr("Sem legendas neste canal", "No subtitles on this channel"), null));
-            return rows;
+        } else {
+            rows.add(new LivePlayerPanel.Row(Ui.tr("Desligadas", "Off"), () -> live.selectTrack(text, -1)).checked(live.selectedTrack(text) < 0));
+            for (int i = 0; i < names.size(); i++) {
+                final int which = i;
+                rows.add(new LivePlayerPanel.Row(names.get(i), () -> live.selectTrack(text, which)).checked(live.selectedTrack(text) == i));
+            }
         }
-        rows.add(new LivePlayerPanel.Row(Ui.tr("Desligadas", "Off"), () -> live.selectTrack(text, -1)).checked(live.selectedTrack(text) < 0));
-        for (int i = 0; i < names.size(); i++) {
-            final int which = i;
-            rows.add(new LivePlayerPanel.Row(names.get(i), () -> live.selectTrack(text, which)).checked(live.selectedTrack(text) == i));
-        }
-        int size = LiveOptions.ccSize(live);
-        rows.add(new LivePlayerPanel.Row(Ui.tr("Tamanho", "Subtitle size"), () -> {
-            LiveOptions.setCaptions(live, (size + 1) % LiveOptions.CC_SIZES.length, LiveOptions.ccColor(live), LiveOptions.ccStyle(live));
+        rows.add(LivePlayerPanel.Row.sizes(Ui.tr("Tamanho", "Subtitle size"), new String[] {"S", "M", "L", "XL"}, LiveOptions.ccSize(live), size -> {
+            LiveOptions.setCaptions(live, size, LiveOptions.ccColor(live), LiveOptions.ccStyle(live));
             view.captionsChanged();
-        }).value(String.valueOf(size + 1)));
+        }));
+        // Night mode's hours (Settings) keep it on: the switch shows that, and isn't for changing then.
+        boolean hours = NightMode.now(live);
+        rows.add(new LivePlayerPanel.Row(Ui.tr("Modo noturno", "Night mode"),
+                hours ? null : () -> live.setNightSound(!LiveOptions.nightSound(live))).toggle(hours || LiveOptions.nightSound(live)).pinned());
+        rows.add(new LivePlayerPanel.Row(Ui.tr("Lembrar neste canal", "Remember for this channel"),
+                () -> LiveOptions.setKeepChannelTracks(live, !LiveOptions.keepChannelTracks(live))).toggle(LiveOptions.keepChannelTracks(live)));
         return rows;
     }
 

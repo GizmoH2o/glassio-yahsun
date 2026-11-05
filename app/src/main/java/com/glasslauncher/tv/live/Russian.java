@@ -322,6 +322,11 @@ final class Russian {
             case "◀ Rewind": return "◀ Назад";
             case "◀ ▶ add up skips": return "◀ ▶ суммируйте переходы";
             case "Stopped pressing? It jumps here in 1 s": return "Отпустили? Переход сюда через 1 с";
+            case "Night mode": return "Ночной режим";
+            case "Remember for this channel": return "Запомнить для этого канала";
+            case "Stay here": return "Остаться здесь";
+            case "What else is on": return "Что ещё идёт";
+            case "Also starting at ": return "Также начинается в ";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

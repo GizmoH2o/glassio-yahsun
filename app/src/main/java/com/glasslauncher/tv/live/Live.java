@@ -404,7 +404,14 @@ public class Live extends Activity {
     private void applyNight() {
         boolean on = NightMode.now(this);
         if (nightDim != null) nightDim.setVisibility(on ? android.view.View.VISIBLE : android.view.View.GONE);
-        if (player != null) player.setVolume(on ? NightMode.VOLUME_PERCENT / 100f : 1f);
+        boolean quiet = on || LiveOptions.nightSound(this);
+        if (player != null) player.setVolume(quiet ? NightMode.VOLUME_PERCENT / 100f : 1f);
+    }
+
+    /** The player's Night mode switch: quieter from now on, whatever the hour. */
+    void setNightSound(boolean on) {
+        LiveOptions.setNightSound(this, on);
+        applyNight();
     }
 
     /** When the guide last read was fetched; left behind for another app, a new one may have come meanwhile. */
@@ -541,6 +548,10 @@ public class Live extends Activity {
             }
             if (i.getBooleanExtra("aboutshow", false)) {      // About the show, as the player's button opens it
                 view.aboutPlaying();
+                return;
+            }
+            if (i.getBooleanExtra("upnext", false)) {     // the Up next card, on whatever's on
+                view.testUpNext();
                 return;
             }
             int sample = i.getIntExtra("moments", -1);
@@ -1078,8 +1089,10 @@ public class Live extends Activity {
     private void channelTracks(Xtream.Channel ch) {
         String audio = LiveOptions.channelAudio(this, ch.id), text = LiveOptions.channelText(this, ch.id);
         androidx.media3.common.TrackSelectionParameters.Builder p = player.getTrackSelectionParameters().buildUpon();
-        p.setPreferredAudioLanguage(audio.isEmpty() ? audioPref() : audio);
-        if (!text.isEmpty()) p.setPreferredTextLanguage(text);
+        boolean keep = LiveOptions.keepChannelTracks(this);
+        p.setPreferredAudioLanguage(LiveOptions.channelLanguage(keep, audio, audioPref()));
+        String own = LiveOptions.channelLanguage(keep, text, null);
+        if (own != null) p.setPreferredTextLanguage(own);
         player.setTrackSelectionParameters(p.build());
     }
 
@@ -1366,9 +1379,10 @@ public class Live extends Activity {
                     if (type == C.TRACK_TYPE_AUDIO && lang != null && !lang.isEmpty() && !lang.equals("und")) {
                         LiveOptions.setAudioLanguage(this, lang);
                         p.setPreferredAudioLanguage(lang);
-                        if (playing != null) LiveOptions.setChannelAudio(this, playing.id, lang);
+                        if (playing != null && LiveOptions.keepChannelTracks(this)) LiveOptions.setChannelAudio(this, playing.id, lang);
                     }
-                    if (type == C.TRACK_TYPE_TEXT && playing != null && lang != null && !lang.isEmpty() && !lang.equals("und")) {
+                    if (type == C.TRACK_TYPE_TEXT && playing != null && LiveOptions.keepChannelTracks(this)
+                            && lang != null && !lang.isEmpty() && !lang.equals("und")) {
                         LiveOptions.setChannelText(this, playing.id, lang);
                     }
                     player.setTrackSelectionParameters(p.setTrackTypeDisabled(type, false)

@@ -311,6 +311,11 @@ final class French {
             case "◀ Rewind": return "◀ Reculer";
             case "◀ ▶ add up skips": return "◀ ▶ cumulez les sauts";
             case "Stopped pressing? It jumps here in 1 s": return "Plus d'appui ? Saut ici dans 1 s";
+            case "Night mode": return "Mode nuit";
+            case "Remember for this channel": return "Mémoriser pour cette chaîne";
+            case "Stay here": return "Rester ici";
+            case "What else is on": return "Autres programmes";
+            case "Also starting at ": return "Commence aussi à ";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

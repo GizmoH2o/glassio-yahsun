@@ -211,4 +211,34 @@ class LivePlayerRulesTest {
         assertEquals(3, LivePlayerInfo.nearest(mids, line, 1, 50f))
         assertEquals(-1, LivePlayerInfo.nearest(mids, line, 2, 50f))
     }
+
+    // Up next: its tiles, then Stay here, then What else is on.
+
+    @Test fun `the Up next card moves along its row and stops at the ends`() {
+        assertEquals(2, LiveOverlay.cardMove(3, -1, 3))
+        assertEquals(4, LiveOverlay.cardMove(3, 1, 3))
+        assertEquals(4, LiveOverlay.cardMove(4, 1, 3))
+        assertEquals(0, LiveOverlay.cardMove(0, -1, 3))
+    }
+
+    // Audio & Subtitles.
+
+    @Test fun `subtitle sizes stop at either end`() {
+        assertEquals(1, LivePlayerPanel.sizeStep(0, 1, 4))
+        assertEquals(0, LivePlayerPanel.sizeStep(0, -1, 4))
+        assertEquals(3, LivePlayerPanel.sizeStep(3, 1, 4))
+    }
+
+    @Test fun `a channel keeps its own language only while that is on`() {
+        assertEquals("fr", LiveOptions.channelLanguage(true, "fr", "en"))
+        assertEquals("en", LiveOptions.channelLanguage(false, "fr", "en"))
+        assertEquals("en", LiveOptions.channelLanguage(true, "", "en"))
+        assertNull(LiveOptions.channelLanguage(false, "fr", null))
+    }
+
+    @Test fun `tiles arriving late leave the focus on the same button`() {
+        assertEquals(3, LiveOverlay.cardRefocus(0, 0, 3))
+        assertEquals(4, LiveOverlay.cardRefocus(1, 0, 3))
+        assertEquals(0, LiveOverlay.cardRefocus(0, 1, 3))
+    }
 }

@@ -313,6 +313,11 @@ final class Spanish {
             case "◀ Rewind": return "◀ Retroceder";
             case "◀ ▶ add up skips": return "◀ ▶ suma saltos";
             case "Stopped pressing? It jumps here in 1 s": return "¿Dejaste de pulsar? Salta aquí en 1 s";
+            case "Night mode": return "Modo nocturno";
+            case "Remember for this channel": return "Recordar en este canal";
+            case "Stay here": return "Quedarse aquí";
+            case "What else is on": return "Qué más hay";
+            case "Also starting at ": return "También empieza a las ";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

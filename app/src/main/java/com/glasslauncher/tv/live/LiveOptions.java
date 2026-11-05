@@ -399,6 +399,29 @@ final class LiveOptions {
         return false;
     }
 
+    /** The player's Night mode switch: quieter now, whatever the hour. */
+    static boolean nightSound(Context c) {
+        return sp(c).getBoolean("nightSound", false);
+    }
+
+    static void setNightSound(Context c, boolean on) {
+        sp(c).edit().putBoolean("nightSound", on).apply();
+    }
+
+    /** Whether a channel keeps the audio and subtitles last picked on it. */
+    static boolean keepChannelTracks(Context c) {
+        return sp(c).getBoolean("keepChannelTracks", true);
+    }
+
+    static void setKeepChannelTracks(Context c, boolean on) {
+        sp(c).edit().putBoolean("keepChannelTracks", on).apply();
+    }
+
+    /** The language a channel starts in: its own when it keeps one, else `general` (may be null). Pure. */
+    static String channelLanguage(boolean keep, String own, String general) {
+        return keep && !own.isEmpty() ? own : general;
+    }
+
     /** The audio language picked on this channel, whatever the others do ("": none picked). */
     static String channelAudio(Context c, int channel) {
         return sp(c).getString("audio:" + channel, "");
