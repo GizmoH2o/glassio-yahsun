@@ -897,9 +897,9 @@ final class LiveView extends View {
         float a = Ui.clamp(appear.value);
         int save = a < 0.995f ? c.saveLayerAlpha(0, 0, w, h, Math.round(255 * a)) : c.save();
         fill.setShader(null);
-        fill.setColor(0xFF0B0B0D);
+        fill.setColor(LiveTheme.bg);
         c.drawRect(0, 0, C3_PANEL * k, h, fill);
-        fill.setColor(0xFF141416);
+        fill.setColor(LiveTheme.cellPast);
         c.drawRect(0, 0, C3_CATS * k, h, fill);
         c.save();
         c.clipRect(0, 0, C3_CATS * k, h);
@@ -939,15 +939,15 @@ final class LiveView extends View {
         float top = lCatTop.value;
         int first = Math.max(0, (int) Math.floor(top)), last = Math.min(n, first + catRows() + 2);
         catRow(0, lCat.value, top, focusRect);
-        fill.setColor(column == 0 ? 0xFFFFFFFF : 0x33FFFFFF);
-        float rr = 15 * k;
+        fill.setColor(column == 0 ? LiveTheme.tile : 0x33FFFFFF);
+        float rr = 15 * k * LiveTheme.rounding();
         if (focusRect.bottom > 70 * k) c.drawRoundRect(focusRect, rr, rr, fill);
         for (int i = first; i < last; i++) {
             catRow(0, i, top, r);
             if (r.top < 72 * k) continue;      // scrolled up under the heading
             boolean chosen = i == cat;
             Paint p = chosen ? c3GroupOn : c3Group;
-            p.setColor(chosen && column == 0 ? 0xFF0B0B0D : WHITE);
+            p.setColor(chosen && column == 0 ? LiveTheme.ink : WHITE);
             Xtream.Category cg = lineup.categories.get(i);
             float tx = r.left + 18 * k;
             if (cg == search) {
@@ -961,15 +961,15 @@ final class LiveView extends View {
     private void drawChannelsGlassio3(Canvas c, List<Xtream.Channel> list, float cx) {
         float top = lChTop.value;
         int first = Math.max(0, (int) Math.floor(top)), last = Math.min(list.size(), first + chRows() + 2);
-        float rr = 18 * k;
+        float rr = 18 * k * LiveTheme.rounding();
         for (int i = first; i < last; i++) {
             chRow(cx, i, top, r);
-            fill.setColor(0xFF1C1C1F);
+            fill.setColor(LiveTheme.cellLater);
             c.drawRoundRect(r, rr, rr, fill);
         }
         if (!list.isEmpty()) {
             chRow(cx, lCh.value, top, focusRect);
-            fill.setColor(column == 1 ? 0xFFFFFFFF : column == 2 ? 0xFF3A3A3F : 0xFF1C1C1F);
+            fill.setColor(column == 1 ? LiveTheme.tile : column == 2 ? 0x26FFFFFF : LiveTheme.cellLater);
             c.drawRoundRect(focusRect, rr, rr, fill);
         }
         Xtream.Channel playing = live.playing();
@@ -978,7 +978,7 @@ final class LiveView extends View {
             Xtream.Channel channel = list.get(i);
             chRow(cx, i, top, r);
             boolean on = column == 1 && i == ch;
-            int ink = on ? 0xFF0B0B0D : 0xFFFFFFFF, sub = on ? 0xFF4A4A50 : 0xFFB3B3B8;
+            int ink = on ? LiveTheme.ink : 0xFFFFFFFF, sub = on ? LiveTheme.inkSoft() : 0xFFB3B3B8;
             c3Name.setColor(ink);
             c3Sub.setColor(sub);
             c3Num.setColor(sub);
@@ -1007,9 +1007,9 @@ final class LiveView extends View {
             float mx = right;
             if (f >= 0) {
                 float by = r.centerY() - 3 * k, bl = right - 66 * k;
-                fill.setColor(on ? 0x330B0B0D : 0x38FFFFFF);
+                fill.setColor(on ? Ui.alpha(LiveTheme.ink, 0.2f) : 0x38FFFFFF);
                 c.drawRoundRect(bl, by, right, by + 6 * k, 3 * k, 3 * k, fill);
-                fill.setColor(LIVE_RED);
+                fill.setColor(accent(on));
                 if (f > 0) c.drawRoundRect(bl, by, bl + 66 * k * f, by + 6 * k, 3 * k, 3 * k, fill);
                 mx = bl - 18 * k;
             }
@@ -1019,7 +1019,7 @@ final class LiveView extends View {
                 mx -= 32 * k;
             }
             if (Xtream.isFavorite(lineup, channel.id)) {
-                drawHeart(c, mx - 10 * k, my, 18 * k, LIVE_RED);
+                drawHeart(c, mx - 10 * k, my, 18 * k, accent(on));
                 mx -= 32 * k;
             }
             if (channel.archive > 0 && channel.id > 0) {
@@ -1039,10 +1039,20 @@ final class LiveView extends View {
         }
     }
 
+    private int c3ShadeBg;
+
+    /** What's red on the screens: on a red focus, the focus's text color. */
+    private static int accent(boolean onFocus) {
+        return onFocus && LiveTheme.redFocus() ? LiveTheme.ink : LIVE_RED;
+    }
+
     /** Over the video at the right: the channel playing, its show, and what OK does on the channel in focus. */
     private void drawPlayingGlassio3(Canvas c, List<Xtream.Channel> list) {
         float left = C3_PANEL * k, shadeTop = h - 390 * k;
-        if (c3Shade == null) c3Shade = new LinearGradient(0, shadeTop, 0, h, 0x000B0B0D, 0xEB0B0B0D, Shader.TileMode.CLAMP);
+        if (c3Shade == null || c3ShadeBg != LiveTheme.bg) {
+            c3ShadeBg = LiveTheme.bg;
+            c3Shade = new LinearGradient(0, shadeTop, 0, h, c3ShadeBg & 0x00FFFFFF, (c3ShadeBg & 0x00FFFFFF) | 0xEB000000, Shader.TileMode.CLAMP);
+        }
         fill.setShader(c3Shade);
         c.drawRect(left, shadeTop, w, h, fill);
         fill.setShader(null);
@@ -3568,13 +3578,13 @@ final class LiveView extends View {
             gAboutPaint = new TextPaint(Ui.text(Ui.regular, 21 * k, 0xFFB3B3B8));
             gEpisode = Ui.text(Ui.medium, 21 * k, 0xFFD0D0D4);
             gCell = Ui.text(Ui.medium, 21 * s3 * k, WHITE);
-            gCellOn = Ui.text(Ui.medium, 21 * s3 * k, 0xFF0B0B0D);
+            gCellOn = Ui.text(Ui.medium, 21 * s3 * k, LiveTheme.ink);
             gTimeText = Ui.numbers(Ui.medium, 19.5f * k, 0xFFB3B3B8);
             gLeft = Ui.text(Ui.semibold, 18 * k, LIVE_RED);
             gLeft.setLetterSpacing(0.08f);
             gName = Ui.text(Ui.semibold, 21 * s3 * k, WHITE);
             gSub = Ui.text(Ui.regular, 18 * s3 * k, 0xFFB3B3B8);
-            gSubOn = Ui.text(Ui.regular, 18 * s3 * k, 0xFF4A4A50);
+            gSubOn = Ui.text(Ui.regular, 18 * s3 * k, LiveTheme.inkSoft());
             makeGuideRest();
             return;
         }
@@ -4312,7 +4322,7 @@ final class LiveView extends View {
         c.save();
         if (LiveTheme.cinema()) {       // its corners as round as the home screen's pictures
             previewHole.rewind();
-            previewHole.addRoundRect(preview, 18 * k, 18 * k, android.graphics.Path.Direction.CW);
+            previewHole.addRoundRect(preview, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), android.graphics.Path.Direction.CW);
             c.clipOutPath(previewHole);
         } else {
             c.clipOutRect(preview);
@@ -4438,9 +4448,9 @@ final class LiveView extends View {
                     liftPaint.setColor(0xFF000000);
                     liftPaint.setShadowLayer(26 * k, 0, 10 * k, 0xA6000000);
                 }
-                c.drawRoundRect(focusRect, 15 * k, 15 * k, liftPaint);
+                c.drawRoundRect(focusRect, 15 * k * LiveTheme.rounding(), 15 * k * LiveTheme.rounding(), liftPaint);
             }
-            float focusR = c3 ? 15 * k : 10 * k * LiveTheme.round;
+            float focusR = c3 ? 15 * k * LiveTheme.rounding() : 10 * k * LiveTheme.round;
             c.drawRoundRect(focusRect, focusR, focusR, fill);
             if (col > 0.5f && gHead == 0) {    // the titles again over the red (where it covers them)
                 c.save();
@@ -4479,14 +4489,15 @@ final class LiveView extends View {
     private void drawGuideChannelGlassio3(Canvas c, Xtream.Channel channel, float y, float onTile, Xtream.Channel playing) {
         cell.set(G_LOGO_X * k, y, G_COL_R * k, y + G_ROW_H * k);
         fill.setShader(null);
-        fill.setColor(0xFF141416);
-        c.drawRoundRect(cell, 15 * k, 15 * k, fill);
+        float rr = 15 * k * LiveTheme.rounding();
+        fill.setColor(LiveTheme.cellPast);
+        c.drawRoundRect(cell, rr, rr, fill);
         if (onTile > 0.01f) {
-            fill.setColor(Ui.alpha(0xFFFFFFFF, onTile));
-            c.drawRoundRect(cell, 15 * k, 15 * k, fill);
+            fill.setColor(Ui.alpha(LiveTheme.tile, onTile));
+            c.drawRoundRect(cell, rr, rr, fill);
         }
         boolean on = onTile > 0.5f;
-        int ink = on ? 0xFF0B0B0D : 0xFFFFFFFF, sub = on ? 0xFF4A4A50 : 0xFFB3B3B8;
+        int ink = on ? LiveTheme.ink : 0xFFFFFFFF, sub = on ? LiveTheme.inkSoft() : 0xFFB3B3B8;
         String tag = tagOf(channel);
         boolean isPlaying = playing != null && playing.id == channel.id, fav = Xtream.isFavorite(lineup, channel.id);
         boolean second = !tag.isEmpty() || isPlaying || fav || channel.archive > 0;
@@ -4519,7 +4530,7 @@ final class LiveView extends View {
             drawReplay(c, mx + 8 * k, my, 9 * k, sub);
             mx += 28 * k;
         }
-        if (fav) drawHeart(c, mx + 8 * k, my, 15 * k, LIVE_RED);
+        if (fav) drawHeart(c, mx + 8 * k, my, 15 * k, accent(on));
     }
 
     private final RectF markBox = new RectF();
@@ -4529,7 +4540,7 @@ final class LiveView extends View {
         if (!ink) {
             fill.setShader(null);
             fill.setColor(color);
-            c.drawRoundRect(cell, 15 * k, 15 * k, fill);
+            c.drawRoundRect(cell, 15 * k * LiveTheme.rounding(), 15 * k * LiveTheme.rounding(), fill);
         }
         float x = cell.left + 21 * k + indent, room = cell.right - 15 * k - x;
         if (room < 24 * k) return;
@@ -4556,11 +4567,11 @@ final class LiveView extends View {
             float tx = x + tw + 10 * k, mid = base - Ui.halfCap(tp);
             if (rec) {
                 fill.setShader(null);
-                fill.setColor(LIVE_RED);
+                fill.setColor(accent(ink));
                 c.drawCircle(tx + 7 * k, mid, 7 * k, fill);
                 tx += 22 * k;
             }
-            if (bell) Symbols.draw(getContext(), c, "bell", tx + 9 * k, mid, 19 * k, ink ? 0xFF0B0B0D : 0xCCFFFFFF);
+            if (bell) Symbols.draw(getContext(), c, "bell", tx + 9 * k, mid, 19 * k, ink ? LiveTheme.ink : 0xCCFFFFFF);
         }
         String kind = score != null ? score : tag == 1 ? badgeLive : tag == 2 ? badgeNew : tag == 3 ? badgeRepeat : null;
         String times = Ui.time(p.start) + " – " + Ui.time(p.end);
@@ -4579,9 +4590,9 @@ final class LiveView extends View {
             badgeRect.set(bx, mid - 12 * k, bx + bw, mid + 12 * k);
             fill.setShader(null);
             boolean quiet = tag != 1 && tag != 2 && tag != 4;      // a repeat, a match that's over: grey, on the focus's white too
-            fill.setColor(!quiet ? LIVE_RED : ink ? 0x26000000 : 0x59FFFFFF);
+            fill.setColor(!quiet ? accent(ink) : ink ? 0x26000000 : 0x59FFFFFF);
             c.drawRoundRect(badgeRect, 5 * k, 5 * k, fill);
-            gBadge.setColor(quiet && ink ? 0xFF0B0B0D : WHITE);
+            gBadge.setColor(quiet && ink ? LiveTheme.ink : !quiet && ink && LiveTheme.redFocus() ? LiveTheme.tile : WHITE);
             c.drawText(kind, bx + 7 * k, mid + Ui.halfCap(gBadge), gBadge);
             gBadge.setColor(WHITE);
         }

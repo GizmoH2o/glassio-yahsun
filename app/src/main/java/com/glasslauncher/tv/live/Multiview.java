@@ -77,7 +77,7 @@ public class Multiview extends Activity {
         Ui.init(this);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         root = new FrameLayout(this);
-        root.setBackgroundColor(0xFF0B0B0D);
+        root.setBackgroundColor(LiveTheme.bg);
         grid = new Grid(this);
         root.addView(grid, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
@@ -582,7 +582,7 @@ public class Multiview extends Activity {
             meta = Ui.text(Ui.regular, 19.5f * k, 0xFFD0D0D4);
             big = Ui.text(Ui.medium, 27 * k, 0xCCFFFFFF);
             hint = Ui.text(Ui.medium, 21 * k, 0xFFD0D0D4);
-            pill = Ui.text(Ui.semibold, 18 * k, 0xFF0B0B0D);
+            pill = Ui.text(Ui.semibold, 18 * k, LiveTheme.ink);
             shade = new android.graphics.Paint();
             frame.setStrokeWidth(4.5f * k);
             relayout();
@@ -599,8 +599,8 @@ public class Multiview extends Activity {
                 place(layout, i, r);
                 r.set(r.left * k, r.top * k, r.right * k, r.bottom * k);
                 if (b.channel == null) {        // an empty box: + Add channel
-                    fill.setColor(0xFF1C1C1F);
-                    c.drawRoundRect(r, 18 * k, 18 * k, fill);
+                    fill.setColor(LiveTheme.cellLater);
+                    c.drawRoundRect(r, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), fill);
                     String t = "+  " + Ui.tr("Adicionar canal", "Add channel");
                     c.drawText(t, r.centerX() - big.measureText(t) / 2, r.centerY() + Ui.halfCap(big), big);
                 } else {
@@ -618,7 +618,7 @@ public class Multiview extends Activity {
                         String on = Ui.tr("Com som", "Sound on");
                         float pw = pill.measureText(on) + 30 * k;
                         logo.set(r.left + 21 * k, r.top + 21 * k, r.left + 21 * k + pw, r.top + 21 * k + 42 * k);
-                        fill.setColor(0xFFFFFFFF);
+                        fill.setColor(LiveTheme.tile);
                         c.drawRoundRect(logo, 12 * k, 12 * k, fill);
                         c.drawText(on, logo.left + 15 * k, logo.centerY() + Ui.halfCap(pill), pill);
                     }
@@ -626,9 +626,9 @@ public class Multiview extends Activity {
                             SystemClock.uptimeMillis() / 1000f * 1.3f, frame);
                 }
                 if (i == focus) {       // the focus: a frame in the theme's color around it
-                    frame.setColor(0xFFFFFFFF);
+                    frame.setColor(LiveTheme.tile);
                     r.inset(-2 * k, -2 * k);
-                    c.drawRoundRect(r, 18 * k, 18 * k, frame);
+                    c.drawRoundRect(r, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), frame);
                 }
             }
             String help = Ui.tr("OK escolhe o canal · segure OK: opções · Voltar: tela cheia",

@@ -413,29 +413,28 @@ final class LiveShowPage extends Dialog {
         private final Spring g3Buttons = new Spring(0.28f, 0.9f, 0), g3Now = new Spring(0.28f, 0.9f, 0), g3Air = new Spring(0.28f, 0.9f, 0),
                 g3Past = new Spring(0.28f, 0.9f, 0), g3Page = new Spring(0.28f, 0.9f, 0);
         private final android.graphics.Path g3Clip = new android.graphics.Path();
-        private static final int BG = 0xFF0B0B0D;
-        private static final float G3_LEFT = 72, G3_IMG_W = 1350, G3_IMG_H = 690;
+                private static final float G3_LEFT = 72, G3_IMG_W = 1350, G3_IMG_H = 690;
 
         private void g3Paints(float w) {
             float ix = w - G3_IMG_W * k;
             g3Shade = new Paint();
-            g3Shade.setShader(new LinearGradient(ix, 0, w, 0, new int[] {BG, 0x8C0B0B0D, 0x000B0B0D}, new float[] {0, 0.45f, 1}, Shader.TileMode.CLAMP));
+            g3Shade.setShader(new LinearGradient(ix, 0, w, 0, new int[] {LiveTheme.bg, (LiveTheme.bg & 0x00FFFFFF) | 0x8C000000, LiveTheme.bg & 0x00FFFFFF}, new float[] {0, 0.45f, 1}, Shader.TileMode.CLAMP));
             g3Bottom = new Paint();
-            g3Bottom.setShader(new LinearGradient(0, 450 * k, 0, G3_IMG_H * k, 0x000B0B0D, BG, Shader.TileMode.CLAMP));
+            g3Bottom.setShader(new LinearGradient(0, 450 * k, 0, G3_IMG_H * k, LiveTheme.bg & 0x00FFFFFF, LiveTheme.bg, Shader.TileMode.CLAMP));
             g3Kicker = Ui.text(Ui.semibold, 18 * k, 0xFFE50914);
             g3Kicker.setLetterSpacing(0.08f);
             g3Title = Ui.text(Ui.displaySemibold, 66 * k, 0xFFFFFFFF);
             g3Meta = Ui.text(Ui.medium, 21 * k, 0xFFD0D0D4);
             g3About = new TextPaint(Ui.text(Ui.regular, 22.5f * k, 0xFFD0D0D4));
             g3Button = Ui.text(Ui.medium, 24 * k, 0xFFFFFFFF);
-            g3ButtonOn = Ui.text(Ui.semibold, 24 * k, BG);
+            g3ButtonOn = Ui.text(Ui.semibold, 24 * k, LiveTheme.ink);
             g3Head = Ui.text(Ui.semibold, 27 * k, 0xFFFFFFFF);
             g3When = Ui.text(Ui.semibold, 18 * k, 0xFFB3B3B8);
             g3Ep = Ui.text(Ui.medium, 21 * k, 0xFFFFFFFF);
             g3Ch = Ui.text(Ui.regular, 18 * k, 0xFFB3B3B8);
-            g3WhenOn = Ui.text(Ui.semibold, 18 * k, 0xFF4A4A50);
-            g3EpOn = Ui.text(Ui.medium, 21 * k, BG);
-            g3ChOn = Ui.text(Ui.regular, 18 * k, 0xFF4A4A50);
+            g3WhenOn = Ui.text(Ui.semibold, 18 * k, LiveTheme.inkSoft());
+            g3EpOn = Ui.text(Ui.medium, 21 * k, LiveTheme.ink);
+            g3ChOn = Ui.text(Ui.regular, 18 * k, LiveTheme.inkSoft());
         }
 
         /** "S2 · E7  The Signal Box", or the show's name without an episode. */
@@ -447,9 +446,10 @@ final class LiveShowPage extends Dialog {
         }
 
         /** The picture filling `to` with round corners; none: the panel's colour. */
-        private void g3Picture(Canvas c, Bitmap b, RectF to, float radius) {
+        private void g3Picture(Canvas c, Bitmap b, RectF to, float radius0) {
+            float radius = radius0 * LiveTheme.rounding();
             fill.setShader(null);
-            fill.setColor(0xFF1C1C1F);
+            fill.setColor(LiveTheme.cellLater);
             c.drawRoundRect(to, radius, radius, fill);
             if (b == null) return;
             float s = Math.max(to.width() / b.getWidth(), to.height() / b.getHeight());
@@ -472,7 +472,7 @@ final class LiveShowPage extends Dialog {
             if (g3Shade == null) g3Paints(w);
             boolean moving = in.step(dt) | g3Page.step(dt);
             float a = Ui.clamp(in.value);
-            c.drawColor(BG);
+            c.drawColor(LiveTheme.bg);
             c.save();
             c.translate(0, -g3Page.value);      // more rows than fit: the page moves up to the one in focus
             String url = !show.icon.isEmpty() ? show.icon : info != null ? info.backdrop : "";
@@ -545,8 +545,8 @@ final class LiveShowPage extends Dialog {
                 boolean on = row == 0 && i == button;
                 box.set(bx, by, bx + bw, by + bh);
                 fill.setShader(null);
-                fill.setColor(on ? 0xFFFFFFFF : 0x2EFFFFFF);
-                c.drawRoundRect(box, 18 * k, 18 * k, fill);
+                fill.setColor(on ? LiveTheme.tile : 0x2EFFFFFF);
+                c.drawRoundRect(box, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), fill);
                 c.drawText(l, bx + 33 * k, by + bh / 2 + Ui.halfCap(g3Button), on ? g3ButtonOn : g3Button);
                 bx += bw + gap;
             }
@@ -612,8 +612,8 @@ final class LiveShowPage extends Dialog {
                 boolean on = i == focus;
                 box.set(cx, y, cx + cw3, y + ch3);
                 fill.setShader(null);
-                fill.setColor(on ? 0xFFFFFFFF : 0xFF1C1C1F);
-                c.drawRoundRect(box, 18 * k, 18 * k, fill);
+                fill.setColor(on ? LiveTheme.tile : LiveTheme.cellLater);
+                c.drawRoundRect(box, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), fill);
                 Xtream.Program p = shows.get(i);
                 Xtream.Channel ac = chs.get(i);
                 float tx = cx + 21 * k, room = cw3 - 42 * k;
@@ -630,7 +630,7 @@ final class LiveShowPage extends Dialog {
             if (g3RingPaint == null) {
                 g3RingPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
                 g3RingPaint.setStyle(Paint.Style.STROKE);
-                g3RingPaint.setColor(0xFFFFFFFF);
+                g3RingPaint.setColor(LiveTheme.tile);
                 g3RingPaint.setStrokeWidth(4.5f * k);
             }
             return g3RingPaint;

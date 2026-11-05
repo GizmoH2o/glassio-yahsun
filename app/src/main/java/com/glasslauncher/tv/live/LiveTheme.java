@@ -13,9 +13,9 @@ import java.io.IOException;
 
 /**
  * Live TV's design: Glassio's own, or one like Apple TV's, YouTube TV's, NOW's, Sky's, Sling's, Hulu's, Netflix's,
- * Prime Video's, Disney+'s, Max's, Plex's or Pluto TV's. Each is the whole look: its colors (the background, the
- * tiles, the guide's programs), its focus and the text on it, how round things are, its guide (where the video and
- * the details are, how tall the rows, how many hours across), its info bar and its lettering. Custom takes each of
+ * Prime Video's, Disney+'s, Max's, Plex's or Pluto TV's. All have Glassio 3's screens; each has its own colors (the
+ * background, the tiles, the guide's programs), its focus and the text on it, how round things are, its player and info
+ * bar, and its lettering. Custom takes each of
  * those parts from any design. In Glassio's colors of focus, the color picked. LIVE, the "now" line and recording
  * stay red whatever the design. (In the code a design is still a "style", the name it had first.)
  * In a file ("color,style,…"), not the preferences: Live TV sets it, the main process (the reminder card) reads it too.
@@ -133,9 +133,28 @@ final class LiveTheme {
         save(c);
     }
 
-    /** The design whose guide shows now. */
+    /**
+     * The design whose screens show now: Glassio 3's for every design, in the design's colors, focus, corners and
+     * lettering. What keeps a design's own shape is its player and info bar (infoStyle).
+     */
     static int layoutStyle() {
-        return part(GUIDE);
+        return CINEMA;
+    }
+
+    /** Corners by the design, against Glassio 3's: its sizes are written for its own roundness. */
+    static float rounding() {
+        return round / 1.25f;
+    }
+
+    /** Quieter text on the focus. */
+    static int inkSoft() {
+        return mix(ink, tile, 0.28f) | 0xFF000000;
+    }
+
+    /** The focus is red itself: what's red on it (LIVE, a recording's dot) takes the focus's text color. */
+    static boolean redFocus() {
+        int r = (tile >> 16) & 255, g = (tile >> 8) & 255, b = tile & 255;
+        return r > 170 && g < 90 && b < 90;
     }
 
     /** The design whose info bar shows now. */
@@ -453,31 +472,32 @@ final class LiveTheme {
     /** What a design looks like, in a few words (the setting's line). */
     static String styleAbout(int i) {
         switch (i) {
-            case CINEMA: return Ui.tr("Como a tela inicial: quase preto, seleção branca, cantos redondos; o vídeo à direita, botões com nome",
-                    "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons");
+            case CINEMA: return Ui.tr("Como a tela inicial: quase preto, seleção branca, cantos redondos, botões com nome no player.",
+                    "Like the home screen: near-black, a white selection, round corners, named buttons in the player.");
             case APPLE: return Ui.tr("Vidro claro sobre azul profundo, foco branco, cantos bem redondos; a barra num cartão de vidro.",
                     "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.");
-            case YOUTUBE: return Ui.tr("Quase preto, foco branco, detalhes vermelhos, letras Roboto; o guia com o topo compacto e 2 h e meia.",
-                    "Near black, a white focus, red details, Roboto lettering; a guide with a compact top and 2½ hours across.");
-            case NOW: return Ui.tr("Preto e roxo, foco verde-água; a imagem grande à esquerda.",
-                    "Black and purple, a teal focus; a big picture at the left.");
-            case SKY: return Ui.tr("O azul do Sky Q, foco azul vivo, cantos retos; o vídeo à direita, linhas finas, a barra numa faixa.",
-                    "Sky Q's blue, a bright blue focus, square corners; the video at the right, slim rows, the info bar on a band.");
-            case SLING: return Ui.tr("Azul-marinho, foco amarelo, letras estreitas; um vídeo pequeno à direita e muitas linhas.",
-                    "Navy, a yellow focus, narrow lettering; a small video at the right and many rows.");
-            case HULU: return Ui.tr("Preto, foco verde; a imagem grande à direita.", "Black, a green focus; the large picture at the right.");
-            case NETFLIX: return Ui.tr("Quase preto, foco vermelho, cantos quase retos, letras fortes; a imagem maior à direita, a barra com sombra à esquerda.",
-                    "Near black, a red focus, nearly square corners, bold lettering; the biggest picture at the right, the info bar shaded from the left.");
-            case PRIME: return Ui.tr("Azul-marinho profundo, foco azul vivo; vídeo à esquerda com a imagem do programa, linhas finas.",
-                    "Deep navy, a bright blue focus; the video at the left with the show's picture, slim rows.");
-            case DISNEY: return Ui.tr("Azul-real que vira noite, vidro com borda clara, foco azul; o vídeo à direita, a barra num cartão de vidro.",
-                    "Royal blue into night, glass with a light edge, a blue focus; the video at the right, the info bar on a glass card.");
-            case MAX: return Ui.tr("Preto que vira azul profundo, foco azul; a imagem grande à direita e 2 h e meia no guia.",
-                    "Black into deep blue, a blue focus; the large picture at the right and 2½ hours in the guide.");
-            case PLEX: return Ui.tr("Cinza-escuro, foco âmbar; um vídeo pequeno, 3 horas e muitas linhas, a barra numa faixa.",
-                    "Dark grey, an amber focus; a small video, 3 hours and many rows, the info bar on a band.");
-            case PLUTO: return Ui.tr("Preto, foco amarelo, letras estreitas e fortes; linhas finas, 1 h e meia, a barra numa faixa.",
-                    "Black, a yellow focus, narrow bold lettering; slim rows, 1½ hours, the info bar on a band.");
+            case YOUTUBE: return Ui.tr("Quase preto, foco branco, detalhes vermelhos, letras Roboto.",
+                    "Near black, a white focus, red details, Roboto lettering.");
+            case NOW: return Ui.tr("Preto e roxo, foco verde-água.",
+                    "Black and purple, a teal focus.");
+            case SKY: return Ui.tr("O azul do Sky Q, foco azul vivo, cantos retos; a barra numa faixa.",
+                    "Sky Q's blue, a bright blue focus, square corners; the info bar on a band.");
+            case SLING: return Ui.tr("Azul-marinho, foco amarelo, letras estreitas.",
+                    "Navy, a yellow focus, narrow lettering.");
+            case HULU: return Ui.tr("Preto, foco verde.",
+                    "Black, a green focus.");
+            case NETFLIX: return Ui.tr("Quase preto, foco vermelho, cantos quase retos, letras fortes; a barra com sombra à esquerda.",
+                    "Near black, a red focus, nearly square corners, bold lettering; the info bar shaded from the left.");
+            case PRIME: return Ui.tr("Azul-marinho profundo, foco azul vivo.",
+                    "Deep navy, a bright blue focus.");
+            case DISNEY: return Ui.tr("Azul-real que vira noite, vidro com borda clara, foco azul; a barra num cartão de vidro.",
+                    "Royal blue into night, glass with a light edge, a blue focus; the info bar on a glass card.");
+            case MAX: return Ui.tr("Preto que vira azul profundo, foco azul.",
+                    "Black into deep blue, a blue focus.");
+            case PLEX: return Ui.tr("Cinza-escuro, foco âmbar; a barra numa faixa.",
+                    "Dark grey, an amber focus; the info bar on a band.");
+            case PLUTO: return Ui.tr("Preto, foco amarelo, letras estreitas e fortes; a barra numa faixa.",
+                    "Black, a yellow focus, narrow bold lettering; the info bar on a band.");
             case CUSTOM: return Ui.tr("O seu: cada parte de um design, nas linhas abaixo.",
                     "Yours: each part from any design, in the rows below.");
             default: return Ui.tr("O do Glassio: vidro claro sobre grafite, o foco na cor escolhida (branco).",

@@ -13,7 +13,19 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
-            case "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.": return "В телегиде и списке каналов оформления Glassio 3. Ввод номера с пульта по-прежнему работает.";
+            case "Like the home screen: near-black, a white selection, round corners, named buttons in the player.": return "Как главный экран: почти чёрный фон, белое выделение, скруглённые углы, подписанные кнопки в плеере.";
+            case "Near black, a white focus, red details, Roboto lettering.": return "Почти чёрный, белый фокус, красные детали, шрифт Roboto.";
+            case "Black and purple, a teal focus.": return "Чёрный и фиолетовый, бирюзовый фокус.";
+            case "Sky Q's blue, a bright blue focus, square corners; the info bar on a band.": return "Синий Sky Q, ярко-синий фокус, прямые углы; панель на полосе.";
+            case "Navy, a yellow focus, narrow lettering.": return "Тёмно-синий, жёлтый фокус, узкий шрифт.";
+            case "Black, a green focus.": return "Чёрный, зелёный фокус.";
+            case "Near black, a red focus, nearly square corners, bold lettering; the info bar shaded from the left.": return "Почти чёрный, красный фокус, почти прямые углы, жирный шрифт; панель с тенью слева.";
+            case "Deep navy, a bright blue focus.": return "Глубокий тёмно-синий, ярко-синий фокус.";
+            case "Royal blue into night, glass with a light edge, a blue focus; the info bar on a glass card.": return "Королевский синий, переходящий в ночной, стекло со светлым краем, синий фокус; панель на стеклянной карточке.";
+            case "Black into deep blue, a blue focus.": return "Чёрный, переходящий в глубокий синий, синий фокус.";
+            case "Dark grey, an amber focus; the info bar on a band.": return "Тёмно-серый, янтарный фокус; панель на полосе.";
+            case "Black, a yellow focus, narrow bold lettering; the info bar on a band.": return "Чёрный, жёлтый фокус, узкий жирный шрифт; панель на полосе.";
+            case "In the guide and channel list. Typing a number on the remote still works.": return "В телегиде и списке каналов. Ввод номера с пульта по-прежнему работает.";
             case "Logo and number": return "Логотип и номер";
             case "Number": return "Номер";
             case "Beside the channel's name": return "Рядом с названием канала";
@@ -112,7 +124,6 @@ final class Russian {
             case "Sleep": return "Сон";
             case "Stop": return "Стоп";
             case "NOW": return "СЕЙЧАС";
-            case "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons": return "Как на главном экране: почти чёрный, белый выбор, круглые углы; видео справа, кнопки с названиями";
             case "Live TV": return "Телеканалы";
             case "All Apps": return "Приложения";
             case "Settings": return "Настройки";
@@ -755,17 +766,6 @@ final class Russian {
             case "Whose info bar, the one over the channel as you watch (← → to change it).": return "Из какого дизайна инфопанель поверх канала во время просмотра (← → — изменить).";
             case "Whose lettering (← → to change it).": return "Из какого дизайна шрифт (← → — изменить).";
             case "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.": return "Прозрачное стекло на тёмно-синем, белый фокус, очень круглые углы; инфопанель на парящей стеклянной карточке.";
-            case "Near black, a white focus, red details, Roboto lettering; a guide with a compact top and 2½ hours across.": return "Почти чёрный, белый фокус, красные детали, шрифт Roboto; гид с компактным верхом и 2½ часа.";
-            case "Black and purple, a teal focus; a big picture at the left.": return "Чёрный и фиолетовый, бирюзовый фокус; большая картинка слева.";
-            case "Sky Q's blue, a bright blue focus, square corners; the video at the right, slim rows, the info bar on a band.": return "Синий Sky Q, ярко-синий фокус, прямые углы; видео справа, тонкие строки, инфопанель на полосе.";
-            case "Navy, a yellow focus, narrow lettering; a small video at the right and many rows.": return "Тёмно-синий, жёлтый фокус, узкий шрифт; маленькое видео справа и много строк.";
-            case "Black, a green focus; the large picture at the right.": return "Чёрный, зелёный фокус; большая картинка справа.";
-            case "Near black, a red focus, nearly square corners, bold lettering; the biggest picture at the right, the info bar shaded from the left.": return "Почти чёрный, красный фокус, почти прямые углы, жирный шрифт; самая большая картинка справа, инфопанель с тенью слева.";
-            case "Deep navy, a bright blue focus; the video at the left with the show's picture, slim rows.": return "Глубокий тёмно-синий, ярко-синий фокус; видео слева с картинкой передачи, тонкие строки.";
-            case "Royal blue into night, glass with a light edge, a blue focus; the video at the right, the info bar on a glass card.": return "Королевский синий, переходящий в ночь, стекло со светлым краем, синий фокус; видео справа, инфопанель на стеклянной карточке.";
-            case "Black into deep blue, a blue focus; the large picture at the right and 2½ hours in the guide.": return "Чёрный, переходящий в тёмно-синий, синий фокус; большая картинка справа и 2½ часа в гиде.";
-            case "Dark grey, an amber focus; a small video, 3 hours and many rows, the info bar on a band.": return "Тёмно-серый, янтарный фокус; маленькое видео, 3 часа и много строк, инфопанель на полосе.";
-            case "Black, a yellow focus, narrow bold lettering; slim rows, 1½ hours, the info bar on a band.": return "Чёрный, жёлтый фокус, узкий жирный шрифт; тонкие строки, 1½ часа, инфопанель на полосе.";
             case "Yours: each part from any design, in the rows below.": return "Ваш: каждая часть из любого дизайна, в строках ниже.";
             case "The usual: graphite, the focus in the color you pick.": return "Как обычно: графит, фокус в выбранном цвете.";
             case "The same": return "Тот же";

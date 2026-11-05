@@ -6,7 +6,19 @@ final class Italian {
 
     static String text(String english) {
         switch (english) {
-            case "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.": return "Nella guida e nell'elenco dei canali dello stile Glassio 3. Digitare un numero sul telecomando funziona ancora.";
+            case "Like the home screen: near-black, a white selection, round corners, named buttons in the player.": return "Come la schermata iniziale: quasi nero, selezione bianca, angoli arrotondati, pulsanti con nome nel lettore.";
+            case "Near black, a white focus, red details, Roboto lettering.": return "Quasi nero, focus bianco, dettagli rossi, carattere Roboto.";
+            case "Black and purple, a teal focus.": return "Nero e viola, focus verde acqua.";
+            case "Sky Q's blue, a bright blue focus, square corners; the info bar on a band.": return "Il blu di Sky Q, focus blu vivo, angoli retti; la barra su una fascia.";
+            case "Navy, a yellow focus, narrow lettering.": return "Blu navy, focus giallo, carattere stretto.";
+            case "Black, a green focus.": return "Nero, focus verde.";
+            case "Near black, a red focus, nearly square corners, bold lettering; the info bar shaded from the left.": return "Quasi nero, focus rosso, angoli quasi retti, carattere deciso; la barra sfumata da sinistra.";
+            case "Deep navy, a bright blue focus.": return "Blu navy profondo, focus blu vivo.";
+            case "Royal blue into night, glass with a light edge, a blue focus; the info bar on a glass card.": return "Blu reale che diventa notte, vetro con bordo chiaro, focus blu; la barra su una scheda di vetro.";
+            case "Black into deep blue, a blue focus.": return "Nero che diventa blu profondo, focus blu.";
+            case "Dark grey, an amber focus; the info bar on a band.": return "Grigio scuro, focus ambra; la barra su una fascia.";
+            case "Black, a yellow focus, narrow bold lettering; the info bar on a band.": return "Nero, focus giallo, carattere stretto e deciso; la barra su una fascia.";
+            case "In the guide and channel list. Typing a number on the remote still works.": return "Nella guida e nell'elenco dei canali. Digitare un numero sul telecomando funziona ancora.";
             case "Logo and number": return "Logo e numero";
             case "Number": return "Numero";
             case "Beside the channel's name": return "Accanto al nome del canale";
@@ -105,7 +117,6 @@ final class Italian {
             case "Sleep": return "Spegni";
             case "Stop": return "Ferma";
             case "NOW": return "ORA";
-            case "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons": return "Come la schermata Home: quasi nero, selezione bianca, angoli arrotondati; il video a destra, pulsanti con nome";
             case "Live TV": return "TV in diretta";
             case "All Apps": return "Tutte le app";
             case "Settings": return "Impostazioni";
@@ -748,17 +759,6 @@ final class Italian {
             case "Whose info bar, the one over the channel as you watch (← → to change it).": return "Di chi la barra informazioni, quella sopra il canale mentre guardi (← → per cambiare).";
             case "Whose lettering (← → to change it).": return "Di chi i caratteri (← → per cambiare).";
             case "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.": return "Vetro chiaro su blu profondo, selezione bianca, angoli molto arrotondati; la barra informazioni su una scheda di vetro sospesa.";
-            case "Near black, a white focus, red details, Roboto lettering; a guide with a compact top and 2½ hours across.": return "Quasi nero, selezione bianca, dettagli rossi, caratteri Roboto; una guida con la parte alta compatta e 2 ore e mezza visibili.";
-            case "Black and purple, a teal focus; a big picture at the left.": return "Nero e viola, selezione verde acqua; un'immagine grande a sinistra.";
-            case "Sky Q's blue, a bright blue focus, square corners; the video at the right, slim rows, the info bar on a band.": return "Il blu di Sky Q, selezione blu brillante, angoli squadrati; il video a destra, file sottili, la barra informazioni su una fascia.";
-            case "Navy, a yellow focus, narrow lettering; a small video at the right and many rows.": return "Blu navy, selezione gialla, caratteri stretti; un piccolo video a destra e molte file.";
-            case "Black, a green focus; the large picture at the right.": return "Nero, selezione verde; l'immagine grande a destra.";
-            case "Near black, a red focus, nearly square corners, bold lettering; the biggest picture at the right, the info bar shaded from the left.": return "Quasi nero, selezione rossa, angoli quasi squadrati, caratteri in grassetto; l'immagine più grande a destra, la barra informazioni sfumata da sinistra.";
-            case "Deep navy, a bright blue focus; the video at the left with the show's picture, slim rows.": return "Blu navy profondo, selezione blu brillante; il video a sinistra con l'immagine del programma, file sottili.";
-            case "Royal blue into night, glass with a light edge, a blue focus; the video at the right, the info bar on a glass card.": return "Blu reale verso la notte, vetro con bordo chiaro, selezione blu; il video a destra, la barra informazioni su una scheda di vetro.";
-            case "Black into deep blue, a blue focus; the large picture at the right and 2½ hours in the guide.": return "Nero verso blu profondo, selezione blu; l'immagine grande a destra e 2 ore e mezza nella guida.";
-            case "Dark grey, an amber focus; a small video, 3 hours and many rows, the info bar on a band.": return "Grigio scuro, selezione ambra; un piccolo video, 3 ore e molte file, la barra informazioni su una fascia.";
-            case "Black, a yellow focus, narrow bold lettering; slim rows, 1½ hours, the info bar on a band.": return "Nero, selezione gialla, caratteri stretti in grassetto; file sottili, 1 ora e mezza, la barra informazioni su una fascia.";
             case "Yours: each part from any design, in the rows below.": return "Il tuo: ogni parte da qualsiasi design, nelle file qui sotto.";
             case "The usual: graphite, the focus in the color you pick.": return "Il solito: grafite, la selezione nel colore scelto.";
             case "The same": return "Lo stesso";

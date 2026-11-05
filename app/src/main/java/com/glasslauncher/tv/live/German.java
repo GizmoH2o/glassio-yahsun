@@ -6,7 +6,19 @@ final class German {
 
     static String text(String english) {
         switch (english) {
-            case "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.": return "In der Programmübersicht und Senderliste des Designs Glassio 3. Die Eingabe einer Nummer auf der Fernbedienung funktioniert weiterhin.";
+            case "Like the home screen: near-black, a white selection, round corners, named buttons in the player.": return "Wie der Startbildschirm: fast schwarz, weiße Auswahl, runde Ecken, beschriftete Tasten im Player.";
+            case "Near black, a white focus, red details, Roboto lettering.": return "Fast schwarz, weißer Fokus, rote Details, Roboto-Schrift.";
+            case "Black and purple, a teal focus.": return "Schwarz und Lila, türkiser Fokus.";
+            case "Sky Q's blue, a bright blue focus, square corners; the info bar on a band.": return "Das Blau von Sky Q, hellblauer Fokus, eckige Kanten; die Infoleiste auf einem Band.";
+            case "Navy, a yellow focus, narrow lettering.": return "Marineblau, gelber Fokus, schmale Schrift.";
+            case "Black, a green focus.": return "Schwarz, grüner Fokus.";
+            case "Near black, a red focus, nearly square corners, bold lettering; the info bar shaded from the left.": return "Fast schwarz, roter Fokus, fast eckige Kanten, kräftige Schrift; die Infoleiste von links abgedunkelt.";
+            case "Deep navy, a bright blue focus.": return "Tiefes Marineblau, hellblauer Fokus.";
+            case "Royal blue into night, glass with a light edge, a blue focus; the info bar on a glass card.": return "Königsblau bis Nachtblau, Glas mit hellem Rand, blauer Fokus; die Infoleiste auf einer Glaskarte.";
+            case "Black into deep blue, a blue focus.": return "Schwarz bis Tiefblau, blauer Fokus.";
+            case "Dark grey, an amber focus; the info bar on a band.": return "Dunkelgrau, bernsteinfarbener Fokus; die Infoleiste auf einem Band.";
+            case "Black, a yellow focus, narrow bold lettering; the info bar on a band.": return "Schwarz, gelber Fokus, schmale kräftige Schrift; die Infoleiste auf einem Band.";
+            case "In the guide and channel list. Typing a number on the remote still works.": return "In der Programmübersicht und Senderliste. Die Eingabe einer Nummer auf der Fernbedienung funktioniert weiterhin.";
             case "Logo and number": return "Logo und Nummer";
             case "Number": return "Nummer";
             case "Beside the channel's name": return "Neben dem Sendernamen";
@@ -105,7 +117,6 @@ final class German {
             case "Sleep": return "Schlafen";
             case "Stop": return "Stopp";
             case "NOW": return "JETZT";
-            case "Like the home screen: near-black, a white selection, round corners; the video at the right, named buttons": return "Wie der Startbildschirm: fast schwarz, weiße Auswahl, runde Ecken; das Video rechts, Tasten mit Namen";
             case "Live TV": return "Live-TV";
             case "All Apps": return "Alle Apps";
             case "Settings": return "Einstellungen";
@@ -759,17 +770,6 @@ final class German {
             case "Whose info bar, the one over the channel as you watch (← → to change it).": return "Von welchem Design die Infoleiste kommt, die beim Schauen über dem Sender erscheint (← → zum Ändern).";
             case "Whose lettering (← → to change it).": return "Von welchem Design die Schrift kommt (← → zum Ändern).";
             case "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.": return "Klares Glas über tiefem Blau, ein weißer Fokus, sehr runde Ecken; die Infoleiste auf einer schwebenden Glaskarte.";
-            case "Near black, a white focus, red details, Roboto lettering; a guide with a compact top and 2½ hours across.": return "Fast schwarz, ein weißer Fokus, rote Details, Roboto-Schrift; ein Guide mit kompaktem Kopf und 2½ Stunden.";
-            case "Black and purple, a teal focus; a big picture at the left.": return "Schwarz und Lila, ein türkiser Fokus; ein großes Bild links.";
-            case "Sky Q's blue, a bright blue focus, square corners; the video at the right, slim rows, the info bar on a band.": return "Das Blau von Sky Q, ein hellblauer Fokus, eckige Ecken; das Video rechts, schmale Zeilen, die Infoleiste auf einem Band.";
-            case "Navy, a yellow focus, narrow lettering; a small video at the right and many rows.": return "Marineblau, ein gelber Fokus, schmale Schrift; ein kleines Video rechts und viele Zeilen.";
-            case "Black, a green focus; the large picture at the right.": return "Schwarz, ein grüner Fokus; das große Bild rechts.";
-            case "Near black, a red focus, nearly square corners, bold lettering; the biggest picture at the right, the info bar shaded from the left.": return "Fast schwarz, ein roter Fokus, fast eckige Ecken, kräftige Schrift; das größte Bild rechts, die Infoleiste von links schattiert.";
-            case "Deep navy, a bright blue focus; the video at the left with the show's picture, slim rows.": return "Tiefes Marineblau, ein hellblauer Fokus; das Video links mit dem Bild der Sendung, schmale Zeilen.";
-            case "Royal blue into night, glass with a light edge, a blue focus; the video at the right, the info bar on a glass card.": return "Königsblau, das in Nacht übergeht, Glas mit hellem Rand, ein blauer Fokus; das Video rechts, die Infoleiste auf einer Glaskarte.";
-            case "Black into deep blue, a blue focus; the large picture at the right and 2½ hours in the guide.": return "Schwarz, das in tiefes Blau übergeht, ein blauer Fokus; das große Bild rechts und 2½ Stunden im Guide.";
-            case "Dark grey, an amber focus; a small video, 3 hours and many rows, the info bar on a band.": return "Dunkelgrau, ein bernsteinfarbener Fokus; ein kleines Video, 3 Stunden und viele Zeilen, die Infoleiste auf einem Band.";
-            case "Black, a yellow focus, narrow bold lettering; slim rows, 1½ hours, the info bar on a band.": return "Schwarz, ein gelber Fokus, schmale kräftige Schrift; schmale Zeilen, 1½ Stunden, die Infoleiste auf einem Band.";
             case "Yours: each part from any design, in the rows below.": return "Deines: jeder Teil aus einem beliebigen Design, in den Zeilen darunter.";
             case "The usual: graphite, the focus in the color you pick.": return "Wie immer: Graphit, der Fokus in der Farbe deiner Wahl.";
             case "The same": return "Derselbe";

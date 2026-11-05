@@ -96,10 +96,10 @@ final class LiveSettings {
                     RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
-            {GUIDE_SIZE_ROW, GUIDE_ALIGN_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
+            {GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
-                    CUSTOM_LAYOUT_ROW, CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, PLAYER_LOGO_ROW, RESET_ROW},
+                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, PLAYER_LOGO_ROW, RESET_ROW},
             {BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, SCORES_ROW, GOALS_ROW, MATCH_NEWS_ROW, RED_CARD_ROW,
@@ -792,8 +792,8 @@ final class LiveSettings {
                             "Each channel's logo and name in the guide's column: at the left, lined up, or in the middle.");
                     case PLAYER_LOGO_ROW: return Ui.tr("Fixo no centro do seu espaço, ou centrado no texto ao lado (mexe quando há pouco texto).",
                             "Steady in the middle of its space, or centered on the text beside it (it moves when there's little text).");
-                    case CHANNEL_MARK_ROW: return Ui.tr("No guia e na lista de canais do visual Glassio 3. Digitar um número no controle continua funcionando.",
-                            "In the guide and channel list of the Glassio 3 design. Typing a number on the remote still works.");
+                    case CHANNEL_MARK_ROW: return Ui.tr("No guia e na lista de canais. Digitar um número no controle continua funcionando.",
+                            "In the guide and channel list. Typing a number on the remote still works.");
                     case LOGO_SOURCE_ROW: return Ui.tr("De onde vêm os logos; os outros completam os que faltam. Base pública: iptv-org, logos nítidos de mais de 30 mil canais.",
                             "Where logos come from; the others fill in the missing ones. Public database: iptv-org, sharp logos for over 30,000 channels.");
                     case GUIDE_SHIFT_ROW: return Ui.tr("Os programas começam antes ou depois do que o guia diz? Move o guia todo (só desta lista).",
@@ -1174,7 +1174,7 @@ final class LiveSettings {
     private final Paint switchPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF switchRect = new RectF();
     /** Glassio's switch: its purple when on, faint when off, the white knob at the side it's set to. */
-    private static int switchOn() { return LiveTheme.style() == LiveTheme.CINEMA ? 0xFF34C759 : 0xFF7B61FF; }
+    private static int switchOn() { return 0xFF34C759; }
 
     /**
      * A switch with its right edge at `right`, centered on `cy`, `scale` of a row's size; returns how wide it is.
