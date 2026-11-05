@@ -311,6 +311,12 @@ final class Russian {
             case " on all channels": return " на всех каналах";
             case "This channel played smoothly just now, but it has stopped often this week. More buffer helps, with a slightly longer wait when you change channel.": return "Сейчас канал шёл ровно, но на этой неделе часто останавливался. Больший буфер поможет, но переключение каналов будет чуть дольше.";
             case " profile": return " профиль";
+            case "OK uses it  ·  The whole app follows": return "ОК — применить  ·  Для всего приложения";
+            case "Morning": return "Утром";
+            case "Night": return "Ночью";
+            case "Late night": return "Поздней ночью";
+            case "More options": return "Другие параметры";
+            case "By time of day": return "По времени суток";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

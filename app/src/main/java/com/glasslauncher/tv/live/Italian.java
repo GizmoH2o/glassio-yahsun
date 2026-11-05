@@ -300,6 +300,12 @@ final class Italian {
             case " on all channels": return " su tutti i canali";
             case "This channel played smoothly just now, but it has stopped often this week. More buffer helps, with a slightly longer wait when you change channel.": return "Questo canale è andato bene ora, ma si è fermato spesso questa settimana. Più buffer aiuta, con un'attesa un po' più lunga al cambio canale.";
             case " profile": return " profilo";
+            case "OK uses it  ·  The whole app follows": return "OK per usarlo  ·  Vale per tutta l'app";
+            case "Morning": return "Mattina";
+            case "Night": return "Notte";
+            case "Late night": return "Notte fonda";
+            case "More options": return "Altre opzioni";
+            case "By time of day": return "In base all'ora del giorno";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";

@@ -302,6 +302,12 @@ final class Spanish {
             case " on all channels": return " en todos los canales";
             case "This channel played smoothly just now, but it has stopped often this week. More buffer helps, with a slightly longer wait when you change channel.": return "Este canal fue bien ahora, pero se ha detenido a menudo esta semana. Más búfer ayuda, con algo más de espera al cambiar de canal.";
             case " profile": return " perfil";
+            case "OK uses it  ·  The whole app follows": return "OK para usarlo  ·  Se aplica a toda la app";
+            case "Morning": return "Por la mañana";
+            case "Night": return "Por la noche";
+            case "Late night": return "De madrugada";
+            case "More options": return "Más opciones";
+            case "By time of day": return "Según la hora del día";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

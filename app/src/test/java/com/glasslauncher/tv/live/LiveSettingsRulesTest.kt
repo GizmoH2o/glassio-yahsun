@@ -45,6 +45,18 @@ class LiveSettingsRulesTest {
         assertFalse(LiveSettingsHome.found("subtitle", "Buffer", "Watching", "Stream"))
     }
 
+    // The design gallery: the time-of-day rows above the row of designs.
+
+    @Test fun `up from the designs reaches the last row, down comes back`() {
+        assertEquals(LiveSettingsGallery.TILES - 1, LiveSettingsGallery.moveRow(LiveSettingsGallery.TILES, -1))
+        assertEquals(LiveSettingsGallery.TILES, LiveSettingsGallery.moveRow(LiveSettingsGallery.TILES - 1, 1))
+    }
+
+    @Test fun `the gallery's rows stop at either end`() {
+        assertEquals(0, LiveSettingsGallery.moveRow(0, -1))
+        assertEquals(LiveSettingsGallery.TILES, LiveSettingsGallery.moveRow(LiveSettingsGallery.TILES, 1))
+    }
+
     // The connection check.
 
     @Test fun `a steady stream needs no change`() {

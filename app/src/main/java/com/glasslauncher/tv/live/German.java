@@ -312,6 +312,12 @@ final class German {
             case " on all channels": return " auf allen Sendern";
             case "This channel played smoothly just now, but it has stopped often this week. More buffer helps, with a slightly longer wait when you change channel.": return "Dieser Sender lief gerade flüssig, hatte diese Woche aber oft Aussetzer. Mehr Puffer hilft, mit etwas längerer Wartezeit beim Umschalten.";
             case " profile": return " Profil";
+            case "OK uses it  ·  The whole app follows": return "OK übernimmt  ·  Gilt für die ganze App";
+            case "Morning": return "Morgens";
+            case "Night": return "Nachts";
+            case "Late night": return "Spätnachts";
+            case "More options": return "Weitere Optionen";
+            case "By time of day": return "Nach Tageszeit";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

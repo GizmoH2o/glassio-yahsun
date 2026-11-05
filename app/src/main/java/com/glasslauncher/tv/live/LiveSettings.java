@@ -23,7 +23,7 @@ import java.util.Set;
 final class LiveSettings {
     // MAIN: the sections; ROWS: a section's settings; KEYS: the remote's buttons; the rest, lists a setting opens.
     private static final int MAIN = 0, HIDDEN = 1, ORDER = 2, LOCKED = 3, SCHEDULE = 4, SEPARATE = 5, ROWS = 6, KEYS = 7,
-            SERIES = 8, PLAYLISTS = 9, FOLLOWING = 10, CHECK = 11, GUIDE_PAGE = 12;
+            SERIES = 8, PLAYLISTS = 9, FOLLOWING = 10, CHECK = 11, GUIDE_PAGE = 12, GALLERY = 13;
     // The first list: playback, the lists' order, the guide, opening by itself (all of these step with ← → and OK),
     // then the lists that open (hidden, favorites), the PIN, signing out.
     private static final int FORMAT_ROW = 0, BUFFER_ROW = 1, FRAME_RATE_ROW = 2, PASSTHROUGH_ROW = 3, TUNNELING_ROW = 4,
@@ -130,6 +130,9 @@ final class LiveSettings {
     private String panelShown;
     private final LiveSettingsHome home = new LiveSettingsHome();
     private final LiveSettingsPages pages;
+    private final LiveSettingsGallery gallery;
+    /** The gallery was opened from Look's rows (Back goes there), not the first screen. */
+    private boolean galleryFromRows;
     /** In the favorites' order: the focused one is picked up (↑ ↓ move it). */
     private boolean carrying;
     private final Spring row = new Spring(0.22f, 0.86f, 0), scroll = new Spring(0.3f, 1f, 0);
@@ -159,15 +162,31 @@ final class LiveSettings {
             Context c = context();
             shiftGuide(c, LiveOptions.step(LiveOptions.GUIDE_SHIFTS, LiveOptions.guideShiftMinutes(c), dir));
         });
+        gallery = new LiveSettingsGallery(view, home, new LiveSettingsGallery.Host() {
+            @Override public void use(int style) {
+                Context c = context();
+                LiveTheme.setStyle(c, style);
+                restyled(c);
+                view.invalidate();
+            }
+
+            @Override public void timeRow(int row) {
+                choose(context(), row == 0 ? MORNING_ROW : row == 1 ? NIGHT_ROW : LATE_ROW);
+            }
+
+            @Override public void moreOptions() {
+                section = DESIGN_SECTION;
+                show(ROWS, 1);
+            }
+        });
     }
 
     void size(float scale) {
         k = scale;
         home.size(scale);
         pages.size(scale);
-        windowBox.set(WIN_X * k, WIN_Y * k, (WIN_X + WIN_W) * k, (WIN_Y + WIN_H) * k);
-        window.reset();
-        window.addRoundRect(windowBox, 20 * k, 20 * k, android.graphics.Path.Direction.CW);
+        gallery.size(scale);
+        frame();
         panelTitle = Ui.text(Ui.displaySemibold, 36 * k, WHITE);
         panelText = new TextPaint(Ui.text(Ui.regular, 27 * k, 0xF2FFFFFF));
         panelLayout = null;
@@ -216,6 +235,14 @@ final class LiveSettings {
     }
 
     private volatile int weekStops = -1;
+
+    /** The gap in the background for the live window, where this screen has it. */
+    private void frame() {
+        float[] box = screen == GALLERY ? LiveSettingsGallery.BOX : new float[] {WIN_X, WIN_Y, WIN_W, WIN_H};
+        windowBox.set(box[0] * k, box[1] * k, (box[0] + box[2]) * k, (box[1] + box[3]) * k);
+        window.reset();
+        window.addRoundRect(windowBox, 20 * k, 20 * k, android.graphics.Path.Direction.CW);
+    }
 
     /** On a whole-screen page (no column beside it): messages go in the middle of the screen. */
     boolean wide() {
@@ -989,6 +1016,11 @@ final class LiveSettings {
         fill.setColor(0xB3000000);      // whatever's playing stays behind, dim enough to read over
         c.drawRect(-90 * k, 0, w + 90 * k, h, fill);
         c.restore();
+        if (screen == GALLERY) {
+            drawGallery(c);
+            c.restoreToCount(save);
+            return;
+        }
         if (!framed) {
             if (screen == MAIN) drawHome(c);
             else if (screen == CHECK) pages.drawCheck(c);
@@ -1021,6 +1053,25 @@ final class LiveSettings {
         drawPanel(c, n);
         c.restoreToCount(save);
         if (XmltvStore.running()) view.postInvalidateDelayed(500);   // the full guide's progress moves on
+    }
+
+    private void drawGallery(Canvas c) {
+        if (live.playing() == null) {
+            fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xFF000000);
+            c.drawRoundRect(windowBox, 20 * k, 20 * k, fill);
+        }
+        Xtream.Program p = view.playingShow();
+        Xtream.Channel ch = live.playing();
+        String show = p != null ? p.title : ch != null ? view.nameOf(ch) : Ui.tr("TV ao vivo", "Live TV");
+        String sub = p == null ? "" : Ui.time(p.start) + " – " + Ui.time(p.end);
+        gallery.draw(c, windowBox, show, sub, new String[] {rowValue(MORNING_ROW), rowValue(NIGHT_ROW), rowValue(LATE_ROW)});
+    }
+
+    private void openGallery(boolean fromRows) {
+        galleryFromRows = fromRows;
+        section = DESIGN_SECTION;
+        gallery.open();
+        show(GALLERY, 0);
     }
 
     /** The first screen, from what's set now. */
@@ -1322,6 +1373,10 @@ final class LiveSettings {
             view.invalidate();
             return;
         }
+        if (screen == GALLERY) {
+            gallery.key(code);
+            return;
+        }
         if (screen == CHECK) {
             pages.checkKey(code, this::back);
             return;
@@ -1455,7 +1510,8 @@ final class LiveSettings {
             show(GUIDE_PAGE, 0);
         } else {
             int s = homeFocus == 2 ? KEYS_SECTION + 1 : homeFocus - LiveSettingsHome.FIRST_SECTION;
-            openSection(s, s == leftSection && leftRow < rowsOf(s).length ? leftRow : 0);
+            if (s == DESIGN_SECTION) openGallery(false);
+            else openSection(s, s == leftSection && leftRow < rowsOf(s).length ? leftRow : 0);
         }
     }
 
@@ -1463,6 +1519,15 @@ final class LiveSettings {
     void back() {
         if (screen == MAIN) {
             view.closeSettings();
+            return;
+        }
+        if (screen == GALLERY) {
+            if (galleryFromRows) {
+                section = DESIGN_SECTION;
+                show(ROWS, 0);
+            } else {
+                show(MAIN, DESIGN_SECTION);
+            }
             return;
         }
         if (onRail) {       // from the list of sections: the first screen
@@ -1562,7 +1627,8 @@ final class LiveSettings {
         carrying = false;
         onRail = false;
         panelShown = null;
-        live.setWindow(wide() ? null : new float[] {WIN_X, WIN_Y, WIN_W, WIN_H});
+        frame();
+        live.setWindow(wide() ? null : screen == GALLERY ? LiveSettingsGallery.BOX : new float[] {WIN_X, WIN_Y, WIN_W, WIN_H});
         if (next == MAIN) homeFocus = at == -1 ? 0 : at == -2 ? 1 : LiveSettingsHome.FIRST_SECTION + at;
         focus = Math.max(0, Math.min(at, count() - 1));
         if (next == ROWS && focus < count() - 1 && head(rowsOf(section)[focus])) focus++;
@@ -2338,6 +2404,10 @@ final class LiveSettings {
 
     private void activate() {
         Context c = context();
+        if (id() == STYLE_ROW) {
+            openGallery(true);
+            return;
+        }
         if (screen == ROWS && choose(c, id())) return;
         if (screen == PLAYLISTS) {      // use it
             LivePlaylists.Playlist p = playlists.get(focus);
@@ -2739,7 +2809,7 @@ final class LiveSettings {
 
     /** TalkBack reads the focused row and its value. */
     private void announce() {
-        if (count() == 0 || screen == MAIN || screen == CHECK || screen == GUIDE_PAGE) return;
+        if (count() == 0 || screen == MAIN || screen == CHECK || screen == GUIDE_PAGE || screen == GALLERY) return;
         view.announceForAccessibility(label(focus) + ", " + value(focus));
     }
 }
