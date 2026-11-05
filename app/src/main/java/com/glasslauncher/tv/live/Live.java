@@ -1105,6 +1105,34 @@ public class Live extends Activity {
 
     private volatile int lastKbps;
 
+    /** How fast the stream's arriving now, kbps (0: not known). */
+    int kbps() {
+        LiveTimeshift s = shift;
+        if (s == null) return lastKbps;
+        // Through the recorder (Rewind any channel) the player only reads a file: the recorder's bytes are the stream's.
+        long now = android.os.SystemClock.elapsedRealtime(), bytes = s.received(), ms = now - shiftSpeedAt;
+        if (s != shiftSpeedOf || bytes < shiftSpeedBytes) {
+            shiftSpeedOf = s;
+            shiftSpeedAt = now;
+            shiftSpeedBytes = bytes;
+            shiftKbps = 0;
+        } else if (ms >= 1000) {
+            shiftKbps = (int) ((bytes - shiftSpeedBytes) * 8 / ms);
+            shiftSpeedAt = now;
+            shiftSpeedBytes = bytes;
+        }
+        return shiftKbps;
+    }
+
+    private LiveTimeshift shiftSpeedOf;
+    private long shiftSpeedAt, shiftSpeedBytes;
+    private int shiftKbps;
+
+    /** How much is held in reserve, ms. */
+    long bufferedMs() {
+        return player == null ? 0 : player.getTotalBufferedDuration();
+    }
+
     private void start(Xtream.Channel ch) {
         if (player == null) return;
         channelTracks(ch);

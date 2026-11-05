@@ -47,6 +47,11 @@ final class LiveTimeshift {
     private final List<long[]> marks = new ArrayList<>();
     private final Pcr pcr = new Pcr();
     private volatile long written, first;
+
+    /** How many bytes have come in from the stream so far. */
+    long received() {
+        return written;
+    }
     private volatile boolean done;
     private volatile String failure;
 

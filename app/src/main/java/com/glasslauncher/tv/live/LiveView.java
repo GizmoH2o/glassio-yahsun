@@ -1865,6 +1865,8 @@ final class LiveView extends View {
 
     private boolean isOurs(int code) {
         if (digit(code) >= 0) return mode != SIGN_IN;
+        if (mode == SETTINGS && (code == KeyEvent.KEYCODE_PROG_RED || code == KeyEvent.KEYCODE_PROG_GREEN
+                || code == KeyEvent.KEYCODE_PROG_YELLOW || code == KeyEvent.KEYCODE_PROG_BLUE)) return true;     // the remote page finds them
         Xtream.Channel playing = live.playing();
         switch (code) {
             case KeyEvent.KEYCODE_MEDIA_PREVIOUS:     // start over, on a channel with catch-up

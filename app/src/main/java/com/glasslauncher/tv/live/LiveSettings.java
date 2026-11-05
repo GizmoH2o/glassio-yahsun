@@ -23,7 +23,7 @@ import java.util.Set;
 final class LiveSettings {
     // MAIN: the sections; ROWS: a section's settings; KEYS: the remote's buttons; the rest, lists a setting opens.
     private static final int MAIN = 0, HIDDEN = 1, ORDER = 2, LOCKED = 3, SCHEDULE = 4, SEPARATE = 5, ROWS = 6, KEYS = 7,
-            SERIES = 8, PLAYLISTS = 9, FOLLOWING = 10;
+            SERIES = 8, PLAYLISTS = 9, FOLLOWING = 10, CHECK = 11, GUIDE_PAGE = 12;
     // The first list: playback, the lists' order, the guide, opening by itself (all of these step with ← → and OK),
     // then the lists that open (hidden, favorites), the PIN, signing out.
     private static final int FORMAT_ROW = 0, BUFFER_ROW = 1, FRAME_RATE_ROW = 2, PASSTHROUGH_ROW = 3, TUNNELING_ROW = 4,
@@ -40,19 +40,18 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, UPSCALE_ROW = 78,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, MAIN_ROWS = 87;
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89,
+            HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
     private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
     private static final float RAIL_X = 72, RAIL_R = 660, RAIL_TOP = 236, RAIL_H = 64, RAIL_STEP = 72;     // eleven sections in the column
-    private static final String[] SECTION_ICONS = {"play", "list", "guide", "sparkles", "power", "gamepad", "bell", "recordings", "lock",
-            "account", "captions"};
-    private static final int DESIGN_SECTION = 3, STARTUP_SECTION = 4, REMINDERS_SECTION = 6, RECORDINGS_SECTION = 7,
-            PARENTAL_SECTION = 8, PROFILES_SECTION = 9, CAPTIONS_SECTION = 10;
+    private static final String[] SECTION_ICONS = {"play", "list", "guide", "sparkles", "bell", "recordings", "lock", "gamepad", "account"};
+    private static final int DESIGN_SECTION = 3, REMINDERS_SECTION = 4, RECORDINGS_SECTION = 5, PARENTAL_SECTION = 6;
     private static final int INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7;
     private static final String[] FORMATS = {LiveOptions.AUTO, LiveOptions.TS, LiveOptions.HLS};
     /** Each section's settings (the remote's buttons have their own list). */
-    private static final int KEYS_SECTION = 5;
+    private static final int KEYS_SECTION = 7;
     /** Design without Custom's own rows (the design isn't Custom). */
     private static final int[] THEME_PLAIN = {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CODE_ROW, OPACITY_ROW,
             RESET_ROW};
@@ -92,28 +91,36 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, UPSCALE_ROW, FRAME_RATE_ROW, PASSTHROUGH_ROW, AUDIO_LANG_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
-                    RESET_ROW},
+            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, UPSCALE_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
+                    HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
+                    HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
-            {GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
+            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, RESET_ROW},
-            {BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
-            {},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, SPOILER_GUARD_ROW, GOALS_ROW, MATCH_NEWS_ROW, RED_CARD_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
-            {PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, RESET_ROW},
-            {SUBSCRIPTION_ROW, PROFILES_ROW, ASK_PROFILE_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW, RESET_ROW},
-            {CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW, RESET_ROW}};
+            {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, RESET_ROW},
+            {},
+            {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW}};
+
+    private static boolean head(int id) {
+        return id >= HEAD_STREAM && id <= HEAD_PROFILES;
+    }
+
     /** The section open (ROWS). */
     private int section;
 
     private final LiveView view;
     private final Live live;
     private int screen = MAIN, focus, top;
+    /** On the first screen: where the focus is (LiveSettingsHome). */
+    private int homeFocus = LiveSettingsHome.FIRST_SECTION;
+    private final LiveSettingsHome home = new LiveSettingsHome();
+    private final LiveSettingsPages pages;
     /** In the favorites' order: the focused one is picked up (↑ ↓ move it). */
     private boolean carrying;
     private final Spring row = new Spring(0.22f, 0.86f, 0), scroll = new Spring(0.3f, 1f, 0);
@@ -131,20 +138,24 @@ final class LiveSettings {
         stroke.setStyle(Paint.Style.STROKE);
     }
     private TextPaint detailText;
-    private android.text.StaticLayout aboutLayout;
     /** The background's opacity in percent (Settings background), read when the settings open. */
     private int opacity = 50;
-    private String aboutShown;
     private final TextPaint fit = new TextPaint();
     private final RectF r = new RectF(), focusRect = new RectF();
 
     LiveSettings(LiveView view, Live live) {
         this.view = view;
         this.live = live;
+        pages = new LiveSettingsPages(live, view, home, dir -> {
+            Context c = context();
+            shiftGuide(c, LiveOptions.step(LiveOptions.GUIDE_SHIFTS, LiveOptions.guideShiftMinutes(c), dir));
+        });
     }
 
     void size(float scale) {
         k = scale;
+        home.size(scale);
+        pages.size(scale);
         styleHint = null;       // the style's lettering may have changed
         styleHintLayout = null;
         plainHint = null;
@@ -167,7 +178,6 @@ final class LiveSettings {
         previewLabel = Ui.text(Ui.regular, 27 * k, 0xE6FFFFFF);
         previewValue = Ui.text(Ui.regular, 27 * k, 0xB3FFFFFF);
         previewValue.setTextAlign(Paint.Align.RIGHT);
-        aboutLayout = null;
     }
 
     /** Opening: where it was left last time (its section, and inside one the row), else the first list's first row. */
@@ -180,27 +190,23 @@ final class LiveSettings {
         scroll.snap(0);
         opacity = LiveOptions.panelOpacity(context());
         noSubscription = !Xtream.kind(context()).equals(Xtream.XTREAM);
-        android.content.SharedPreferences p = context().getSharedPreferences("live-ui", Context.MODE_PRIVATE);
-        int sec = p.getInt("settingsPage", 0), at = p.getInt("settingsRow", -1);
-        if (at >= 0 && at != RESET_ROW) {       // (Reset is in every section: its section alone says where)
-            showRow(at);
-        } else {
-            focus = Math.max(0, Math.min(SECTION_ROWS.length - 1, sec));
-            if (at == RESET_ROW && sec >= 0 && sec < SECTION_ROWS.length && rowsOf(sec).length > 0) {
-                section = sec;
-                show(ROWS, rowsOf(sec).length - 1);
-            } else {
-                row.snap(focus);
-            }
-        }
+        int sec = context().getSharedPreferences("live-ui", Context.MODE_PRIVATE).getInt("settingsPage", 0);
+        homeFocus = LiveSettingsHome.FIRST_SECTION + Math.max(0, Math.min(SECTION_ROWS.length - 1, sec));
+        pages.countGuide();
+        new Thread(() -> {       // the week's stops, for the Connection card
+            weekStops = new LiveCheck(live, view).weekStops();
+            view.postInvalidate();
+        }, "settings-health").start();
         announce();
     }
 
+    private volatile int weekStops = -1;
+
     /** Closing: where it is, for next time. */
     void closed() {
-        int sec = screen == MAIN ? focus : marked();
-        context().getSharedPreferences("live-ui", Context.MODE_PRIVATE).edit()
-                .putInt("settingsPage", sec).putInt("settingsRow", screen == ROWS ? id() : -1).apply();
+        pages.closeCheck();
+        int sec = screen == MAIN ? Math.max(0, homeFocus - LiveSettingsHome.FIRST_SECTION) : marked();
+        context().getSharedPreferences("live-ui", Context.MODE_PRIVATE).edit().putInt("settingsPage", sec).apply();
     }
 
     boolean step(float dt) {
@@ -297,17 +303,15 @@ final class LiveSettings {
 
     private static String sectionName(int s) {
         switch (s) {
-            case 0: return Ui.tr("Reprodução", "Playback");
-            case 1: return Ui.tr("Canais e categorias", "Channels and categories");
+            case 0: return Ui.tr("Assistindo", "Watching");
+            case 1: return Ui.tr("Canais", "Channels");
             case 2: return Ui.tr("Guia", "Guide");
-            case DESIGN_SECTION: return Ui.tr("Design", "Design");
-            case STARTUP_SECTION: return Ui.tr("Abertura", "Start-up");
-            case KEYS_SECTION: return Ui.tr("Botões do controle", "Remote buttons");
-            case REMINDERS_SECTION: return Ui.tr("Lembretes", "Reminders");
+            case DESIGN_SECTION: return Ui.tr("Aparência", "Look");
+            case REMINDERS_SECTION: return Ui.tr("Alertas", "Alerts");
             case RECORDINGS_SECTION: return Ui.tr("Gravações", "Recordings");
-            case PARENTAL_SECTION: return Ui.tr("Controle dos pais", "Parental controls");
-            case CAPTIONS_SECTION: return Ui.tr("Legendas", "Captions");
-            default: return Ui.tr("Perfis e conta", "Profiles and account");
+            case PARENTAL_SECTION: return Ui.tr("Família", "Family");
+            case KEYS_SECTION: return Ui.tr("Controle remoto", "Remote");
+            default: return Ui.tr("Conta", "Account");
         }
     }
 
@@ -373,6 +377,13 @@ final class LiveSettings {
             case LATE_ROW: return Ui.tr("Design de madrugada", "Design late at night");
             case CODE_ROW: return Ui.tr("Código do design", "Design code");
             case RESET_ROW: return Ui.tr("Voltar ao padrão desta seção", "Reset this section");
+            case CHECK_ROW: return Ui.tr("Verificar a conexão", "Connection check");
+            case GUIDE_PAGE_ROW: return Ui.tr("Saúde do guia", "Guide health");
+            case HEAD_STREAM: return Ui.tr("Sinal", "Stream");
+            case HEAD_SOUND: return Ui.tr("Som e legendas", "Sound and subtitles");
+            case HEAD_START: return Ui.tr("Abertura", "Start-up");
+            case HEAD_PARENTAL: return Ui.tr("Controle dos pais", "Parental controls");
+            case HEAD_PROFILES: return Ui.tr("Perfis", "Profiles");
             case CUSTOM_BG_ROW:
             case CUSTOM_FOCUS_ROW:
             case CUSTOM_ROUND_ROW:
@@ -569,7 +580,14 @@ final class LiveSettings {
             case MORNING_ROW: return LiveTheme.morningStyle() < 0 ? Ui.tr("O mesmo", "The same") : LiveTheme.styleName(LiveTheme.morningStyle());
             case LATE_ROW: return LiveTheme.lateStyle() < 0 ? Ui.tr("Como à noite", "Like the night") : LiveTheme.styleName(LiveTheme.lateStyle());
             case CODE_ROW: return LiveTheme.style() == LiveTheme.CUSTOM ? LiveTheme.code() : Ui.tr("Digitar um", "Type one in");
-            case RESET_ROW: return "";
+            case RESET_ROW:
+            case HEAD_STREAM:
+            case HEAD_SOUND:
+            case HEAD_START:
+            case HEAD_PARENTAL:
+            case HEAD_PROFILES: return "";
+            case CHECK_ROW:
+            case GUIDE_PAGE_ROW: return "›";
             case CC_ON_ROW: return onOff(LiveOptions.subtitles(c));
             case CC_SIZE_ROW: {
                 int s = LiveOptions.ccSize(c);
@@ -742,16 +760,12 @@ final class LiveSettings {
                     case 2: return Ui.tr("Quando o guia atualiza, quantos dias, o guia completo.", "When the guide updates, how many days, the full guide.");
                     case DESIGN_SECTION: return Ui.tr("A aparência da TV ao vivo: o design (até por hora do dia), o fundo dos ajustes, o logo no player.",
                             "How Live TV looks: its design (by time of day too), the settings' background, the logo in the player.");
-                    case STARTUP_SECTION: return Ui.tr("Abrir sozinha quando a TV liga ou acorda, as prévias no Início.",
-                            "Opening by itself when the TV starts or wakes up, previews on the home screen.");
                     case KEYS_SECTION: return Ui.tr("O que cada botão faz enquanto você assiste.", "What each button does while you watch.");
                     case REMINDERS_SECTION: return Ui.tr("Os lembretes, os times e programas seguidos, os alertas de jogo e o placar ao vivo.",
                             "Reminders, the teams and shows you follow, match alerts and live scores.");
                     case RECORDINGS_SECTION: return Ui.tr("O que vai ser gravado, as séries gravadas e o que já foi gravado.",
                             "What's set to record, series recordings, and what's been recorded.");
                     case PARENTAL_SECTION: return Ui.tr("Um PIN e as categorias que ele bloqueia.", "A PIN and the categories it locks.");
-                    case CAPTIONS_SECTION: return Ui.tr("Legendas ligadas ou não, o tamanho, o fundo e a cor delas.",
-                            "Captions on or off, their size, background and color.");
                     default: return Ui.tr("Perfis, suas listas e sair do seu provedor de IPTV.", "Profiles, your playlists, and signing out of your IPTV provider.");
                 }
             case KEYS: return Ui.tr("← → trocam o que o botão faz enquanto você assiste. Segurar é outro botão.",
@@ -890,6 +904,8 @@ final class LiveSettings {
                             "When what you follow gets a reminder: only when it's on live, or for replays too.");
                     case MATCH_STYLE_ROW: return Ui.tr("Quando um time seguido começa: um painel com todos os canais que mostram o jogo, ou um aviso só.",
                             "When a team you follow comes on: a panel with every channel showing the match, or one card.");
+                    case CHECK_ROW: return Ui.tr("Vinte segundos olhando o canal que está passando, e o que mudar se ele estiver parando.", "Twenty seconds watching what's playing, and what to change if it keeps stopping.");
+                    case GUIDE_PAGE_ROW: return Ui.tr("Quantos canais têm guia, se ele está na hora certa e o que está faltando.", "How many channels have a guide, whether it's on time, and what's missing.");
                     case SPOILER_GUARD_ROW: return Ui.tr("Em um programa passado, o placar e os momentos do jogo ficam escondidos até você pedir.", "On a past show, the match's score and moments stay hidden until you ask.");
                     case UP_NEXT_ROW: return Ui.tr("Nos dois últimos minutos de um programa, mostra o que vem a seguir e o que mais começa nos seus favoritos.", "In a show's last two minutes, shows what's next and what else starts on your favorites.");
                     case SCORES_ROW: return Ui.tr("O placar e o tempo de jogo dos times que você segue, na barra do canal e no painel do jogo. Para esconder o placar de um time, segure OK nele em Seguindo.",
@@ -945,6 +961,16 @@ final class LiveSettings {
         c.translate(-90 * k, 0);
         LiveTheme.background(c, Math.round(w + 180 * k), h, opacity / 100f);
         c.restore();
+        if (screen == MAIN || screen == CHECK || screen == GUIDE_PAGE) {
+            fill.setShader(null);
+            fill.setColor(0xB3000000);      // whatever's playing stays behind, dim enough to read over
+            c.drawRect(-90 * k, 0, w + 90 * k, h, fill);
+            if (screen == MAIN) drawHome(c);
+            else if (screen == CHECK) pages.drawCheck(c);
+            else pages.drawGuide(c);
+            c.restoreToCount(save);
+            return;
+        }
         if (LiveTheme.rim != 0) {       // glass: the column a pane of it, with its light edge
             r.set((RAIL_X - 40) * k, 40 * k, (RAIL_R + 24) * k, h - 40 * k);
             fill.setColor(LiveTheme.surface);
@@ -955,12 +981,8 @@ final class LiveSettings {
             fill.setColor(0x33000000);       // the column, a shade darker
             c.drawRect(-90 * k, 0, (RAIL_R + 40) * k, h, fill);
         }
-        drawRail(c);
-        if (screen == MAIN) {
-            drawDetail(c);
-            c.restoreToCount(save);
-            return;
-        }
+        if (screen == KEYS) drawRemote(c);
+        else drawRail(c);
         c.drawText(title(), X * k, 150 * k, heading);
         int n = count(), rows = visibleRows();
         c.save();
@@ -1013,27 +1035,121 @@ final class LiveSettings {
             plainHintLayout.draw(c);
             c.restore();
         }
-        if (screen == ROWS && section == CAPTIONS_SECTION) {     // how the captions look, as set
-            view.drawCaptionSample(c, (X + R) / 2 * k, (TOP + n * STEP + 300) * k);
+        if (id >= CC_ON_ROW && id <= CC_COLOR_ROW) {     // how the captions look, as set: under the column
+            view.drawCaptionSample(c, (RAIL_X + RAIL_R) / 2 * k, 1010 * k);
         }
         c.restoreToCount(save);
         if (XmltvStore.running()) view.postInvalidateDelayed(500);   // the full guide's progress moves on
     }
 
+    /** The first screen, from what's set now. */
+    private void drawHome(Canvas c) {
+        Context ctx = context();
+        String[][] status = new String[3][];
+        int[] dots = new int[3];
+        int stops = weekStops;
+        int kbps = live.kbps();
+        status[0] = new String[] {Ui.tr("Conexão", "Connection"),
+                stops < 0 ? "—" : stops < 5 ? Ui.tr("Estável", "Steady") : stops + Ui.tr(" paradas nesta semana", " stops this week"),
+                kbps > 0 ? String.format(java.util.Locale.ROOT, "%.1f Mbps", kbps / 1000f) + "  ·  " + Ui.tr("Verificar", "Run a check") : Ui.tr("Verificar", "Run a check")};
+        dots[0] = stops < 0 ? LiveSettingsHome.NONE : stops < 5 ? LiveSettingsHome.GOOD : LiveSettingsHome.WARN;
+        boolean known = pages.guideKnown();
+        status[1] = new String[] {Ui.tr("Guia", "Guide"),
+                known ? pages.guidePercent() + Ui.tr("% dos canais", "% of channels") : Ui.tr("Guia do provedor", "Provider's guide"),
+                rowValue(GUIDE_NOW_ROW) + (known ? "  ·  " + pages.guideMissing() + Ui.tr(" sem guia", " missing") : "")};
+        dots[1] = !known ? LiveSettingsHome.NONE : pages.guidePercent() >= 98 ? LiveSettingsHome.GOOD : LiveSettingsHome.WARN;
+        Xtream.Account a = noSubscription ? null : Xtream.savedAccount(ctx);
+        long left = a == null || a.expires <= 0 ? -1 : (a.expires - System.currentTimeMillis()) / (24 * 3600_000L);
+        status[2] = new String[] {Ui.tr("Assinatura", "Subscription"),
+                left < 0 ? (a == null ? Ui.tr("Lista própria", "Your own playlist") : Ui.tr("Sem data de fim", "No end date")) : left + Ui.tr(" dias restantes", " days left"),
+                a != null && a.max > 0 ? a.active + Ui.tr(" de ", " of ") + a.max + Ui.tr(" telas em uso", " screens in use") : ""};
+        dots[2] = left < 0 ? LiveSettingsHome.NONE : left > 14 ? LiveSettingsHome.GOOD : left > 3 ? LiveSettingsHome.WARN : LiveSettingsHome.BAD;
+        String[] names = new String[SECTION_ROWS.length], notes = new String[SECTION_ROWS.length];
+        for (int i = 0; i < names.length; i++) {
+            names[i] = sectionName(i);
+            notes[i] = sectionNote(i);
+        }
+        home.draw(c, homeFocus, status, dots, names, notes);
+    }
+
+    /** A section's one line on the first screen: how it's set. */
+    private String sectionNote(int s) {
+        Context c = context();
+        switch (s) {
+            case 0: return rowValue(FORMAT_ROW) + "  ·  " + rowLabel(BUFFER_ROW) + ": " + rowValue(BUFFER_ROW);
+            case 1: {
+                Xtream.Lineup l = view.lineup();
+                return (l == null ? 0 : l.all().size()) + Ui.tr(" canais", " channels");
+            }
+            case 2: return rowLabel(DAYS_AHEAD_ROW) + ": " + rowValue(DAYS_AHEAD_ROW);
+            case DESIGN_SECTION: return LiveTheme.styleName(LiveTheme.style());
+            case REMINDERS_SECTION: return Ui.tr("Seguindo ", "Following ") + LiveFollow.all(c).size();
+            case RECORDINGS_SECTION: return rowLabel(KEEP_DAYS_ROW) + ": " + rowValue(KEEP_DAYS_ROW);
+            case PARENTAL_SECTION: return (LiveOptions.hasPin(c) ? Ui.tr("PIN ligado", "PIN on") : Ui.tr("Sem PIN", "No PIN")) + "  ·  " + LiveProfiles.all(c).size() + (LiveProfiles.all(c).size() == 1 ? Ui.tr(" perfil", " profile") : Ui.tr(" perfis", " profiles"));
+            case KEYS_SECTION: return Ui.tr("O que cada botão faz", "What each button does");
+            default: {
+                int n = LivePlaylists.all(c).size();
+                return n + (n == 1 ? Ui.tr(" lista", " playlist") : Ui.tr(" listas", " playlists"));
+            }
+        }
+    }
+
+    /** The remote, the button being set lit, in the column's place. */
+    private void drawRemote(Canvas c) {
+        float cx = (RAIL_X + RAIL_R) / 2 * k, top = 96 * k;
+        r.set(cx - 150 * k, top, cx + 150 * k, 1000 * k);
+        fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xF0000000);
+        c.drawRoundRect(r, 70 * k, 70 * k, fill);
+        fill.setColor(0x24FFFFFF);
+        c.drawCircle(cx, top + 170 * k, 120 * k, fill);
+        String slot = focus < LiveKeys.SLOTS.length ? LiveKeys.SLOTS[focus].replace("long_", "") : "";
+        remoteKey(c, "OK", "ok", cx, top + 170 * k, slot, 0);
+        remoteKey(c, "▲", "up", cx, top + 88 * k, slot, 0);
+        remoteKey(c, "▼", "down", cx, top + 252 * k, slot, 0);
+        remoteKey(c, "◀", "left", cx - 82 * k, top + 170 * k, slot, 0);
+        remoteKey(c, "▶", "right", cx + 82 * k, top + 170 * k, slot, 0);
+        remoteKey(c, "≡", "menu", cx, top + 380 * k, slot, 0);
+        remoteKey(c, "", "red", cx - 84 * k, top + 520 * k, slot, 0xFFE53935);
+        remoteKey(c, "", "green", cx - 28 * k, top + 520 * k, slot, 0xFF43A047);
+        remoteKey(c, "", "yellow", cx + 28 * k, top + 520 * k, slot, 0xFFFDD835);
+        remoteKey(c, "", "blue", cx + 84 * k, top + 520 * k, slot, 0xFF1E88E5);
+        hint.setTextAlign(Paint.Align.CENTER);
+        boolean held = focus < LiveKeys.SLOTS.length && LiveKeys.SLOTS[focus].startsWith("long_");
+        c.drawText(held ? Ui.tr("Segurando", "Held") : Ui.tr("Apertando", "Pressed"), cx, top + 640 * k, hint);
+        c.drawText(Ui.tr("Aperte Menu ou uma cor", "Press Menu or a colour"), cx, top + 700 * k, hint);
+        c.drawText(Ui.tr("para ir até ele", "to go to it"), cx, top + 736 * k, hint);
+        hint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    private void remoteKey(Canvas c, String mark, String id, float x, float y, String slot, int color) {
+        boolean on = id.equals(slot);
+        float rad = (color != 0 ? 22 : 34) * k;
+        if (on) {
+            fill.setColor(LiveTheme.tile);
+            c.drawCircle(x, y, rad + 8 * k, fill);
+        }
+        fill.setColor(color != 0 ? color : on ? LiveTheme.tile : 0xFF3A3A40);
+        c.drawCircle(x, y, rad, fill);
+        if (mark.isEmpty()) return;
+        labelOn.setColor(on ? LiveTheme.ink : WHITE);
+        c.drawText(mark, x - labelOn.measureText(mark) / 2, y + Ui.halfCap(labelOn), labelOn);
+    }
+
     /** The section a page belongs to (the one marked in the column). */
     private int marked() {
         switch (screen) {
-            case MAIN: return focus;
             case ROWS: return section;
             case KEYS: return KEYS_SECTION;
             case HIDDEN:
             case ORDER: return 1;
-            case SEPARATE: return 0;
-            case LOCKED: return 6;
+            case SEPARATE:
+            case CHECK: return 0;
+            case GUIDE_PAGE: return 2;
+            case LOCKED: return PARENTAL_SECTION;
             case SCHEDULE:
-            case FOLLOWING:
-            case SERIES: return 5;
-            case PLAYLISTS: return 7;
+            case SERIES: return listRecordings ? RECORDINGS_SECTION : REMINDERS_SECTION;
+            case FOLLOWING: return REMINDERS_SECTION;
+            case PLAYLISTS: return KEYS_SECTION + 1;
             default: return section;
         }
     }
@@ -1044,21 +1160,9 @@ final class LiveSettings {
      */
     private void drawRail(Canvas c) {
         Symbols.draw(view.getContext(), c, "live_tv", (RAIL_X + 30) * k, 140 * k, 36 * k, 0xEBFFFFFF);
-        c.drawText(Ui.tr("TV ao vivo", "Live TV"), (RAIL_X + 72) * k, 154 * k, heading);
+        c.drawText(Ui.tr("Ajustes", "Settings"), (RAIL_X + 72) * k, 154 * k, heading);
         boolean main = screen == MAIN;
         int marked = marked();
-        // Search, at the header's end: a pill, the focus' tile on it (↑ from the first section).
-        float sw = 170, sx = RAIL_R - sw;
-        r.set(sx * k, 108 * k, RAIL_R * k, 168 * k);
-        glow.setColor(main && onSearch ? LiveTheme.tile : LiveTheme.surface);
-        c.drawRoundRect(r, r.height() / 2, r.height() / 2, glow);
-        int sInk = main && onSearch ? LiveTheme.ink : 0xD9FFFFFF;
-        Symbols.draw(view.getContext(), c, "search", r.left + 36 * k, r.centerY(), 26 * k, sInk);
-        railLabel.setColor(sInk);
-        float ts = railLabel.getTextSize();
-        railLabel.setTextSize(24 * k);
-        c.drawText(Ui.tr("Buscar", "Search"), r.left + 62 * k, r.centerY() + Ui.halfCap(railLabel), railLabel);
-        railLabel.setTextSize(ts);
         if (main && !onSearch) {
             float fy = (RAIL_TOP + row.value * RAIL_STEP) * k;
             r.set(RAIL_X * k, fy, RAIL_R * k, fy + RAIL_H * k);
@@ -1086,44 +1190,17 @@ final class LiveSettings {
         }
     }
 
-    /** The focused section at the right: its symbol, name and what it's for, then its settings and their values. */
-    private void drawDetail(Canvas c) {
-        int s = Math.max(0, Math.min(SECTION_ROWS.length - 1, focus));
-        float x = (X + 10) * k, width = (R - X - 20) * k;
-        Symbols.draw(view.getContext(), c, SECTION_ICONS[s], x + 40 * k, 246 * k, 60 * k, 0xEBFFFFFF);
-        c.drawText(sectionName(s), x, 352 * k, detailTitle);
-        String about = hint();
-        if (aboutLayout == null || !about.equals(aboutShown) || aboutLayout.getWidth() != Math.round(width)) {
-            aboutShown = about;
-            aboutLayout = android.text.StaticLayout.Builder.obtain(about, 0, about.length(), detailText, Math.max(1, Math.round(width)))
-                    .setLineSpacing(0, 1.15f).build();
-        }
-        c.save();
-        c.translate(x, 384 * k);
-        aboutLayout.draw(c);
-        c.restore();
-        float y = 384 * k + aboutLayout.getHeight() + 70 * k;
-        // What's in it, as it's set now (OK opens it).
-        int[] ids = rowsOf(s);
-        for (int i = 0; i < ids.length && y < 1010 * k; i++) {
-            String lv = rowLabel(ids[i]), vv = rowValue(ids[i]);
-            Boolean sw = switchState(ids[i]);
-            if (sw != null) drawSwitch(c, x + width, y - Ui.halfCap(previewLabel), sw, switchUsable(ids[i]), false, 0.72f);
-            else c.drawText(ellipsize(vv, previewValue, width * 0.4f), x + width, y, previewValue);
-            c.drawText(ellipsize(lv, previewLabel, width * 0.58f), x, y, previewLabel);
-            y += 50 * k;
-        }
-        if (s == KEYS_SECTION) {
-            c.drawText(Ui.tr("OK para escolher o que cada botão faz.", "OK to choose what each button does."), x, y, previewLabel);
-        }
-    }
-
     private void drawRows(Canvas c, int n, boolean ink) {
         int rows = visibleRows();
         int first = Math.max(0, (int) Math.floor(scroll.value)), last = Math.min(n, first + rows + 2);
         boolean lockedOff = screen == ROWS && !LiveOptions.hasPin(context());
         for (int i = first; i < last; i++) {
             rowRect(i, r);
+            if (screen == ROWS && head(rowsOf(section)[i])) {       // a group's heading: never focused
+                hint.setColor(0xCCFFFFFF);
+                c.drawText(rowLabel(rowsOf(section)[i]), r.left + 22 * k, r.bottom - 14 * k, hint);
+                continue;
+            }
             Paint p = ink ? labelOn : label, v = ink ? valueOn : value;
             float base = r.centerY() + Ui.halfCap(p);
             boolean dim = lockedOff && rowsOf(section)[i] == LOCKED_ROW;
@@ -1241,17 +1318,31 @@ final class LiveSettings {
     void key(int code) {
         valueCache.clear();
         int n = count();
-        if (screen == MAIN && (onSearch || focus == 0 && (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_SEARCH))) {
-            if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_SEARCH) {
-                onSearch = true;
-                if (code == KeyEvent.KEYCODE_SEARCH) search();
-            } else if (code == KeyEvent.KEYCODE_DPAD_DOWN) {
-                onSearch = false;
-            } else if (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_NUMPAD_ENTER) {
-                search();
-            }
+        if (screen == MAIN) {
+            homeKey(code);
             view.invalidate();
             return;
+        }
+        if (screen == CHECK) {
+            pages.checkKey(code, this::back);
+            return;
+        }
+        if (screen == GUIDE_PAGE) {
+            pages.guideKey(code);
+            return;
+        }
+        if (screen == KEYS) {       // a button with no other job here: straight to it
+            String slot = code == KeyEvent.KEYCODE_MENU ? "menu" : code == KeyEvent.KEYCODE_PROG_RED ? "red"
+                    : code == KeyEvent.KEYCODE_PROG_GREEN ? "green" : code == KeyEvent.KEYCODE_PROG_YELLOW ? "yellow"
+                    : code == KeyEvent.KEYCODE_PROG_BLUE ? "blue" : null;
+            for (int i = 0; slot != null && i < LiveKeys.SLOTS.length; i++) {
+                if (!LiveKeys.SLOTS[i].equals(slot)) continue;
+                focus = i;
+                aim(false);
+                announce();
+                view.invalidate();
+                return;
+            }
         }
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_UP:
@@ -1283,6 +1374,60 @@ final class LiveSettings {
         view.invalidate();
     }
 
+    /** A key on the first screen. */
+    private void homeKey(int code) {
+        int was = homeFocus;
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_CHANNEL_UP:
+                homeFocus = LiveSettingsHome.move(homeFocus, 0, -1);
+                break;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+            case KeyEvent.KEYCODE_CHANNEL_DOWN:
+                homeFocus = LiveSettingsHome.move(homeFocus, 0, 1);
+                break;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                homeFocus = LiveSettingsHome.move(homeFocus, -1, 0);
+                break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                homeFocus = LiveSettingsHome.move(homeFocus, 1, 0);
+                break;
+            case KeyEvent.KEYCODE_SEARCH:
+                search();
+                return;
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                homePress();
+                return;
+            default:
+                return;
+        }
+        if (homeFocus != was) view.announceForAccessibility(homeFocus == LiveSettingsHome.SEARCH ? Ui.tr("Buscar", "Search")
+                : homeFocus >= LiveSettingsHome.FIRST_SECTION ? sectionName(homeFocus - LiveSettingsHome.FIRST_SECTION) : "");
+    }
+
+    private void homePress() {
+        if (homeFocus == LiveSettingsHome.SEARCH) {
+            search();
+        } else if (homeFocus == 0) {
+            pages.openCheck();
+            show(CHECK, 0);
+        } else if (homeFocus == 1) {
+            pages.openGuide();
+            show(GUIDE_PAGE, 0);
+        } else {
+            int s = homeFocus == 2 ? KEYS_SECTION + 1 : homeFocus - LiveSettingsHome.FIRST_SECTION;
+            if (s == KEYS_SECTION) {
+                show(KEYS, 0);
+            } else {
+                int at = s == leftSection && leftRow < rowsOf(s).length ? leftRow : 0;
+                section = s;
+                show(ROWS, at);
+            }
+        }
+    }
+
     /** Back: from a list to the first one (putting down a channel being moved), from the first to the categories. */
     void back() {
         if (screen == MAIN) {
@@ -1293,6 +1438,15 @@ final class LiveSettings {
             leftSection = section;
             leftRow = focus;
             show(MAIN, section);
+            return;
+        }
+        if (screen == CHECK) {
+            pages.closeCheck();
+            show(MAIN, -1);
+            return;
+        }
+        if (screen == GUIDE_PAGE) {
+            show(MAIN, -2);
             return;
         }
         if (screen == KEYS) {
@@ -1351,6 +1505,10 @@ final class LiveSettings {
         int n = count();
         if (n == 0) return;
         int next = Math.max(0, Math.min(n - 1, focus + dir));
+        if (screen == ROWS && head(rowsOf(section)[next])) {        // a heading: the row past it
+            next += dir;
+            if (next < 0 || next >= n) return;
+        }
         if (next == focus) return;
         if (screen == ORDER && carrying) {     // the channel picked up moves with the focus
             List<Xtream.Channel> list = favorites();
@@ -1365,8 +1523,9 @@ final class LiveSettings {
     private void show(int next, int at) {
         screen = next;
         carrying = false;
-        onSearch = false;
+        if (next == MAIN) homeFocus = at == -1 ? 0 : at == -2 ? 1 : LiveSettingsHome.FIRST_SECTION + at;
         focus = Math.max(0, Math.min(at, count() - 1));
+        if (next == ROWS && focus < count() - 1 && head(rowsOf(section)[focus])) focus++;
         top = 0;
         aim(true);
         announce();
@@ -1769,7 +1928,7 @@ final class LiveSettings {
             List<String> names = new ArrayList<>();
             for (int s = 0; s < SECTION_ROWS.length; s++) {
                 for (int id : rowsOf(s)) {
-                    if (id == RESET_ROW || ids.contains(id)) continue;
+                    if (id == RESET_ROW || head(id) || ids.contains(id)) continue;
                     String label = rowLabel(id);
                     if (!Xtream.fold(label).contains(q) && !Xtream.fold(sectionName(s)).contains(q)) continue;
                     ids.add(id);
@@ -1855,6 +2014,12 @@ final class LiveSettings {
                 LiveOptions.forget(c, "format", "buffer", "rewindAny", "upscale", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
                 live.playbackChanged();
                 live.relist();
+                LiveOptions.forget(c, "homeOnStart", "ccSize", "ccColor", "ccStyle");
+                LiveOptions.setStartOnBoot(c, false);
+                LiveOptions.setStartOnWake(c, false);
+                LiveOptions.setHomePreviews(c, true);
+                live.setSubtitlesOn(false);
+                view.captionsChanged();
                 break;
             case 1:     // Channels and categories
                 LiveOptions.forget(c, "channelSort", "categorySort");
@@ -1876,12 +2041,6 @@ final class LiveSettings {
                 LiveTheme.applyFonts(c);
                 view.restyle();
                 break;
-            case STARTUP_SECTION:
-                LiveOptions.forget(c, "homeOnStart");
-                LiveOptions.setStartOnBoot(c, false);
-                LiveOptions.setStartOnWake(c, false);
-                LiveOptions.setHomePreviews(c, true);
-                break;
             case REMINDERS_SECTION:
                 LiveOptions.setRemind(c, 1, false);
                 setMatchAlerts(c, false);
@@ -1895,17 +2054,11 @@ final class LiveSettings {
                 LiveOptions.setRecordPadding(c, 0, 2);
                 LiveSchedule.armAll(c);
                 break;
-            case PARENTAL_SECTION:     // the age lock (never the PIN)
-                LiveOptions.forget(c, "ageLock");
-                break;
-            case PROFILES_SECTION:     // only the options
-                LiveOptions.forget(c, "askProfile", "historyMax");
+            case PARENTAL_SECTION:     // the age lock and the profiles' options (never the PIN)
+                LiveOptions.forget(c, "ageLock", "askProfile", "historyMax");
                 view.historyChanged();
                 break;
-            default:    // Captions
-                LiveOptions.forget(c, "ccSize", "ccColor", "ccStyle");
-                live.setSubtitlesOn(false);
-                view.captionsChanged();
+            default:
                 break;
         }
     }
@@ -2225,22 +2378,19 @@ final class LiveSettings {
             announce();
             return;
         }
-        if (screen == MAIN) {
-            if (focus == KEYS_SECTION) {
-                show(KEYS, 0);
-            } else {
-                // Back into the section just left: on the row it was left on.
-                int at = focus == leftSection && leftRow < rowsOf(focus).length ? leftRow : 0;
-                section = focus;
-                show(ROWS, at);
-            }
-            return;
-        }
         if (screen == KEYS) {
             cycleKey(1);
             return;
         }
         switch (id()) {
+            case CHECK_ROW:
+                pages.openCheck();
+                show(CHECK, 0);
+                break;
+            case GUIDE_PAGE_ROW:
+                pages.openGuide();
+                show(GUIDE_PAGE, 0);
+                break;
             case FORMAT_ROW:
             case BUFFER_ROW:
             case FRAME_RATE_ROW:
@@ -2547,7 +2697,7 @@ final class LiveSettings {
 
     /** TalkBack reads the focused row and its value. */
     private void announce() {
-        if (count() == 0) return;
+        if (count() == 0 || screen == MAIN || screen == CHECK || screen == GUIDE_PAGE) return;
         view.announceForAccessibility(label(focus) + ", " + value(focus));
     }
 }
