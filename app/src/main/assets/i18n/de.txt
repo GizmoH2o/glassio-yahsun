@@ -820,3 +820,6 @@ Live TV: Up / Down	Live-TV: Hoch / Runter
 other channels' shows	Sendungen anderer Sender
 Live TV: hold OK	Live-TV: OK halten
 the menu	das Menü
++  Follow a team or show	+  Team oder Sendung folgen
+‹  Following	‹  Folge ich
+This trailer won't play on the TV	Dieser Trailer läuft nicht auf dem Fernseher

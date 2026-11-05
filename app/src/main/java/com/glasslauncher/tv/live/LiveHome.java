@@ -360,9 +360,9 @@ public final class LiveHome {
     /** "in 45 min", "in 2 h 10 min". */
     public static String until(long ms) {
         long m = Math.max(1, (ms + 59_999) / 60_000);
-        if (m < 60) return "in " + m + " min";
+        if (m < 60) return Ui.tr("em ", "in ") + m + " min";
         long h = m / 60, rest = m % 60;
-        return "in " + h + " h" + (rest > 0 ? " " + rest + " min" : "");
+        return Ui.tr("em ", "in ") + h + " h" + (rest > 0 ? " " + rest + " min" : "");
     }
 
     // MARK: - Match day (the screensaver)

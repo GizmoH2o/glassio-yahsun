@@ -819,3 +819,6 @@ Live TV: Up / Down	TV en vivo: Arriba / Abajo
 other channels' shows	programas de otros canales
 Live TV: hold OK	TV en vivo: mantener OK
 the menu	el menú
++  Follow a team or show	+  Seguir un equipo o programa
+‹  Following	‹  Siguiendo
+This trailer won't play on the TV	Este tráiler no se reproduce en la TV

@@ -20,13 +20,13 @@ import java.io.File
 import java.util.Locale
 
 /**
- * Glassio's language (Settings › Look & motion): English, Portuguese, Spanish, German or Russian, the ones Live TV has.
+ * Glassio's language (Settings › Look & motion): English, Portuguese, Spanish, German, French, Italian or Russian, the ones Live TV has.
  * The copy stays in the code in English; each language is a table of it in assets/i18n, read when it's chosen. In a file,
  * not the preferences: Live TV's process reads it too. A title's or channel's own name is drawn with [RawText], never looked up.
  */
 object Lang {
-    val CHOICES = listOf("auto" to "Auto", "en" to "English", "pt" to "Português", "es" to "Español", "de" to "Deutsch", "ru" to "Русский")
-    private val HAVE = setOf("pt", "es", "de", "ru")
+    val CHOICES = listOf("auto" to "Auto", "en" to "English", "pt" to "Português", "es" to "Español", "de" to "Deutsch", "fr" to "Français", "it" to "Italiano", "ru" to "Русский")
+    private val HAVE = setOf("pt", "es", "de", "ru", "fr", "it")
 
     /** What's on ("en", "es"…): Compose reads it, so a change redraws every text. */
     val code = mutableStateOf("en")
@@ -116,6 +116,8 @@ object Lang {
         "es" -> Locale("es", "ES")
         "de" -> Locale.GERMANY
         "ru" -> Locale("ru", "RU")
+        "fr" -> Locale.FRANCE
+        "it" -> Locale.ITALY
         else -> Locale.ENGLISH
     }
 }

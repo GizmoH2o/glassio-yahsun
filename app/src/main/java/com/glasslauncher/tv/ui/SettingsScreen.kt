@@ -861,7 +861,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { Lang.CHOICES.first { it.first == Lang.choice.value }.second },
                     { Lang.choose(ctx, cycle(Lang.CHOICES.map { c -> c.first }, Lang.choice.value, it)) }))
                 add(Adjust("Night mode", "Until 7 in the morning: dims Glassio and Live TV, and lowers Live TV's volume", {
-                    st.nightRev     // read again when it changes
+                    st.nightRev; Lang.code.value     // read again when it or the language changes
                     val from = com.glasslauncher.tv.live.NightMode.from(ctx)
                     if (from <= 0) Lang.tr("Off") else java.text.SimpleDateFormat("h a", java.util.Locale.getDefault()).format(java.util.Calendar.getInstance().apply { set(java.util.Calendar.HOUR_OF_DAY, from); set(java.util.Calendar.MINUTE, 0) }.time)
                 }, { dir ->

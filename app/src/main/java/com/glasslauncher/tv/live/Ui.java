@@ -29,10 +29,10 @@ final class Ui {
     static final boolean LEGACY = Build.VERSION.SDK_INT < 31;
     static final Locale RU = new Locale("ru", "RU");
     static final Locale PT = new Locale("pt", "BR");
-    /** English, Portuguese, Spanish, German or Russian, from the settings or, with "auto", the TV's own language. */
+    /** English, Portuguese, Spanish, German, French, Italian or Russian, from the settings or, with "auto", the TV's own language. */
     static volatile String language = language();
     static volatile boolean en = "en".equals(language), es = "es".equals(language), de = "de".equals(language),
-            ru = "ru".equals(language);
+            ru = "ru".equals(language), fr = "fr".equals(language), it = "it".equals(language);
     static Typeface thin, light, displayMedium, displaySemibold, regular, medium, semibold;
     private static boolean loaded;
     private static final Rect BOUNDS = new Rect();
@@ -106,7 +106,7 @@ final class Ui {
         String lang = Prefs.language();
         if (!lang.equals("auto")) return lang;
         lang = Locale.getDefault().getLanguage();
-        return "pt".equals(lang) || "es".equals(lang) || "de".equals(lang) || "ru".equals(lang) ? lang : "en";
+        return "pt".equals(lang) || "es".equals(lang) || "de".equals(lang) || "ru".equals(lang) || "fr".equals(lang) || "it".equals(lang) ? lang : "en";
     }
 
     /** After the language changes in the settings (and once Prefs can read them). */
@@ -116,6 +116,8 @@ final class Ui {
         es = "es".equals(language);
         de = "de".equals(language);
         ru = "ru".equals(language);
+        fr = "fr".equals(language);
+        it = "it".equals(language);
     }
 
     private static boolean has(AssetManager a, String path) {
@@ -173,16 +175,16 @@ final class Ui {
     }
 
     static String tr(String pt, String english) {
-        return de ? German.text(english) : ru ? Russian.text(english) : es ? Spanish.text(english) : en ? english : pt;
+        return fr ? French.text(english) : it ? Italian.text(english) : de ? German.text(english) : ru ? Russian.text(english) : es ? Spanish.text(english) : en ? english : pt;
     }
 
     /** German comes from German.java here too (keyed by the English, with patterns for text built at runtime). */
     static String tr(String pt, String english, String spanish) {
-        return de ? German.text(english) : ru ? Russian.text(english) : es ? spanish : en ? english : pt;
+        return fr ? French.text(english) : it ? Italian.text(english) : de ? German.text(english) : ru ? Russian.text(english) : es ? spanish : en ? english : pt;
     }
 
     static Locale locale() {
-        return ru ? RU : es ? spanish() : de ? german() : en ? Locale.US : PT;
+        return fr ? Locale.FRANCE : it ? Locale.ITALY : ru ? RU : es ? spanish() : de ? german() : en ? Locale.US : PT;
     }
 
     /** The TV's own Spanish (es-MX, es-AR…) when it is in Spanish, Spain's otherwise. */

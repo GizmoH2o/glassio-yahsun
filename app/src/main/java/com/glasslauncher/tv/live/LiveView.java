@@ -4716,6 +4716,8 @@ final class LiveView extends View {
         if (Ui.ru) return "Осталось " + (h.isEmpty() ? "" : h + " ч ") + m + " мин";
         if (Ui.es) return "Quedan " + (h.isEmpty() ? "" : h + " h ") + m + " min";
         if (Ui.de) return "Noch " + (h.isEmpty() ? "" : h + " Std. ") + m + " Min.";
+        if (Ui.fr) return "Encore " + (h.isEmpty() ? "" : h + " h ") + m + " min";
+        if (Ui.it) return "Mancano " + (h.isEmpty() ? "" : h + " h ") + m + " min";
         if (Ui.en) return (h.isEmpty() ? "" : h + "h ") + m + " min left";
         return "Faltam " + (h.isEmpty() ? "" : h + " h ") + m + " min";
     }

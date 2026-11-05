@@ -820,3 +820,6 @@ Live TV: Up / Down	ТВ: Вверх / Вниз
 other channels' shows	передачи других каналов
 Live TV: hold OK	ТВ: удерживать OK
 the menu	меню
++  Follow a team or show	+  Подписаться на команду или передачу
+‹  Following	‹  Отслеживаемое
+This trailer won't play on the TV	Этот трейлер не воспроизводится на телевизоре

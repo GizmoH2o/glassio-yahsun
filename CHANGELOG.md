@@ -4,6 +4,9 @@ What changed in each Glassio Yahsun release, newest first. `tools/release.sh` pu
 
 ## 3.1.0 — 2026-11-04
 
+**Two more languages**
+- **French and Italian**, for Glassio and Live TV (Settings › Look & motion › Language; Auto follows the TV).
+
 **A new Live TV**
 - **Glassio 3**, a new design for the player, guide and settings, with text you can read over any picture. New installs start with it.
 - **The guide updates by itself**, even with Live TV closed.
