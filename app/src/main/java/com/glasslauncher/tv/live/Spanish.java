@@ -222,6 +222,7 @@ final class Spanish {
             case "Couldn't open Live TV.": return "No se pudo abrir la TV en vivo.";
             case "Live": return "En vivo";
             case "live": return "en vivo";
+            case "Damaged part: skipping ahead": return "Parte dañada: saltando";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

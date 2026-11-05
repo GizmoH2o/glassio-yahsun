@@ -220,6 +220,7 @@ final class French {
             case "Couldn't open Live TV.": return "Impossible d'ouvrir la TV en direct.";
             case "Live": return "En direct";
             case "live": return "en direct";
+            case "Damaged part: skipping ahead": return "Partie endommagée : passage à la suite";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

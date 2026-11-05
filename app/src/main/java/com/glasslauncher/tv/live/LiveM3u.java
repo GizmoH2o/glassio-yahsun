@@ -70,10 +70,16 @@ final class LiveM3u {
                             num = Integer.parseInt(attrs.containsKey("tvg-chno") ? attrs.get("tvg-chno").trim() : "0");
                         } catch (NumberFormatException ignored) {
                         }
+                        // Catch-up, as the playlist describes it (a source alone means the default kind).
+                        String source = attrs.containsKey("catchup-source") ? attrs.get("catchup-source") : "";
+                        String kind = attrs.containsKey("catchup") ? attrs.get("catchup").trim() : source.isEmpty() ? "" : "default";
+                        int days = LiveCatchup.days(kind, attrs.containsKey("catchup-days") ? attrs.get("catchup-days") : "",
+                                attrs.containsKey("tvg-rec") ? attrs.get("tvg-rec") : "");
                         chans.put(new JSONObject().put("id", id).put("num", num > 0 ? num : chans.length() + 1).put("name", name)
                                 .put("logo", attrs.containsKey("tvg-logo") ? attrs.get("tvg-logo") : "")
                                 .put("epg", attrs.containsKey("tvg-id") ? attrs.get("tvg-id") : "")
-                                .put("cat", gid).put("arch", 0).put("url", line));
+                                .put("cat", gid).put("arch", kind.isEmpty() ? 0 : days).put("url", line)
+                                .put("cu", kind).put("cus", source));
                     }
                     attrs = null;
                     name = group = null;

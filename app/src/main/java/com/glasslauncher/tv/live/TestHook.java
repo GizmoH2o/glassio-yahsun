@@ -22,6 +22,9 @@ import android.content.IntentFilter;
  *                                                                    of the channel on, told as a real one is (off: deleted)
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez fetchguide true    Live TV (open): the full guide again, now
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez streaminfo true    Live TV (open): Stream info
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ei catchup 267 --el at MS [--el from MS]
+ *                                                                    Live TV (open): the show on that channel number at
+ *                                                                    that moment, from `from` ms into it
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es scores URL          Live TV (open): live scores from a
  *                                                                    stand-in (URL/soccer/all/scoreboard, …: ESPN's
  *                                                                    layout; off: ESPN's)

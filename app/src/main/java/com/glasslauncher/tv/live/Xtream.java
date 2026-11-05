@@ -39,6 +39,8 @@ final class Xtream {
         int id, num;
         /** Days of catch-up the provider keeps (its archive, tv_archive_duration); 0: none. */
         int archive;
+        /** A playlist channel's catch-up: its `catchup` kind and `catchup-source` (LiveCatchup.m3u); "" for Xtream's. */
+        String catchupMode = "", catchupSource = "";
         String name, logo, epg, category;
         /** The provider's own logo, kept when another source's is shown instead (LivePublicLogos, the guide's). */
         String providerLogo;
@@ -306,7 +308,8 @@ final class Xtream {
         // The provider's own logo (another source's is picked again from the setting where it's shown).
         return new JSONObject().put("id", ch.id).put("num", ch.num).put("name", ch.name)
                 .put("logo", ch.providerLogo != null ? ch.providerLogo : ch.logo)
-                .put("epg", ch.epg).put("cat", ch.category).put("arch", ch.archive).put("url", ch.url);
+                .put("epg", ch.epg).put("cat", ch.category).put("arch", ch.archive).put("url", ch.url)
+                .put("cu", ch.catchupMode).put("cus", ch.catchupSource);
     }
 
     static Channel channel(JSONObject o) {
@@ -319,6 +322,8 @@ final class Xtream {
         ch.category = o.optString("cat");
         ch.archive = o.optInt("arch");
         ch.url = o.optString("url");
+        ch.catchupMode = o.optString("cu");
+        ch.catchupSource = o.optString("cus");
         return ch;
     }
 
@@ -572,7 +577,8 @@ final class Xtream {
         if (!kind(c).equals(XTREAM)) {      // M3U: the full guide only; MAG: the portal's
             if (kind(c).equals(MAG)) return programs(c, ch.id, limit);
             long now = System.currentTimeMillis();
-            List<Program> full = XmltvStore.programs(c, ch.epg, now - 3 * 3600_000L, now + 24 * 3600_000L);
+            long back = Math.max(3 * 3600_000L, ch.archive * 24 * 3600_000L);      // as far as its catch-up goes
+            List<Program> full = XmltvStore.programs(c, ch.epg, now - back, now + 24 * 3600_000L);
             return full == null ? new ArrayList<>() : full;
         }
         if (ch.archive <= 0) return programs(c, ch.id, limit);
@@ -733,6 +739,11 @@ final class Xtream {
      */
     static String catchupUrl(Context c, Channel ch, Program p, long start, String format) throws IOException {
         Login l = login(c);
+        if (l.kind.equals(M3U)) {
+            String url = LiveCatchup.m3u(ch.url, ch.catchupMode, ch.catchupSource, start, p.end, System.currentTimeMillis(), java.util.TimeZone.getDefault());
+            if (url == null) throw new IOException(Ui.tr("Esta lista não tem reprise.", "This playlist has no catch-up."));
+            return url;
+        }
         if (!l.kind.equals(XTREAM)) throw new IOException(Ui.tr("Esta lista não tem reprise.", "This playlist has no catch-up."));
         if (l.zone.isEmpty()) {     // signed in before catch-up came: ask the server once
             try {
@@ -863,6 +874,12 @@ final class Xtream {
         return zone.isEmpty() || !java.util.Arrays.asList(java.util.TimeZone.getAvailableIDs()).contains(zone) ? "" : zone;
     }
 
+    /** The saved list as parsed: its file, and the merging that shapes it (kept in the settings, not the file). */
+    static long lineupStamp(Context c) {
+        java.util.Set<String> keeping = mergeKeeping(c);
+        return savedStamp(c) * 31 + (keeping == null ? -1 : keeping.hashCode());
+    }
+
     /** With merging on, the groups kept apart (none: an empty set); off, null. */
     private static java.util.Set<String> mergeKeeping(Context c) {
         return LiveOptions.merge(c) ? LiveOptions.separateGroups(c) : null;
@@ -909,6 +926,8 @@ final class Xtream {
             ch.category = o.optString("cat");
             ch.archive = o.optInt("arch");
             ch.url = o.optString("url");
+            ch.catchupMode = o.optString("cu");
+            ch.catchupSource = o.optString("cus");
             ch.key = fold(ch.name);
             everything.channels.add(ch);
             Category cat = byId.get(ch.category);

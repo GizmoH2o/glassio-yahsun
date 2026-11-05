@@ -232,6 +232,7 @@ final class German {
             case "Couldn't open Live TV.": return "Live-TV ließ sich nicht öffnen.";
             case "Live": return "Live";
             case "live": return "live";
+            case "Damaged part: skipping ahead": return "Beschädigter Teil: wird übersprungen";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

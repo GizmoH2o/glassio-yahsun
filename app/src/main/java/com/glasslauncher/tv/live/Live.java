@@ -93,6 +93,11 @@ public class Live extends Activity {
      * position is from there. And how far past that start to go once it plays, when the stream can seek.
      */
     private long catchupBase, catchupInside;
+    /** Where a past show is going while its address opens (position() says this, not the old stream's place); -1: there. */
+    private long catchupPending = -1, catchupAsked;
+    /** Where the last try after a failure started, and how many tries in a row got nowhere (LiveCatchup.stuck). */
+    private long retriedAt = -1;
+    private int stuckTries;
     /** ◀ ▶ pressed in a row: where they go (position()'s ms), done once the presses stop; -1: none. */
     private long skipTo = -1, skipLast;
     private int skipRun;
@@ -162,11 +167,15 @@ public class Live extends Activity {
             if (state == Player.STATE_BUFFERING && wasReady) stalled();
             wasReady = state == Player.STATE_READY || wasReady && state == Player.STATE_BUFFERING;
             if (state == Player.STATE_READY) view.setStatus("");
-            if (state == Player.STATE_READY && catchup != null && catchupInside > 0 && player != null) {
-                // The rest of the way into the minute it started at; a stream that can't seek plays from there.
+            if (state == Player.STATE_READY && catchupPending >= 0) {
+                AppLog.w("live: catch-up playing from " + catchupBase / 1000 + " s, after " + (up - catchupAsked) + " ms, stream's length " + player.getDuration() / 1000 + " s");
+                catchupPending = -1;
+            }
+            if (state == Player.STATE_READY && recordingFile != null && catchupInside > 0 && player != null) {
+                // A recording's file seeks; a provider's stream only moves by asking for its address (LiveCatchup).
                 long inside = catchupInside;
                 catchupInside = 0;
-                if (player.isCurrentMediaItemSeekable() && inside > 1000) player.seekTo(inside);
+                if (inside > 1000) player.seekTo(inside);
             }
             if (state == Player.STATE_ENDED && catchup != null && !endSeen) {       // the program is over: what's next, or live
                 endSeen = true;
@@ -488,6 +497,11 @@ public class Live extends Activity {
     /** A style shown for a check from the computer (TestHook): in memory only. */
     private final android.content.BroadcastReceiver testHook = new android.content.BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
+            int past = i.getIntExtra("catchup", -1);
+            if (past >= 0) {       // that channel number's show at that moment, as the guide would play it
+                testCatchup(past, i.getLongExtra("at", 0), i.getLongExtra("from", 0));
+                return;
+            }
             String follow = i.getStringExtra("follow"), unfollow = i.getStringExtra("unfollow");
             if (i.hasExtra("recproblem")) {     // a missed recording of the channel on, as told (off: it goes)
                 String id = "test-recording";
@@ -1455,9 +1469,9 @@ public class Live extends Activity {
         if (playing != null) resume();
     }
 
-    /** The same channel (or past program) again, in the format now chosen. */
+    /** The same channel (or past program, from where it is) again, in the format now chosen. */
     private void retry() {
-        if (catchup != null) startCatchup(0); else if (playing != null) start(playing);
+        if (catchup != null) startCatchup(position()); else if (playing != null) start(playing);
     }
 
     // MARK: - A merged channel's sources
@@ -1515,6 +1529,7 @@ public class Live extends Activity {
 
     /** Notes trouble on the channel playing for Stream health (not in the first 20 seconds after opening). */
     private void health(int kind) {
+        if (catchup != null) return;        // a past show's trouble is the archive's, not the channel's
         if (android.os.SystemClock.uptimeMillis() - openedAt < 20_000) return;
         LiveHealth.note(this, playing, kind);
     }
@@ -1565,7 +1580,7 @@ public class Live extends Activity {
             // the person picked.
             Xtream.Channel light = chosenSource >= 0 || recordingFile != null ? null
                     : LiveMerge.lighter(playing, source, catchup != null, failed);
-            if (light != null) LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
+            if (light != null && catchup == null) LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
             failed.add(source.id);
             Xtream.Channel next = light != null ? light : LiveMerge.pick(this, playing, catchup != null, failed);
             if (next != null) {
@@ -1604,12 +1619,44 @@ public class Live extends Activity {
         view.setStatus(Ui.tr("Conectando de novo…", "Connecting again…"));
         final Xtream.Channel ch = playing;
         final Xtream.Program p = catchup;
-        final long at = player != null && catchup != null ? position() : 0;
+        final long at = player != null && catchup != null ? retrySpot() : 0;
         main.postDelayed(() -> {
             if (playing != ch || catchup != p) return;
             if (p != null) startCatchup(at); else start(ch);
         }, wait);
         return true;
+    }
+
+    /** TestHook: the show on channel number `num` at `at`, from `from` ms in; its guide is waited for. */
+    private void testCatchup(int num, long at, long from) {
+        Xtream.Channel found = null;
+        if (lineup != null) for (Xtream.Channel c : lineup.all()) if (c.num == num && c.archive > 0) found = c;
+        if (found == null) {
+            AppLog.w("live: test: no channel " + num + " with catch-up");
+            return;
+        }
+        final Xtream.Channel ch = found;
+        io.execute(() -> {
+            for (int tries = 0; tries < 25; tries++) {
+                List<Xtream.Program> list = view.programsOf(ch);
+                if (list != null) for (Xtream.Program p : list) if (p.start <= at && p.end > at) {
+                    main.post(() -> playCatchup(ch, p, from));
+                    return;
+                }
+                android.os.SystemClock.sleep(1000);
+            }
+            AppLog.w("live: test: no show then");
+        });
+    }
+
+    /** Where a past show tries again: its place, or further on when the last try from there got nowhere. */
+    private long retrySpot() {
+        long at = position();
+        stuckTries = LiveCatchup.stuck(at, retriedAt) ? stuckTries + 1 : 0;
+        long to = LiveCatchup.retryFrom(at, stuckTries, length());
+        retriedAt = to;
+        if (to > at) view.flash(Ui.tr("Parte com problema: pulando", "Damaged part: skipping ahead"));
+        return to;
     }
 
     /** OK on "couldn't play": the channel again, from the start of the tries. */
@@ -1628,7 +1675,7 @@ public class Live extends Activity {
         if (!again || playing == null || source == null || chosenSource >= 0 || recordingFile != null || shift != null) return;
         Xtream.Channel next = LiveMerge.lighter(playing, source, catchup != null, failed);
         if (next == null) return;
-        LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
+        if (catchup == null) LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
         AppLog.w("live: " + playing.name + " stalls on " + LiveMerge.label(source) + ", now " + LiveMerge.label(next));
         health(LiveHealth.SWITCHED);
         view.flash(Ui.tr("Conexão lenta: ", "Slow connection: ") + LiveMerge.label(next));
@@ -1763,6 +1810,8 @@ public class Live extends Activity {
         source = null;
         failed.clear();
         reconnects = 0;
+        retriedAt = -1;
+        stuckTries = 0;
         triedOther = waited = false;
         format = chosenFormat();
         view.followGroup(ch);       // its own group from now on (the guide, the list, channel up / down)
@@ -1781,12 +1830,15 @@ public class Live extends Activity {
         // A merged channel's past from a source with catch-up (the one picked for the connection when there are several).
         if (file == null && (source == null || source.archive <= 0)) source = pickSource(true);
         final Xtream.Channel src = source == null ? ch : source;
-        // The provider's address starts at the minute before `from`: the rest is a seek once it plays, when it can.
-        // (A recording's file seeks from the start.)
+        // The provider's address starts at the minute before `from`, and plays from there: a seek inside its stream
+        // can hang (LiveCatchup). A recording's file seeks from the start.
         from = Math.max(0, from);
-        final long base = file != null ? 0 : (p.start + from) / 60_000 * 60_000 - p.start;
+        final long base = file != null ? 0 : LiveCatchup.minute(p.start, from);
         catchupBase = base;
-        catchupInside = from - base;
+        catchupInside = file != null ? from : 0;
+        catchupPending = from;
+        catchupAsked = android.os.SystemClock.uptimeMillis();
+        AppLog.w("live: catch-up of " + p.title + " at " + from / 1000 + " s (address from " + base / 1000 + " s) on " + src.name + ", " + f);
         skipTo = -1;
         Context app = getApplicationContext();
         wasReady = false;
@@ -1813,7 +1865,7 @@ public class Live extends Activity {
                 applyUpscale(src);
                 // From the start of the address: a stream that can't seek would say it's further on than it is.
                 player.setMediaItem(new MediaItem.Builder().setUri(address)
-                        .setMimeType(file == null && f.equals("m3u8") ? MimeTypes.APPLICATION_M3U8 : MimeTypes.VIDEO_MP2T).build(), 0);
+                        .setMimeType(file != null ? MimeTypes.VIDEO_MP2T : Xtream.mime(this, address, f)).build(), 0);
                 player.prepare();
                 player.play();
                 endSeen = false;
@@ -1994,8 +2046,8 @@ public class Live extends Activity {
         if (shift != null) return Math.max(0, shiftAt() - shift.oldest());
         if (player == null) return 0;
         long at = Math.max(0, player.getCurrentPosition());
-        // A past program: from where its address starts (and, till it plays, where it's going in that minute).
-        return catchup == null ? at : Math.max(0, catchupBase + Math.max(at, catchupInside));
+        // A past program: from where its address starts (till it plays, where it's going).
+        return catchup == null ? at : Math.max(0, LiveCatchup.shown(catchupPending, catchupBase, at));
     }
 
     long length() {
@@ -2202,15 +2254,12 @@ public class Live extends Activity {
             backToLive();
             return;
         }
-        long at = position();
-        if (recordingFile != null || player.isCurrentMediaItemSeekable() && to >= catchupBase) {
-            player.seekTo(Math.max(0, to - catchupBase));
+        if (recordingFile != null) {
+            player.seekTo(Math.max(0, to));
             return;
         }
-        // It can't seek (most providers' catch-up as MPEG-TS): the address again, from the minute `to` is in; ahead,
-        // the next minute when that one is no further on than now.
-        long minute = (catchup.start + to) / 60_000 * 60_000 - catchup.start;
-        startCatchup(to > at && minute <= at ? minute + 60_000 : to);
+        // The address again, from the minute `to` is in (LiveCatchup).
+        startCatchup(LiveCatchup.skip(catchup.start, to, position()));
     };
 
     /** The video at its own shape, as large as the screen allows (letterboxed or pillarboxed). */

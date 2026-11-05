@@ -1242,19 +1242,15 @@ public final class LiveHome {
     }
 
     private static Map<String, Xtream.Channel> epgCache;
-    private static long epgStamp, epgAt;
+    private static long epgStamp;
 
-    /**
-     * The channels by guide id, kept while the saved list stays the same (and for at most five minutes, as merging
-     * settings changed in Live TV don't touch the list's file).
-     */
+    /** The channels by guide id, kept while the saved list and its merging stay the same. */
     private static synchronized Map<String, Xtream.Channel> byEpg(Context c) {
-        long stamp = Xtream.savedStamp(c), now = System.currentTimeMillis();
-        if (epgCache != null && stamp == epgStamp && now - epgAt < 5 * 60_000L) return epgCache;
+        long stamp = Xtream.lineupStamp(c);
+        if (epgCache != null && stamp == epgStamp) return epgCache;
         Map<String, Xtream.Channel> out = readByEpg(c);
         epgCache = out;
         epgStamp = stamp;
-        epgAt = now;
         return out;
     }
 

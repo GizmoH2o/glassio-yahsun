@@ -231,6 +231,7 @@ final class Russian {
             case "Couldn't open Live TV.": return "Не удалось открыть прямой эфир.";
             case "Live": return "Эфир";
             case "live": return "в эфире";
+            case "Damaged part: skipping ahead": return "Повреждённый фрагмент: переход дальше";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";
