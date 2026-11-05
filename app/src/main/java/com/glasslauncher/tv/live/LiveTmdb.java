@@ -43,6 +43,8 @@ final class LiveTmdb {
     private static final Set<String> ASKING = new HashSet<>();
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
     private static boolean loaded;
+    /** In NONE: not found by name alone. */
+    private static final String BLIND = "\u0000blind";
     /** Bumped each time TMDB answers with a show: what wasn't known may be now. */
     private static volatile int changes;
 
@@ -54,7 +56,7 @@ final class LiveTmdb {
     static int age(Context c, Xtream.Program p) {
         if (p == null) return -1;
         if (p.age >= 0) return p.age;
-        Info i = of(c, p.title, null);
+        Info i = of(c, p, null);
         return i == null ? -1 : i.age;
     }
 
@@ -68,8 +70,19 @@ final class LiveTmdb {
         }
     }
 
-    /** TMDB's facts for the show called `title`, or null (not found, or asking: `found` runs when it comes). */
+    /** TMDB's facts for programme `p`, or null (not found, or asking: `found` runs when it comes). */
+    static Info of(Context c, Xtream.Program p, Runnable found) {
+        long minutes = (p.end - p.start) / 60_000;
+        String sub = p.sub == null ? "" : p.sub, about = p.about == null ? "" : p.about;
+        return of(c, p.title, sub + " " + about, minutes, LiveTmdbMatch.seasonIn(sub + " " + about), found);
+    }
+
+    /** By name alone: only a well-known entry can be taken for it, there being nothing to check it against. */
     static Info of(Context c, String title, Runnable found) {
+        return of(c, title, "", 0, 0, found);
+    }
+
+    private static Info of(Context c, String title, String about, long minutes, int season, Runnable found) {
         final String name = LiveArt.name(title);
         if (name.length() < 3) return null;
         final Context app = c.getApplicationContext();
@@ -77,7 +90,9 @@ final class LiveTmdb {
             if (!loaded) load(app);
             Info known = FOUND.get(name);
             if (known != null) return known;
-            Long none = NONE.get(name);
+            // Not found by name alone says nothing about the search with the guide's words.
+            final String noneKey = about.trim().isEmpty() ? name + BLIND : name;
+            Long none = NONE.get(noneKey);
             if (none != null && System.currentTimeMillis() - none < RETRY) return null;
             if (Prefs.tmdbKey(app).isEmpty() || !ASKING.add(name)) return null;
         }
@@ -85,7 +100,7 @@ final class LiveTmdb {
             Info i = null;
             boolean answered = true;
             try {
-                i = search(app, name);
+                i = search(app, name, about, minutes, season);
             } catch (IOException | JSONException | RuntimeException e) {
                 answered = false;       // no network: asked again next time
             }
@@ -97,7 +112,7 @@ final class LiveTmdb {
                     AT.put(name, now);
                     changes++;
                 } else if (answered) {
-                    NONE.put(name, now);
+                    NONE.put(about.trim().isEmpty() ? name + BLIND : name, now);
                 }
                 if (answered) save(app);
             }
@@ -106,8 +121,8 @@ final class LiveTmdb {
         return null;
     }
 
-    /** The show (else the film) with exactly that name, with its details; null when TMDB has none. */
-    private static Info search(Context c, String name) throws IOException, JSONException {
+    /** The show (else the film) with exactly that name that can be this programme, with its details; null when TMDB has none. */
+    private static Info search(Context c, String name, String about, long minutes, int season) throws IOException, JSONException {
         String key = Prefs.tmdbKey(c), lang = "&language=" + Recs.lang();
         for (String kind : new String[] {"tv", "movie"}) {
             boolean tv = kind.equals("tv");
@@ -117,8 +132,11 @@ final class LiveTmdb {
                 if (o == null) continue;
                 String a = o.optString(tv ? "name" : "title"), b = o.optString(tv ? "original_name" : "original_title");
                 if (!a.equalsIgnoreCase(name) && !b.equalsIgnoreCase(name)) continue;
+                if (!LiveTmdbMatch.plausible(name, o.optInt("vote_count"), o.optString("overview"), about)) continue;
                 JSONObject d = LiveArt.get(key, "/" + kind + "/" + o.optInt("id") + "?append_to_response="
                         + (tv ? "content_ratings,aggregate_credits" : "release_dates,credits") + lang);
+                if (!LiveTmdbMatch.fitsSeason(tv, season, d.optInt("number_of_seasons"))) continue;
+                if (!tv && !LiveTmdbMatch.fitsSlot(d.optInt("runtime"), minutes)) continue;
                 return info(d, tv);
             }
         }
@@ -256,6 +274,8 @@ final class LiveTmdb {
     }
 
     private static File file(Context c) {
-        return new File(c.getFilesDir(), "live-tmdb.json");
+        // -2: from when a name alone was a match; those answers aren't kept.
+        new File(c.getFilesDir(), "live-tmdb.json").delete();
+        return new File(c.getFilesDir(), "live-tmdb-2.json");
     }
 }

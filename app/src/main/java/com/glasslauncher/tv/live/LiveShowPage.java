@@ -83,8 +83,8 @@ final class LiveShowPage extends Dialog {
         this.recording = recording;
         this.names = names;
         page = new Page(c);
-        info = LiveTmdb.of(c, show.title, () -> page.post(() -> {
-            info = LiveTmdb.of(getContext(), show.title, null);
+        info = LiveTmdb.of(c, show, () -> page.post(() -> {
+            info = LiveTmdb.known(getContext(), show.title);
             page.invalidate();
         }));
         findAirings(c, lineup);
