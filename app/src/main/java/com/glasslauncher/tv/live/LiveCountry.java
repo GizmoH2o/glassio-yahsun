@@ -134,10 +134,32 @@ final class LiveCountry {
     /** A channel's country: its name's, else its category's ("" when neither says). */
     static String of(Xtream.Channel ch, Map<String, String> categoryCountry) {
         if (ch == null) return "";
+        if (startsWithUsState(ch, categoryCountry)) return "US";
         String c = splitCached(ch.name, false).code;
         if (!c.isEmpty() || categoryCountry == null || ch.category == null) return c;
         String cat = categoryCountry.get(ch.category);
         return cat == null ? "" : cat;
+    }
+
+    /** `ch`'s name as shown beside its tag: without its country, but a US state stays ("AL | Birmingham | WIAT"). */
+    static String shownName(Xtream.Channel ch, Map<String, String> categoryCountry) {
+        if (ch == null || ch.name == null) return "";
+        if (startsWithUsState(ch, categoryCountry)) return ch.name;
+        String n = splitCached(ch.name, false).name;
+        return n.isEmpty() ? ch.name : n;
+    }
+
+    /** US local channels start with their state, and many states' codes are countries' too: AL Albania, CA Canada, AR Arabic. */
+    private static final Set<String> US_STATES = new HashSet<>(java.util.Arrays.asList("AL", "AK", "AZ", "AR", "CA", "CO", "CT",
+            "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT",
+            "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA",
+            "WA", "WV", "WI", "WY"));
+
+    /** In a US category, "AL | Birmingham" is Alabama. Elsewhere the code keeps its usual meaning. */
+    private static boolean startsWithUsState(Xtream.Channel ch, Map<String, String> categoryCountry) {
+        if (ch.name == null || ch.category == null || categoryCountry == null || !"US".equals(categoryCountry.get(ch.category))) return false;
+        Matcher m = PUNCT_PREFIX.matcher(ch.name.trim());
+        return m.matches() && US_STATES.contains(m.group(1));
     }
 
     /** Categories A to Z by the name they show, then the same name by its country tag: Sports, Sports UK, Sports US. Pure. */

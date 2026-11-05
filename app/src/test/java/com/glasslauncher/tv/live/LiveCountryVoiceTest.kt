@@ -34,6 +34,21 @@ class LiveCountryVoiceTest {
         assertEquals("" to "Arte", split("Arte"))
     }
 
+    @Test fun usStatesAreNotCountries() {
+        val us = mapOf("1" to "US", "2" to "CA")
+        fun channel(name: String, category: String) = Xtream.Channel().also { it.name = name; it.category = category }
+        fun read(name: String, category: String = "1") = channel(name, category).let { LiveCountry.of(it, us) to LiveCountry.shownName(it, us) }
+        assertEquals("US" to "AR | Fort Smith | CBS KFSM", read("AR | Fort Smith | CBS KFSM"))
+        assertEquals("US" to "AL | Birmingham | CBS 42", read("AL | Birmingham | CBS 42"))
+        assertEquals("US" to "CA | Los Angeles | KCBS", read("CA | Los Angeles | KCBS"))
+        assertEquals("US" to "AK | Fairbanks | KXDF", read("AK | Fairbanks | KXDF"))
+        assertEquals("US" to "TLC", read("US: TLC"))
+        assertEquals("UK" to "Sky News", read("UK: Sky News"))
+        // Outside a US category the code means what it always did.
+        assertEquals(LiveCountry.ARABIC to "MBC 2", read("AR: MBC 2", "2"))
+        assertEquals("CA" to "CTV", read("CA: CTV", "2"))
+    }
+
     @Test fun favoritesByVoice() {
         fun fav(said: String) = LiveVoice.parseFavorite(said)?.let { it.channel to it.add }
         assertEquals("tlc" to true, fav("Add TLC to favourites"))

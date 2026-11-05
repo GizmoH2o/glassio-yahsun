@@ -1410,8 +1410,7 @@ final class LiveView extends View {
     String nameOf(Xtream.Channel ch) {
         if (ch == null || ch.name == null) return "";
         if (!LiveCountry.on(getContext())) return ch.name;
-        String n = LiveCountry.splitCached(ch.name, false).name;
-        return n.isEmpty() ? ch.name : n;
+        return LiveCountry.shownName(ch, categoryCountry);
     }
 
     /** A category's tag and its name as shown ("US | Entertainment" → US, "Entertainment"). */
