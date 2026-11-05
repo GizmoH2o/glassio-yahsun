@@ -128,12 +128,16 @@ class Tmdb(private val http: Http) {
     }
 
     private fun provider(kind: String, id: Int, token: String): String {
-        val us = get("https://api.themoviedb.org/3/$kind/$id/watch/providers", token).optJSONObject("results")?.optJSONObject("US") ?: return ""
-        for (cat in listOf("flatrate", "free", "ads")) {
-            val arr = us.optJSONArray(cat) ?: continue
-            for (i in 0 until arr.length()) {
-                val name = display(arr.optJSONObject(i)?.optString("provider_name").orEmpty())
-                if (name.isNotBlank()) return name
+        // The TV's own country first: what's on a service differs by country.
+        val all = get("https://api.themoviedb.org/3/$kind/$id/watch/providers", token).optJSONObject("results") ?: return ""
+        for (country in listOf(Locale.getDefault().country, "US")) {
+            val here = all.optJSONObject(country) ?: continue
+            for (cat in listOf("flatrate", "free", "ads")) {
+                val arr = here.optJSONArray(cat) ?: continue
+                for (i in 0 until arr.length()) {
+                    val name = display(arr.optJSONObject(i)?.optString("provider_name").orEmpty())
+                    if (name.isNotBlank()) return name
+                }
             }
         }
         return ""

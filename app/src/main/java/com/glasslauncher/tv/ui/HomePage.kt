@@ -106,13 +106,13 @@ private const val POSTER_W = 100f
 /** A poster rested on opens up to this much wider (its picture on top, its details under it). */
 private const val OPEN_W = 1.32f
 /** The accent: Settings › Home › Accent colour (Netflix's red unless another is picked). */
-private val RED: Color @Composable @androidx.compose.runtime.ReadOnlyComposable get() = LocalAccent.current
+internal val RED: Color @Composable @androidx.compose.runtime.ReadOnlyComposable get() = LocalAccent.current
 private val GREEN = Color(0xFF46D369)
 private val IMDB = Color(0xFFF5C518)
 internal val CARD = Color(0xFF1C1C1F)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, Movies, Series, Trending, RecFilms, RecSeries, Apps, Widgets }
+private enum class Part { Hero, Airing, Watch, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Apps, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -227,8 +227,12 @@ internal fun HomePage(
     val recTrending = if (recsOn) forKids(recRows.trending) else emptyList()
     val recFilms = if (recsOn) forKids(recRows.films) else emptyList()
     val recSeries = if (recsOn) forKids(recRows.series) else emptyList()
+    var collections by remember { mutableStateOf<List<Pair<String, List<HeroItem>>>>(emptyList()) }
+    LaunchedEffect(settings.homeCollections) {
+        collections = if (settings.homeCollections) withContext(Dispatchers.IO) { runCatching { app.recs.collections() }.getOrDefault(emptyList()) } else emptyList()
+    }
+    val colParts = listOf(Part.Col1, Part.Col2, Part.Col3)
     val parts = buildList {
-        add(Part.Hero)
         if (showAiring) add(Part.Airing)
         if (watchItems.isNotEmpty()) add(Part.Watch)
         if (showMovies) add(Part.Movies)
@@ -236,8 +240,14 @@ internal fun HomePage(
         if (recTrending.isNotEmpty()) add(Part.Trending)
         if (recFilms.isNotEmpty()) add(Part.RecFilms)
         if (recSeries.isNotEmpty()) add(Part.RecSeries)
+        collections.indices.forEach { if (it < colParts.size) add(colParts[it]) }
         if (anyApps) add(Part.Apps)
         if (showWidgets) add(Part.Widgets)
+    }.let { present ->
+        // As Settings › Home › Home rows arranges them: the big picture first, the rows in your order, without those off.
+        val off = settings.homeHidden.split(',').toSet()
+        listOf(Part.Hero) + com.glasslauncher.tv.data.HomeRows.order(settings.homeOrder)
+            .mapNotNull { n -> present.firstOrNull { it.name == n } }.filter { it.name !in off }
     }
     val entry = remember { mutableStateMapOf<Part, FocusRequester>() }
     fun req(p: Part) = if (p == Part.Hero) heroFocus else if (p == Part.Apps) appsFocus else entry.getOrPut(p) { FocusRequester() }
@@ -452,7 +462,9 @@ internal fun HomePage(
                             .onFocusChanged { if (it.hasFocus) inPart = part },
                     ) {
                         Row(Modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp), verticalAlignment = Alignment.Bottom) {
-                            Text(title, color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.Bold)
+                            val own = com.glasslauncher.tv.data.HomeRows.name(settings.homeNames, part.name)
+                            if (own.isNotEmpty()) RawText(own, color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.Bold)
+                            else Text(title, color = Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.Bold)
                             if (note.isNotBlank()) {
                                 Spacer(Modifier.width((8 * s).dp))
                                 Text(note, color = Color.White.copy(alpha = 0.5f), fontSize = (7.5f * s).sp, modifier = Modifier.padding(bottom = (1.5f * s).dp))
@@ -461,7 +473,7 @@ internal fun HomePage(
                         CompositionLocalProvider(LocalBringIntoViewSpec provides defaultSpec) { content() }
                     }
                 }
-                // ── Airing this week
+                val airingRow: @Composable () -> Unit = {
                 if (showAiring) section(Part.Airing, "Airing this week", "New episodes of shows in your library") {
                     CardRow(s, req(Part.Airing), above(Part.Airing), below(Part.Airing), airing.map { it.item.key + ":" + it.episode.season + ":" + it.episode.episode }) { i, mod ->
                         val a = airing[i]
@@ -469,7 +481,8 @@ internal fun HomePage(
                             onHold = { onDialog(titleMenu(app, ctx, a.item)) })
                     }
                 }
-                // ── Continue watching
+                }
+                val watchRow: @Composable () -> Unit = {
                 if (watchItems.isNotEmpty()) section(Part.Watch, "Continue watching") {
                     CardRow(s, req(Part.Watch), above(Part.Watch), below(Part.Watch), watchItems.map { it.key }) { i, mod ->
                         val item = watchItems[i]
@@ -477,6 +490,7 @@ internal fun HomePage(
                             onOpen = { if (LiveCards.isLive(item)) LiveCards.open(ctx, item) else openCard(item) },
                             onHold = { watchMenu(app, ctx, scope, item, onDialog) })
                     }
+                }
                 }
                 // ── your library
                 @Composable fun posters(part: Part, title: String, list: List<HeroItem>) = section(part, title) {
@@ -490,8 +504,6 @@ internal fun HomePage(
                         }
                     }
                 }
-                if (showMovies) posters(Part.Movies, "Movies in your library", kidsMovies)
-                if (showSeries) posters(Part.Series, "Series in your library", kidsSeries)
                 // ── recommendations
                 @Composable fun recs(part: Part, title: String, list: List<HeroItem>) = section(part, title) {
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
@@ -500,15 +512,13 @@ internal fun HomePage(
                             onHold = { if (!kids) onDialog(titleMenu(app, ctx, item)) })
                     }
                 }
-                if (recTrending.isNotEmpty()) recs(Part.Trending, "Trending now", recTrending)
-                if (recFilms.isNotEmpty()) recs(Part.RecFilms, "Popular films", recFilms)
-                if (recSeries.isNotEmpty()) recs(Part.RecSeries, "Popular series", recSeries)
-                // ── apps (Kids mode: only with apps chosen for it)
+                val appsRow: @Composable () -> Unit = {
                 if (anyApps) section(Part.Apps, "Apps") {
                     AppsGrid(app, s, settings.appsPerRow, appsFocus, above(Part.Apps), below(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu,
                         onRow = { r, top, bottom -> appRows[r] = (top + offset.value) to (bottom + offset.value) }, onFocusRow = { appRow = it })
                 }
-                // ── at a glance: the widgets
+                }
+                val widgetsRow: @Composable () -> Unit = {
                 if (showWidgets) section(Part.Widgets, "At a glance") {
                     CardRow(s, req(Part.Widgets), above(Part.Widgets), below(Part.Widgets), widgetKeys) { i, mod ->
                         val k = widgetKeys[i]
@@ -523,6 +533,24 @@ internal fun HomePage(
                                     onDialog(MenuDialog(r.name, listOf("Remove from Home" to { settings.haEntities = settings.haEntities - r.id })))
                                 })
                             }
+                        }
+                    }
+                }
+                }
+                parts.forEach { p ->
+                    androidx.compose.runtime.key(p) {
+                        when (p) {
+                            Part.Hero -> {}
+                            Part.Airing -> airingRow()
+                            Part.Watch -> watchRow()
+                            Part.Movies -> posters(Part.Movies, "Movies in your library", kidsMovies)
+                            Part.Series -> posters(Part.Series, "Series in your library", kidsSeries)
+                            Part.Trending -> recs(Part.Trending, "Trending now", recTrending)
+                            Part.RecFilms -> recs(Part.RecFilms, "Popular films", recFilms)
+                            Part.RecSeries -> recs(Part.RecSeries, "Popular series", recSeries)
+                            Part.Col1, Part.Col2, Part.Col3 -> collections.getOrNull(colParts.indexOf(p))?.let { (name, list) -> recs(p, name, forKids(list)) }
+                            Part.Apps -> appsRow()
+                            Part.Widgets -> widgetsRow()
                         }
                     }
                 }

@@ -20,6 +20,7 @@ class HomeProfiles(ctx: Context, private val settings: Settings) {
             "accent", "textSize", "homeSource", "homeAiring", "homeMovies", "homeSeries", "homeExpand", "homeFollow",
             "continueMode", "cwTrakt", "cwNuvio", "cwStremio", "cwLegacy", "cwDays", "cwNewFirst",
             "heroHidden", "heroBecause", "heroSeasonal", "homeTicker", "kidsMode", "kidsApps",
+            "homeOrder", "homeHidden", "homeNames", "homeCollections",
             "widgetsRow", "widgetWeather", "calLinks", "haEntities", "trailerMode", "recsMode", "cardOk",
         )
     }

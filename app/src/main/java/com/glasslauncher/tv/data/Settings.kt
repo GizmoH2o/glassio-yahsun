@@ -218,6 +218,14 @@ class Settings(private val ctx: Context) {
     /** The home screen's "Movies in your library" and "Series in your library" rows. */
     var homeMovies: Boolean get() = b("homeMovies", true); set(v) = putB("homeMovies", v)
     var homeSeries: Boolean get() = b("homeSeries", true); set(v) = putB("homeSeries", v)
+    /** The rows of Home in order, by name ("": HomeRows' order). */
+    var homeOrder: String get() = s("homeOrder", ""); set(v) = putS("homeOrder", v)
+    /** The rows turned off, by name, with commas. */
+    var homeHidden: String get() = s("homeHidden", ""); set(v) = putS("homeHidden", v)
+    /** The rows' own names: a JSON object, by row. */
+    var homeNames: String get() = s("homeNames", "{}"); set(v) = putS("homeNames", v)
+    /** Rows of well-known studios' films on Home. */
+    var homeCollections: Boolean get() = b("homeCollections", false); set(v) = putB("homeCollections", v)
     /** A poster rested on opens up into a wide card (picture, logo, details). */
     var homeExpand: Boolean get() = b("homeExpand", true); set(v) = putB("homeExpand", v)
     /** How many apps a row of the home screen's apps grid holds. */

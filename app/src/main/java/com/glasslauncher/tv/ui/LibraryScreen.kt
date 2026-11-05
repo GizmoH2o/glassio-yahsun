@@ -84,7 +84,9 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.library.refreshWatchlist(); app.library.refreshNuvio(); app.library.refreshStremio() } }
     // One tab per list in use: what you saved here, the Nuvio account's library, the Stremio account's, the Trakt
     // watchlist. Each shows its whole list.
-    val tabs = buildList {
+    val airingNow by app.shelf.airing.collectAsState()
+    val newIds = remember(airingNow) { airingNow.filter { it.out }.map { it.item.id }.toSet() }
+    val tabs = buildList<LibraryTab> {
         if (saved.isNotEmpty()) add(LibraryTab("saved", "Saved", saved, "") { it: HeroItem ->
             app.library.remove(it.key); toast(ctx, "Removed · ${it.name}")
         })
@@ -97,6 +99,13 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         if (st.libraryTrakt && app.cw.trakt.connected) add(LibraryTab("trakt", "Trakt", watch, status) { it: HeroItem ->
             app.library.removeFromWatchlist(it); toast(ctx, "Removed from the Trakt watchlist · ${it.name}")
         })
+        // Everything in one list, when there's more than one: a title in two of them shows once.
+        if (size > 1) {
+            val lists = toList()
+            add(0, LibraryTab("all", "All", lists.flatMap { it.items }.distinctBy { it.id.ifBlank { it.key } }, "") { it: HeroItem ->
+                toast(ctx, "Remove it from its own tab · ${it.name}")
+            })
+        }
     }
     var tabKey by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.firstOrNull()
@@ -133,10 +142,11 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                         color = Color.White.copy(alpha = 0.55f), fontSize = (10 * s).sp,
                     )
                     // The tabs: moving onto one shows its list (as the Apple TV app's tabs do); Down goes into it.
-                    if (tabs.size > 1) {
+                    if (shown.isNotEmpty() || tabs.size > 1) {
                         Spacer(Modifier.height((14 * s).dp))
-                        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                            tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, i == tabs.lastIndex, s, toTabs) { tabKey = t.key } }
+                        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            if (tabs.size > 1) tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, false, s, toTabs) { tabKey = t.key } }
+                            if (shown.isNotEmpty()) DsButton("Surprise me", s, Modifier.nav(up = toTabs)) { onTitle(shown.random()) }
                         }
                     }
                 }
@@ -147,7 +157,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                     Text("Nothing in this list yet.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
                 }
                 itemsIndexed(shown, key = { _, it -> tab.key + ":" + it.key }) { i, it ->
-                    Poster(it, s, st.libraryTitles, (if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
+                    Poster(it, it.id in newIds, s, st.libraryTitles, (if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
                         onFocused = { lastKey = it.key },
                         onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })
@@ -203,7 +213,7 @@ private fun Section(title: String, s: Float) {
 }
 
 @Composable
-private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier, onFocused: () -> Unit = {}, onOpen: () -> Unit, onRemove: () -> Unit) {
+private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, modifier: Modifier, onFocused: () -> Unit = {}, onOpen: () -> Unit, onRemove: () -> Unit) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     // No overshoot: a bouncy grow made the posters wobble while you moved along a row.
@@ -235,6 +245,8 @@ private fun Poster(item: HeroItem, s: Float, titles: Boolean, modifier: Modifier
             RawText(item.name, color = Color.White.copy(alpha = 0.6f), fontSize = (10 * s).sp, textAlign = TextAlign.Center,
                 modifier = Modifier.padding((8 * s).dp))
             AsyncImage(req, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (isNew) Text("NEW", color = Color.White, fontSize = (7 * s).sp, fontWeight = FontWeight.Black,
+                modifier = Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(RED).padding(horizontal = (4 * s).dp))
         }
         if (titles) RawText(item.name, color = Color.White.copy(alpha = if (focused) 0.95f else 0.6f), fontSize = (9.5f * s).sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = (7 * s).dp))

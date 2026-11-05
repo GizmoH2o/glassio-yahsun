@@ -760,3 +760,17 @@ Lineups	Aufstellungen
 League table	Tabelle
 Results	Ergebnisse
 Fixtures	Nächste Spiele
+Home rows	Reihen der Startseite
+Put the rows in your order, turn them off or give them your own name	Reihen ordnen, ausschalten oder selbst benennen
+Collections	Sammlungen
+Rows of Pixar, Studio Ghibli and Marvel Studios films	Reihen mit Filmen von Pixar, Studio Ghibli und Marvel Studios
+Move up	Nach oben
+Move down	Nach unten
+Show	Anzeigen
+Hide	Ausblenden
+Rename	Umbenennen
+Row name	Name der Reihe
+Leave it empty for the usual name	Leer lassen für den üblichen Namen
+All	Alle
+Remove it from its own tab · %s	Im eigenen Tab entfernen · %s
+Surprise me	Überrasch mich

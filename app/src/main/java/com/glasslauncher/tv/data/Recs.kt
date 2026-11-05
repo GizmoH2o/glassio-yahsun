@@ -21,6 +21,8 @@ import java.util.Locale
  * trending and popular, from TMDB (the token in Settings, else the one built into the app); with no token at all, from
  * Cinemeta's charts, so Home is never empty. Also what's like a title (its page's More like this), and search.
  */
+private val COLLECTIONS = listOf("Pixar" to 3, "Studio Ghibli" to 10342, "Marvel Studios" to 420)     // TMDB's companies
+
 class Recs(private val settings: Settings, private val http: Http) {
     data class Rows(val trending: List<HeroItem> = emptyList(), val films: List<HeroItem> = emptyList(), val series: List<HeroItem> = emptyList())
 
@@ -45,6 +47,18 @@ class Recs(private val settings: Settings, private val http: Http) {
     suspend fun refresh() {
         val r = if (token.isNotBlank()) runCatching { fromTmdb() }.onFailure { Glog.w("TMDB recommendations", it) }.getOrNull() else null
         rows.value = r?.takeIf { it.trending.isNotEmpty() } ?: fromCinemeta()
+    }
+
+    /** Home's Collections rows: a studio's best-known films, in the same order every time. Empty without a token. */
+    suspend fun collections(): List<Pair<String, List<HeroItem>>> = coroutineScope {
+        if (token.isBlank()) return@coroutineScope emptyList()
+        val genres = genreNames()
+        val lang = "&language=" + (TMDB_LANGS[settings.descLang] ?: "en-US")
+        COLLECTIONS.map { (name, company) ->
+            async {
+                name to runCatching { tmdbList("https://api.themoviedb.org/3/discover/movie?with_companies=$company&sort_by=vote_count.desc$lang", "movie", genres) }.getOrDefault(emptyList())
+            }
+        }.awaitAll().filter { it.second.isNotEmpty() }
     }
 
     // ── TMDB

@@ -258,6 +258,40 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Airing this week", "New episodes of the series in your library: out now, or when they come out", { st.homeAiring }, { st.homeAiring = it }),
                 Toggle("Movies in your library", "", { st.homeMovies }, { st.homeMovies = it }),
                 Toggle("Series in your library", "", { st.homeSeries }, { st.homeSeries = it }),
+                Act("Home rows", "Put the rows in your order, turn them off or give them your own name", "") {
+                    fun rows(): MenuDialog = MenuDialog("Home rows", com.glasslauncher.tv.data.HomeRows.order(st.homeOrder).map { n ->
+                        val off = n in st.homeHidden.split(',')
+                        val own = com.glasslauncher.tv.data.HomeRows.name(st.homeNames, n)
+                        (if (off) "○  " else "●  ") + own.ifEmpty { Lang.tr(com.glasslauncher.tv.data.HomeRows.title(n)) } to {
+                            fun again() { scope.launch { kotlinx.coroutines.delay(80); dialog = rows() } }
+                            scope.launch {
+                                kotlinx.coroutines.delay(80)
+                                dialog = MenuDialog(own.ifEmpty { Lang.tr(com.glasslauncher.tv.data.HomeRows.title(n)) }, buildList {
+                                    add("Move up" to { st.homeOrder = com.glasslauncher.tv.data.HomeRows.move(st.homeOrder, n, -1); again() })
+                                    add("Move down" to { st.homeOrder = com.glasslauncher.tv.data.HomeRows.move(st.homeOrder, n, 1); again() })
+                                    if (n != "Apps") add((if (off) "Show" else "Hide") to {
+                                        val l = st.homeHidden.split(',').filter { it.isNotEmpty() }
+                                        st.homeHidden = (if (off) l - n else l + n).joinToString(",")
+                                        again()
+                                    })
+                                    add("Rename" to {
+                                        scope.launch {
+                                            kotlinx.coroutines.delay(80)
+                                            dialog = TextEntry("Row name", own, "Leave it empty for the usual name") { typed ->
+                                                st.homeNames = com.glasslauncher.tv.data.HomeRows.rename(st.homeNames, n, typed)
+                                                again()
+                                            }
+                                        }
+                                        Unit
+                                    })
+                                })
+                            }
+                            Unit
+                        }
+                    })
+                    dialog = rows()
+                },
+                Toggle("Collections", "Rows of Pixar, Studio Ghibli and Marvel Studios films", { st.homeCollections }, { st.homeCollections = it }),
                 Toggle("Posters open up when selected", "Rest on a poster: it opens into a wide card with its picture, rating, year and genres", { st.homeExpand }, { st.homeExpand = it }),
                 Toggle("Big picture follows the selection", "The title selected in a row fills the top of the page", { st.homeFollow }, { st.homeFollow = it }),
                 Note("The big picture: titles from your catalogs (Settings › Catalogs). Play opens one; My Library saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play: Not interested, or another picture."),

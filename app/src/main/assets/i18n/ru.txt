@@ -760,3 +760,17 @@ Lineups	Составы
 League table	Турнирная таблица
 Results	Результаты
 Fixtures	Ближайшие матчи
+Home rows	Ряды на главной
+Put the rows in your order, turn them off or give them your own name	Расставьте ряды по порядку, отключите их или дайте своё название
+Collections	Подборки
+Rows of Pixar, Studio Ghibli and Marvel Studios films	Ряды фильмов Pixar, Studio Ghibli и Marvel Studios
+Move up	Выше
+Move down	Ниже
+Show	Показать
+Hide	Скрыть
+Rename	Переименовать
+Row name	Название ряда
+Leave it empty for the usual name	Оставьте пустым для обычного названия
+All	Все
+Remove it from its own tab · %s	Удалите на его вкладке · %s
+Surprise me	Удиви меня

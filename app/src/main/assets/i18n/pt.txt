@@ -759,3 +759,17 @@ Lineups	Escalações
 League table	Classificação
 Results	Resultados
 Fixtures	Próximos jogos
+Home rows	Linhas do Início
+Put the rows in your order, turn them off or give them your own name	Ponha as linhas na sua ordem, desligue-as ou dê a elas seu próprio nome
+Collections	Coleções
+Rows of Pixar, Studio Ghibli and Marvel Studios films	Linhas de filmes da Pixar, Studio Ghibli e Marvel Studios
+Move up	Mover para cima
+Move down	Mover para baixo
+Show	Mostrar
+Hide	Ocultar
+Rename	Renomear
+Row name	Nome da linha
+Leave it empty for the usual name	Deixe vazio para o nome de sempre
+All	Tudo
+Remove it from its own tab · %s	Tire pela aba dele · %s
+Surprise me	Me surpreenda
