@@ -143,4 +143,72 @@ class LivePlayerRulesTest {
         assertEquals(15, LiveRail.window(19, 20, 5, 0))
         assertEquals(0, LiveRail.window(2, 3, 5, 0))
     }
+
+    // Moments: a row of tiles, the focus stops at either end.
+
+    @Test fun `the moments' focus moves along the tiles and stops at the ends`() {
+        assertEquals(1, LivePlayerMoments.step(0, 1, 5))
+        assertEquals(0, LivePlayerMoments.step(0, -1, 5))
+        assertEquals(4, LivePlayerMoments.step(4, 1, 5))
+    }
+
+    @Test fun `more moments than tiles slide along with the focus`() {
+        assertEquals(0, LiveRail.window(4, 8, LivePlayerMoments.TILES, 0))
+        assertEquals(1, LiveRail.window(5, 8, LivePlayerMoments.TILES, 0))
+    }
+
+    // The row of tabs: live, and its own for a past show.
+
+    @Test fun `live has the tabs, Start over beside them and no Options`() {
+        val tabs = LiveOverlay.tabs(false, true, true, true, true).toList()
+        assertEquals(listOf(LiveOverlay.INFO, LiveOverlay.CHANNELS, LiveOverlay.AUDIO, LiveOverlay.MOMENTS, LiveOverlay.START_OVER), tabs)
+    }
+
+    @Test fun `a past show has the skips, then Moments, Audio and Back to live`() {
+        val tabs = LiveOverlay.tabs(true, true, true, true, true).toList()
+        assertEquals(listOf(LiveOverlay.SKIP_BACK, LiveOverlay.SKIP_AHEAD, LiveOverlay.MOMENTS, LiveOverlay.AUDIO, LiveOverlay.LIVE), tabs)
+    }
+
+    @Test fun `no match means no Moments tab`() {
+        assertFalse(LiveOverlay.tabs(true, true, true, false, true).contains(LiveOverlay.MOMENTS))
+        assertFalse(LiveOverlay.tabs(false, true, true, false, true).contains(LiveOverlay.MOMENTS))
+    }
+
+    @Test fun `a channel that cannot seek has Play first and no Start over`() {
+        val tabs = LiveOverlay.tabs(false, false, true, false, false).toList()
+        assertEquals(LiveOverlay.PLAY, tabs[0])
+        assertFalse(tabs.contains(LiveOverlay.START_OVER))
+    }
+
+    // Catch-up says how long ago the show was.
+
+    @Test fun `days ago counts calendar days, not hours`() {
+        val c = java.util.Calendar.getInstance()
+        c.set(2026, 10, 5, 0, 30, 0)
+        val now = c.timeInMillis
+        c.set(2026, 10, 4, 23, 30, 0)
+        assertEquals(1, LiveCatchup.daysAgo(c.timeInMillis, now))
+        c.set(2026, 10, 5, 0, 5, 0)
+        assertEquals(0, LiveCatchup.daysAgo(c.timeInMillis, now))
+        c.set(2026, 10, 2, 12, 0, 0)
+        assertEquals(3, LiveCatchup.daysAgo(c.timeInMillis, now))
+    }
+
+    // Info: the buttons wrap, and the focus moves to the nearest one on the next line.
+
+    @Test fun `the buttons wrap when a line is full`() {
+        assertEquals(listOf(0, 0, 1, 1), LivePlayerInfo.lines(floatArrayOf(40f, 40f, 40f, 40f), 90f, 10f).toList())
+    }
+
+    @Test fun `a button wider than the line still gets a line`() {
+        assertEquals(listOf(0, 1), LivePlayerInfo.lines(floatArrayOf(200f, 40f), 90f, 10f).toList())
+    }
+
+    @Test fun `down lands on the nearest button of that line`() {
+        val mids = floatArrayOf(50f, 150f, 250f, 40f, 240f)
+        val line = intArrayOf(0, 0, 0, 1, 1)
+        assertEquals(4, LivePlayerInfo.nearest(mids, line, 1, 250f))
+        assertEquals(3, LivePlayerInfo.nearest(mids, line, 1, 50f))
+        assertEquals(-1, LivePlayerInfo.nearest(mids, line, 2, 50f))
+    }
 }

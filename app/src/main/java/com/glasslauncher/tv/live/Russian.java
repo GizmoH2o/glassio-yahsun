@@ -248,7 +248,8 @@ final class Russian {
             case "Next on ": return "Далее на ";
             case "Also: ": return "Также: ";
             case "OK: what else is on  ·  Back closes": return "ОК — что ещё идёт  ·  Назад — закрыть";
-            case "Goals and cards stay hidden until you ask.": return "Голы и карточки скрыты, пока вы не попросите.";
+            case "Moments can spoil the match": return "Моменты могут раскрыть исход матча";
+            case "Goals and cards stay hidden until you say so. You can change this in Settings.": return "Голы и карточки скрыты, пока вы не попросите. Это можно изменить в настройках.";
             case "Show moments": return "Показать моменты";
             case "Goal": return "Гол";
             case "Subtitle size": return "Размер субтитров";
@@ -317,6 +318,10 @@ final class Russian {
             case "Late night": return "Поздней ночью";
             case "More options": return "Другие параметры";
             case "By time of day": return "По времени суток";
+            case "Record series": return "Записать сериал";
+            case "◀ Rewind": return "◀ Назад";
+            case "◀ ▶ add up skips": return "◀ ▶ суммируйте переходы";
+            case "Stopped pressing? It jumps here in 1 s": return "Отпустили? Переход сюда через 1 с";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

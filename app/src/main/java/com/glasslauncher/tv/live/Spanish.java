@@ -239,7 +239,8 @@ final class Spanish {
             case "Next on ": return "A continuación en ";
             case "Also: ": return "También: ";
             case "OK: what else is on  ·  Back closes": return "OK: qué más hay  ·  Atrás cierra";
-            case "Goals and cards stay hidden until you ask.": return "Los goles y las tarjetas siguen ocultos hasta que lo pidas.";
+            case "Moments can spoil the match": return "Los momentos pueden destripar el partido";
+            case "Goals and cards stay hidden until you say so. You can change this in Settings.": return "Los goles y las tarjetas siguen ocultos hasta que lo pidas. Puedes cambiarlo en Ajustes.";
             case "Show moments": return "Mostrar momentos";
             case "Goal": return "Gol";
             case "Subtitle size": return "Tamaño de subtítulos";
@@ -308,6 +309,10 @@ final class Spanish {
             case "Late night": return "De madrugada";
             case "More options": return "Más opciones";
             case "By time of day": return "Según la hora del día";
+            case "Record series": return "Grabar serie";
+            case "◀ Rewind": return "◀ Retroceder";
+            case "◀ ▶ add up skips": return "◀ ▶ suma saltos";
+            case "Stopped pressing? It jumps here in 1 s": return "¿Dejaste de pulsar? Salta aquí en 1 s";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

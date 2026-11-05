@@ -26,6 +26,28 @@ final class LiveCatchup {
         return Math.floorDiv(start + from, MINUTE) * MINUTE - start;
     }
 
+    /** How many calendar days before `now` that moment was (0: today). Pure. */
+    static int daysAgo(long when, long now) {
+        return (int) Math.round((midnight(now) - midnight(when)) / (24 * 3600_000.0));
+    }
+
+    private static long midnight(long at) {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        c.setTimeInMillis(at);
+        c.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        c.set(java.util.Calendar.MINUTE, 0);
+        c.set(java.util.Calendar.SECOND, 0);
+        c.set(java.util.Calendar.MILLISECOND, 0);
+        return c.getTimeInMillis();
+    }
+
+    /** Today, Yesterday, else the weekday. */
+    static String dayName(long when, long now) {
+        int days = daysAgo(when, now);
+        return days <= 0 ? Ui.tr("Hoje", "Today") : days == 1 ? Ui.tr("Ontem", "Yesterday")
+                : new SimpleDateFormat("EEE", Ui.locale()).format(new Date(when));
+    }
+
     /** One press of ◀ or ▶ on the bar: a minute on a provider's catch-up, else 10 s back and 30 s ahead. */
     static long skipStep(boolean minutes, boolean back) {
         return minutes ? (back ? -MINUTE : MINUTE) : (back ? -10_000 : 30_000);

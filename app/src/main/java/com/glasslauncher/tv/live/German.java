@@ -249,7 +249,8 @@ final class German {
             case "Next on ": return "Als Nächstes auf ";
             case "Also: ": return "Auch: ";
             case "OK: what else is on  ·  Back closes": return "OK: Was läuft sonst  ·  Zurück schließt";
-            case "Goals and cards stay hidden until you ask.": return "Tore und Karten bleiben verborgen, bis du sie abrufst.";
+            case "Moments can spoil the match": return "Momente können das Spiel verraten";
+            case "Goals and cards stay hidden until you say so. You can change this in Settings.": return "Tore und Karten bleiben verborgen, bis du sie abrufst. Das kannst du in den Einstellungen ändern.";
             case "Show moments": return "Momente zeigen";
             case "Goal": return "Tor";
             case "Subtitle size": return "Untertitelgröße";
@@ -318,6 +319,10 @@ final class German {
             case "Late night": return "Spätnachts";
             case "More options": return "Weitere Optionen";
             case "By time of day": return "Nach Tageszeit";
+            case "Record series": return "Serie aufnehmen";
+            case "◀ Rewind": return "◀ Zurückspulen";
+            case "◀ ▶ add up skips": return "◀ ▶ Sprünge addieren";
+            case "Stopped pressing? It jumps here in 1 s": return "Nicht mehr gedrückt? Springt in 1 s hierher";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

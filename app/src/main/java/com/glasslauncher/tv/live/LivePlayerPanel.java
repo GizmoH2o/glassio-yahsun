@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * The card at the right of the player for its tabs (Info, Audio & Subtitles, Moments, Options): a title, some words,
+ * The card at the right of the player for Audio & Subtitles: a title, some words,
  * then rows, drawn over the video, which keeps playing. The design's card, edge, corners and focus. ▲ ▼ move, OK
  * presses, Back closes. Rows are asked for again after a press, so a choice shows at once.
  */
@@ -101,12 +101,6 @@ final class LivePlayerPanel {
         slide.target = 1;
         if (focus >= 0) view.announceForAccessibility(title + ", " + this.rows.get(focus).text);
         view.invalidate();
-    }
-
-    /** New words on the same card (Moments, once it's asked to show them). */
-    void show(String text) {
-        body = text == null ? "" : text;
-        about = null;
     }
 
     /** The rows again (a choice made), the focus where it was. */

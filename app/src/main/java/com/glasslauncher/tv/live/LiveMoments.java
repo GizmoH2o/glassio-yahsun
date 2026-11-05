@@ -48,6 +48,22 @@ final class LiveMoments {
         }
     }
 
+    /** A made-up match of `count` moments spread along a show that long, for the test broadcast. Pure. */
+    static Match sample(int count, long length) {
+        Match m = new Match();
+        m.home = "HAR";
+        m.away = "NOR";
+        for (int i = 0; i < count; i++) {
+            Moment at = new Moment();
+            at.minute = 90 * (i + 1) / (count + 1);
+            at.kind = i % 3 == 2 ? RED : GOAL;
+            at.at = length * (i + 1) / (count + 1);
+            at.who = at.kind == RED ? "NOR" : "HAR " + (i + 1) + "–0";
+            m.moments.add(at);
+        }
+        return m;
+    }
+
     /** "12'" is 12, "45'+2'" 47; -1 when it isn't a minute. Pure. */
     static int minuteOf(String clock) {
         int total = 0;

@@ -237,7 +237,8 @@ final class French {
             case "Next on ": return "Ensuite sur ";
             case "Also: ": return "Aussi : ";
             case "OK: what else is on  ·  Back closes": return "OK : autres programmes  ·  Retour ferme";
-            case "Goals and cards stay hidden until you ask.": return "Les buts et les cartons restent masqués jusqu'à votre demande.";
+            case "Moments can spoil the match": return "Les moments peuvent gâcher le match";
+            case "Goals and cards stay hidden until you say so. You can change this in Settings.": return "Les buts et les cartons restent masqués jusqu'à votre demande. Vous pouvez changer cela dans les réglages.";
             case "Show moments": return "Afficher les moments";
             case "Goal": return "But";
             case "Subtitle size": return "Taille des sous-titres";
@@ -306,6 +307,10 @@ final class French {
             case "Late night": return "Tard le soir";
             case "More options": return "Plus d'options";
             case "By time of day": return "Selon le moment de la journée";
+            case "Record series": return "Enregistrer la série";
+            case "◀ Rewind": return "◀ Reculer";
+            case "◀ ▶ add up skips": return "◀ ▶ cumulez les sauts";
+            case "Stopped pressing? It jumps here in 1 s": return "Plus d'appui ? Saut ici dans 1 s";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

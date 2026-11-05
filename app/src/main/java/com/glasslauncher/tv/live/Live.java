@@ -543,6 +543,11 @@ public class Live extends Activity {
                 view.aboutPlaying();
                 return;
             }
+            int sample = i.getIntExtra("moments", -1);
+            if (sample >= 0) {      // Moments on a stand-in match; guarded: as they ask first; 0: the real ones again
+                view.testMoments(sample, i.getBooleanExtra("guarded", false));
+                return;
+            }
             if (i.getBooleanExtra("streaminfo", false)) {     // Stream info, as About's button opens it
                 view.streamInfo();
                 return;

@@ -3092,6 +3092,16 @@ final class LiveView extends View {
     }
 
     /** The player's About the show: what's playing on its own page, with what can be done with it. */
+    /** Series choices for the show on now (Info's Record series). */
+    void seriesPlaying(Xtream.Program p) {
+        Xtream.Channel channel = live.playing();
+        if (channel != null) seriesMenu(channel, p);
+    }
+
+    void testMoments(int count, boolean locked) {
+        overlay.testMoments(count, locked);
+    }
+
     void aboutPlaying() {
         final Xtream.Channel channel = live.playing();
         final Xtream.Program p = playingShow();
