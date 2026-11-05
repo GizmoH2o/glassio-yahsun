@@ -495,7 +495,11 @@ final class LiveShowPage extends Dialog {
                     : isToday(show.start) ? Ui.tr("ÀS ", "ON AT ") + Ui.time(show.start)
                     : day(show.start).toUpperCase(Ui.locale()) + "  ·  " + Ui.time(show.start);
             String where = (channel.num > 0 ? channel.num + " " : "") + names.name(channel);
-            c.drawText(ellipsize(when + "  ·  " + where.toUpperCase(Ui.locale()), g3Kicker, tw), x, 72 * k, g3Kicker);
+            String tag = names.tag(channel);
+            LiveCountry.label(g3Ch, tagPaint);      // its lettering grey, not the line's red
+            String kickerLine = ellipsize(when + "  ·  " + where.toUpperCase(Ui.locale()), g3Kicker, tw - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k));
+            c.drawText(kickerLine, x, 72 * k, g3Kicker);
+            LiveCountry.drawTag(c, tag, x + g3Kicker.measureText(kickerLine) + 12 * k, 72 * k, g3Ch, tagPaint, k);
             String name = show.title.isEmpty() ? channel.name : show.title;
             c.drawText(ellipsize(name, g3Title, 1500 * k), x, 147 * k, g3Title);
             // Year, genres, the episode, how long, the age, the score.
@@ -620,7 +624,7 @@ final class LiveShowPage extends Dialog {
                 String top = running ? Ui.time(p.start) + " – " + Ui.time(p.end) : whenLine(p);
                 c.drawText(ellipsize(top, on ? g3WhenOn : g3When, room), tx, y + 36 * k, on ? g3WhenOn : g3When);
                 c.drawText(ellipsize(episodeLine(p), on ? g3EpOn : g3Ep, room), tx, y + 68 * k, on ? g3EpOn : g3Ep);
-                c.drawText(ellipsize((ac.num > 0 ? ac.num + " " : "") + names.name(ac), on ? g3ChOn : g3Ch, room), tx, y + 97 * k, on ? g3ChOn : g3Ch);
+                textAndTag(c, (ac.num > 0 ? ac.num + " " : "") + names.name(ac), names.tag(ac), tx, y + 97 * k, on ? g3ChOn : g3Ch, room);
             }
         }
 
