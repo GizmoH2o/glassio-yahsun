@@ -736,3 +736,7 @@ Scores shown · %s	Marcador visible · %s
 Also called	También llamado
 Other names it has in the guide, with commas between them	Otros nombres que tiene en la guía, separados por comas
 Names saved	Nombres guardados
+For 24 hours	Durante 24 horas
+For 3 days	Durante 3 días
+Until I show them	Hasta que los muestre
+%s · scores hidden	%s · marcador oculto

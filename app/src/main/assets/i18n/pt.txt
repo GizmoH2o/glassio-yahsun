@@ -736,3 +736,7 @@ Scores shown · %s	Placar visível · %s
 Also called	Também chamado
 Other names it has in the guide, with commas between them	Outros nomes que tem no guia, separados por vírgulas
 Names saved	Nomes salvos
+For 24 hours	Por 24 horas
+For 3 days	Por 3 dias
+Until I show them	Até eu mostrar
+%s · scores hidden	%s · placar oculto

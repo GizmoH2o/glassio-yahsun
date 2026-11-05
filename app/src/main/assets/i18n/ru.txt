@@ -737,3 +737,7 @@ Scores shown · %s	Счёт показан · %s
 Also called	Другие названия
 Other names it has in the guide, with commas between them	Другие названия в телегиде, через запятую
 Names saved	Названия сохранены
+For 24 hours	На 24 часа
+For 3 days	На 3 дня
+Until I show them	Пока не покажу
+%s · scores hidden	%s · счёт скрыт

@@ -330,7 +330,7 @@ final class LiveShowPage extends Dialog {
                 LiveEpisode.draw(c, ep, x, y + episode.getTextSize() * 0.8f, episode, TEXT_W * k, k);
                 y += episode.getTextSize() * 1.9f;
             }
-            String own = ep == null ? show.about : LiveEpisode.aboutWithout(show.about, show.sub);
+            String own = LiveNames.about(getContext(), show.title, ep == null ? show.about : LiveEpisode.aboutWithout(show.about, show.sub));
             String text = !own.isEmpty() ? own : info != null ? info.overview : "";
             if (!text.equals(aboutText)) {
                 aboutText = text;

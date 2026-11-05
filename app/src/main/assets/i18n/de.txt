@@ -737,3 +737,7 @@ Scores shown · %s	Spielstand sichtbar · %s
 Also called	Auch genannt
 Other names it has in the guide, with commas between them	Andere Namen im Programm, durch Kommas getrennt
 Names saved	Namen gespeichert
+For 24 hours	Für 24 Stunden
+For 3 days	Für 3 Tage
+Until I show them	Bis ich sie einblende
+%s · scores hidden	%s · Spielstand ausgeblendet

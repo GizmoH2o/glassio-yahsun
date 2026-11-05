@@ -191,12 +191,22 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
 }
 
 /** Spoiler-free: a followed team's scores hidden or shown again; [done]: the page reads them anew. */
-private fun scoresChoice(ctx: Context, term: String, done: () -> Unit): Pair<String, () -> Unit> {
-    val hidden = LiveHome.spoilerFree(ctx, term)
-    return (if (hidden) "Show scores" else "Hide scores") to {
-        LiveHome.setSpoilerFree(ctx, term, !hidden)
-        toast(ctx, (if (hidden) "Scores shown · " else "Scores hidden · ") + term)
+private fun scoresChoice(ctx: Context, term: String, ask: (DialogState) -> Unit, done: () -> Unit): Pair<String, () -> Unit> {
+    val hide: (Int) -> Unit = { hours ->
+        LiveHome.setSpoilerFree(ctx, term, true, hours)
+        toast(ctx, "Scores hidden · $term")
         done()
+    }
+    return if (LiveHome.spoilerFree(ctx, term)) "Show scores" to {
+        LiveHome.setSpoilerFree(ctx, term, false, 0)
+        toast(ctx, "Scores shown · $term")
+        done()
+    } else "Hide scores" to {
+        ask(MenuDialog("Hide scores", listOf(
+            "For 24 hours" to { hide(24) },
+            "For 3 days" to { hide(72) },
+            "Until I show them" to { hide(0) },
+        )))
     }
 }
 
@@ -279,10 +289,10 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
                 EdgeRow(s, (10 * s).dp, (4 * s).dp) { first ->
                     items(d.terms.size, key = { "t:" + d.terms[it] }) { i ->
                         val term = d.terms[i]
-                        ChipView(term, s, (if (i == 0) first else Modifier).then(if (term == cameFrom) Modifier.focusRequester(chip) else Modifier), onLong = {
+                        ChipView(if (LiveHome.spoilerFree(ctx, term)) "$term · scores hidden" else term, s, (if (i == 0) first else Modifier).then(if (term == cameFrom) Modifier.focusRequester(chip) else Modifier), onLong = {
                             dialog = MenuDialog(term, listOf(
                                 "Open" to { stopArmedAt = 0; team = term },
-                                scoresChoice(ctx, term) { reload++ },
+                                scoresChoice(ctx, term, { dialog = it }) { reload++ },
                                 "Stop following" to {
                                     scope.launch { withContext(Dispatchers.IO) { LiveHome.unfollow(app, term) }; toast(ctx, "Stopped following $term"); reload++ }
                                 },
@@ -301,7 +311,7 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
             item(key = "teamChips") {
                 Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                     ChipView("‹  Following", s, Modifier.focusRequester(first), null) { leaveTeam() }
-                    scoresChoice(ctx, t) { reload++ }.let { (label, act) -> ChipView(label, s, Modifier, null, act) }
+                    scoresChoice(ctx, t, { dialog = it }) { reload++ }.let { (label, act) -> ChipView(label, s, Modifier, null, act) }
                     ChipView("Also called", s, Modifier, null) {
                         dialog = TextEntry("Also called", LiveHome.alsoCalled(ctx, t), "Other names it has in the guide, with commas between them") { names ->
                             scope.launch {

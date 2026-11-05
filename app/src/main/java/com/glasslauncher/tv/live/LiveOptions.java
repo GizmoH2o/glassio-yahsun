@@ -590,7 +590,7 @@ final class LiveOptions {
             File f = new File(c.getFilesDir(), "live-spoiler-free");
             if (f.exists()) {
                 try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
-                    for (String line : Xtream.read(in).split("\n")) if (!line.trim().isEmpty()) read.add(line.trim());
+                    read.addAll(activeSpoilerFree(Xtream.read(in), System.currentTimeMillis()));
                 } catch (java.io.IOException | RuntimeException ignored) {
                 }
             }
@@ -599,12 +599,46 @@ final class LiveOptions {
         return spoilerFree;
     }
 
-    static synchronized void setSpoilerFree(Context c, String folded, boolean on) {
+    /** The teams of the file's lines ("team" or "team|when it ends") that haven't ended. Pure. */
+    static Set<String> activeSpoilerFree(String file, long now) {
+        Set<String> out = new java.util.HashSet<>();
+        for (String line : file.split("\n")) {
+            String l = line.trim();
+            int bar = l.lastIndexOf('|');
+            long until = 0;
+            if (bar > 0) {
+                try {
+                    until = Long.parseLong(l.substring(bar + 1));
+                } catch (NumberFormatException ignored) {
+                }
+                l = l.substring(0, bar);
+            }
+            if (!l.isEmpty() && (until == 0 || until > now)) out.add(l);
+        }
+        return out;
+    }
+
+    static synchronized void setSpoilerFree(Context c, String folded, boolean on, long until) {
         Set<String> now = new java.util.HashSet<>(spoilerFree(c));
         if (on) now.add(folded);
         else now.remove(folded);
+        File f = new File(c.getFilesDir(), "live-spoiler-free");
         try {
-            Xtream.write(new File(c.getFilesDir(), "live-spoiler-free"), android.text.TextUtils.join("\n", now));
+            StringBuilder b = new StringBuilder();
+            String old = "";
+            if (f.exists()) {
+                try (java.io.FileInputStream in = new java.io.FileInputStream(f)) {
+                    old = Xtream.read(in);
+                }
+            }
+            // The others keep when they end.
+            for (String line : old.split("\n")) {
+                int bar = line.lastIndexOf('|');
+                String team = (bar > 0 ? line.substring(0, bar) : line).trim();
+                if (!team.isEmpty() && !team.equals(folded) && now.contains(team)) b.append(line.trim()).append('\n');
+            }
+            if (on) b.append(folded).append(until > 0 ? "|" + until : "").append('\n');
+            Xtream.write(f, b.toString());
         } catch (java.io.IOException e) {
             AppLog.w("live: couldn't save the spoiler-free teams");
         }

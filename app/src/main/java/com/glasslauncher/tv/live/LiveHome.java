@@ -33,8 +33,9 @@ public final class LiveHome {
         return LiveOptions.spoilerFree(c).contains(LiveNames.key(term));
     }
 
-    public static void setSpoilerFree(Context c, String term, boolean on) {
-        LiveOptions.setSpoilerFree(c, LiveNames.key(term), on);
+    /** `hours`: when it ends by itself (0: when you show them again). */
+    public static void setSpoilerFree(Context c, String term, boolean on, int hours) {
+        LiveOptions.setSpoilerFree(c, LiveNames.key(term), on, hours <= 0 ? 0 : System.currentTimeMillis() + hours * 3600_000L);
     }
 
     /** Reduce motion, for Live TV's process too: a file, as it can't see the preferences change. */
@@ -180,7 +181,7 @@ public final class LiveHome {
             s.start = a.p.start;
             s.end = a.p.end;
             s.title = a.p.title;
-            s.about = a.p.about;
+            s.about = LiveNames.about(c, a.p.title, a.p.about);
             LiveSchedule.add(c, s);
         }
         if (remind) a.remind = !set;
@@ -370,7 +371,7 @@ public final class LiveHome {
         }
         a.logo = logoOf(c, ch);
         if (p != null) {
-            a.title = p.title;
+            a.title = LiveNames.spoiled(c, p.title) ? LiveNames.withoutResult(p.title) : p.title;
             a.teams = LiveMatchDay.teams(p.title);
             a.start = p.start;
             a.end = p.end;
@@ -515,7 +516,8 @@ public final class LiveHome {
     private static final String[] VERSUS = {" v ", " vs ", " vs. ", " x ", " - ", " – ", " @ ", " at "};
     // Left out of a side's name, so "AFC Bournemouth" and "Bournemouth" are the same team.
     // "(F)" and "(W)": the women's side, as the guide marks it on some channels and not others.
-    private static final Set<String> CLUB_WORDS = new HashSet<>(java.util.Arrays.asList("fc", "afc", "cf", "sc", "the", "f", "w"));
+    // "(Z)", "MD4": marks some channels add after a team's name.
+    private static final Set<String> CLUB_WORDS = new HashSet<>(java.util.Arrays.asList("fc", "afc", "cf", "sc", "the", "f", "w", "z"));
 
     /** The two sides of a match, sorted and folded, each by its team's main name ("bournemouth|manchester united"); null for anything else. */
     static String teamsKey(String title) {
@@ -535,7 +537,7 @@ public final class LiveHome {
     private static String side(String s) {
         StringBuilder b = new StringBuilder();
         for (String w : Xtream.fold(s).split(" ")) {
-            if (w.isEmpty() || CLUB_WORDS.contains(w)) continue;
+            if (w.isEmpty() || CLUB_WORDS.contains(w) || w.matches("md\\d+")) continue;
             if (b.length() > 0) b.append(' ');
             b.append(w);
         }

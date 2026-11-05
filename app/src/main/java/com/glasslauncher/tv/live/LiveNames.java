@@ -64,7 +64,7 @@ final class LiveNames {
             "borussia dortmund|dortmund|bvb",
             "borussia monchengladbach|borussia moenchengladbach|monchengladbach|moenchengladbach|gladbach|b monchengladbach",
             "bayer leverkusen|bayer 04 leverkusen|leverkusen",
-            "rb leipzig|leipzig",
+            "rb leipzig|leipzig|rb lipsia|lipsia",
             "eintracht frankfurt|e frankfurt|frankfurt",
             // France
             "paris saint germain|paris st germain|paris sg|psg",
@@ -86,6 +86,69 @@ final class LiveNames {
                     + "|sporting~sporting kansas city,sporting kc,sporting gijon,sporting cristal,sporting charleroi",
             "afc ajax|ajax",
             "psv eindhoven|psv",
+            // The NBA and the NFL
+            "atlanta hawks|hawks~",
+            "boston celtics|celtics",
+            "brooklyn nets|nets~",
+            "charlotte hornets|hornets~watford",
+            "chicago bulls|bulls~bradford bulls,bradford",
+            "cleveland cavaliers|cavaliers~|cavs",
+            "dallas mavericks|mavericks~|mavs",
+            "denver nuggets|nuggets",
+            "detroit pistons|pistons",
+            "golden state warriors|warriors~wigan,warrington,glasgow,worcester",
+            "houston rockets|rockets~",
+            "indiana pacers|pacers",
+            "los angeles clippers|la clippers|clippers",
+            "los angeles lakers|la lakers|lakers",
+            "memphis grizzlies|grizzlies",
+            "milwaukee bucks|bucks~",
+            "minnesota timberwolves|timberwolves",
+            "new orleans pelicans|pelicans",
+            "new york knicks|ny knicks|knicks",
+            "oklahoma city thunder|okc thunder|okc",
+            "philadelphia 76ers|76ers|sixers",
+            "phoenix suns|suns~gold coast",
+            "portland trail blazers|trail blazers|blazers",
+            "sacramento kings|kings~los angeles kings,la kings",
+            "san antonio spurs|sa spurs",
+            "toronto raptors|raptors~",
+            "washington wizards|wizards~",
+            "miami heat|mia heat",
+            "orlando magic|orl magic",
+            "utah jazz|uta jazz",
+            "arizona cardinals|cardinals~st louis",
+            "atlanta falcons|falcons~newcastle falcons",
+            "baltimore ravens|ravens~",
+            "buffalo bills|bills~",
+            "carolina panthers|panthers~florida,penrith",
+            "chicago bears|bears~birmingham,boston",
+            "cincinnati bengals|bengals",
+            "cleveland browns|browns~",
+            "dallas cowboys|cowboys~",
+            "denver broncos|broncos~brisbane",
+            "detroit lions|lions~british,irish,brisbane",
+            "green bay packers|packers",
+            "houston texans|texans",
+            "indianapolis colts|colts~",
+            "jacksonville jaguars|jaguars~",
+            "kansas city chiefs|chiefs~exeter,gold coast",
+            "las vegas raiders|raiders~canberra",
+            "los angeles chargers|la chargers|chargers",
+            "los angeles rams|la rams|rams~parramatta,leeds",
+            "miami dolphins|dolphins~",
+            "minnesota vikings|vikings~widnes",
+            "new england patriots|patriots~",
+            "new orleans saints|saints~st helens,northampton,southampton",
+            "new york giants|ny giants|giants~san francisco,huddersfield",
+            "new york jets|ny jets|jets~winnipeg,newcastle",
+            "philadelphia eagles|eagles~crystal palace,sydney",
+            "pittsburgh steelers|steelers",
+            "san francisco 49ers|49ers|niners",
+            "seattle seahawks|seahawks",
+            "tampa bay buccaneers|buccaneers~|bucs",
+            "tennessee titans|titans~",
+            "washington commanders|commanders",
             // MLS
             "inter miami|inter miami cf",
             "la galaxy|los angeles galaxy",
@@ -159,6 +222,11 @@ final class LiveNames {
             String f = " " + full + " ";
             for (String p : phrases) if (n.contains(" " + p + " ") && !blocked(p, f)) return true;
             return false;
+        }
+
+        /** Whether it's a team of the table (else a followed term by its words). */
+        boolean isKnown() {
+            return known;
         }
 
         /** What to ask the guide: each name as one phrase; a term of no known team by its words. */
@@ -239,6 +307,36 @@ final class LiveNames {
         if (main != null) return main;
         main = sides.get(name);
         return main != null ? main : name;
+    }
+
+    // MARK: - Spoiler-free
+
+    /** Whether a title (folded) is about a team kept spoiler-free. */
+    static boolean spoiled(Context c, String title) {
+        Set<String> teams = LiveOptions.spoilerFree(c);
+        if (teams.isEmpty() || title == null) return false;
+        String folded = Xtream.fold(title);
+        for (String team : teams) if (of(c, team).in(folded)) return true;
+        return false;
+    }
+
+    /** A show's description, unless it's about a team kept spoiler-free: descriptions often give the result. */
+    static String about(Context c, String title, String about) {
+        return about == null || about.isEmpty() || !spoiled(c, title) ? about : "";
+    }
+
+    private static final java.util.regex.Pattern RESULT = java.util.regex.Pattern.compile("(?<![\\d:.])(\\d{1,2})\\s*[-–:]\\s*(\\d{1,2})(?![\\d:.])");
+
+    /** A title without the result in it ("Man Utd 2-1 Roma" reads "Man Utd v Roma"); a time like 20:30 stays. Pure. */
+    static String withoutResult(String title) {
+        java.util.regex.Matcher m = RESULT.matcher(title);
+        StringBuffer out = new StringBuffer();
+        while (m.find()) {
+            boolean goals = Integer.parseInt(m.group(1)) < 20 && Integer.parseInt(m.group(2)) < 20;
+            m.appendReplacement(out, goals ? "v" : java.util.regex.Matcher.quoteReplacement(m.group()));
+        }
+        m.appendTail(out);
+        return out.toString();
     }
 
     // MARK: - Names added by hand

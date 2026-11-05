@@ -411,6 +411,7 @@ final class LiveOverlay {
         // The episode (its season and number on a chip, then its title), then the synopsis: two lines in all.
         LiveEpisode ep = LiveEpisode.of(live, shown, true, view::postInvalidate);
         String text = shown == null ? "" : ep == null ? shown.about : LiveEpisode.aboutWithout(shown.about, shown.sub);
+        if (shown != null) text = LiveNames.about(live, shown.title, text);
         float aboutTop = 752 * k;
         if (ep != null) {
             LiveEpisode.draw(c, ep, TEXT_X * k, 752 * k + episodePaint.getTextSize(), episodePaint, (textR - TEXT_X) * k, k);

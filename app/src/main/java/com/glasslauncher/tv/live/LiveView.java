@@ -1257,6 +1257,7 @@ final class LiveView extends View {
         LiveEpisode ep = LiveEpisode.of(getContext(), p, true, this::postInvalidate);
         float epH = ep == null ? 0 : 50 * k;
         String about = p.about == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
+        about = LiveNames.about(getContext(), p.title, about);
         if (!about.equals(cardAboutText) || (cardAbout == null && !about.isEmpty()) || cardAbout != null && cardAbout.getWidth() != Math.round(inner)) {
             cardAboutText = about;
             cardAbout = about.isEmpty() ? null : StaticLayout.Builder.obtain(about, 0, about.length(), lCardAbout, Math.round(inner))
@@ -4533,6 +4534,7 @@ final class LiveView extends View {
         // The episode (its season and number on a chip, then its title) first, the synopsis in the lines left.
         LiveEpisode ep = LiveEpisode.of(getContext(), p, true, this::postInvalidate);
         String about = p == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
+        if (p != null) about = LiveNames.about(getContext(), p.title, about);
         float aboutTop = 236 * k;
         int lines = G_ABOUT_LINES;
         if (ep != null) {
@@ -4592,6 +4594,7 @@ final class LiveView extends View {
                 x, 176 * k, gMeta, room);
         LiveEpisode ep = LiveEpisode.of(getContext(), p, true, this::postInvalidate);
         String about = p == null ? "" : ep == null ? p.about : LiveEpisode.aboutWithout(p.about, p.sub);
+        if (p != null) about = LiveNames.about(getContext(), p.title, about);
         float aboutTop = 200 * k;
         int lines = G_ABOUT_LINES;
         if (ep != null) {

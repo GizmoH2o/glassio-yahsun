@@ -148,7 +148,10 @@ final class LiveSearch extends Dialog {
         final long to = now + LiveOptions.daysAhead(app) * 24 * 3600_000L;
         final boolean full = LiveOptions.fullGuide(app);
         new Thread(() -> {
-            List<XmltvStore.Found> found = full ? XmltvStore.findAll(app, words, from, to, 300) : new ArrayList<XmltvStore.Found>();
+            // A known team under all its names: "Man Utd" finds Manchester United too.
+            LiveNames.Names names = LiveNames.of(app, Xtream.fold(query));
+            List<XmltvStore.Found> found = !full ? new ArrayList<XmltvStore.Found>() : names.isKnown()
+                    ? LiveNames.find(app, names, from, to, 300) : XmltvStore.findAll(app, words, from, to, 300);
             List<Object[]> saved = savedShows(app, lineup, words, from);
             page.post(() -> {
                 if (mine != gen) return;
