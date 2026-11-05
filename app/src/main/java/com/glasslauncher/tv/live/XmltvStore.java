@@ -188,6 +188,10 @@ final class XmltvStore {
     /** A show found by search: its title and when it starts. */
     static final class Found {
         String title, icon, epg;
+        /** The episode line (the guide's sub-title), when findAll's guide has it. */
+        String sub = "";
+        /** The description: many guides start it with the episode's number. */
+        String about = "";
         /** The title folded (what the search compares); only findAny fills it. */
         String key = "";
         long start, end;
@@ -257,7 +261,7 @@ final class XmltvStore {
         synchronized (XmltvStore.class) {
             SQLiteDatabase d = read(c);
             if (d == null) return out;
-            try (Cursor q = d.rawQuery("SELECT epg, title, start, stop, icon FROM p WHERE " + where + " ORDER BY start LIMIT " + limit,
+            try (Cursor q = d.rawQuery("SELECT epg, title, start, stop, icon, about" + (dbSub ? ", sub" : "") + " FROM p WHERE " + where + " ORDER BY start LIMIT " + limit,
                     args.toArray(new String[0]))) {
                 while (q.moveToNext()) {
                     Found f = new Found();
@@ -266,6 +270,8 @@ final class XmltvStore {
                     f.start = q.getLong(2) + shift;
                     f.end = q.getLong(3) + shift;
                     f.icon = q.isNull(4) ? "" : q.getString(4);
+                    f.about = q.isNull(5) ? "" : q.getString(5);
+                    if (dbSub && !q.isNull(6)) f.sub = q.getString(6);
                     out.add(f);
                 }
             } catch (RuntimeException ignored) {

@@ -658,7 +658,7 @@ final class LiveView extends View {
             drawSubtitle(c);
             if (buffering && status.isEmpty() && mode != SETTINGS) {
                 // Over the video: the preview's middle in the guide, the right side beside the list, else the screen's.
-                float cx = mode == GUIDE ? (P_X + P_W / 2 + gShift()) * k : mode == LIST ? (PANEL_W + 1920) / 2f * k : w / 2f;
+                float cx = mode == GUIDE ? (P_X + P_W / 2 + gShift()) * k : mode == LIST ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
                 float cy = mode == GUIDE ? (P_Y + P_H / 2) * k : mode == WATCH && overlay.visible() ? 380 * k : mode == LIST ? h - 150 * k : h / 2f;   // above the overlay; under the list's show card
                 Ui.spinner(c, cx, cy, (mode == GUIDE ? 22 : 30) * k, (up - spinAt) / 1000f * 1.3f, spinner);
                 moving = true;
@@ -816,6 +816,10 @@ final class LiveView extends View {
     private void drawList(Canvas c) {
         if (lineup == null) return;
         if (lName == null) makeListPaints();
+        if (LiveTheme.cinema()) {
+            drawListGlassio3(c);
+            return;
+        }
         float a = Ui.clamp(appear.value);
         int save = a < 0.995f ? c.saveLayerAlpha(0, 0, w, h, Math.round(255 * a)) : c.save();
         c.translate(-(1 - a) * 90 * k, 0);
@@ -868,6 +872,200 @@ final class LiveView extends View {
         } else {
             postInvalidateDelayed(30_000 - System.currentTimeMillis() % 30_000);   // the progress bars move on
         }
+    }
+
+    // Glassio 3's list: categories and channels side by side, in the 1920 space.
+    private static final float C3_PANEL = 1020, C3_CATS = 324, C3_CAT_TOP = 87, C3_CAT_STEP = 63, C3_CH_TOP = 107, C3_CH_STEP = 105;
+    private Paint c3Group, c3GroupOn, c3GroupHead, c3Head, c3Name, c3Sub, c3Num, c3Pill, c3Playing, c3Title, c3Hint;
+    private Shader c3Shade;
+
+    /** The categories and channels on one dark panel at the left; the channel playing shows at the right, and what OK does. */
+    private void drawListGlassio3(Canvas c) {
+        if (c3Group == null) {
+            c3Group = Ui.text(Ui.medium, 21 * k, WHITE);
+            c3GroupOn = Ui.text(Ui.semibold, 21 * k, WHITE);
+            c3GroupHead = Ui.text(Ui.semibold, 19.5f * k, 0xFFB3B3B8);
+            c3Head = Ui.text(Ui.displaySemibold, 33 * k, WHITE);
+            c3Name = Ui.text(Ui.semibold, 22.5f * k, WHITE);
+            c3Sub = Ui.text(Ui.regular, 18 * k, 0xFFB3B3B8);
+            c3Num = Ui.numbers(Ui.medium, 19.5f * k, 0xFFB3B3B8);
+            c3Pill = Ui.text(Ui.semibold, 16.5f * k, 0xFFFFFFFF);
+            c3Playing = Ui.text(Ui.medium, 19.5f * k, 0xFFE8E8EC);
+            c3Title = Ui.text(Ui.displaySemibold, 45 * k, WHITE);
+            c3Hint = Ui.text(Ui.regular, 21 * k, 0xFFD0D0D4);
+        }
+        float a = Ui.clamp(appear.value);
+        int save = a < 0.995f ? c.saveLayerAlpha(0, 0, w, h, Math.round(255 * a)) : c.save();
+        fill.setShader(null);
+        fill.setColor(0xFF0B0B0D);
+        c.drawRect(0, 0, C3_PANEL * k, h, fill);
+        fill.setColor(0xFF141416);
+        c.drawRect(0, 0, C3_CATS * k, h, fill);
+        c.save();
+        c.clipRect(0, 0, C3_CATS * k, h);
+        drawCategoriesGlassio3(c);
+        c.restore();
+        List<Xtream.Channel> list = channels();
+        float cx = C3_CATS * k;
+        String heading = cat >= 0 && cat < lineup.categories.size() ? lineup.categories.get(cat).name : Ui.tr("Ajustes", "Settings");
+        textAndTag(c, nameOfCategory(heading), tagOfCategory(heading), cx + 30 * k, 74 * k, c3Head, (C3_PANEL - C3_CATS - 72) * k);
+        c.save();
+        c.clipRect(cx, (C3_CH_TOP - 6) * k, C3_PANEL * k, h);
+        drawChannelsGlassio3(c, list, cx);
+        c.restore();
+        if (list.isEmpty() && cat >= 0 && cat < lineup.categories.size()) {
+            String empty = lineup.categories.get(cat) == recordings
+                    ? Ui.tr("Segure OK num programa do guia para gravar.", "Hold OK on a show in the guide to record it.")
+                    : lineup.categories.get(cat) == history ? Ui.tr("Os canais que você assistir aparecem aqui.", "Channels you watch show up here.")
+                    : lineup.categories.get(cat) != search ? Ui.tr("Nenhum canal aqui.", "No channels here.")
+                    : query.trim().isEmpty() ? Ui.tr("Aperte OK e digite o nome ou o número de um canal.", "Press OK and type a channel's name or number.")
+                    : Ui.tr("Nenhum canal com esse nome.", "No channels match.");
+            c.drawText(ellipsize(empty, c3Sub, (C3_PANEL - C3_CATS - 72) * k), cx + 30 * k, (C3_CH_TOP + 30) * k, c3Sub);
+        }
+        if (column == 2 && ch < list.size()) drawSchedule(c, list.get(ch), C3_PANEL * k);       // Right: the channel's schedule
+        else drawPlayingGlassio3(c, list);
+        c.restoreToCount(save);
+        if (list == recordings.channels) {     // the list follows while one is recording
+            refreshRecordings();
+            postInvalidateDelayed(2000);
+        } else {
+            postInvalidateDelayed(30_000 - System.currentTimeMillis() % 30_000);   // the progress bars move on
+        }
+    }
+
+    private void drawCategoriesGlassio3(Canvas c) {
+        c.drawText(Ui.tr("Categorias", "Categories"), 42 * k, 61 * k, c3GroupHead);
+        int n = lineup.categories.size();
+        float top = lCatTop.value;
+        int first = Math.max(0, (int) Math.floor(top)), last = Math.min(n, first + catRows() + 2);
+        catRow(0, lCat.value, top, focusRect);
+        fill.setColor(column == 0 ? 0xFFFFFFFF : 0x33FFFFFF);
+        float rr = 15 * k;
+        if (focusRect.bottom > 70 * k) c.drawRoundRect(focusRect, rr, rr, fill);
+        for (int i = first; i < last; i++) {
+            catRow(0, i, top, r);
+            if (r.top < 72 * k) continue;      // scrolled up under the heading
+            boolean chosen = i == cat;
+            Paint p = chosen ? c3GroupOn : c3Group;
+            p.setColor(chosen && column == 0 ? 0xFF0B0B0D : WHITE);
+            Xtream.Category cg = lineup.categories.get(i);
+            float tx = r.left + 18 * k;
+            if (cg == search) {
+                drawMagnifier(c, tx + 8 * k, r.centerY(), 9 * k, p.getColor());
+                tx += 28 * k;
+            }
+            textAndTag(c, nameOfCategory(cg.name), tagOfCategory(cg.name), tx, r.centerY() + Ui.halfCap(p), p, r.right - 12 * k - tx);
+        }
+    }
+
+    private void drawChannelsGlassio3(Canvas c, List<Xtream.Channel> list, float cx) {
+        float top = lChTop.value;
+        int first = Math.max(0, (int) Math.floor(top)), last = Math.min(list.size(), first + chRows() + 2);
+        float rr = 18 * k;
+        for (int i = first; i < last; i++) {
+            chRow(cx, i, top, r);
+            fill.setColor(0xFF1C1C1F);
+            c.drawRoundRect(r, rr, rr, fill);
+        }
+        if (!list.isEmpty()) {
+            chRow(cx, lCh.value, top, focusRect);
+            fill.setColor(column == 1 ? 0xFFFFFFFF : column == 2 ? 0xFF3A3A3F : 0xFF1C1C1F);
+            c.drawRoundRect(focusRect, rr, rr, fill);
+        }
+        Xtream.Channel playing = live.playing();
+        long now = System.currentTimeMillis();
+        for (int i = first; i < last; i++) {
+            Xtream.Channel channel = list.get(i);
+            chRow(cx, i, top, r);
+            boolean on = column == 1 && i == ch;
+            int ink = on ? 0xFF0B0B0D : 0xFFFFFFFF, sub = on ? 0xFF4A4A50 : 0xFFB3B3B8;
+            c3Name.setColor(ink);
+            c3Sub.setColor(sub);
+            c3Num.setColor(sub);
+            String num = channel.num > 0 ? String.valueOf(channel.num) : "";
+            c.drawText(ellipsize(num, c3Num, 72 * k), r.left + 21 * k, r.centerY() + Ui.halfCap(c3Num), c3Num);
+            float x = r.left + 21 * k + 72 * k + 12 * k, right = r.right - 21 * k;
+            // At the right: how far the show is, then what's special about the channel.
+            String second;
+            float f = -1;
+            if (list == search.channels && found.get(channel.id) != null) {
+                second = found.get(channel.id);
+            } else if (list == recordings.channels) {
+                second = recNote.get(channel.id);
+            } else {
+                Xtream.Program p = onNow(channel, now);
+                second = p == null ? "" : p.title;
+                if (p != null) f = Ui.clamp((now - p.start) / (float) (p.end - p.start));
+            }
+            float mx = right;
+            if (f >= 0) {
+                float by = r.centerY() - 3 * k, bl = right - 66 * k;
+                fill.setColor(on ? 0x330B0B0D : 0x38FFFFFF);
+                c.drawRoundRect(bl, by, right, by + 6 * k, 3 * k, 3 * k, fill);
+                fill.setColor(LIVE_RED);
+                if (f > 0) c.drawRoundRect(bl, by, bl + 66 * k * f, by + 6 * k, 3 * k, 3 * k, fill);
+                mx = bl - 18 * k;
+            }
+            float my = r.centerY();
+            if (playing != null && playing.id == channel.id) {
+                drawPlayMark(c, mx - 10 * k, my, 10 * k, ink);
+                mx -= 32 * k;
+            }
+            if (Xtream.isFavorite(lineup, channel.id)) {
+                drawHeart(c, mx - 10 * k, my, 18 * k, LIVE_RED);
+                mx -= 32 * k;
+            }
+            if (channel.archive > 0 && channel.id > 0) {
+                drawReplay(c, mx - 10 * k, my, 10 * k, sub);
+                mx -= 32 * k;
+            }
+            boolean two = second != null && !second.isEmpty();
+            float nameY = two ? r.centerY() - 5 * k : r.centerY() + Ui.halfCap(c3Name);
+            textAndTag(c, nameOf(channel), tagOf(channel), x, nameY, c3Name, mx - x);
+            if (two && i == ch) listMarquee.draw(c, second, x, r.centerY() + 24 * k, mx - x, c3Sub, k);
+            else if (two) c.drawText(ellipsize(second, c3Sub, mx - x), x, r.centerY() + 24 * k, c3Sub);
+        }
+    }
+
+    /** Over the video at the right: the channel playing, its show, and what OK does on the channel in focus. */
+    private void drawPlayingGlassio3(Canvas c, List<Xtream.Channel> list) {
+        float left = C3_PANEL * k, shadeTop = h - 390 * k;
+        if (c3Shade == null) c3Shade = new LinearGradient(0, shadeTop, 0, h, 0x000B0B0D, 0xEB0B0B0D, Shader.TileMode.CLAMP);
+        fill.setShader(c3Shade);
+        c.drawRect(left, shadeTop, w, h, fill);
+        fill.setShader(null);
+        Xtream.Channel playing = live.playing();
+        float x = left + 60 * k, room = w - x - 60 * k;
+        // Up from the bottom: the hint, the title, the channel.
+        float y = h - 54 * k;
+        if (column == 1 && ch < list.size() && list != recordings.channels && list != search.channels) {
+            Xtream.Channel focused = list.get(ch);
+            String hold = Ui.tr("  ·  Segure OK para o menu", "  ·  Hold OK for its menu");
+            String hint;
+            if (playing != null && focused.id == playing.id) {
+                hint = Ui.tr("OK volta para ele", "OK goes back to it") + hold;
+            } else {
+                Xtream.Program p = onNow(focused, System.currentTimeMillis());
+                String where = (focused.num > 0 ? focused.num + " " : "") + nameOf(focused);
+                hint = p == null || p.title.isEmpty() ? Ui.tr("OK muda para ", "OK switches to ") + where + hold
+                        : Ui.tr("OK muda para ", "OK switches to ") + p.title + Ui.tr(" em ", " on ") + where + hold;
+            }
+            c.drawText(ellipsize(hint, c3Hint, room), x, y, c3Hint);
+            y -= 48 * k;
+        }
+        if (playing == null) return;
+        Xtream.Program show = playingShow();
+        String title = show == null || show.title.isEmpty() ? nameOf(playing) : show.title;
+        c.drawText(ellipsize(title, c3Title, room), x, y, c3Title);
+        y -= 66 * k;
+        String pill = Ui.tr("TOCANDO", "PLAYING");
+        float pw = c3Pill.measureText(pill) + 21 * k, ph = 30 * k;
+        r.set(x, y - ph + 7 * k, x + pw, y + 7 * k);
+        fill.setColor(LIVE_RED);
+        c.drawRoundRect(r, 7.5f * k, 7.5f * k, fill);
+        c.drawText(pill, x + 10.5f * k, r.centerY() + Ui.halfCap(c3Pill), c3Pill);
+        String where = (playing.num > 0 ? playing.num + " " : "") + nameOf(playing);
+        textAndTag(c, where, tagOf(playing), r.right + 15 * k, r.centerY() + Ui.halfCap(c3Playing), c3Playing, room - pw - 15 * k);
     }
 
     private Paint ringPaint;
@@ -967,6 +1165,8 @@ final class LiveView extends View {
 
     /** A new theme: the paints with its color made again (on the next frame). */
     void themeChanged() {
+        c3Group = null;
+        c3Shade = null;
         liftPaint = null;
         lName = null;
         listShade = null;
@@ -1173,7 +1373,7 @@ final class LiveView extends View {
             c.drawText(ellipsize(p.title, np, end - (x0 + 28 * k + timeW)), x0 + 28 * k + timeW, y, np);
             y += step;
         }
-        if (shown != null) drawShowCard(c, shown, x0 + sw + 30 * k, now);
+        if (shown != null && !LiveTheme.cinema()) drawShowCard(c, shown, x0 + sw + 30 * k, now);
     }
 
     private static int dayOf(java.util.Calendar cal, long t) {
@@ -1365,12 +1565,22 @@ final class LiveView extends View {
 
     /** The rect of category row `row` (a fraction while gliding), the column at `gx`, scrolled to `top`. */
     private void catRow(float gx, float row, float top, RectF out) {
+        if (LiveTheme.cinema()) {
+            float y3 = (C3_CAT_TOP + (row - top) * C3_CAT_STEP) * k;
+            out.set(30 * k, y3, (C3_CATS - 18) * k, y3 + 57 * k);
+            return;
+        }
         float y = (GR_TOP + (row - top) * GR_STEP) * k;
         out.set(gx + 24 * k, y, gx + (GR_W - 24) * k, y + (GR_STEP - 8) * k);
     }
 
     /** The rect of channel row `row`, the panel at `cx`, scrolled to `top`. */
     private void chRow(float cx, float row, float top, RectF out) {
+        if (LiveTheme.cinema()) {
+            float y3 = (C3_CH_TOP + (row - top) * C3_CH_STEP) * k;
+            out.set(cx + 30 * k, y3, cx + (C3_PANEL - C3_CATS - 42) * k, y3 + 93 * k);
+            return;
+        }
         float y = (C_TOP + 10 + (row - top) * C_STEP) * k;
         out.set(cx + 12 * k, y, cx + (CH_W - 12) * k, y + (C_STEP - 8) * k);
     }
@@ -1447,7 +1657,7 @@ final class LiveView extends View {
 
     private void drawStatus(Canvas c) {
         if (status.isEmpty()) return;
-        float cx = mode == LIST || mode == SETTINGS ? (PANEL_W + 1920) / 2f * k : w / 2f;
+        float cx = mode == LIST || mode == SETTINGS ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
         String s = ellipsize(status, label, 900 * k);
         float tw = label.measureText(s);
         r.set(cx - tw / 2 - 30 * k, h / 2f - 34 * k, cx + tw / 2 + 30 * k, h / 2f + 34 * k);
@@ -2910,8 +3120,17 @@ final class LiveView extends View {
                 if (mode == GUIDE) closeGuide();
                 live.play(ch);
             };
-            if (show.start <= now) watch.run();
+            if (show.end <= now) {      // Watch again: from the catch-up
+                playPast(ch, show, () -> {
+                    if (mode == GUIDE) closeGuide();
+                    else if (mode == LIST) leave(WATCH);
+                });
+            } else if (show.start <= now) watch.run();
             else laterMenu(ch, show, watch);
+        }, rec -> {
+            live.playRecording(rec);
+            if (mode == GUIDE) closeGuide();
+            else if (mode == LIST) leave(WATCH);
         }).show();
     }
 
@@ -3178,6 +3397,7 @@ final class LiveView extends View {
             case LiveTheme.SLING:
             case LiveTheme.PLEX:
             case LiveTheme.PLUTO: CH_W = 560; C_STEP = 104; break;
+            case LiveTheme.CINEMA: CH_W = 696; C_STEP = C3_CH_STEP; break;
             default: CH_W = 600; C_STEP = 126; break;
         }
         ART_X = artX;
@@ -5345,10 +5565,12 @@ final class LiveView extends View {
     }
 
     private int catRows() {
+        if (LiveTheme.cinema()) return (int) ((1080 - C3_CAT_TOP) / C3_CAT_STEP);
         return (int) ((1080 - GR_TOP) / GR_STEP);
     }
 
     private int chRows() {
+        if (LiveTheme.cinema()) return (int) ((1080 - C3_CH_TOP) / C3_CH_STEP);
         return (int) ((1080 - C_TOP - 10) / C_STEP);
     }
 

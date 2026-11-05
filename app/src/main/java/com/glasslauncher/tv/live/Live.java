@@ -521,6 +521,10 @@ public class Live extends Activity {
                 LiveFollow.remove(Live.this, unfollow);
                 return;
             }
+            if (i.getBooleanExtra("aboutshow", false)) {      // About the show, as the player's button opens it
+                view.aboutPlaying();
+                return;
+            }
             if (i.getBooleanExtra("streaminfo", false)) {     // Stream info, as About's button opens it
                 view.streamInfo();
                 return;

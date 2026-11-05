@@ -13,6 +13,13 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "PLAYING": return "ИДЁТ";
+            case "OK switches to ": return "OK переключает на ";
+            case " on ": return " на ";
+            case "  ·  Hold OK for its menu": return "  ·  Удерживайте OK для меню";
+            case "OK goes back to it": return "OK вернёт к нему";
+            case "ON AT ": return "В ";
+            case "Watch again": return "Посмотреть снова";
             case "Slow connection: rewind off for this channel": return "Медленное соединение: перемотка для этого канала выключена";
             case "Test": return "Тест";
             case "Live channels only": return "Только прямые каналы";

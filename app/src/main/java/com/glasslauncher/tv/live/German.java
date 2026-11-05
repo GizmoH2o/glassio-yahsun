@@ -6,6 +6,13 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "PLAYING": return "LÄUFT";
+            case "OK switches to ": return "OK wechselt zu ";
+            case " on ": return " auf ";
+            case "  ·  Hold OK for its menu": return "  ·  OK halten für das Menü";
+            case "OK goes back to it": return "OK kehrt dorthin zurück";
+            case "ON AT ": return "UM ";
+            case "Watch again": return "Nochmal ansehen";
             case "Slow connection: rewind off for this channel": return "Langsame Verbindung: Zurückspulen für diesen Sender aus";
             case "Test": return "Test";
             case "Live channels only": return "Nur Live-Sender";
