@@ -46,7 +46,7 @@ final class LiveShowPage extends Dialog {
         String tag(Xtream.Channel ch);
     }
 
-    private static final int MAX_AIRINGS = 6;
+    private static final int MAX_AIRINGS = 6, MAX_NOW = 8;
     private final Xtream.Channel channel;
     private final Xtream.Program show;
     private final List<String> labels, icons;
@@ -58,8 +58,11 @@ final class LiveShowPage extends Dialog {
     private final List<Xtream.Channel> pastChannels = new ArrayList<>();
     private final List<Xtream.Program> pastShows = new ArrayList<>();
     private final List<LiveRecordings.Rec> pastRecs = new ArrayList<>();
-    /** Glassio 3's page: which row has the focus (0 buttons, 1 Coming up, 2 Watch again) and where in each. */
-    private int airAt, pastAt;
+    /** Glassio 3's page: the airings split: on now on other channels, and still to come. */
+    private final List<Xtream.Channel> nowChannels = new ArrayList<>(), nextChannels = new ArrayList<>();
+    private final List<Xtream.Program> nowShows = new ArrayList<>(), nextShows = new ArrayList<>();
+    /** Which row has the focus (0 buttons, 1 On now, 2 Coming up, 3 Watch again) and where in each. */
+    private int nowAt, airAt, pastAt;
     private final Page page;
     private final List<Xtream.Channel> airChannels = new ArrayList<>();
     private final List<Xtream.Program> airShows = new ArrayList<>();
@@ -125,8 +128,10 @@ final class LiveShowPage extends Dialog {
             final List<Xtream.Channel> chs = new ArrayList<>();
             final List<Xtream.Program> ps = new ArrayList<>();
             final List<Object[]> over = pastOf(app, folded, byEpg, now);
+            int nowN = 0, nextN = 0;
             for (XmltvStore.Found f : found) {
-                if (ps.size() >= MAX_AIRINGS) break;
+                if (nextN >= MAX_AIRINGS) break;
+                if (f.start <= now && nowN >= MAX_NOW) continue;
                 Xtream.Channel ch = f.epg == null ? null : byEpg.get(f.epg.toLowerCase(Locale.ROOT));
                 if (ch == null || !Xtream.fold(LiveArt.name(f.title)).equals(folded)) continue;
                 if (ch.id == channel.id && f.start == show.start) continue;        // this one
@@ -139,12 +144,20 @@ final class LiveShowPage extends Dialog {
                 p.sub = f.sub;
                 p.about = f.about;
                 Xtream.mark(p);
+                if (f.start <= now) nowN++;
+                else nextN++;
                 chs.add(ch);
                 ps.add(p);
             }
             page.post(() -> {
                 airChannels.addAll(chs);
                 airShows.addAll(ps);
+                long at = System.currentTimeMillis();
+                for (int i = 0; i < ps.size(); i++) {
+                    boolean on = ps.get(i).start <= at;
+                    (on ? nowChannels : nextChannels).add(chs.get(i));
+                    (on ? nowShows : nextShows).add(ps.get(i));
+                }
                 for (Object[] o : over) {
                     pastChannels.add((Xtream.Channel) o[0]);
                     pastShows.add((Xtream.Program) o[1]);
@@ -190,26 +203,40 @@ final class LiveShowPage extends Dialog {
         return out.size() > MAX_PAST ? new ArrayList<>(out.subList(0, MAX_PAST)) : out;
     }
 
+    private boolean rowHas(int r) {
+        return r == 0 ? !labels.isEmpty() : r == 1 ? !nowShows.isEmpty() : r == 2 ? !nextShows.isEmpty() : !pastShows.isEmpty();
+    }
+
     /** Glassio 3's keys: ◀ ▶ along a row, ▲ ▼ between the rows that have something. */
     private void glassio3Key(int code, KeyEvent e) {
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_LEFT:
                 if (row == 0) button = Math.max(0, button - 1);
-                else if (row == 1) airAt = Math.max(0, airAt - 1);
+                else if (row == 1) nowAt = Math.max(0, nowAt - 1);
+                else if (row == 2) airAt = Math.max(0, airAt - 1);
                 else pastAt = Math.max(0, pastAt - 1);
                 break;
             case KeyEvent.KEYCODE_DPAD_RIGHT:
                 if (row == 0) button = Math.min(labels.size() - 1, button + 1);
-                else if (row == 1) airAt = Math.min(airShows.size() - 1, airAt + 1);
+                else if (row == 1) nowAt = Math.min(nowShows.size() - 1, nowAt + 1);
+                else if (row == 2) airAt = Math.min(nextShows.size() - 1, airAt + 1);
                 else pastAt = Math.min(pastShows.size() - 1, pastAt + 1);
                 break;
             case KeyEvent.KEYCODE_DPAD_UP:
-                if (row == 2 && !airShows.isEmpty()) row = 1;
-                else if (row > 0 && !labels.isEmpty()) row = 0;
+                for (int r = row - 1; r >= 0; r--) {
+                    if (rowHas(r)) {
+                        row = r;
+                        break;
+                    }
+                }
                 break;
             case KeyEvent.KEYCODE_DPAD_DOWN:
-                if (row == 0 && !airShows.isEmpty()) row = 1;
-                else if (row < 2 && !pastShows.isEmpty()) row = 2;
+                for (int r = row + 1; r <= 3; r++) {
+                    if (rowHas(r)) {
+                        row = r;
+                        break;
+                    }
+                }
                 break;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
@@ -220,10 +247,13 @@ final class LiveShowPage extends Dialog {
                         dismiss();
                         actions.get(button).run();
                     }
-                } else if (row == 1 && airAt < airShows.size()) {
+                } else if (row == 1 && nowAt < nowShows.size()) {
                     dismiss();
-                    airing.open(airChannels.get(airAt), airShows.get(airAt));
-                } else if (row == 2 && pastAt < pastShows.size()) {
+                    airing.open(nowChannels.get(nowAt), nowShows.get(nowAt));
+                } else if (row == 2 && airAt < nextShows.size()) {
+                    dismiss();
+                    airing.open(nextChannels.get(airAt), nextShows.get(airAt));
+                } else if (row == 3 && pastAt < pastShows.size()) {
                     dismiss();
                     if (pastRecs.get(pastAt) != null) recording.accept(pastRecs.get(pastAt));
                     else airing.open(pastChannels.get(pastAt), pastShows.get(pastAt));
@@ -233,8 +263,9 @@ final class LiveShowPage extends Dialog {
                 return;
         }
         if (row == 0 && !labels.isEmpty()) page.announceForAccessibility(labels.get(button));
-        else if (row == 1 && airAt < airShows.size()) page.announceForAccessibility(airShows.get(airAt).title + ", " + when(airShows.get(airAt)));
-        else if (row == 2 && pastAt < pastShows.size()) page.announceForAccessibility(pastShows.get(pastAt).title + ", " + day(pastShows.get(pastAt).start));
+        else if (row == 1 && nowAt < nowShows.size()) page.announceForAccessibility(names.name(nowChannels.get(nowAt)) + ", " + nowShows.get(nowAt).title);
+        else if (row == 2 && airAt < nextShows.size()) page.announceForAccessibility(nextShows.get(airAt).title + ", " + when(nextShows.get(airAt)));
+        else if (row == 3 && pastAt < pastShows.size()) page.announceForAccessibility(pastShows.get(pastAt).title + ", " + day(pastShows.get(pastAt).start));
         page.invalidate();
     }
 
@@ -317,10 +348,9 @@ final class LiveShowPage extends Dialog {
         return f.format(new Date(at)).equals(f.format(new Date()));
     }
 
-    /** "Tonight"-less: "Today  ·  20:45", or On now. */
+    /** "Today  ·  20:45". */
     private static String whenLine(Xtream.Program p) {
-        long now = System.currentTimeMillis();
-        return p.start <= now && p.end > now ? Ui.tr("Passando agora", "On now") : day(p.start) + "  ·  " + Ui.time(p.start);
+        return day(p.start) + "  ·  " + Ui.time(p.start);
     }
 
     // MARK: - Drawing
@@ -380,7 +410,8 @@ final class LiveShowPage extends Dialog {
         private TextPaint g3About;
         private StaticLayout g3AboutLayout;
         private String g3AboutText;
-        private final Spring g3Buttons = new Spring(0.28f, 0.9f, 0), g3Air = new Spring(0.28f, 0.9f, 0), g3Past = new Spring(0.28f, 0.9f, 0);
+        private final Spring g3Buttons = new Spring(0.28f, 0.9f, 0), g3Now = new Spring(0.28f, 0.9f, 0), g3Air = new Spring(0.28f, 0.9f, 0),
+                g3Past = new Spring(0.28f, 0.9f, 0), g3Page = new Spring(0.28f, 0.9f, 0);
         private final android.graphics.Path g3Clip = new android.graphics.Path();
         private static final int BG = 0xFF0B0B0D;
         private static final float G3_LEFT = 72, G3_IMG_W = 1350, G3_IMG_H = 690;
@@ -439,9 +470,11 @@ final class LiveShowPage extends Dialog {
             last = up;
             float w = getWidth(), h = getHeight();
             if (g3Shade == null) g3Paints(w);
-            boolean moving = in.step(dt);
+            boolean moving = in.step(dt) | g3Page.step(dt);
             float a = Ui.clamp(in.value);
             c.drawColor(BG);
+            c.save();
+            c.translate(0, -g3Page.value);      // more rows than fit: the page moves up to the one in focus
             String url = !show.icon.isEmpty() ? show.icon : info != null ? info.backdrop : "";
             Bitmap hero = url.isEmpty() ? null : LiveLogos.get(getContext(), url, this::postInvalidate);
             if (hero != null) {
@@ -517,40 +550,41 @@ final class LiveShowPage extends Dialog {
                 c.drawText(l, bx + 33 * k, by + bh / 2 + Ui.halfCap(g3Button), on ? g3ButtonOn : g3Button);
                 bx += bw + gap;
             }
-            // Coming up.
-            c.drawText(Ui.tr("Em breve", "Coming up"), x, 472 * k, g3Head);
-            float cy = 495 * k, cw3 = 420 * k, ch3 = 118 * k, step = cw3 + 18 * k;
-            if (airShows.isEmpty()) {
-                c.drawText(searched ? Ui.tr("Não passa de novo nos próximos dias", "Not on again in the next few days")
-                        : Ui.tr("Procurando…", "Looking…"), x, cy + 30 * k, g3Ch);
+            float sy = 450 * k, focusBottom = 0;
+            // On now: the same show on other channels at this moment.
+            if (!nowShows.isEmpty()) {
+                c.drawText(Ui.tr("Passando agora", "On now"), x, sy + 22 * k, g3Head);
+                g3Now.target = Math.max(0, (nowAt + 1) * (438 * k) - (w - x - 72 * k));
+                moving |= g3Now.step(dt);
+                g3Cards(c, nowShows, nowChannels, row == 1 ? nowAt : -1, x - g3Now.value, sy + 45 * k, true);
+                if (row == 1) focusBottom = sy + 163 * k;
+                sy += 198 * k;
             }
-            g3Air.target = Math.max(0, (airAt + 1) * step - (w - x - 72 * k));
-            moving |= g3Air.step(dt);
-            for (int i = 0; i < airShows.size(); i++) {
-                float cx = x + i * step - g3Air.value;
-                if (cx > w || cx + cw3 < 0) continue;
-                boolean on = row == 1 && i == airAt;
-                box.set(cx, cy, cx + cw3, cy + ch3);
-                fill.setColor(on ? 0xFFFFFFFF : 0xFF1C1C1F);
-                c.drawRoundRect(box, 18 * k, 18 * k, fill);
-                Xtream.Program p = airShows.get(i);
-                Xtream.Channel ac = airChannels.get(i);
-                float tx = cx + 21 * k, room = cw3 - 42 * k;
-                c.drawText(ellipsize(whenLine(p), on ? g3WhenOn : g3When, room), tx, cy + 36 * k, on ? g3WhenOn : g3When);
-                c.drawText(ellipsize(episodeLine(p), on ? g3EpOn : g3Ep, room), tx, cy + 68 * k, on ? g3EpOn : g3Ep);
-                c.drawText(ellipsize((ac.num > 0 ? ac.num + " " : "") + names.name(ac), on ? g3ChOn : g3Ch, room), tx, cy + 97 * k, on ? g3ChOn : g3Ch);
+            // Coming up.
+            c.drawText(Ui.tr("Em breve", "Coming up"), x, sy + 22 * k, g3Head);
+            if (nextShows.isEmpty()) {
+                c.drawText(searched ? Ui.tr("Não passa de novo nos próximos dias", "Not on again in the next few days")
+                        : Ui.tr("Procurando…", "Looking…"), x, sy + 75 * k, g3Ch);
+                sy += 112 * k;
+            } else {
+                g3Air.target = Math.max(0, (airAt + 1) * (438 * k) - (w - x - 72 * k));
+                moving |= g3Air.step(dt);
+                g3Cards(c, nextShows, nextChannels, row == 2 ? airAt : -1, x - g3Air.value, sy + 45 * k, false);
+                if (row == 2) focusBottom = sy + 163 * k;
+                sy += 198 * k;
             }
             // Watch again: what can still be seen, from the catch-up or a recording.
             if (!pastShows.isEmpty()) {
-                c.drawText(Ui.tr("Assistir de novo", "Watch again"), x, 670 * k, g3Head);
-                float py = 693 * k, pw = 384 * k, ph = 216 * k, pstep = pw + 24 * k;
+                c.drawText(Ui.tr("Assistir de novo", "Watch again"), x, sy + 22 * k, g3Head);
+                float py = sy + 45 * k, pw = 384 * k, ph = 216 * k, pstep = pw + 24 * k;
+                if (row == 3) focusBottom = py + ph + 80 * k;
                 g3Past.target = Math.max(0, (pastAt + 1) * pstep - (w - x - 72 * k));
                 moving |= g3Past.step(dt);
                 for (int i = 0; i < pastShows.size(); i++) {
                     float px = x + i * pstep - g3Past.value;
                     if (px > w || px + pw < 0) continue;
                     Xtream.Program p = pastShows.get(i);
-                    boolean on = row == 2 && i == pastAt;
+                    boolean on = row == 3 && i == pastAt;
                     String art = !p.icon.isEmpty() ? p.icon : info != null ? info.backdrop : "";
                     box.set(px, py, px + pw, py + ph);
                     g3Picture(c, art.isEmpty() ? null : LiveLogos.get(getContext(), art, this::postInvalidate), box, 18 * k);
@@ -564,7 +598,30 @@ final class LiveShowPage extends Dialog {
                     c.drawText(ellipsize(day(p.start) + "  " + Ui.time(p.start) + "  ·  " + how, g3Ch, pw), px, py + ph + 63 * k, g3Ch);
                 }
             }
-            if (moving) postInvalidateOnAnimation(); else last = 0;
+            c.restore();
+            g3Page.target = row == 0 ? 0 : Math.max(0, focusBottom - h + 36 * k);
+            if (moving || Math.abs(g3Page.target - g3Page.value) > 0.5f) postInvalidateOnAnimation(); else last = 0;
+        }
+
+        /** A row of airings' cards from x at y; `focus` the white one (-1: none). Airing now: their times, else their day and time. */
+        private void g3Cards(Canvas c, List<Xtream.Program> shows, List<Xtream.Channel> chs, int focus, float x, float y, boolean running) {
+            float cw3 = 420 * k, ch3 = 118 * k, step = cw3 + 18 * k, w = getWidth();
+            for (int i = 0; i < shows.size(); i++) {
+                float cx = x + i * step;
+                if (cx > w || cx + cw3 < 0) continue;
+                boolean on = i == focus;
+                box.set(cx, y, cx + cw3, y + ch3);
+                fill.setShader(null);
+                fill.setColor(on ? 0xFFFFFFFF : 0xFF1C1C1F);
+                c.drawRoundRect(box, 18 * k, 18 * k, fill);
+                Xtream.Program p = shows.get(i);
+                Xtream.Channel ac = chs.get(i);
+                float tx = cx + 21 * k, room = cw3 - 42 * k;
+                String top = running ? Ui.time(p.start) + " – " + Ui.time(p.end) : whenLine(p);
+                c.drawText(ellipsize(top, on ? g3WhenOn : g3When, room), tx, y + 36 * k, on ? g3WhenOn : g3When);
+                c.drawText(ellipsize(episodeLine(p), on ? g3EpOn : g3Ep, room), tx, y + 68 * k, on ? g3EpOn : g3Ep);
+                c.drawText(ellipsize((ac.num > 0 ? ac.num + " " : "") + names.name(ac), on ? g3ChOn : g3Ch, room), tx, y + 97 * k, on ? g3ChOn : g3Ch);
+            }
         }
 
         private Paint g3RingPaint;
