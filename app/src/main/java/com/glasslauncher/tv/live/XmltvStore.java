@@ -561,6 +561,8 @@ final class XmltvStore {
             w.endTransaction();
             progress = Ui.tr("Indexando…", "Indexing…");
             w.execSQL("CREATE INDEX by_channel ON p (epg, start)");
+            // Holds what searches compare, so they read this and not the long descriptions in the table.
+            w.execSQL("CREATE INDEX by_search ON p (start, stop, key)");
             w.execSQL("INSERT INTO meta VALUES ('at', '" + now + "'), ('count', '" + count + "'), ('channels', '" + seen.size()
                     + "'), ('v', '" + VERSION + "')");
         } finally {

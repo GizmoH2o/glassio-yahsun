@@ -36,6 +36,8 @@ final class LiveScores {
         int homeScore, awayScore;
         String state = "pre", clock = "";  // pre, in or post; 63', HT, FT, or the kickoff time
         long start, endedAt;
+        /** When the board last told it. */
+        long readAt;
         /** Just found (on the big board): its first reading from its own board isn't a goal. */
         boolean fresh = true;
 
@@ -122,7 +124,7 @@ final class LiveScores {
     /** The score for a show (its title, folded, has a followed team's words), or null. */
     Score forTitle(String folded) {
         if (scores.isEmpty() || folded == null) return null;
-        for (Score s : scores.values()) if (LiveNames.of(c, s.term).in(folded)) return hidden(s.term) ? null : s;
+        for (Score s : scores.values()) if (LiveNames.of(c, s.term).in(folded)) return hidden(s.term) || stale(s.state, s.readAt, System.currentTimeMillis()) ? null : s;
         return null;
     }
 
@@ -132,7 +134,16 @@ final class LiveScores {
     }
 
     Score forTerm(String folded) {
-        return hidden(folded) ? null : scores.get(folded);
+        Score s = scores.get(folded);
+        return s == null || hidden(folded) || stale(s.state, s.readAt, System.currentTimeMillis()) ? null : s;
+    }
+
+    /** A match on whose board hasn't answered for this long: an old score shown as live would mislead, so none. */
+    private static final long STALE = 5 * 60_000L;
+
+    /** Whether a score can't be trusted any more: a match in play the board hasn't told about lately. Pure. */
+    static boolean stale(String state, long readAt, long now) {
+        return "in".equals(state) && readAt > 0 && now - readAt > STALE;
     }
 
     /** A team kept spoiler-free: its score is still read, but shown nowhere and no goal is told. */
@@ -270,6 +281,7 @@ final class LiveScores {
         JSONObject comp = first(ev.optJSONArray("competitions"));
         JSONArray teams = comp == null ? null : comp.optJSONArray("competitors");
         if (teams == null) return false;
+        s.readAt = System.currentTimeMillis();
         String before = s.line() + s.state;
         int oldHome = s.homeScore, oldAway = s.awayScore;
         boolean wasLive = s.state.equals("in");

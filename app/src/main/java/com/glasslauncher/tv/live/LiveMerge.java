@@ -25,6 +25,20 @@ import java.util.Set;
  * person keeps separate.
  */
 final class LiveMerge {
+    /**
+     * Another copy of `ch` to try when it won't play: the first with its guide channel, not tried and not locked. A
+     * guide channel is the same programme, unlike a same-sounding name. Null when there's none. Pure.
+     */
+    static Xtream.Channel copyOf(Iterable<Xtream.Channel> all, Xtream.Channel ch, java.util.Set<Integer> tried,
+            java.util.function.Predicate<Xtream.Channel> locked) {
+        if (ch.epg == null || ch.epg.isEmpty()) return null;
+        for (Xtream.Channel o : all) {
+            if (o == ch || o.id == ch.id || tried.contains(o.id) || !ch.epg.equalsIgnoreCase(o.epg)) continue;
+            if (!locked.test(o)) return o;
+        }
+        return null;
+    }
+
     private LiveMerge() {}
 
     /** The picture's tiers: 4 (4K) to 1 (SD); a channel without a tag counts as HD. */

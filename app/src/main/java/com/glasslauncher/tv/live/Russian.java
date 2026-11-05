@@ -13,6 +13,7 @@ final class Russian {
 
     static String text(String english) {
         switch (english) {
+            case "This channel failed: trying another copy": return "Канал не работает: пробуем другую копию";
             case "A to Z; the same name by country": return "От А до Я; одинаковые названия по стране";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Пробуем этот канал  ·  ▲ ▼ другой канал";
             case "Still trying this channel": return "Пробуем этот канал";

@@ -222,6 +222,7 @@ public class Live extends Activity {
             }
             if (playing != null && recordingFile == null && nextSource()) return;     // a merged channel: its next source
             if (playing != null && recordingFile == null && (status < 400 || status >= 500) && reconnect()) return;
+            if (playing != null && recordingFile == null && catchup == null && anotherCopy()) return;
             if (playing != null && recordingFile == null) health(LiveHealth.FAILED);
             view.setBuffering(false);
             view.setStatus(catchup != null
@@ -983,6 +984,7 @@ public class Live extends Activity {
 
     /** Tunes to `ch` live (remembered for next time). */
     void play(Xtream.Channel ch) {
+        if (!copying) copiesTried.clear();
         if (locked(ch) || ratedLocked(onNowOf(ch))) {
             view.askPin(() -> { unlocked = true; play(ch); }, () -> { if (playing == null) view.openGuide(); });
             return;
@@ -1388,6 +1390,26 @@ public class Live extends Activity {
     }
 
     /** The source playing failed (in both formats): the next one, if the channel has another. */
+    /** The channels tried since the one you chose wouldn't play. */
+    private final java.util.Set<Integer> copiesTried = new java.util.HashSet<>();
+    private boolean copying;
+    private static final int MAX_COPIES = 3;
+
+    /** A channel that won't play: another copy of it in the list (the same guide channel), a few at most. */
+    private boolean anotherCopy() {
+        if (lineup == null || copiesTried.size() >= MAX_COPIES) return false;
+        copiesTried.add(playing.id);
+        Xtream.Channel copy = LiveMerge.copyOf(lineup.all(), playing, copiesTried, this::locked);
+        if (copy == null) return false;
+        AppLog.w("live: " + playing.name + " didn't play, trying " + copy.name);
+        health(LiveHealth.SWITCHED);
+        view.flash(Ui.tr("Este canal falhou: outra cópia", "This channel failed: trying another copy"));
+        copying = true;
+        play(copy);
+        copying = false;
+        return true;
+    }
+
     private boolean nextSource() {
         if (playing.sources == null || source == null) return false;
         failed.add(source.id);

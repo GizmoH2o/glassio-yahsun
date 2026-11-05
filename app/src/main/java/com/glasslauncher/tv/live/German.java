@@ -6,6 +6,7 @@ final class German {
 
     static String text(String english) {
         switch (english) {
+            case "This channel failed: trying another copy": return "Dieser Sender ging nicht: andere Kopie wird versucht";
             case "A to Z; the same name by country": return "A bis Z; gleicher Name nach Land";
             case "Still trying this channel  ·  ▲ ▼ for another": return "Dieser Sender wird weiter versucht  ·  ▲ ▼ für einen anderen";
             case "Still trying this channel": return "Dieser Sender wird weiter versucht";
