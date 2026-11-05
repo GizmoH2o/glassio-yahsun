@@ -30,6 +30,21 @@ class LiveSettingsRulesTest {
         assertEquals(LiveSettingsHome.SEARCH, LiveSettingsHome.move(LiveSettingsHome.SEARCH, 1, 0))
     }
 
+    // Search: a row's group counts, so "subtitle" finds the rows under Sound and subtitles.
+
+    @Test fun `search finds a row by its group`() {
+        assertTrue(LiveSettingsHome.found("subtitle", "Captions", "Watching", "Sound and subtitles"))
+    }
+
+    @Test fun `search ignores case and accents`() {
+        assertTrue(LiveSettingsHome.found("cafe", "Café"))
+        assertTrue(LiveSettingsHome.found("BUFFER", "Buffer"))
+    }
+
+    @Test fun `search misses what isn't there`() {
+        assertFalse(LiveSettingsHome.found("subtitle", "Buffer", "Watching", "Stream"))
+    }
+
     // The connection check.
 
     @Test fun `a steady stream needs no change`() {

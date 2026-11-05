@@ -202,6 +202,11 @@ final class LiveSettings {
 
     private volatile int weekStops = -1;
 
+    /** On a whole-screen page (no column beside it): messages go in the middle of the screen. */
+    boolean wide() {
+        return screen == MAIN || screen == CHECK || screen == GUIDE_PAGE;
+    }
+
     /** Closing: where it is, for next time. */
     void closed() {
         pages.closeCheck();
@@ -1927,10 +1932,12 @@ final class LiveSettings {
             final List<Integer> ids = new ArrayList<>();
             List<String> names = new ArrayList<>();
             for (int s = 0; s < SECTION_ROWS.length; s++) {
+                String group = "";
                 for (int id : rowsOf(s)) {
+                    if (head(id)) group = rowLabel(id);
                     if (id == RESET_ROW || head(id) || ids.contains(id)) continue;
                     String label = rowLabel(id);
-                    if (!Xtream.fold(label).contains(q) && !Xtream.fold(sectionName(s)).contains(q)) continue;
+                    if (!LiveSettingsHome.found(q, label, sectionName(s), group)) continue;
                     ids.add(id);
                     names.add(sectionName(s) + "  ›  " + label);
                 }

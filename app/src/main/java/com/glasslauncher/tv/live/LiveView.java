@@ -1690,7 +1690,8 @@ final class LiveView extends View {
 
     private void drawStatus(Canvas c) {
         if (status.isEmpty()) return;
-        float cx = mode == LIST || mode == SETTINGS ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
+        boolean beside = mode == LIST || mode == SETTINGS && !settings.wide();
+        float cx = beside ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
         String s = ellipsize(status, label, 900 * k);
         float tw = label.measureText(s);
         // Watching with the player up: above it, clear of the title. The design's card and edge.
@@ -1850,6 +1851,7 @@ final class LiveView extends View {
         }
         if (code == KeyEvent.KEYCODE_MENU && mode != SIGN_IN && lineup != null) {   // the remote's Menu: the settings
             if (mode != SETTINGS) openSettings();
+            else settings.key(code);        // the remote page finds it
             return true;
         }
         switch (mode) {

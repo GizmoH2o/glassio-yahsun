@@ -29,6 +29,13 @@ final class LiveSettingsHome {
         return f;
     }
 
+    /** Whether search words `query` fit any of `names` (a row, its section, its group). Pure. */
+    static boolean found(String query, String... names) {
+        String q = Xtream.fold(query);
+        for (String name : names) if (Xtream.fold(name).contains(q)) return true;
+        return false;
+    }
+
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint edge = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF r = new RectF();
@@ -62,7 +69,7 @@ final class LiveSettingsHome {
             boolean on = i == focus;
             card(c, r, on, 22);
             float tx = r.left + 30 * k, room = r.width() - 60 * k;
-            head.setColor(on ? LiveTheme.inkSoft() : 0xE6FFFFFF);
+            head.setColor(on ? onFocus() : 0xE6FFFFFF);
             c.drawText(ellipsize(status[i][0], head, room), tx, r.top + 52 * k, head);
             big.setColor(on ? LiveTheme.ink : 0xFFFFFFFF);
             float bx = tx;
@@ -72,7 +79,7 @@ final class LiveSettingsHome {
                 bx += 34 * k;
             }
             c.drawText(ellipsize(status[i][1], big, room - (bx - tx)), bx, r.top + 112 * k, big);
-            note.setColor(on ? LiveTheme.inkSoft() : 0xE6FFFFFF);
+            note.setColor(on ? onFocus() : 0xE6FFFFFF);
             c.drawText(ellipsize(status[i][2], note, room), tx, r.top + 154 * k, note);
         }
         for (int i = 0; i < names.length; i++) {
@@ -81,11 +88,16 @@ final class LiveSettingsHome {
             boolean on = i + FIRST_SECTION == focus;
             card(c, r, on, 22);
             name.setColor(on ? LiveTheme.ink : 0xFFFFFFFF);
-            note.setColor(on ? LiveTheme.inkSoft() : 0xE6FFFFFF);
+            note.setColor(on ? onFocus() : 0xE6FFFFFF);
             float room = r.width() - 60 * k;
             c.drawText(ellipsize(names[i], name, room), r.left + 30 * k, r.centerY() - 6 * k, name);
             c.drawText(ellipsize(notes[i], note, room), r.left + 30 * k, r.centerY() + 38 * k, note);
         }
+    }
+
+    /** Quieter words on the focus: the ink itself a little see-through, so they read on a colored focus too. */
+    private static int onFocus() {
+        return Ui.alpha(LiveTheme.ink, 0.86f);
     }
 
     /** A card at `box`: the focus' color when `on`, a little bigger; else the design's card and edge. */
