@@ -1563,6 +1563,16 @@ final class LiveView extends View {
         c.drawPath(heart, fill);
     }
 
+    /** A row of the guide's categories panel, whose column starts at `x`. Its own: Glassio 3's list has other columns. */
+    private void groupRow(float x, float row, float top, RectF out) {
+        float y = (GR_TOP + (row - top) * GR_STEP) * k;
+        out.set(x, y, x + (GR_W - 24) * k, y + (GR_STEP - 8) * k);
+    }
+
+    private int groupRows() {
+        return (int) ((1080 - GR_TOP) / GR_STEP);
+    }
+
     /** The rect of category row `row` (a fraction while gliding), the column at `gx`, scrolled to `top`. */
     private void catRow(float gx, float row, float top, RectF out) {
         if (LiveTheme.cinema()) {
@@ -4020,16 +4030,16 @@ final class LiveView extends View {
         fill.setColor(LiveTheme.column);
         c.drawRect(x0 + GP_RAIL * k, 0, dx, h, fill);
         // The categories, the focused one (or the guide's, from the rail) on a tile.
-        int rows = catRows();
+        int rows = groupRows();
         float top = gGroupTop.value;
         int first = Math.max(0, (int) Math.floor(top)), last = Math.min(panelCats.size(), first + rows + 2);
-        catRow(x0 + GP_RAIL * k - 24 * k, gGroupRow.value, top, focusRect);
+        groupRow(x0 + GP_RAIL * k, gGroupRow.value, top, focusRect);
         focusRect.right = dx - 24 * k;
         fill.setColor(gRail ? LiveTheme.surface : LiveTheme.tile);
         c.drawRoundRect(focusRect, 14 * k * LiveTheme.round, 14 * k * LiveTheme.round, fill);
         for (int i = first; i < last; i++) {
             Xtream.Category cg = lineup.categories.get(panelCats.get(i));
-            catRow(x0 + GP_RAIL * k - 24 * k, i, top, r);
+            groupRow(x0 + GP_RAIL * k, i, top, r);
             r.right = dx - 24 * k;
             boolean onTile = !gRail && i == Math.round(gGroupRow.value);
             lGroup.setColor(onTile ? LiveTheme.ink : 0xE6FFFFFF);
@@ -4102,7 +4112,7 @@ final class LiveView extends View {
         gGroups = true;
         gRail = false;
         gGroupIdx = Math.max(0, panelCats.indexOf(gCat));
-        gGroupTopI = scroll(gGroupIdx, Math.max(0, gGroupIdx - catRows() / 2), catRows(), panelCats.size());
+        gGroupTopI = scroll(gGroupIdx, Math.max(0, gGroupIdx - groupRows() / 2), groupRows(), panelCats.size());
         gGroupRow.snap(gGroupIdx);
         gGroupTop.snap(gGroupTopI);
         gPanel.target = 1;
@@ -4126,13 +4136,13 @@ final class LiveView extends View {
             case KeyEvent.KEYCODE_CHANNEL_UP:
             case KeyEvent.KEYCODE_CHANNEL_DOWN: {
                 int d = code == KeyEvent.KEYCODE_DPAD_UP ? -1 : code == KeyEvent.KEYCODE_DPAD_DOWN ? 1
-                        : code == KeyEvent.KEYCODE_CHANNEL_UP ? -catRows() : catRows();
+                        : code == KeyEvent.KEYCODE_CHANNEL_UP ? -groupRows() : groupRows();
                 if (gRail) {
                     gRailIdx = Math.max(0, Math.min(RAIL_ICONS.length - 1, gRailIdx + (d > 0 ? 1 : -1)));
                 } else {
                     gGroupIdx = Math.max(0, Math.min(panelCats.size() - 1, gGroupIdx + d));
                     useGuideCategory(panelCats.get(gGroupIdx));
-                    gGroupTopI = scroll(gGroupIdx, gGroupTopI, catRows(), panelCats.size());
+                    gGroupTopI = scroll(gGroupIdx, gGroupTopI, groupRows(), panelCats.size());
                     gGroupRow.target = gGroupIdx;
                     gGroupTop.target = gGroupTopI;
                     announceForAccessibility(lineup.categories.get(gCat).name);
