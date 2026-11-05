@@ -4563,10 +4563,29 @@ final class LiveView extends View {
             if (bell) Symbols.draw(getContext(), c, "bell", tx + 9 * k, mid, 19 * k, ink ? 0xFF0B0B0D : 0xCCFFFFFF);
         }
         String kind = score != null ? score : tag == 1 ? badgeLive : tag == 2 ? badgeNew : tag == 3 ? badgeRepeat : null;
-        String times = Ui.time(p.start) + " – " + Ui.time(p.end) + (kind == null ? "" : "  ·  " + kind);
-        // On a narrow tile the mark comes first: it's what would be cut off.
-        if (kind != null && sp.measureText(times) > room) times = kind + "  ·  " + Ui.time(p.start);
-        c.drawText(ellipsize(times, sp, room), x, cell.centerY() + 22 * k, sp);
+        String times = Ui.time(p.start) + " – " + Ui.time(p.end);
+        float line = cell.centerY() + 22 * k;
+        if (kind == null) {
+            c.drawText(ellipsize(times, sp, room), x, line, sp);
+            return;
+        }
+        // Its badge after the times; on a narrow tile first, with the start beside it: it's what would be cut off.
+        float bw = gBadge.measureText(kind) + 14 * k, tx = sp.measureText(times), mid = line - Ui.halfCap(sp);
+        boolean fits2 = tx + 10 * k + bw <= room;
+        if (!fits2) times = Ui.time(p.start);
+        if (fits2) c.drawText(times, x, line, sp);
+        float bx = fits2 ? x + tx + 10 * k : x;
+        if (bw <= room) {
+            badgeRect.set(bx, mid - 12 * k, bx + bw, mid + 12 * k);
+            fill.setShader(null);
+            boolean quiet = tag != 1 && tag != 2 && tag != 4;      // a repeat, a match that's over: grey, on the focus's white too
+            fill.setColor(!quiet ? LIVE_RED : ink ? 0x26000000 : 0x59FFFFFF);
+            c.drawRoundRect(badgeRect, 5 * k, 5 * k, fill);
+            gBadge.setColor(quiet && ink ? 0xFF0B0B0D : WHITE);
+            c.drawText(kind, bx + 7 * k, mid + Ui.halfCap(gBadge), gBadge);
+            gBadge.setColor(WHITE);
+        }
+        if (!fits2 && room - bw - 10 * k >= 40 * k) c.drawText(ellipsize(times, sp, room - bw - 10 * k), x + bw + 10 * k, line, sp);
     }
 
     /** A row's programs: the tiles and their titles (`ink`: only the titles, dark, for under the focus). */
