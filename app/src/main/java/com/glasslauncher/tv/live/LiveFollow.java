@@ -191,7 +191,7 @@ final class LiveFollow {
             comp = t.substring(0, colon).trim();
             rest = t.substring(colon + 1).trim();
         }
-        String[] sides = rest.split("(?i)\\s+(?:v|vs\\.?|x|@)\\s+");
+        String[] sides = rest.split("(?i)\\s+(?:v|vs\\.?|x|@|/)\\s+");
         if (sides.length == 2) {
             for (String s : sides) {
                 String team = s.replaceAll("\\s*[(\\[].*$", "").trim();

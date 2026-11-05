@@ -856,7 +856,7 @@ final class German {
             case "Whose info bar, the one over the channel as you watch (← → to change it).": return "Von welchem Design die Infoleiste kommt, die beim Schauen über dem Sender erscheint (← → zum Ändern).";
             case "Whose lettering (← → to change it).": return "Von welchem Design die Schrift kommt (← → zum Ändern).";
             case "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.": return "Klares Glas über tiefem Blau, ein weißer Fokus, sehr runde Ecken; die Infoleiste auf einer schwebenden Glaskarte.";
-            case "Yours: each part from any design, in the rows below.": return "Deines: jeder Teil aus einem beliebigen Design, in den Zeilen darunter.";
+            case "Yours: each part from any design, under More options.": return "Deines: jeder Teil aus einem beliebigen Design, unter Weitere Optionen.";
             case "The usual: graphite, the focus in the color you pick.": return "Wie immer: Graphit, der Fokus in der Farbe deiner Wahl.";
             case "The same": return "Derselbe";
             case "Black": return "Schwarz";

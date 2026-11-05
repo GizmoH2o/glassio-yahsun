@@ -498,8 +498,8 @@ final class LiveTheme {
                     "Dark grey, an amber focus; the info bar on a band.");
             case PLUTO: return Ui.tr("Preto, foco amarelo, letras estreitas e fortes; a barra numa faixa.",
                     "Black, a yellow focus, narrow bold lettering; the info bar on a band.");
-            case CUSTOM: return Ui.tr("O seu: cada parte de um design, nas linhas abaixo.",
-                    "Yours: each part from any design, in the rows below.");
+            case CUSTOM: return Ui.tr("O seu: cada parte de um design, em Mais opções.",
+                    "Yours: each part from any design, under More options.");
             default: return Ui.tr("O do Glassio: vidro claro sobre grafite, o foco na cor escolhida (branco).",
                     "Glassio's own: clear glass over graphite, the focus in the color you pick (white).");
         }

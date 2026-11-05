@@ -45,6 +45,20 @@ class LiveSettingsRulesTest {
         assertFalse(LiveSettingsHome.found("subtitle", "Buffer", "Watching", "Stream"))
     }
 
+    // The Guide page never lists adult channels by name, locked or not.
+
+    @Test fun `adult categories are found by name`() {
+        val news = Xtream.Category().apply { id = "1"; name = "UK | News" }
+        val adult = Xtream.Category().apply { id = "2"; name = "24/7 Adult" }
+        assertEquals(setOf("2"), LiveOptions.adultIds(listOf(news, adult)))
+    }
+
+    // A match's teams: providers also write "A / B".
+
+    @Test fun `a slash between two teams is a match`() {
+        assertEquals(listOf("Slavia Prague", "Arsenal"), LiveFollow.choices("Slavia Prague / Arsenal"))
+    }
+
     // The design gallery: the time-of-day rows above the row of designs.
 
     @Test fun `up from the designs reaches the last row, down comes back`() {

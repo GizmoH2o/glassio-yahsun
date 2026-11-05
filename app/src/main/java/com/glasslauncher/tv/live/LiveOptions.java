@@ -386,6 +386,13 @@ final class LiveOptions {
     private static final java.util.Set<String> ADULT = new java.util.HashSet<>(java.util.Arrays.asList(
             "adult", "adults", "xxx", "18", "porn", "erotic", "erotica", "erotik", "adulto", "adultos"));
 
+    /** The ids of the categories whose names say they're for adults. Pure. */
+    static Set<String> adultIds(java.util.List<Xtream.Category> categories) {
+        Set<String> out = new HashSet<>();
+        for (Xtream.Category c : categories) if (c.name != null && looksAdult(c.name)) out.add(c.id);
+        return out;
+    }
+
     /** Whether a category's name says it's for adults ("XXX", "For Adults", "18+"; U18 isn't). Pure. */
     static boolean looksAdult(String name) {
         for (String w : Xtream.fold(name).split(" ")) if (ADULT.contains(w)) return true;

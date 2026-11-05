@@ -70,16 +70,24 @@ final class LiveSettingsPages {
             Set<String> guided = XmltvStore.guided(live);
             List<Xtream.Channel> all = lineup.all();
             List<String> without = new ArrayList<>();
+            Set<String> locked = LiveOptions.locked(live);      // never by name on this page, PIN or not
+            locked.addAll(LiveOptions.adultIds(lineup.categories));
             int with = 0;
             for (Xtream.Channel ch : new ArrayList<>(all)) {
                 if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) with++;
-                else without.add((ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch));
+                else if (!isIn(locked, ch)) without.add((ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch));
             }
             total = all.size();
             have = with;
             missing = without;
             view.postInvalidate();
         }, "settings-guide").start();
+    }
+
+    private static boolean isIn(Set<String> categories, Xtream.Channel ch) {
+        if (categories.contains(ch.category)) return true;
+        if (ch.sources != null) for (Xtream.Channel s : ch.sources) if (categories.contains(s.category)) return true;
+        return false;
     }
 
     boolean guideKnown() {

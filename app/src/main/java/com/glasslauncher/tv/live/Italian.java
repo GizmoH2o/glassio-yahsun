@@ -845,7 +845,7 @@ final class Italian {
             case "Whose info bar, the one over the channel as you watch (← → to change it).": return "Di chi la barra informazioni, quella sopra il canale mentre guardi (← → per cambiare).";
             case "Whose lettering (← → to change it).": return "Di chi i caratteri (← → per cambiare).";
             case "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.": return "Vetro chiaro su blu profondo, selezione bianca, angoli molto arrotondati; la barra informazioni su una scheda di vetro sospesa.";
-            case "Yours: each part from any design, in the rows below.": return "Il tuo: ogni parte da qualsiasi design, nelle file qui sotto.";
+            case "Yours: each part from any design, under More options.": return "Il tuo: ogni parte da qualsiasi design, in Altre opzioni.";
             case "The usual: graphite, the focus in the color you pick.": return "Il solito: grafite, la selezione nel colore scelto.";
             case "The same": return "Lo stesso";
             case "Black": return "Nero";

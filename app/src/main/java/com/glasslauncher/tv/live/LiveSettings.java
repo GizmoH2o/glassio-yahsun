@@ -1260,7 +1260,7 @@ final class LiveSettings {
             if (sw != null) {
                 valueW = drawSwitch(c, r.right - 22 * k, r.centerY(), sw, switchUsable(rowsOf(section)[i]), ink, 1);
             } else {
-                String val = ellipsize(value(i), v, r.width() * 0.48f);
+                String val = ellipsize(value(i), v, r.width() * 0.6f);
                 c.drawText(val, r.right - 22 * k, base, v);
                 valueW = v.measureText(val);
             }

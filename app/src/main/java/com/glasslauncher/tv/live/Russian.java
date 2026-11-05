@@ -852,7 +852,7 @@ final class Russian {
             case "Whose info bar, the one over the channel as you watch (← → to change it).": return "Из какого дизайна инфопанель поверх канала во время просмотра (← → — изменить).";
             case "Whose lettering (← → to change it).": return "Из какого дизайна шрифт (← → — изменить).";
             case "Clear glass over deep blue, a white focus, very round corners; the info bar on a floating glass card.": return "Прозрачное стекло на тёмно-синем, белый фокус, очень круглые углы; инфопанель на парящей стеклянной карточке.";
-            case "Yours: each part from any design, in the rows below.": return "Ваш: каждая часть из любого дизайна, в строках ниже.";
+            case "Yours: each part from any design, under More options.": return "Ваш: каждая часть из любого дизайна, в разделе «Другие параметры».";
             case "The usual: graphite, the focus in the color you pick.": return "Как обычно: графит, фокус в выбранном цвете.";
             case "The same": return "Тот же";
             case "Black": return "Чёрный";
