@@ -1690,7 +1690,7 @@ final class LiveView extends View {
 
     private void drawStatus(Canvas c) {
         if (status.isEmpty()) return;
-        boolean beside = mode == LIST || mode == SETTINGS && !settings.wide();
+        boolean beside = mode == LIST;
         float cx = beside ? ((LiveTheme.cinema() ? C3_PANEL : PANEL_W) + 1920) / 2f * k : w / 2f;
         String s = ellipsize(status, label, 900 * k);
         float tw = label.measureText(s);

@@ -679,7 +679,7 @@ final class German {
             case "Cyan": return "Cyan";
             case "Captions on or off, their size, background and color.": return "Untertitel an oder aus, ihre Größe, ihr Hintergrund und ihre Farbe.";
             case "Captions on every channel that has them (the remote's CC button switches them too).": return "Untertitel auf jedem Sender, der sie hat (die CC-Taste der Fernbedienung schaltet sie auch).";
-            case "← → to change it; the sample below shows how they look.": return "← → zum Ändern; das Beispiel unten zeigt, wie sie aussehen.";
+            case "← → to change it; the sample above shows how they look.": return "← → zum Ändern; das Beispiel oben zeigt, wie sie aussehen.";
             case "This is how captions will look.": return "So sehen die Untertitel aus.";
             case "Audio language": return "Audiosprache";
             case "Pick a language with the player's Audio button and every channel starts in it.": return "Wähle mit der Audio-Taste des Players eine Sprache, und jeder Sender startet in ihr.";

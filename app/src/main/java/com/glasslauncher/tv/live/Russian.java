@@ -678,7 +678,7 @@ final class Russian {
             case "Cyan": return "Голубой";
             case "Captions on or off, their size, background and color.": return "Субтитры: вкл. или выкл., размер, фон и цвет.";
             case "Captions on every channel that has them (the remote's CC button switches them too).": return "Субтитры на каждом канале, где они есть (кнопка CC на пульте тоже их переключает).";
-            case "← → to change it; the sample below shows how they look.": return "← → чтобы изменить; пример ниже показывает, как они выглядят.";
+            case "← → to change it; the sample above shows how they look.": return "← → чтобы изменить; пример выше показывает, как они выглядят.";
             case "This is how captions will look.": return "Так будут выглядеть субтитры.";
             case "Audio language": return "Язык аудио";
             case "Pick a language with the player's Audio button and every channel starts in it.": return "Выберите язык кнопкой «Аудио» в плеере, и каждый канал будет начинаться на нём.";

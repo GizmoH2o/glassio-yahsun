@@ -44,9 +44,10 @@ final class LiveSettings {
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
-    private static final float X = 780, R = 1824, TOP = 236, ROW_H = 66, STEP = 74, PANEL_W = 1920;
-    private static final float RAIL_X = 72, RAIL_R = 660, RAIL_TOP = 236, RAIL_H = 64, RAIL_STEP = 72;     // eleven sections in the column
-    private static final String[] SECTION_ICONS = {"play", "list", "guide", "sparkles", "bell", "recordings", "lock", "gamepad", "account"};
+    private static final float X = 440, R = 1180, TOP = 170, ROW_H = 66, STEP = 74;
+    /** The live window and the words under it, at the right of a section. */
+    private static final float WIN_X = 1224, WIN_Y = 56, WIN_W = 600, WIN_H = 338;
+    private static final float RAIL_X = 96, RAIL_R = 396, RAIL_TOP = 170, RAIL_H = 58, RAIL_STEP = 66;
     private static final int DESIGN_SECTION = 3, REMINDERS_SECTION = 4, RECORDINGS_SECTION = 5, PARENTAL_SECTION = 6;
     private static final int INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7;
     private static final String[] FORMATS = {LiveOptions.AUTO, LiveOptions.TS, LiveOptions.HLS};
@@ -119,6 +120,14 @@ final class LiveSettings {
     private int screen = MAIN, focus, top;
     /** On the first screen: where the focus is (LiveSettingsHome). */
     private int homeFocus = LiveSettingsHome.FIRST_SECTION;
+    /** In a section: the focus on the list of sections (Back from the rows), ▲ ▼ going through them. */
+    private boolean onRail;
+    private final android.graphics.Path window = new android.graphics.Path();
+    private final RectF windowBox = new RectF();
+    private Paint panelTitle;
+    private TextPaint panelText;
+    private android.text.StaticLayout panelLayout;
+    private String panelShown;
     private final LiveSettingsHome home = new LiveSettingsHome();
     private final LiveSettingsPages pages;
     /** In the favorites' order: the focused one is picked up (↑ ↓ move it). */
@@ -156,11 +165,17 @@ final class LiveSettings {
         k = scale;
         home.size(scale);
         pages.size(scale);
+        windowBox.set(WIN_X * k, WIN_Y * k, (WIN_X + WIN_W) * k, (WIN_Y + WIN_H) * k);
+        window.reset();
+        window.addRoundRect(windowBox, 20 * k, 20 * k, android.graphics.Path.Direction.CW);
+        panelTitle = Ui.text(Ui.displaySemibold, 36 * k, WHITE);
+        panelText = new TextPaint(Ui.text(Ui.regular, 27 * k, 0xF2FFFFFF));
+        panelLayout = null;
         styleHint = null;       // the style's lettering may have changed
         styleHintLayout = null;
         plainHint = null;
         plainHintLayout = null;
-        heading = Ui.text(Ui.displaySemibold, 46 * k, WHITE);
+        heading = Ui.text(Ui.displaySemibold, 44 * k, WHITE);
         label = Ui.text(Ui.medium, 28 * k, 0xF2FFFFFF);
         labelOn = Ui.text(Ui.semibold, 28 * k, WHITE);
         value = Ui.text(Ui.medium, 26 * k, 0xBFFFFFFF);
@@ -172,7 +187,7 @@ final class LiveSettings {
         glow = new Paint(Paint.ANTI_ALIAS_FLAG);
         glow.setColor(WHITE);
         glow.setShadowLayer(26 * k, 0, 10 * k, 0x80000000);
-        railLabel = Ui.text(Ui.medium, 30 * k, WHITE);
+        railLabel = Ui.text(Ui.semibold, 28 * k, WHITE);
         detailTitle = Ui.text(Ui.displaySemibold, 54 * k, WHITE);
         detailText = new TextPaint(Ui.text(Ui.regular, 29 * k, 0xCCFFFFFF));
         previewLabel = Ui.text(Ui.regular, 27 * k, 0xE6FFFFFF);
@@ -210,6 +225,7 @@ final class LiveSettings {
     /** Closing: where it is, for next time. */
     void closed() {
         pages.closeCheck();
+        live.setWindow(null);
         int sec = screen == MAIN ? Math.max(0, homeFocus - LiveSettingsHome.FIRST_SECTION) : marked();
         context().getSharedPreferences("live-ui", Context.MODE_PRIVATE).edit().putInt("settingsPage", sec).apply();
     }
@@ -877,8 +893,8 @@ final class LiveSettings {
                             "Captions on every channel that has them (the remote's CC button switches them too).");
                     case CC_SIZE_ROW:
                     case CC_STYLE_ROW:
-                    case CC_COLOR_ROW: return Ui.tr("← → para trocar; o exemplo abaixo mostra como ficam.",
-                            "← → to change it; the sample below shows how they look.");
+                    case CC_COLOR_ROW: return Ui.tr("← → para trocar; o exemplo acima mostra como ficam.",
+                            "← → to change it; the sample above shows how they look.");
                     case OPACITY_ROW: return Ui.tr("Quanto o canal aparece atrás: menos é mais transparente (← → para trocar).",
                             "How much the channel shows through: lower is clearer (← → to change it).");
                     case CUSTOM_BG_ROW:
@@ -962,40 +978,35 @@ final class LiveSettings {
     void draw(Canvas c, float a, int w, int h) {
         int save = a < 0.995f ? c.saveLayerAlpha(0, 0, w, h, Math.round(255 * a)) : c.save();
         c.translate(-(1 - a) * 40 * k, 0);
-        c.save();       // the style's background, as see-through as set (Settings background)
+        boolean framed = !wide();
+        c.save();       // the style's background, as see-through as set; in a section, around the live window
+        if (framed) c.clipOutPath(window);
+        c.save();
         c.translate(-90 * k, 0);
         LiveTheme.background(c, Math.round(w + 180 * k), h, opacity / 100f);
         c.restore();
-        if (screen == MAIN || screen == CHECK || screen == GUIDE_PAGE) {
-            fill.setShader(null);
-            fill.setColor(0xB3000000);      // whatever's playing stays behind, dim enough to read over
-            c.drawRect(-90 * k, 0, w + 90 * k, h, fill);
+        fill.setShader(null);
+        fill.setColor(0xB3000000);      // whatever's playing stays behind, dim enough to read over
+        c.drawRect(-90 * k, 0, w + 90 * k, h, fill);
+        c.restore();
+        if (!framed) {
             if (screen == MAIN) drawHome(c);
             else if (screen == CHECK) pages.drawCheck(c);
             else pages.drawGuide(c);
             c.restoreToCount(save);
             return;
         }
-        if (LiveTheme.rim != 0) {       // glass: the column a pane of it, with its light edge
-            r.set((RAIL_X - 40) * k, 40 * k, (RAIL_R + 24) * k, h - 40 * k);
-            fill.setColor(LiveTheme.surface);
-            c.drawRoundRect(r, LiveTheme.panelRound(40 * k), LiveTheme.panelRound(40 * k), fill);
-            stroke.setStrokeWidth(1.5f * k);
-            LiveTheme.drawRim(c, r, LiveTheme.panelRound(40 * k), stroke);
-        } else {
-            fill.setColor(0x33000000);       // the column, a shade darker
-            c.drawRect(-90 * k, 0, (RAIL_R + 40) * k, h, fill);
-        }
-        if (screen == KEYS) drawRemote(c);
+        if (screen == KEYS && !onRail) drawRemote(c);       // the focus on the list of sections: the list
         else drawRail(c);
-        c.drawText(title(), X * k, 150 * k, heading);
+        c.drawText(title(), X * k, 118 * k, heading);
         int n = count(), rows = visibleRows();
         c.save();
-        c.clipRect(0, (TOP - 12) * k, PANEL_W * k, (TOP + rows * STEP) * k);
+        c.clipRect((X - 20) * k, (TOP - 12) * k, (R + 20) * k, (TOP + rows * STEP) * k);
         rowRect(row.value, focusRect);
         grow(focusRect);
         glow.setColor(LiveTheme.tile);      // the focus in the theme's color, its text in the style's ink
-        if (n > 0) c.drawRoundRect(focusRect, 16 * k * LiveTheme.round, 16 * k * LiveTheme.round, glow);
+        if (onRail) focusRect.setEmpty();   // on the list of sections: no row has it
+        else if (n > 0) c.drawRoundRect(focusRect, 16 * k * LiveTheme.round, 16 * k * LiveTheme.round, glow);
         labelOn.setColor(LiveTheme.ink);
         valueOn.setColor(Ui.alpha(LiveTheme.ink, 0.92f));
         c.save();
@@ -1007,42 +1018,7 @@ final class LiveSettings {
         drawRows(c, n, true);
         c.restore();
         c.restore();
-        String text = n == 0 ? Ui.tr("Nada aqui ainda.", "Nothing here yet.") : hint();
-        int id = id();
-        if (id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= CODE_ROW || partOf(id) >= 0) {
-            // The guide in miniature as the design draws it, its words beside it.
-            float py = TOP + Math.min(n, rows) * STEP + 16, ph = Math.min(216, 1080 - 24 - py), pw = ph * 16 / 9;
-            // The design being changed: the night one on its row (the day's when it's "the same"), else the day's.
-            int shown = id == NIGHT_ROW ? LiveTheme.styleAt(LiveTheme.EVENING) : id == MORNING_ROW ? LiveTheme.styleAt(LiveTheme.MORNING)
-                    : id == LATE_ROW ? LiveTheme.styleAt(LiveTheme.LATE) : LiveTheme.style();
-            final float px0 = (X + 22) * k, py0 = py * k, pw0 = pw * k;
-            LiveTheme.asStyle(shown, () -> view.drawStylePreview(c, px0, py0, pw0));
-            float tx = X + 22 + pw + 32;
-            if (styleHint == null) styleHint = new android.text.TextPaint(hint);
-            if (!text.equals(styleHintText) || styleHintLayout == null) {
-                styleHintText = text;
-                styleHintLayout = android.text.StaticLayout.Builder.obtain(text, 0, text.length(), styleHint,
-                        Math.max(1, Math.round((R - tx) * k))).setMaxLines(4).setEllipsize(TextUtils.TruncateAt.END).build();
-            }
-            c.save();
-            c.translate(tx * k, (py + 8) * k);
-            styleHintLayout.draw(c);
-            c.restore();
-        } else {        // two lines at most, so a long one shows whole
-            if (plainHint == null) plainHint = new android.text.TextPaint(hint);
-            if (!text.equals(plainHintText) || plainHintLayout == null) {
-                plainHintText = text;
-                plainHintLayout = android.text.StaticLayout.Builder.obtain(text, 0, text.length(), plainHint,
-                        Math.max(1, Math.round((R - X - 22) * k))).setMaxLines(2).setEllipsize(TextUtils.TruncateAt.END).build();
-            }
-            c.save();
-            c.translate((X + 22) * k, (TOP + Math.min(n, rows) * STEP + 44) * k - plainHintLayout.getLineBaseline(0));
-            plainHintLayout.draw(c);
-            c.restore();
-        }
-        if (id >= CC_ON_ROW && id <= CC_COLOR_ROW) {     // how the captions look, as set: under the column
-            view.drawCaptionSample(c, (RAIL_X + RAIL_R) / 2 * k, 1010 * k);
-        }
+        drawPanel(c, n);
         c.restoreToCount(save);
         if (XmltvStore.running()) view.postInvalidateDelayed(500);   // the full guide's progress moves on
     }
@@ -1159,39 +1135,57 @@ final class LiveSettings {
         }
     }
 
-    /**
-     * The column: Live TV at the top, then the sections, each with its symbol. On the first list it has the focus (the
-     * theme's tile gliding); in a section, that one stays marked (a light tile and a bar in the theme's color).
-     */
-    private void drawRail(Canvas c) {
-        Symbols.draw(view.getContext(), c, "live_tv", (RAIL_X + 30) * k, 140 * k, 36 * k, 0xEBFFFFFF);
-        c.drawText(Ui.tr("Ajustes", "Settings"), (RAIL_X + 72) * k, 154 * k, heading);
-        boolean main = screen == MAIN;
-        int marked = marked();
-        if (main && !onSearch) {
-            float fy = (RAIL_TOP + row.value * RAIL_STEP) * k;
-            r.set(RAIL_X * k, fy, RAIL_R * k, fy + RAIL_H * k);
-            glow.setColor(LiveTheme.tile);
-            c.drawRoundRect(r, 18 * k * LiveTheme.round, 18 * k * LiveTheme.round, glow);
+    /** At the right of a section: the live window (a sample of the captions on it), the focused row's name and what it does. */
+    private void drawPanel(Canvas c, int n) {
+        int id = id();
+        if (live.playing() == null) {
+            fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xFF000000);
+            c.drawRoundRect(windowBox, 20 * k, 20 * k, fill);
         }
+        if (id >= CC_ON_ROW && id <= CC_COLOR_ROW) {
+            c.save();
+            c.clipRect(windowBox);
+            view.drawCaptionSample(c, windowBox.centerX(), windowBox.bottom - 18 * k);
+            c.restore();
+        }
+        float x = WIN_X * k, y = (WIN_Y + WIN_H + 62) * k, width = WIN_W * k;
+        String name = n == 0 ? "" : ellipsize(label(focus), panelTitle, width);
+        c.drawText(name, x, y, panelTitle);
+        String text = n == 0 ? Ui.tr("Nada aqui ainda.", "Nothing here yet.") : hint();
+        if (panelLayout == null || !text.equals(panelShown)) {
+            panelShown = text;
+            panelLayout = android.text.StaticLayout.Builder.obtain(text, 0, text.length(), panelText, Math.max(1, Math.round(width)))
+                    .setLineSpacing(0, 1.14f).setMaxLines(7).setEllipsize(TextUtils.TruncateAt.END).build();
+        }
+        c.save();
+        c.translate(x, y + 26 * k);
+        panelLayout.draw(c);
+        c.restore();
+        if (id == STYLE_ROW || id == NIGHT_ROW || id == MORNING_ROW || id == LATE_ROW || id >= CUSTOM_BG_ROW && id <= CODE_ROW || partOf(id) >= 0) {
+            float top = y + 26 * k + panelLayout.getHeight() + 28 * k, pw = Math.min(width, (1040 * k - top) * 16 / 9);
+            if (pw < 200 * k) return;
+            final float top0 = top, pw0 = pw;
+            int shown = id == NIGHT_ROW ? LiveTheme.styleAt(LiveTheme.EVENING) : id == MORNING_ROW ? LiveTheme.styleAt(LiveTheme.MORNING)
+                    : id == LATE_ROW ? LiveTheme.styleAt(LiveTheme.LATE) : LiveTheme.style();
+            LiveTheme.asStyle(shown, () -> view.drawStylePreview(c, x, top0, pw0));
+        }
+    }
+
+    /** At the left of a section: Settings, then the sections; the one open marked, the focus' color when the focus is here. */
+    private void drawRail(Canvas c) {
+        c.drawText(Ui.tr("Ajustes", "Settings"), RAIL_X * k, 118 * k, heading);
+        int marked = marked();
         for (int i = 0; i < SECTION_ROWS.length; i++) {
             float y = (RAIL_TOP + i * RAIL_STEP) * k;
             r.set(RAIL_X * k, y, RAIL_R * k, y + RAIL_H * k);
-            if (!main && i == marked) {
-                fill.setColor(LiveTheme.surface | 0x05000000);
-                c.drawRoundRect(r, 18 * k * LiveTheme.round, 18 * k * LiveTheme.round, fill);
-                fill.setColor(LiveTheme.text);
-                c.drawRoundRect(r.left, r.top + 18 * k, r.left + 6 * k, r.bottom - 18 * k, 3 * k, 3 * k, fill);
+            boolean on = i == marked;
+            if (on) {
+                fill.setColor(onRail ? LiveTheme.tile : LiveTheme.surface | 0x05000000);
+                float rr = LiveTheme.panelRound(14 * k);
+                c.drawRoundRect(r, rr, rr, fill);
             }
-            boolean on = main ? i == focus && !onSearch : i == marked;
-            int ink = on && main ? LiveTheme.ink : on ? WHITE : main ? 0xE6FFFFFF : 0xB3FFFFFF;
-            Symbols.draw(view.getContext(), c, SECTION_ICONS[i], r.left + 46 * k, r.centerY(), 28 * k, ink);
-            railLabel.setColor(ink);
-            c.drawText(ellipsize(sectionName(i), railLabel, r.width() - 130 * k), r.left + 92 * k, r.centerY() + Ui.halfCap(railLabel), railLabel);
-            if (main && i != KEYS_SECTION) {
-                float cw = Symbols.width(view.getContext(), "chevron_right", 22 * k);
-                Symbols.draw(view.getContext(), c, "chevron_right", r.right - 28 * k - cw / 2, r.centerY(), 22 * k, on ? Ui.alpha(LiveTheme.ink, 0.9f) : 0x99FFFFFF);
-            }
+            railLabel.setColor(on ? (onRail ? LiveTheme.ink : WHITE) : 0xCCFFFFFF);
+            c.drawText(ellipsize(sectionName(i), railLabel, r.width() - 44 * k), r.left + 22 * k, r.centerY() + Ui.halfCap(railLabel), railLabel);
         }
     }
 
@@ -1215,7 +1209,7 @@ final class LiveSettings {
             if (sw != null) {
                 valueW = drawSwitch(c, r.right - 22 * k, r.centerY(), sw, switchUsable(rowsOf(section)[i]), ink, 1);
             } else {
-                String val = value(i);
+                String val = ellipsize(value(i), v, r.width() * 0.48f);
                 c.drawText(val, r.right - 22 * k, base, v);
                 valueW = v.measureText(val);
             }
@@ -1309,7 +1303,7 @@ final class LiveSettings {
     }
 
     private static int visibleRows() {
-        return (int) ((1080 - TOP - 110) / STEP);
+        return (int) ((1040 - TOP) / STEP);
     }
 
     // MARK: - Keys
@@ -1334,6 +1328,11 @@ final class LiveSettings {
         }
         if (screen == GUIDE_PAGE) {
             pages.guideKey(code);
+            return;
+        }
+        if (onRail) {
+            railKey(code);
+            view.invalidate();
             return;
         }
         if (screen == KEYS) {       // a button with no other job here: straight to it
@@ -1361,7 +1360,7 @@ final class LiveSettings {
             case KeyEvent.KEYCODE_DPAD_LEFT:
                 if (screen == ROWS && steps()) cycle(-1);
                 else if (screen == KEYS) cycleKey(-1);
-                else if (screen != MAIN && screen != ORDER) back();      // out to the column (a list: to its row)
+                else if (screen != MAIN && screen != ORDER) back();      // out to the sections (a list: to its row)
                 break;
             case KeyEvent.KEYCODE_DPAD_RIGHT:
                 if (screen == ROWS && steps()) cycle(1);
@@ -1377,6 +1376,39 @@ final class LiveSettings {
                 break;
         }
         view.invalidate();
+    }
+
+    /** The list of sections: ▲ ▼ open the next, ▶ or OK go into its rows. */
+    private void railKey(int code) {
+        switch (code) {
+            case KeyEvent.KEYCODE_DPAD_UP:
+            case KeyEvent.KEYCODE_DPAD_DOWN: {
+                int to = marked() + (code == KeyEvent.KEYCODE_DPAD_UP ? -1 : 1);
+                if (to < 0 || to >= SECTION_ROWS.length) return;
+                openSection(to, 0);
+                onRail = true;
+                view.announceForAccessibility(sectionName(to));
+                break;
+            }
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+            case KeyEvent.KEYCODE_ENTER:
+            case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                onRail = false;
+                announce();
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void openSection(int s, int at) {
+        if (s == KEYS_SECTION) {
+            show(KEYS, 0);
+        } else {
+            section = s;
+            show(ROWS, at);
+        }
     }
 
     /** A key on the first screen. */
@@ -1423,13 +1455,7 @@ final class LiveSettings {
             show(GUIDE_PAGE, 0);
         } else {
             int s = homeFocus == 2 ? KEYS_SECTION + 1 : homeFocus - LiveSettingsHome.FIRST_SECTION;
-            if (s == KEYS_SECTION) {
-                show(KEYS, 0);
-            } else {
-                int at = s == leftSection && leftRow < rowsOf(s).length ? leftRow : 0;
-                section = s;
-                show(ROWS, at);
-            }
+            openSection(s, s == leftSection && leftRow < rowsOf(s).length ? leftRow : 0);
         }
     }
 
@@ -1439,10 +1465,15 @@ final class LiveSettings {
             view.closeSettings();
             return;
         }
-        if (screen == ROWS) {
+        if (onRail) {       // from the list of sections: the first screen
+            show(MAIN, marked());
+            return;
+        }
+        if (screen == ROWS) {       // from the rows: the list of sections beside them
             leftSection = section;
             leftRow = focus;
-            show(MAIN, section);
+            onRail = true;
+            view.invalidate();
             return;
         }
         if (screen == CHECK) {
@@ -1455,7 +1486,8 @@ final class LiveSettings {
             return;
         }
         if (screen == KEYS) {
-            show(MAIN, KEYS_SECTION);
+            onRail = true;
+            view.invalidate();
             return;
         }
         if (screen == ORDER && carrying) saveOrder();
@@ -1528,6 +1560,9 @@ final class LiveSettings {
     private void show(int next, int at) {
         screen = next;
         carrying = false;
+        onRail = false;
+        panelShown = null;
+        live.setWindow(wide() ? null : new float[] {WIN_X, WIN_Y, WIN_W, WIN_H});
         if (next == MAIN) homeFocus = at == -1 ? 0 : at == -2 ? 1 : LiveSettingsHome.FIRST_SECTION + at;
         focus = Math.max(0, Math.min(at, count() - 1));
         if (next == ROWS && focus < count() - 1 && head(rowsOf(section)[focus])) focus++;

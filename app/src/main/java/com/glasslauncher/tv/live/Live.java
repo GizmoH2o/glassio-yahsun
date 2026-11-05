@@ -2332,6 +2332,16 @@ public class Live extends Activity {
     }
 
     /** The guide's window moves right by `dx` (1920 space) while its groups are beside it. */
+    /** The window of a section in Settings {x, y, width, height} in the 1920 space; null: wherever else it belongs. */
+    private float[] window;
+
+    void setWindow(float[] box) {
+        if (box == null && window == null) return;
+        if (box != null && java.util.Arrays.equals(box, window)) return;
+        window = box;
+        layoutVideo(true);
+    }
+
     /** The guide's video window moved (another style's layout): the video goes there. */
     void layoutChanged() {
         layoutVideo(false);
@@ -2356,7 +2366,7 @@ public class Live extends Activity {
             return;
         }
         // In the guide's window always all of it; full screen, as picked (Picture: fit, zoom or stretch).
-        int mode = preview ? FIT : aspectMode();
+        int mode = preview || window != null ? FIT : aspectMode();
         int vw = sw, vh = Math.round(sw / aspect);
         if (mode == STRETCH) {
             vh = sh;
@@ -2375,7 +2385,12 @@ public class Live extends Activity {
             surface.setLayoutParams(lp);
         }
         float s = 1, tx = 0, ty = 0;
-        if (preview) {
+        if (window != null) {
+            float k = sw / 1920f, bx = window[0] * k, by = window[1] * k, bw = window[2] * k, bh = window[3] * k;
+            s = Math.min(bw / vw, bh / vh);
+            tx = bx + (bw - vw * s) / 2 - left;
+            ty = by + (bh - vh * s) / 2 - top;
+        } else if (preview) {
             float k = sw / 1920f, bx = (LiveView.P_X + previewDx) * k, by = LiveView.P_Y * k, bw = LiveView.P_W * k, bh = LiveView.P_H * k;
             s = Math.min(bw / vw, bh / vh);
             tx = bx + (bw - vw * s) / 2 - left;
