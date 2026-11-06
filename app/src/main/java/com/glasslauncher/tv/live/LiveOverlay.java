@@ -466,6 +466,8 @@ final class LiveOverlay {
         if (brief) {
             drawBrief(c, ch, shown, past != null, now, (1 - a) * (1 - a));
             c.restoreToCount(save);
+            // Only a frame looks at the clock (step), and once the picture's on nothing else may ask for one.
+            if (showing) view.postInvalidateDelayed(briefWake(lastKey, SystemClock.uptimeMillis()));
             return false;
         }
         if (info.open()) {
@@ -740,6 +742,11 @@ final class LiveOverlay {
         c.translate(X * k, 930 * k);
         about.draw(c);
         c.restore();
+    }
+
+    /** How long until a banner shown at `shownAt` has had its time, and a little over. Pure. */
+    static long briefWake(long shownAt, long now) {
+        return Math.max(0, shownAt + BRIEF_MS - now) + 50;
     }
 
     /** Just tuned: a small card at the top left with the channel and its show, gone in a moment. */

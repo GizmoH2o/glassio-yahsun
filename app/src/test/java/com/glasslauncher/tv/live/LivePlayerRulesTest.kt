@@ -241,4 +241,15 @@ class LivePlayerRulesTest {
         assertEquals(4, LiveOverlay.cardRefocus(1, 0, 3))
         assertEquals(0, LiveOverlay.cardRefocus(0, 1, 3))
     }
+
+    // The small banner: a frame is asked for when it is due to go, or nothing would look at the clock.
+
+    @Test fun `the banner asks for a frame just after its time is up`() {
+        assertEquals(3550, LiveOverlay.briefWake(1000, 1000))
+        assertEquals(50, LiveOverlay.briefWake(1000, 4500))
+    }
+
+    @Test fun `a banner past its time still asks for a frame`() {
+        assertEquals(50, LiveOverlay.briefWake(1000, 9000))
+    }
 }
