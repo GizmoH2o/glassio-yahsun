@@ -36,7 +36,6 @@ final class German {
             case "Live channels only": return "Nur Live-Sender";
             case "Couldn't open it on Home": return "Konnte nicht auf der Startseite geöffnet werden";
             case "Rewind any channel": return "Jeden Sender zurückspulen";
-            case "Upscaling": return "Hochskalieren";
             case "Logos and names in the guide": return "Logos und Namen im Programm";
             case "Logo in the player": return "Logo im Player";
             case "Channel logos": return "Senderlogos";
@@ -46,7 +45,6 @@ final class German {
             case "Centered": return "Zentriert";
             case "Centered, steady": return "Zentriert, fest";
             case "With the text": return "Mit dem Text";
-            case "SD and 720p channels sharpened by the TV's graphics chip before the TV enlarges them to the screen. While it's on, tunneled playback is off for every channel.": return "SD- und 720p-Sender werden vom Grafikchip des Fernsehers geschärft, bevor sie vergrößert werden. Solange das an ist, ist die getunnelte Wiedergabe für alle Sender aus.";
             case "The channel's last 15 minutes are kept on the TV: ◀ goes back on any channel, even without catch-up. Starts a moment later.": return "Die letzten 15 Minuten des Senders bleiben auf dem Fernseher: ◀ springt bei jedem Sender zurück, auch ohne Catch-up. Startet etwas später.";
             case "The screen switches to the video's rate (50 Hz, 24 Hz…): the channel's own, or counted as it plays.": return "Der Bildschirm wechselt zur Bildrate des Videos (50 Hz, 24 Hz…): der des Senders oder der beim Abspielen gezählten.";
             case "The channel's country (US, UK, CA…) on a tag beside its name, read from its name or its category.": return "Das Land des Senders (US, UK, CA…) als Etikett neben dem Namen, gelesen aus Name oder Kategorie.";

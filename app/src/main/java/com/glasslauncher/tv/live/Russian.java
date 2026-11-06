@@ -43,7 +43,6 @@ final class Russian {
             case "Live channels only": return "Только прямые каналы";
             case "Couldn't open it on Home": return "Не удалось открыть на главной";
             case "Rewind any channel": return "Перемотка на любом канале";
-            case "Upscaling": return "Масштабирование";
             case "Logos and names in the guide": return "Логотипы и названия в телегиде";
             case "Logo in the player": return "Логотип в плеере";
             case "Channel logos": return "Логотипы каналов";
@@ -53,7 +52,6 @@ final class Russian {
             case "Centered": return "По центру";
             case "Centered, steady": return "По центру, неподвижно";
             case "With the text": return "С текстом";
-            case "SD and 720p channels sharpened by the TV's graphics chip before the TV enlarges them to the screen. While it's on, tunneled playback is off for every channel.": return "Каналы SD и 720p улучшает графический чип телевизора перед увеличением. Пока это включено, туннельное воспроизведение выключено на всех каналах.";
             case "The channel's last 15 minutes are kept on the TV: ◀ goes back on any channel, even without catch-up. Starts a moment later.": return "Последние 15 минут канала хранятся на телевизоре: ◀ перематывает назад на любом канале, даже без архива. Запускается чуть позже.";
             case "The screen switches to the video's rate (50 Hz, 24 Hz…): the channel's own, or counted as it plays.": return "Экран переключается на частоту видео (50 Гц, 24 Гц…): указанную каналом или подсчитанную при просмотре.";
             case "The channel's country (US, UK, CA…) on a tag beside its name, read from its name or its category.": return "Страна канала (US, UK, CA…) на метке рядом с названием, определяется по названию или категории.";

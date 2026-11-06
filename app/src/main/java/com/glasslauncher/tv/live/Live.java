@@ -254,16 +254,6 @@ public class Live extends Activity {
                 LiveMerge.played(Live.this, source.id, size.height,
                         f != null && MimeTypes.VIDEO_H265.equals(f.sampleMimeType));
             }
-            // Upscaling went by the name ("… SD") and the picture is HD after all (providers mislabel): the stream
-            // again without it (what it really is is kept now, so once).
-            if (upscaling && size.height >= 1000 && playing != null) {
-                AppLog.w("live: " + playing.name + " is " + size.height + " lines: no upscaling");
-                main.post(() -> {
-                    if (shift != null) playShift(shiftAt());
-                    else if (catchup != null) startCatchup(position());
-                    else start(playing);
-                });
-            }
         }
 
         @Override public void onTracksChanged(androidx.media3.common.Tracks tracks) {
@@ -638,11 +628,8 @@ public class Live extends Activity {
         }.setEnableDecoderFallback(true);
         DefaultTrackSelector tracks = new DefaultTrackSelector(this);
         trackSelector = tracks;
-        upscaling = false;      // per channel: applyUpscale, as each one starts
-        // Upscaling on: no tunneled playback for any channel, so the surface never passes between the decoder's
-        // own path and the graphics chip's (that handover left the picture black on TCL's Realtek TVs).
         tracks.setParameters(subtitlePrefs(tracks.buildUponParameters()
-                        .setTunnelingEnabled(LiveOptions.tunneling(this) && !LiveOptions.upscale(this)),
+                        .setTunnelingEnabled(LiveOptions.tunneling(this)),
                 LiveOptions.subtitles(this)).setPreferredAudioLanguage(audioPref()));
         // A TS stream's closed captions (CEA-608, in the video, as US channels send them) show as a subtitle track
         // even when the stream doesn't announce them, as HLS does already.
@@ -671,45 +658,11 @@ public class Live extends Activity {
     }
 
     private DefaultTrackSelector trackSelector;
-    /** Whether the player's frames go through LiveUpscale now (tunneled playback off while they do). */
-    private boolean upscaling;
-
-    /**
-     * Upscaling (Live TV › Settings › Playback) for the stream about to start: only under 1080 lines (SD and 720p, as
-     * it played last or as its name says), where the TV's graphics chip keeps up and it shows; the rest as before,
-     * tunneled. Before the player is given the stream; switching it stops the player first.
-     */
-    private void applyUpscale(Xtream.Channel src) {
-        if (player == null || trackSelector == null) return;
-        int tier = src == null ? 0 : LiveMerge.tierOf(this, src);
-        boolean on = LiveOptions.upscale(this) && (tier == LiveMerge.SD || tier == LiveMerge.HD);
-        if (on == upscaling) return;
-        // On or off, a new player on a new surface: once the graphics chip has drawn into the surface, video straight
-        // from the decoder couldn't take it over, nor the other way round (the picture stayed black, or it buffered for
-        // good). Hidden and shown again, the surface is made anew, and the new player takes it as it comes.
-        releasePlayer();
-        freshSurface();
-        createPlayer();     // upscaling false; tunneled playback off while Upscaling is on
-        if (on) {
-            upscaling = true;
-            player.setVideoEffects(java.util.Collections.singletonList(new LiveUpscale()));
-        }
-    }
-
-    /** The video's surface made anew (hidden, then shown on the next frame): nothing of the last picture kept. */
-    private void freshSurface() {
-        surface.setVisibility(android.view.View.GONE);
-        main.post(() -> surface.setVisibility(android.view.View.VISIBLE));
-    }
-
     private void releasePlayer() {
         if (player == null) return;
         player.removeListener(listener);
         player.release();
         player = null;
-        // An upscaling player leaves its last picture in the surface, over whatever the next player sends (Upscaling
-        // turned off in the settings left that frame frozen on screen): the next one starts on a fresh surface.
-        if (upscaling) freshSurface();
     }
 
     // MARK: - Signing in and the channel list
@@ -1176,7 +1129,6 @@ public class Live extends Activity {
         view.setStatus("");
         view.setBuffering(true);
         view.tuning();      // black until its first frame: nothing half-decoded shows
-        applyUpscale(source);
         player.setMediaItem(item);
         player.prepare();
         player.play();
@@ -1916,7 +1868,6 @@ public class Live extends Activity {
                     view.setStatus(Ui.tr("Não deu para falar com o servidor.", "Couldn't reach the server."));
                     return;
                 }
-                applyUpscale(src);
                 // From the start of the address: a stream that can't seek would say it's further on than it is.
                 player.setMediaItem(new MediaItem.Builder().setUri(address)
                         .setMimeType(file != null ? MimeTypes.VIDEO_MP2T : Xtream.mime(this, address, f)).build(), 0);
@@ -2242,7 +2193,6 @@ public class Live extends Activity {
                         .createMediaSource(new MediaItem.Builder().setUri("timeshift:" + offset).setMimeType(MimeTypes.VIDEO_MP2T).build());
         wasReady = false;
         view.setBuffering(true);
-        applyUpscale(this.source != null ? this.source : playing);
         player.setMediaSource(source);
         player.prepare();
         player.play();

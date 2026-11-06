@@ -39,7 +39,7 @@ final class LiveSettings {
             RESET_ROW = 56, MATCH_ROW = 57, MATCH_STYLE_ROW = 58, REMIND_WATCHING_ROW = 59, GUIDE_SHIFT_ROW = 60, GUIDE_SIZE_ROW = 61, SCORES_ROW = 62, GOALS_ROW = 63, RECORD_LIST_ROW = 64, RECORDINGS_ROW = 65,
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
-            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77, UPSCALE_ROW = 78,
+            CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
             KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
@@ -92,7 +92,7 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, UPSCALE_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
+            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
@@ -370,7 +370,6 @@ final class LiveSettings {
             case BUFFER_ROW: return Ui.tr("Buffer", "Buffer");
             case FRAME_RATE_ROW: return Ui.tr("Taxa de quadros automática", "Auto frame rate");
             case REWIND_ANY_ROW: return Ui.tr("Voltar em qualquer canal", "Rewind any channel");
-            case UPSCALE_ROW: return Ui.tr("Melhorar a imagem", "Upscaling");
             case PASSTHROUGH_ROW: return Ui.tr("Áudio direto (passthrough)", "Audio passthrough");
             case AUDIO_LANG_ROW: return Ui.tr("Idioma do áudio", "Audio language");
             case TUNNELING_ROW: return Ui.tr("Reprodução em túnel", "Tunneled playback");
@@ -528,7 +527,6 @@ final class LiveSettings {
             }
             case FRAME_RATE_ROW: return onOff(LiveOptions.frameRate(c));
             case REWIND_ANY_ROW: return onOff(LiveOptions.rewindAny(c));
-            case UPSCALE_ROW: return onOff(LiveOptions.upscale(c));
             case PASSTHROUGH_ROW: return onOff(LiveOptions.passthrough(c));
             case AUDIO_LANG_ROW: {
                 String l = LiveOptions.audioLanguage(c);
@@ -824,8 +822,6 @@ final class LiveSettings {
                             "Automatic uses what your provider prefers. If channels don't start, try the other one.");
                     case BUFFER_ROW: return Ui.tr("Maior: mais estável numa conexão lenta, demora um pouco mais para começar.",
                             "Larger: steadier on a slow connection, a little slower to start.");
-                    case UPSCALE_ROW: return Ui.tr("Canais SD e 720p mais nítidos pelo chip gráfico da TV antes de a TV ampliá-los para a tela. Ligado, a reprodução em túnel fica desligada em todos os canais.",
-                            "SD and 720p channels sharpened by the TV's graphics chip before the TV enlarges them to the screen. While it's on, tunneled playback is off for every channel.");
                     case REWIND_ANY_ROW: return Ui.tr("Os últimos 15 minutos do canal ficam na TV: ◀ volta em qualquer canal, mesmo sem reprise. Começa um instante depois.",
                             "The channel's last 15 minutes are kept on the TV: ◀ goes back on any channel, even without catch-up. Starts a moment later.");
                     case FRAME_RATE_ROW: return Ui.tr("A tela muda para a taxa do vídeo (50 Hz, 24 Hz…), a do canal, ou a contada enquanto toca.",
@@ -1275,7 +1271,6 @@ final class LiveSettings {
         switch (id) {
             case FRAME_RATE_ROW: return LiveOptions.frameRate(c);
             case REWIND_ANY_ROW: return LiveOptions.rewindAny(c);
-            case UPSCALE_ROW: return LiveOptions.upscale(c);
             case PASSTHROUGH_ROW: return LiveOptions.passthrough(c);
             case TUNNELING_ROW: return LiveOptions.tunneling(c);
             case MERGE_ROW: return LiveOptions.merge(c);
@@ -2119,7 +2114,7 @@ final class LiveSettings {
     private void reset(Context c, int s) {
         switch (s) {
             case 0:     // Playback
-                LiveOptions.forget(c, "format", "buffer", "rewindAny", "upscale", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
+                LiveOptions.forget(c, "format", "buffer", "rewindAny", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
                 live.playbackChanged();
                 live.relist();
                 LiveOptions.forget(c, "homeOnStart", "ccSize", "ccColor", "ccStyle");
@@ -2218,7 +2213,6 @@ final class LiveSettings {
         switch (focus) {
             case FRAME_RATE_ROW: LiveOptions.setFrameRate(c, !LiveOptions.frameRate(c)); live.playbackChanged(); announce(); return;
             case REWIND_ANY_ROW: LiveOptions.setRewindAny(c, !LiveOptions.rewindAny(c)); live.playbackChanged(); announce(); return;
-            case UPSCALE_ROW: LiveOptions.setUpscale(c, !LiveOptions.upscale(c)); live.playbackChanged(); announce(); return;
             case PASSTHROUGH_ROW: LiveOptions.setPassthrough(c, !LiveOptions.passthrough(c)); live.playbackChanged(); announce(); return;
             case AUDIO_LANG_ROW:
                 if (!LiveOptions.audioLanguage(c).isEmpty()) {
@@ -2507,7 +2501,6 @@ final class LiveSettings {
             case BUFFER_ROW:
             case FRAME_RATE_ROW:
             case REWIND_ANY_ROW:
-            case UPSCALE_ROW:
             case PASSTHROUGH_ROW:
             case AUDIO_LANG_ROW:
             case TUNNELING_ROW:

@@ -88,8 +88,6 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
-    // Live TV's Upscaling: the picture enlarged and sharpened on the TV's graphics chip (LiveUpscale).
-    implementation("androidx.media3:media3-effect:1.11.1")
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation("dev.mobile:dadb:1.2.10")
