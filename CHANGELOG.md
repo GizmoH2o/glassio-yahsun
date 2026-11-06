@@ -2,6 +2,46 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.3.0 — 2026-11-06
+
+**A redesigned Live TV player**
+- **New player controls.** A clearer layout with the channel, the time, the show and how far through it you are, and solid text with a soft shadow that reads over any picture. The fade behind it is the same on every screen.
+- **Info** is now a full screen: the show, what you can do with it, and what's later on the channel. Everything from the old Options tab lives here, so that tab is gone.
+- **Moments** is a new screen with a mark on the bar at each goal and red card, and a row of tiles to jump to them. It asks first when it would spoil the match.
+- **Catch-up has its own controls**: skip a minute back or ahead, Moments, Audio & Subtitles and a red Back to live. Press up from the bar for **Score hidden**, and OK shows or hides the score.
+- **Stacked skips show where you'll land**, with the stretch they cover and the time.
+- **Audio & Subtitles** is redrawn, with subtitle size buttons, a **Night mode** switch that makes Live TV quieter straight away, and **Remember for this channel**.
+- **Up next** now shows what else starts at the same time, with **Stay here** and **What else is on**. While it's up, ◀ ▶ and OK work on the card.
+
+**Live TV settings, rebuilt**
+- **A new home screen** with your connection, guide and subscription at a glance, nine sections, and search that also finds settings by their group.
+- **A live video window** beside each section, so you can keep watching while you change things.
+- **Connection check** watches what's playing for twenty seconds and suggests what to change.
+- **Guide health** shows how many channels have a guide, whether it's on time, and which are missing.
+- **A design gallery** in Look, to browse and try the designs on the real picture.
+
+**The guide keeps its past**
+- **Past days to keep now really keeps them.** Each update used to replace the guide with the provider's latest file, so you only ever had about a day. Finished shows now stay until your setting's limit, building up with each update. What was already gone can't come back.
+- **Catch-up channels reach further back straight away**, by adding older shows from your provider's catch-up table where it has them. How far depends on the provider and the channel.
+
+**Catch-up fixes**
+- **Shows still airing now play.** On some channels catch-up would stay on "Still trying this channel" forever.
+- **Catch-up no longer freezes when you skip.** A past show now moves by the minute, the bar says where it's going, and a part that won't play is skipped.
+- **M3U playlists get catch-up** when they carry catch-up details.
+
+**Removed**
+- **Upscaling.** It only sharpened the picture, and doing so took the video off your TV's own video hardware, so 4K TVs got a 1080p picture. Without it, SD and HD channels go straight to the TV, which enlarges them itself.
+
+**Home**
+- **Colour from the picture**: Home's dark page picks up a little colour from the selected title. Turn it off in Settings › Look & motion.
+
+**Other fixes**
+- **The small channel card** at the top left no longer gets stuck on screen.
+- **Catalogs**: when an add-on leaves your list, Home no longer empties.
+- Channels in adult categories no longer appear by name in the Guide health list.
+- Teams are recognised in matches written "A / B".
+- Reminders show their full times in Settings.
+
 ## 3.2.0 — 2026-11-05
 
 **Every Live TV design, up to date**
