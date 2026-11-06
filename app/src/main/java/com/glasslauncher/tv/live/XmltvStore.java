@@ -32,7 +32,8 @@ import java.util.zip.GZIPInputStream;
  * The full guide (XMLTV): the provider's whole guide file (xmltv.php, or a link typed in the settings), read as it
  * downloads (it can be hundreds of MB, never held in memory), keeping only the programs of this lineup's channels in
  * the days the settings keep, in a small SQLite database. A new one is built beside the one in use and replaces it
- * when done, so the guide works meanwhile. Live TV's guide reads it first, and Search looks for shows in it.
+ * when done, so the guide works meanwhile. A provider's file holds little of the past, so what's over comes along from
+ * the one before (CARRY_PAST). Live TV's guide reads it first, and Search looks for shows in it.
  */
 final class XmltvStore {
     private XmltvStore() {}
@@ -40,6 +41,14 @@ final class XmltvStore {
     private static final String DB = "live-guide.db", BUILDING = "live-guide-new.db";
     private static final long HOUR = 3600_000L, DAY = 24 * HOUR;
     private static final int ABOUT_MAX = 320;
+    /**
+     * The shows that are over from the guide before: on a channel the new file still has, up to where the new file
+     * starts for it (it knows better from there), within the days kept. `?`: from, now.
+     */
+    private static final String CARRY_PAST = "INSERT INTO p (epg, start, stop, title, key, about, icon, age, sub, rep) "
+            + "SELECT o.epg, o.start, o.stop, o.title, o.key, o.about, o.icon, o.age, o.sub, o.rep "
+            + "FROM old.p o JOIN (SELECT epg, MIN(start) AS first FROM main.p GROUP BY epg) n ON n.epg = o.epg "
+            + "WHERE o.stop > ? AND o.stop <= ? AND o.stop <= n.first";
     /** The database's layout: 2 added the shows' pictures (an older one is fetched again). */
     /** The guide's layout: 3 added each programme's rating, 4 the channels' logos (an older guide is fetched again). */
     private static final int VERSION = 6;      // 5: sub-title and repeat kept apart; 6: NEW and LIVE carried between channels
@@ -620,6 +629,7 @@ final class XmltvStore {
             // Holds what searches compare, so they read this and not the long descriptions in the table.
             w.execSQL("CREATE INDEX by_search ON p (start, stop, key)");
             carryMarks(w, marked);
+            if (count > 0) count += carryPast(w, c.getDatabasePath(DB), from, now);
             w.execSQL("INSERT INTO meta VALUES ('at', '" + now + "'), ('count', '" + count + "'), ('channels', '" + seen.size()
                     + "'), ('v', '" + VERSION + "')");
         } finally {
@@ -647,6 +657,36 @@ final class XmltvStore {
         progress = "";
         AppLog.w("guide: " + pictures + " with a picture");
         return count;
+    }
+
+    /** Copies what's over from the guide in use (CARRY_PAST); how many. A guide it can't read just keeps nothing. */
+    private static long carryPast(SQLiteDatabase w, File old, long from, long now) {
+        long inFile = oldest(w);
+        long kept = 0;
+        if (old.exists()) {
+            try {
+                w.execSQL("ATTACH DATABASE ? AS old", new Object[] {old.getPath()});
+                try (SQLiteStatement carry = w.compileStatement(CARRY_PAST)) {
+                    carry.bindLong(1, from);
+                    carry.bindLong(2, now);
+                    kept = carry.executeUpdateDelete();
+                } finally {
+                    w.execSQL("DETACH DATABASE old");
+                }
+            } catch (RuntimeException e) {
+                AppLog.w("guide: past shows not kept: " + e.getMessage());
+            }
+        }
+        java.text.SimpleDateFormat day = new java.text.SimpleDateFormat("MMM d HH:mm", Locale.US);
+        AppLog.w("guide: the file goes back to " + day.format(new java.util.Date(inFile)) + ", " + kept
+                + " past shows kept, back to " + day.format(new java.util.Date(oldest(w))));
+        return kept;
+    }
+
+    private static long oldest(SQLiteDatabase w) {
+        try (Cursor q = w.rawQuery("SELECT MIN(start) FROM p", null)) {
+            return q.moveToNext() ? q.getLong(0) : 0;
+        }
     }
 
     /**

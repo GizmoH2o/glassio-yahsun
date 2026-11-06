@@ -3949,6 +3949,7 @@ final class LiveView extends View {
                 LiveSeries.match(c, channel, full);
                 LiveFollow.match(c, channel, full);
                 postInvalidate();
+                addOlder(channel, full, now);
                 return;
             }
         }
@@ -3976,6 +3977,34 @@ final class LiveView extends View {
         }
         LiveSeries.match(c, channel, got);
         LiveFollow.match(c, channel, got);
+        postInvalidate();
+    }
+
+    /**
+     * A catch-up channel whose full guide stops short of its catch-up: the shows before that, from the provider's table
+     * (saved like any channel's), behind what's showing already.
+     */
+    private void addOlder(Xtream.Channel channel, List<Xtream.Program> full, long now) {
+        android.content.Context c = getContext();
+        if (!Xtream.kind(c).equals(Xtream.XTREAM) || !LiveCatchup.wantsOlder(channel.archive, full.get(0).start, now)) return;
+        Xtream.SavedGuide saved = Xtream.savedGuide(c, channel.id);
+        List<Xtream.Program> older = saved != null && now - saved.at <= LiveOptions.guideHours(c) * HOUR ? saved.programs : null;
+        if (older == null) {
+            try {
+                // What the table has stopped listing stays, as the full guide's past does.
+                older = keepPast(channel, saved == null ? null : saved.programs, Xtream.guide(c, channel, 12), now);
+                Xtream.saveGuide(c, channel.id, older, now);
+            } catch (IOException e) {
+                older = saved == null ? null : saved.programs;      // the provider can't be reached: what there was
+            }
+        }
+        List<Xtream.Program> joined = LiveCatchup.joinPast(older, full);
+        if (joined == full) return;
+        AppLog.w("guide " + channel.name + ": " + (joined.size() - full.size()) + " older shows from the provider's table, "
+                + (full.get(0).start - joined.get(0).start) / HOUR + " h further back, " + channel.archive + " days of catch-up");
+        synchronized (epg) {
+            if (epg.get(channel.id) == full) epg.put(channel.id, joined);
+        }
         postInvalidate();
     }
 

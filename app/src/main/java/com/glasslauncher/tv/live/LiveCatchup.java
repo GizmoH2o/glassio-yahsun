@@ -27,6 +27,28 @@ final class LiveCatchup {
         return Math.floorDiv(start + from, MINUTE) * MINUTE - start;
     }
 
+    /**
+     * Whether a channel with `days` of catch-up has more past than the guide, which starts at `first`: the full guide
+     * can hold a day where the catch-up holds five (the provider's table has the rest). Pure.
+     */
+    static boolean wantsOlder(int days, long first, long now) {
+        return days > 0 && first > now - days * 24 * 3600_000L + 3600_000L;
+    }
+
+    /** `guide` with the shows of `older` that end before it starts in front, in order, none overlapping. Pure. */
+    static java.util.List<Xtream.Program> joinPast(java.util.List<Xtream.Program> older, java.util.List<Xtream.Program> guide) {
+        if (older == null || older.isEmpty() || guide.isEmpty()) return guide;
+        long first = guide.get(0).start;
+        java.util.List<Xtream.Program> before = new java.util.ArrayList<>();
+        for (Xtream.Program p : older) if (p.end <= first) before.add(p);
+        if (before.isEmpty()) return guide;
+        java.util.Collections.sort(before, (a, b) -> Long.compare(a.start, b.start));
+        java.util.List<Xtream.Program> out = new java.util.ArrayList<>(before.size() + guide.size());
+        for (Xtream.Program p : before) if (out.isEmpty() || p.start >= out.get(out.size() - 1).end) out.add(p);
+        out.addAll(guide);
+        return out;
+    }
+
     /** Whether a show ending at `end` may still be growing at the provider: while it airs, and a while after. Pure. */
     static boolean stillGrowing(long end, long now) {
         return now < end + GROWS_AFTER_MS;
