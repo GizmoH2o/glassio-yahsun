@@ -8,32 +8,51 @@ Home Assistant hooks. Built with Kotlin and Jetpack Compose. Tested on the Googl
 
 [العربية — دليل الاستخدام الكامل](docs/README.ar.md) · [Discussions](https://github.com/GizmoH2o/glassio-yahsun/discussions) · [Report a bug](https://github.com/GizmoH2o/glassio-yahsun/issues/new/choose)
 
+## A look around
+
 ![Home](docs/screenshots/01-home.jpg)
 
-| | |
-|---|---|
-| ![Carousel](docs/screenshots/02-carousel.jpg) | ![Dock](docs/screenshots/03-dock-focus.jpg) |
-| ![Apps open](docs/screenshots/04-apps-open.jpg) | ![Apps folder](docs/screenshots/05-apps-folder.jpg) |
-| ![App menu](docs/screenshots/06-app-menu.jpg) | ![Icon picker](docs/screenshots/07-icon-picker-appletv.jpg) |
-| ![Performance](docs/screenshots/10-settings-performance.jpg) | ![Carousel settings](docs/screenshots/11-settings-carousel.jpg) |
-| ![Dock & icons](docs/screenshots/13-settings-dock-icons.jpg) | ![Catalogs](docs/screenshots/14-settings-catalogs.jpg) |
-| ![Continue Watching](docs/screenshots/15-settings-continue-watching.jpg) | ![Nuvio & Home Assistant](docs/screenshots/16-settings-nuvio-ha.jpg) |
-| ![Screensaver](docs/screenshots/17-settings-screensaver.jpg) | ![About](docs/screenshots/20-settings-about.jpg) |
-| ![Menu](docs/screenshots/40-menu.jpg) | ![Themes](docs/screenshots/41-menu-themes.jpg) |
-| ![Background](docs/screenshots/42-menu-background.jpg) | ![Library](docs/screenshots/43-library.jpg) |
-| ![Screensaver as background](docs/screenshots/44-screensaver-background.jpg) | ![Black on white](docs/screenshots/45-theme-black-on-white.jpg) |
-
-**Live TV, Following and backup (Glassio Yahsun)**
+**Home**
 
 | | |
 |---|---|
-| ![Continue Watching with Live TV](docs/screenshots/50-live-continue-watching.jpg) | ![Record from the home screen](docs/screenshots/51-live-card-record.jpg) |
-| ![Watch on Home](docs/screenshots/52-watch-on-home.jpg) | ![Live TV page](docs/screenshots/53-live-tv-page.jpg) |
-| ![Following](docs/screenshots/54-following.jpg) | ![TV guide with channel numbers](docs/screenshots/55-guide-channel-numbers.jpg) |
-| ![Guide in the Glassio design](docs/screenshots/56-guide-style-glassio.jpg) | ![Guide in the Netflix design](docs/screenshots/57-guide-style-netflix.jpg) |
-| ![Guide in the Max design](docs/screenshots/58-guide-style-max.jpg) | ![Live TV designs](docs/screenshots/59-live-style-picker.jpg) |
-| ![Live TV settings](docs/screenshots/60-live-settings-theme.jpg) | ![Live TV menu](docs/screenshots/61-live-menu.jpg) |
-| ![Backup in Settings](docs/screenshots/62-settings-backup.jpg) | ![Setup checklist](docs/screenshots/63-setup-checklist.jpg) |
+| ![Rows of what you're watching](docs/screenshots/02-home-rows.jpg) | ![Your apps](docs/screenshots/03-apps.jpg) |
+| ![Library](docs/screenshots/04-library.jpg) | ![Quick menu](docs/screenshots/05-quick-menu.jpg) |
+| ![Settings](docs/screenshots/06-settings.jpg) | |
+
+**Live TV player**
+
+| | |
+|---|---|
+| ![Live TV page](docs/screenshots/10-live-tv-page.jpg) | ![Player controls](docs/screenshots/11-player.jpg) |
+| ![Info](docs/screenshots/12-info.jpg) | ![Channels](docs/screenshots/13-channels.jpg) |
+| ![Audio & Subtitles](docs/screenshots/14-audio-subtitles.jpg) | ![Moments](docs/screenshots/15-moments.jpg) |
+| ![Moments asks first, so it never spoils a match](docs/screenshots/16-spoiler-guard.jpg) | ![Up next](docs/screenshots/19-up-next.jpg) |
+| ![Catch-up](docs/screenshots/17-catch-up.jpg) | ![Stacked skips show where you'll land](docs/screenshots/18-stacked-skip.jpg) |
+
+**Guide and channels**
+
+| | |
+|---|---|
+| ![TV guide](docs/screenshots/20-guide.jpg) | ![Channel list](docs/screenshots/21-channel-list.jpg) |
+| ![Show page](docs/screenshots/22-show-page.jpg) | |
+
+**Live TV settings**
+
+| | |
+|---|---|
+| ![Settings home](docs/screenshots/30-settings-home.jpg) | ![A section with the video beside it](docs/screenshots/31-settings-section.jpg) |
+| ![Connection check](docs/screenshots/32-connection-check.jpg) | ![Guide health](docs/screenshots/33-guide-health.jpg) |
+| ![Design gallery](docs/screenshots/34-design-gallery.jpg) | |
+
+**Designs**
+
+| | |
+|---|---|
+| ![Apple TV](docs/screenshots/40-design-apple-tv.jpg) | ![Sky](docs/screenshots/41-design-sky.jpg) |
+| ![Netflix](docs/screenshots/42-design-netflix.jpg) | |
+
+Live video is replaced by a stand-in picture in these screenshots, and the Moments screens use a made-up match.
 
 ---
 
