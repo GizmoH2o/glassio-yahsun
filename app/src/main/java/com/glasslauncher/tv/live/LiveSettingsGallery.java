@@ -184,7 +184,7 @@ final class LiveSettingsGallery {
         fill.setColor(LiveTheme.text);
         c.drawRoundRect(left, y, left + (right - left) * 0.7f, y + 6 * k, 3 * k, 3 * k, fill);
         y += 26 * k;
-        String[] tabs = {Ui.tr("Info", "Info"), Ui.tr("Canais", "Channels"), Ui.tr("Opções", "Options")};
+        String[] tabs = {Ui.tr("Info", "Info"), Ui.tr("Canais", "Channels"), Ui.tr("Áudio", "Audio")};
         float x = left, rr = LiveTheme.panelRound(12 * k);
         for (int i = 0; i < tabs.length; i++) {
             float tw = tab.measureText(tabs[i]) + 44 * k;
