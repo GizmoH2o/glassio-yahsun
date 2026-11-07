@@ -374,11 +374,27 @@ public class Live extends Activity {
         }
 
         @Override public void goal(LiveScores.Score s, boolean forHome) {
-            view.goal(forHome ? s.home : s.away, s.line());
+            alert(s, Ui.tr("GOL!  ", "GOAL!  ") + (forHome ? s.home : s.away));
         }
 
         @Override public void news(LiveScores.Score s, String line) {
             view.flash(line);
+        }
+
+        @Override public void close(LiveScores.Score s) {
+            alert(s, Ui.tr("Jogo apertado", "Close game"));
+        }
+
+        /** A card, offering the match when it's on another channel (found off this thread: it reads the guide). */
+        private void alert(LiveScores.Score s, String head) {
+            Context app = getApplicationContext();
+            io.execute(() -> {
+                Xtream.Channel at = LiveAlerts.channelFor(app, s);
+                view.post(() -> {
+                    Xtream.Channel ch = at == null ? null : find(at.id);
+                    view.card(head, s.line(), ch != null && LiveAlerts.offer(ch.id, playing == null ? -1 : playing.id) ? ch : null);
+                });
+            });
         }
     };
 
@@ -519,6 +535,18 @@ public class Live extends Activity {
                 r.why = Ui.tr("a TV estava desligada", "the TV was off");
                 LiveRecordings.put(Live.this, r);
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
+                return;
+            }
+            if (i.hasExtra("alertfor")) {       // a close-game card for that followed match, as it would come
+                LiveScores.Score s = LiveScores.get(Live.this).forTerm(Xtream.fold(i.getStringExtra("alertfor")));
+                if (s != null) scores.close(s);
+                return;
+            }
+            if (i.hasExtra("goalcard")) {       // a goal card offering that channel number
+                Xtream.Channel to = null;
+                int num = i.getIntExtra("goalcard", -1);
+                if (lineup != null) for (Xtream.Channel ch : lineup.all()) if (ch.num == num) to = ch;
+                view.card("GOAL!  HAR", "HAR 1–0 NOR  ·  63'", to);
                 return;
             }
             if (i.hasExtra("matchevent")) {     // Match Centre on one real match

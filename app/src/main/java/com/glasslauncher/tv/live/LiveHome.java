@@ -380,6 +380,70 @@ public final class LiveHome {
         /** When it starts (wall clock), and the same key while it's the same match (the home screen's kick-off alert). */
         public long start;
         public String key = "";
+        /** What the alert card calls it. */
+        public String tag = "KICK-OFF";
+    }
+
+    /** What the home screen's alert card is told: a goal or a close game, ready to show. */
+    public interface Alerts {
+        void told(MatchDay alert);
+    }
+
+    /**
+     * Goals and close games of followed teams while the home screen is in front (Goal alerts, Close games, On the home
+     * screen); `alerts` runs on another thread, and only for a match with a channel to go to. Hand the result to stopScores.
+     */
+    public static Object watchAlerts(Context c, Alerts alerts) {
+        final Context app = c.getApplicationContext();
+        LiveScores.Listener l = new LiveScores.Listener() {
+            @Override public void changed() {
+            }
+
+            @Override public void goal(LiveScores.Score s, boolean forHome) {
+                tell(s, forHome ? s.home : s.away, "GOAL");
+            }
+
+            @Override public void close(LiveScores.Score s) {
+                tell(s, "FOLLOWING", "CLOSE GAME");
+            }
+
+            private void tell(LiveScores.Score s, String label, String tag) {
+                new Thread(() -> {
+                    Xtream.Channel ch = LiveAlerts.channelFor(app, s);
+                    if (ch == null) return;
+                    MatchDay out = new MatchDay();
+                    out.label = label;
+                    out.tag = tag;
+                    out.headline = s.line();
+                    out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + (ch.num > 0 ? ch.num + "  " : "") + ch.name;
+                    out.live = true;
+                    out.channel = ch.id;
+                    out.key = s.event + ":" + s.homeScore + ":" + s.awayScore;
+                    alerts.told(out);
+                }, "live-alert").start();
+            }
+        };
+        if (LiveOptions.scores(app) && LiveOptions.alertsOnHome(app)) LiveScores.get(app).watch(l);
+        return l;
+    }
+
+    /** A made-up goal on channel number `num`, for looking at the home screen's card (the test intent). Blocking. */
+    public static MatchDay testAlert(Context c, int num) {
+        Xtream.Lineup l = Xtream.saved(c);
+        if (l == null) return null;
+        for (Xtream.Channel ch : l.all()) {
+            if (ch.num != num) continue;
+            MatchDay out = new MatchDay();
+            out.label = "HAR";
+            out.tag = "GOAL";
+            out.headline = "HAR 1–0 NOR  ·  63'";
+            out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + ch.num + "  " + ch.name;
+            out.live = true;
+            out.channel = ch.id;
+            out.key = "test";
+            return out;
+        }
+        return null;
     }
 
     /**

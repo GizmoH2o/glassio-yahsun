@@ -370,6 +370,13 @@ final class Italian {
             case "The score and events stay hidden until you say so.": return "Risultato ed eventi restano nascosti finché non lo chiedi.";
             case "Show the match": return "Mostra la partita";
             case "A player tab with the timeline, stats, lineups and table of football matches.": return "Una scheda del player con cronologia, statistiche, formazioni e classifica.";
+            case "Close game": return "Partita combattuta";
+            case "Close games": return "Partite combattute";
+            case "Alerts on the home screen": return "Avvisi nella schermata Home";
+            case "Quiet for matches being recorded": return "Silenzio per le partite in registrazione";
+            case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Un avviso dall'80° minuto con al massimo un gol di scarto. OK va alla partita.";
+            case "Goals and close games show on Glassio's home screen too.": return "Gol e partite combattute appaiono anche nella Home di Glassio.";
+            case "No alerts for a match being recorded, so they don't spoil it.": return "Nessun avviso per una partita in registrazione, per non rovinarla.";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";

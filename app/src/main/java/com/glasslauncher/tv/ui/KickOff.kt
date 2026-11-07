@@ -84,7 +84,7 @@ fun KickOffCard() {
                 Text("LIVE", color = Color.White, fontSize = (7 * s).sp, fontWeight = FontWeight.Bold, letterSpacing = (0.6f * s).sp,
                     modifier = Modifier.background(Color(0xFFE5342B), RoundedCornerShape((4 * s).dp)).padding(horizontal = (5 * s).dp, vertical = (1.5f * s).dp))
                 Spacer(Modifier.width((7 * s).dp))
-                Text(m.label.ifBlank { "FOLLOWING" } + "  ·  KICK-OFF", color = AppleSecondary, fontSize = (8 * s).sp,
+                Text(m.label.ifBlank { "FOLLOWING" } + "  ·  " + m.tag, color = AppleSecondary, fontSize = (8 * s).sp,
                     fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height((6 * s).dp))

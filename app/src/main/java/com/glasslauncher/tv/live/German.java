@@ -382,6 +382,13 @@ final class German {
             case "The score and events stay hidden until you say so.": return "Ergebnis und Ereignisse bleiben verborgen, bis du es sagst.";
             case "Show the match": return "Spiel anzeigen";
             case "A player tab with the timeline, stats, lineups and table of football matches.": return "Ein Player-Tab mit Zeitleiste, Statistik, Aufstellungen und Tabelle von Fußballspielen.";
+            case "Close game": return "Enges Spiel";
+            case "Close games": return "Enge Spiele";
+            case "Alerts on the home screen": return "Hinweise auf dem Startbildschirm";
+            case "Quiet for matches being recorded": return "Still bei laufenden Aufnahmen";
+            case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Ein Hinweis ab der 80. Minute bei höchstens einem Tor Unterschied. OK wechselt zum Spiel.";
+            case "Goals and close games show on Glassio's home screen too.": return "Tore und enge Spiele erscheinen auch auf dem Glassio-Startbildschirm.";
+            case "No alerts for a match being recorded, so they don't spoil it.": return "Keine Hinweise zu einem Spiel, das aufgenommen wird, damit nichts verraten wird.";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

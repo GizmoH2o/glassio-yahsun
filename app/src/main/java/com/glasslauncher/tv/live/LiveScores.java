@@ -33,6 +33,7 @@ final class LiveScores {
         String term = "";       // the followed words it's for, folded
         String event = "", board = "";     // ESPN's event id; the board it's read from ("soccer/eng.1")
         String home = "", away = "";       // the teams' short names (MUN, BOU)
+        String homeName = "", awayName = "";     // and their full ones (the alerts' check of a channel)
         int homeScore, awayScore;
         String state = "pre", clock = "";  // pre, in or post; 63', HT, FT, or the kickoff time
         long start, endedAt;
@@ -43,6 +44,8 @@ final class LiveScores {
         /** Red cards seen so far (-1: not read yet, so the first reading isn't news). */
         int reds = -1;
         boolean toldHalf;
+        /** Told it's a close game (only once a match). */
+        boolean toldClose;
 
         /** MUN 1–0 BOU · 63' */
         String line() {
@@ -58,6 +61,9 @@ final class LiveScores {
 
         /** Half-time, full-time or a red card: a line to show. */
         default void news(Score s, String line) {}
+
+        /** A match that's close and late (LiveAlerts). */
+        default void close(Score s) {}
     }
 
     private static final String ESPN = "https://site.api.espn.com/apis/site/v2/sports/";
@@ -155,6 +161,11 @@ final class LiveScores {
     /** Whether a score can't be trusted any more: a match in play the board hasn't told about lately. Pure. */
     static boolean stale(String state, long readAt, long now) {
         return "in".equals(state) && readAt > 0 && now - readAt > STALE;
+    }
+
+    /** Nothing told about this match: its team is kept spoiler-free, or it's being recorded. */
+    private boolean quiet(String folded) {
+        return hidden(folded) || LiveAlerts.recording(c, folded);
     }
 
     /** A team kept spoiler-free: its score is still read, but shown nowhere and no goal is told. */
@@ -302,11 +313,14 @@ final class LiveScores {
             JSONObject team = t.optJSONObject("team");
             String name = team == null ? "" : team.optString("abbreviation", team.optString("shortDisplayName"));
             int score = parse(t.optString("score"));
+            String full = team == null ? "" : team.optString("displayName", name);
             if ("home".equals(t.optString("homeAway"))) {
                 s.home = name;
+                s.homeName = full;
                 s.homeScore = score;
             } else {
                 s.away = name;
+                s.awayName = full;
                 s.awayScore = score;
             }
         }
@@ -328,14 +342,18 @@ final class LiveScores {
             else if (s.awayScore > oldAway) goal(s, false);
         }
         boolean half = type != null && halfTime(type.optString("name"), type.optString("shortDetail"));
-        if (tell && !hidden(s.term)) {
+        if (tell && !quiet(s.term)) {
             if (half && !s.toldHalf && LiveOptions.matchNews(c)) news(s, Ui.tr("Intervalo", "Half-time") + "  ·  " + s.line());
             if (wasLive && s.state.equals("post") && LiveOptions.matchNews(c)) news(s, Ui.tr("Fim de jogo", "Full-time") + "  ·  " + s.line());
         }
         if (half) s.toldHalf = true;
+        if (!s.toldClose && LiveAlerts.closeGame(s.state, s.clock, s.homeScore, s.awayScore)) {
+            s.toldClose = true;
+            if (tell && LiveOptions.closeGames(c) && !quiet(s.term)) main.post(() -> { for (Listener l : listeners) l.close(s); });
+        }
         JSONArray details = comp.optJSONArray("details");
         int reds = redCards(details);
-        if (tell && s.reds >= 0 && reds > s.reds && !hidden(s.term) && LiveOptions.redCardAlerts(c)) {
+        if (tell && s.reds >= 0 && reds > s.reds && !quiet(s.term) && LiveOptions.redCardAlerts(c)) {
             news(s, Ui.tr("Cartão vermelho", "Red card") + "  ·  " + s.line());
         }
         s.reds = reds;
@@ -393,7 +411,7 @@ final class LiveScores {
     }
 
     private void goal(Score s, boolean forHome) {
-        if (hidden(s.term)) return;
+        if (quiet(s.term)) return;
         main.post(() -> { for (Listener l : listeners) l.goal(s, forHome); });
     }
 

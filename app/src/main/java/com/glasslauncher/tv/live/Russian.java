@@ -381,6 +381,13 @@ final class Russian {
             case "The score and events stay hidden until you say so.": return "Счёт и события скрыты, пока вы не попросите.";
             case "Show the match": return "Показать матч";
             case "A player tab with the timeline, stats, lineups and table of football matches.": return "Вкладка плеера с хронологией, статистикой, составами и таблицей.";
+            case "Close game": return "Напряжённая концовка";
+            case "Close games": return "Напряжённые матчи";
+            case "Alerts on the home screen": return "Оповещения на главном экране";
+            case "Quiet for matches being recorded": return "Тишина для записываемых матчей";
+            case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Оповещение с 80-й минуты при разнице не более мяча. OK переключает на матч.";
+            case "Goals and close games show on Glassio's home screen too.": return "Голы и напряжённые матчи также показываются на главном экране Glassio.";
+            case "No alerts for a match being recorded, so they don't spoil it.": return "Без оповещений о записываемом матче, чтобы не выдать результат.";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

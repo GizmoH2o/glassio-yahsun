@@ -370,6 +370,13 @@ final class French {
             case "The score and events stay hidden until you say so.": return "Le score et les actions restent masqués à votre demande.";
             case "Show the match": return "Afficher le match";
             case "A player tab with the timeline, stats, lineups and table of football matches.": return "Un onglet du lecteur avec chronologie, stats, compositions et classement.";
+            case "Close game": return "Match serré";
+            case "Close games": return "Matchs serrés";
+            case "Alerts on the home screen": return "Alertes sur l'écran d'accueil";
+            case "Quiet for matches being recorded": return "Silence pour les matchs enregistrés";
+            case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Une alerte dès la 80e minute avec un but d'écart au plus. OK va au match.";
+            case "Goals and close games show on Glassio's home screen too.": return "Les buts et matchs serrés s'affichent aussi sur l'accueil de Glassio.";
+            case "No alerts for a match being recorded, so they don't spoil it.": return "Pas d'alerte pour un match en cours d'enregistrement, pour ne rien gâcher.";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

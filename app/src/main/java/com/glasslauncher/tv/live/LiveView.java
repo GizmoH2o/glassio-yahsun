@@ -1821,6 +1821,19 @@ final class LiveView extends View {
         }
         boolean ours = isOurs(code);
         if (!ours) return false;
+        // A goal card offering the match: OK goes there.
+        if (ok(code) && (offering() || goalPressed)) {
+            if (down && e.getRepeatCount() == 0) {
+                goalPressed = true;
+                Xtream.Channel to = goalTo;
+                goalTo = null;
+                goalAt = 0;
+                tune(to);
+            } else if (!down) {
+                goalPressed = false;
+            }
+            return true;
+        }
         // The channel stopped and gave up connecting (its status says so): OK tries again.
         if (mode == WATCH && !buffering && !status.isEmpty() && live.playing() != null && !overlay.visible()
                 && (code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER || code == KeyEvent.KEYCODE_NUMPAD_ENTER)) {
@@ -4947,7 +4960,13 @@ final class LiveView extends View {
     private String goalTeam = "", goalLine = "";
     private long goalAt;
     private Paint goalBig, goalSmall;
-    private static final long GOAL_MS = 6000;
+    /** Where OK goes while the card's up: the match, on another channel; null for none. */
+    private Xtream.Channel goalTo;
+    /** OK went to the card: its release isn't anything else's press. */
+    private boolean goalPressed;
+    private static final long GOAL_MS = 6000, GOAL_OFFER_MS = 10_000;
+    /** The card's widest. */
+    private static final float GOAL_W = 760;
 
     /** A goal in a followed team's match (Goal alerts): a card at the top right for a few seconds. */
     void goal(String team, String line) {
@@ -4956,26 +4975,46 @@ final class LiveView extends View {
 
     /** A card at the top right for a few seconds: a goal, a recording that failed. */
     void card(String head, String line) {
+        card(head, line, null);
+    }
+
+    /** The same; with `to`, it stays longer and OK goes to that channel. */
+    void card(String head, String line, Xtream.Channel to) {
         goalTeam = head;
         goalLine = line;
+        goalTo = to;
         goalAt = SystemClock.uptimeMillis();
         announceForAccessibility(head + ", " + line);
         invalidate();
     }
 
+    private long goalMs() {
+        return goalTo != null ? GOAL_OFFER_MS : GOAL_MS;
+    }
+
+    /** Whether the card's up offering a channel, with nothing else on screen to take OK. */
+    private boolean offering() {
+        return goalTo != null && goalAt != 0 && SystemClock.uptimeMillis() - goalAt <= goalMs() && mode == WATCH && !overlay.visible();
+    }
+
     /** The goal card, sliding in and out; true while it's on screen. */
     private boolean drawGoal(Canvas c, long up) {
-        long t = up - goalAt;
-        if (goalAt == 0 || t > GOAL_MS) return false;
+        long t = up - goalAt, length = goalMs();
+        if (goalAt == 0 || t > length) return false;
         if (goalBig == null || goalBig.getTextSize() != 40 * k) {
             goalBig = Ui.text(Ui.displaySemibold, 40 * k, WHITE);
             goalSmall = Ui.text(Ui.medium, 27 * k, 0xE6FFFFFF);
         }
-        float a = Ui.clamp(Math.min(t / 300f, (GOAL_MS - t) / 400f));
+        float a = Ui.clamp(Math.min(t / 300f, (length - t) / 400f));
         String head = goalTeam;
+        String offer = goalTo == null ? null : Ui.tr("OK para assistir", "OK to watch") + "  ·  " + nameOf(goalTo);
         float cw = Math.max(goalBig.measureText(head), goalSmall.measureText(goalLine)) + 80 * k;
+        if (offer != null) {
+            cw = Math.min(GOAL_W * k, Math.max(cw, goalSmall.measureText(offer) + 80 * k));
+            offer = TextUtils.ellipsize(offer, new TextPaint(goalSmall), cw - 80 * k, TextUtils.TruncateAt.END).toString();
+        }
         float right = w - 48 * k + (1 - a) * 60 * k, top = 48 * k;
-        r.set(right - cw, top, right, top + 140 * k);
+        r.set(right - cw, top, right, top + (offer != null ? 190 : 140) * k);
         int save = c.saveLayerAlpha(r.left - 2, r.top - 2, r.right + 2, r.bottom + 2, Math.round(255 * a));
         fill.setShader(null);
         fill.setColor(LiveTheme.sheet());      // Glassio: its dark glass
@@ -4984,6 +5023,7 @@ final class LiveView extends View {
         c.drawRoundRect(r.left + 18 * k, r.top + 26 * k, r.left + 24 * k, r.bottom - 26 * k, 3 * k, 3 * k, fill);
         c.drawText(head, r.left + 44 * k, r.top + 62 * k, goalBig);
         c.drawText(goalLine, r.left + 44 * k, r.top + 108 * k, goalSmall);
+        if (offer != null) c.drawText(offer, r.left + 44 * k, r.top + 156 * k, goalSmall);
         c.restoreToCount(save);
         return true;
     }

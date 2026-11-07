@@ -195,6 +195,33 @@ final class LiveOptions {
     }
 
     /** Whether the Recordings page marks recordings that won't all fit the account's streams. */
+    /** A line when a followed team's match is close and late (LiveAlerts). */
+    static boolean closeGames(Context c) {
+        return sp(c).getBoolean("closeGames", true);
+    }
+
+    static void setCloseGames(Context c, boolean on) {
+        sp(c).edit().putBoolean("closeGames", on).apply();
+    }
+
+    /** Goals and close games shown on the home screen too. */
+    static boolean alertsOnHome(Context c) {
+        return sp(c).getBoolean("alertsOnHome", true);
+    }
+
+    static void setAlertsOnHome(Context c, boolean on) {
+        sp(c).edit().putBoolean("alertsOnHome", on).apply();
+    }
+
+    /** No alerts for a match being recorded: they'd spoil it. */
+    static boolean alertsQuietRecording(Context c) {
+        return sp(c).getBoolean("alertsQuietRecording", true);
+    }
+
+    static void setAlertsQuietRecording(Context c, boolean on) {
+        sp(c).edit().putBoolean("alertsQuietRecording", on).apply();
+    }
+
     /** The player's Match tab (LivePlayerMatch). */
     static boolean matchCentre(Context c) {
         return sp(c).getBoolean("matchCentre", true);

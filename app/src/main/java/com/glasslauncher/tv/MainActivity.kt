@@ -65,6 +65,17 @@ class MainActivity : ComponentActivity() {
             com.glasslauncher.tv.ui.MiniLiveWindow()
             com.glasslauncher.tv.ui.KickOffCard()
         }
+        // Goals and close games of followed teams, while the home screen is in front (not over the small window, not in Kids mode).
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                val alerts = com.glasslauncher.tv.live.LiveHome.watchAlerts(this@MainActivity) { a ->
+                    runOnUiThread {
+                        if (com.glasslauncher.tv.ui.MiniLive.now.value == null && !(application as GlassApp).settings.kidsMode) com.glasslauncher.tv.ui.KickOff.now.value = a
+                    }
+                }
+                try { kotlinx.coroutines.awaitCancellation() } finally { com.glasslauncher.tv.live.LiveHome.stopScores(this@MainActivity, alerts) }
+            }
+        }
         // Live TV's cards in Continue Watching: read again every minute while the home screen is in front.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -129,6 +140,9 @@ class MainActivity : ComponentActivity() {
         // Test only: the widgets' calendars and Home Assistant set back to none.
         if (i?.getStringExtra("widgets_reset") == "all") { app.settings.calLinks = emptyList(); app.settings.haUrl = ""; app.settings.haToken = ""; app.settings.haEntities = emptyList() }
         if (i?.hasExtra("page_glass") == true) com.glasslauncher.tv.ui.PageGlass.on.value = i.getBooleanExtra("page_glass", true)
+        i?.getIntExtra("test_goal", -1)?.takeIf { it >= 0 }?.let { num ->      // the alert card, on the TV (am start --ei test_goal 622)
+            Thread { com.glasslauncher.tv.live.LiveHome.testAlert(this, num)?.let { a -> runOnUiThread { com.glasslauncher.tv.ui.KickOff.now.value = a } } }.start()
+        }
         i?.getIntExtra("open_settings", -1)?.takeIf { it >= 0 }?.let { app.requestSettings.intValue = it; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_menu", false) == true) { app.requestSettings.intValue = 100; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_library", false) == true) { app.requestSettings.intValue = 101; app.requestSettingsRev.intValue++ }
