@@ -329,6 +329,8 @@ Releases from 2.1.1 on are signed with the same key, so they install over each o
   (`Android/data/com.glassioyahsun.tv/files/appletv/`).
 - `tools/release.sh [--dry-run]` — builds the release APK and publishes it on GitHub with its CHANGELOG.md section as
   the release notes (it stops when the version has none). See [Build](#build).
+- `TV=<tv-ip>:5555 tools/screencheck.py [out-dir]` — with Live TV open on a channel, walks its screens on the TV, checks
+  each one drew and nothing crashed, and saves a sheet of them to look over (needs Pillow; changes nothing on the TV).
 - `tools/framestats.py` — summarises `adb shell dumpsys gfxinfo com.glassioyahsun.tv framestats` per frame stage.
 
 Terminal helpers (`adb shell am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity …`): `--ez open_folder true`,

@@ -826,3 +826,8 @@ Colour from the picture	Color de la imagen
 Home's dark background picks up a little colour from the selected title	El fondo oscuro de Inicio toma un poco del color del título seleccionado
 Following tab	Pestaña Siguiendo
 The teams and shows you follow, in the top bar. Off, it's in the menu.	Los equipos y programas que sigues, en la barra superior. Desactivado: en el menú.
+Save a problem report	Guardar un informe de problema
+Glassio's version, settings and recent log for looking into a problem, with accounts, links and addresses taken out. Saved in Downloads	La versión, los ajustes y el registro reciente de Glassio para investigar un problema, sin cuentas, enlaces ni direcciones. Se guarda en Descargas
+Making the report…	Creando el informe…
+Saved in Downloads: Glassio-problem-report.txt	Guardado en Descargas: Glassio-problem-report.txt
+Couldn't save the report	No se pudo guardar el informe

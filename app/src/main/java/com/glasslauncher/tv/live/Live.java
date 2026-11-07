@@ -313,6 +313,7 @@ public class Live extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         Prefs.init(this);      // the language too: it may have changed since this process started
+        AppLog.keepIn(new java.io.File(getFilesDir(), "live-log.txt"));
         if (!freezesWatched) {
             freezesWatched = true;
             CrashLog.watchFreezes(this);
@@ -538,6 +539,10 @@ public class Live extends Activity {
             }
             if (i.getBooleanExtra("aboutshow", false)) {      // About the show, as the player's button opens it
                 view.aboutPlaying();
+                return;
+            }
+            if (i.hasExtra("standin")) {      // a plain picture behind everything, for capturing screens
+                view.testStandIn(i.getBooleanExtra("standin", false));
                 return;
             }
             if (i.getBooleanExtra("upnext", false)) {     // the Up next card, on whatever's on

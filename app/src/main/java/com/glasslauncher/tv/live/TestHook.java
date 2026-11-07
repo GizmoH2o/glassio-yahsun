@@ -28,6 +28,8 @@ import android.content.IntentFilter;
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --es scores URL          Live TV (open): live scores from a
  *                                                                    stand-in (URL/soccer/all/scoreboard, …: ESPN's
  *                                                                    layout; off: ESPN's)
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez standin true       Live TV (open):
+ *                                                                    a plain picture behind everything, for captures
  */
 final class TestHook {
     private TestHook() {}

@@ -28,4 +28,16 @@ class ReleaseAidsTest {
         for (k in listOf("tmdbToken", "haToken", "haUrl", "haWebhook", "homePin", "phoneToken", "calLinks", "weatherCity", "bgImage")) assertTrue(k, ProblemReport.privateSetting(k))
         for (k in listOf("textSize", "perfMode", "heroAutoplay", "reduceMotion")) assertFalse(k, ProblemReport.privateSetting(k))
     }
+
+    @Test fun `the report reads the log of every process, Live TV's included`() {
+        assertFalse(ProblemReport.logCommand().any { it.startsWith("--pid") })
+        assertTrue("logcat" in ProblemReport.logCommand())
+    }
+
+    @Test fun `Live TV's per-channel settings stay out of the report`() {
+        assertFalse(ProblemReport.liveSetting("audio:123"))
+        assertFalse(ProblemReport.liveSetting("guideUrl"))
+        assertTrue(ProblemReport.liveSetting("pastDays"))
+        assertTrue(ProblemReport.liveSetting("tunneling"))
+    }
 }

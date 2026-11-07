@@ -723,6 +723,13 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             val devOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) == 1 }.getOrDefault(false)
             val adbOn = runCatching { AndroidSettings.Global.getInt(ctx.contentResolver, AndroidSettings.Global.ADB_ENABLED, 0) == 1 }.getOrDefault(false)
             listOf(
+                Act("Save a problem report", "Glassio's version, settings and recent log for looking into a problem, with accounts, links and addresses taken out. Saved in Downloads") {
+                    toast(ctx, "Making the report…")
+                    scope.launch {
+                        val done = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.glasslauncher.tv.data.ProblemReport.saveToDownloads(ctx, app.updater.current) } }
+                        toast(ctx, if (done.isSuccess) "Saved in Downloads: Glassio-problem-report.txt" else "Couldn't save the report")
+                    }
+                },
                 Toggle("Phone remote", "The phone page stays on, at an address that doesn't change: keep it on your phone's home screen and use it as a remote any time (Manage from phone shows its code)",
                     { st.phoneRemote }, { st.phoneRemote = it; com.glasslauncher.tv.net.PhoneRemote.apply(app) }),
                 Toggle("Beta updates", "Also offer test builds: newer, and more likely to have problems", { st.betaUpdates }, { st.betaUpdates = it; scope.launch(Dispatchers.IO) { app.updater.check() } }),

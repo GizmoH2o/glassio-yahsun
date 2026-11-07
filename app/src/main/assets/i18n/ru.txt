@@ -827,3 +827,8 @@ Colour from the picture	Цвет из изображения
 Home's dark background picks up a little colour from the selected title	Тёмный фон главного экрана принимает оттенок выбранного тайтла
 Following tab	Вкладка «Подписки»
 The teams and shows you follow, in the top bar. Off, it's in the menu.	Команды и передачи, на которые вы подписаны, на верхней панели. Выкл.: в меню.
+Save a problem report	Сохранить отчёт о проблеме
+Glassio's version, settings and recent log for looking into a problem, with accounts, links and addresses taken out. Saved in Downloads	Версия, настройки и недавний журнал Glassio для изучения проблемы, без учётных записей, ссылок и адресов. Сохраняется в «Загрузки»
+Making the report…	Создание отчёта…
+Saved in Downloads: Glassio-problem-report.txt	Сохранено в «Загрузки»: Glassio-problem-report.txt
+Couldn't save the report	Не удалось сохранить отчёт

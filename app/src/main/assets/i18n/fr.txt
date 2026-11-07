@@ -826,3 +826,8 @@ Colour from the picture	Couleur de l'image
 Home's dark background picks up a little colour from the selected title	Le fond sombre de l'accueil prend un peu de la couleur du titre sélectionné
 Following tab	Onglet Suivis
 The teams and shows you follow, in the top bar. Off, it's in the menu.	Les équipes et émissions que vous suivez, dans la barre du haut. Désactivé : dans le menu.
+Save a problem report	Enregistrer un rapport de problème
+Glassio's version, settings and recent log for looking into a problem, with accounts, links and addresses taken out. Saved in Downloads	La version, les réglages et le journal récent de Glassio pour étudier un problème, sans comptes, liens ni adresses. Enregistré dans Téléchargements
+Making the report…	Création du rapport…
+Saved in Downloads: Glassio-problem-report.txt	Enregistré dans Téléchargements : Glassio-problem-report.txt
+Couldn't save the report	Impossible d'enregistrer le rapport

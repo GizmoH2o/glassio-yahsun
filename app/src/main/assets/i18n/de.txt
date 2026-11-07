@@ -827,3 +827,8 @@ Colour from the picture	Farbe aus dem Bild
 Home's dark background picks up a little colour from the selected title	Der dunkle Hintergrund der Startseite nimmt etwas Farbe des gewählten Titels an
 Following tab	Tab Folge ich
 The teams and shows you follow, in the top bar. Off, it's in the menu.	Die Teams und Sendungen, denen du folgst, in der oberen Leiste. Aus: im Menü.
+Save a problem report	Problembericht speichern
+Glassio's version, settings and recent log for looking into a problem, with accounts, links and addresses taken out. Saved in Downloads	Version, Einstellungen und aktuelles Protokoll von Glassio, um ein Problem zu untersuchen, ohne Konten, Links und Adressen. In Downloads gespeichert
+Making the report…	Bericht wird erstellt…
+Saved in Downloads: Glassio-problem-report.txt	In Downloads gespeichert: Glassio-problem-report.txt
+Couldn't save the report	Der Bericht konnte nicht gespeichert werden

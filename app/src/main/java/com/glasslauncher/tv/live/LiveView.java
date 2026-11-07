@@ -642,8 +642,18 @@ final class LiveView extends View {
         return moving;
     }
 
+    /** The test broadcast's plain picture behind everything (the video can't be captured): null when off. */
+    private android.graphics.Paint standIn;
+
+    void testStandIn(boolean on) {
+        standIn = on ? new android.graphics.Paint() : null;
+        if (on) standIn.setShader(new android.graphics.LinearGradient(0, 0, 0, h, 0xFF1A2238, 0xFF0C0F1A, android.graphics.Shader.TileMode.CLAMP));
+        invalidate();
+    }
+
     @Override protected void onDraw(Canvas c) {
         if (w == 0) return;
+        if (standIn != null) c.drawRect(0, 0, w, h, standIn);
         Marquee.moving = false;
         boolean moving = step();
         long up = SystemClock.uptimeMillis();
