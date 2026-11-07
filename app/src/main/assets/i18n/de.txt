@@ -879,3 +879,6 @@ Your own rows: hold OK on a title, or use its page, to add it to one	Deine eigen
 Automatic rows	Automatische Reihen
 Because you watched, and Quick watches from your library	Weil du gesehen hast und Kurz & gut aus deiner Mediathek
 Quick watches	Kurz & gut
+For You	Für dich
+Picked on this TV from what you watch	Auf diesem Fernseher ausgewählt, nach dem, was du schaust
+A row picked on this TV from what you watch and save. It sends nothing anywhere	Eine Reihe, auf diesem Fernseher ausgewählt nach dem, was du schaust und speicherst. Sie sendet nichts nach außen

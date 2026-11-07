@@ -878,3 +878,6 @@ Your own rows: hold OK on a title, or use its page, to add it to one	Vos propres
 Automatic rows	Rangées automatiques
 Because you watched, and Quick watches from your library	Parce que vous avez regardé, et À voir vite depuis votre bibliothèque
 Quick watches	À voir vite
+For You	Pour vous
+Picked on this TV from what you watch	Choisi sur cette TV selon ce que vous regardez
+A row picked on this TV from what you watch and save. It sends nothing anywhere	Une rangée choisie sur cette TV selon ce que vous regardez et enregistrez. Elle n'envoie rien nulle part

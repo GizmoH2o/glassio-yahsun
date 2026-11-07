@@ -303,6 +303,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 },
                 Toggle("Collections", "Rows of Pixar, Studio Ghibli and Marvel Studios films", { st.homeCollections }, { st.homeCollections = it }),
                 Toggle("Your collections", "Your own rows: hold OK on a title, or use its page, to add it to one", { st.homeMine }, { st.homeMine = it }),
+                Toggle("For You", "A row picked on this TV from what you watch and save. It sends nothing anywhere", { st.homeForYou }, { st.homeForYou = it }),
                 Toggle("Automatic rows", "Because you watched, and Quick watches from your library", { st.homeAuto }, { st.homeAuto = it }),
                 Toggle("Posters open up when selected", "Rest on a poster: it opens into a wide card with its picture, rating, year and genres", { st.homeExpand }, { st.homeExpand = it }),
                 Toggle("Big picture follows the selection", "The title selected in a row fills the top of the page", { st.homeFollow }, { st.homeFollow = it }),

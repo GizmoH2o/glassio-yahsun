@@ -239,6 +239,8 @@ class Settings(private val ctx: Context) {
     /** Your own Home rows (Collections): on or off, and what's in them. */
     var homeMine: Boolean get() = b("homeMine", true); set(v) = putB("homeMine", v)
     var myCollections: String get() = s("myCollections", "[]"); set(v) = putS("myCollections", v)
+    /** Home's For You row: picks worked out on the TV alone. */
+    var homeForYou: Boolean get() = b("homeForYou", true); set(v) = putB("homeForYou", v)
     /** Home's automatic rows: Because you watched, Quick watches. */
     var homeAuto: Boolean get() = b("homeAuto", true); set(v) = putB("homeAuto", v)
     /** A poster rested on opens up into a wide card (picture, logo, details). */

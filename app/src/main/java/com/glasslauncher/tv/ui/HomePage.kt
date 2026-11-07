@@ -92,6 +92,7 @@ import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.LiveCards
 import com.glasslauncher.tv.data.NuvioLaunch
 import com.glasslauncher.tv.data.Collections
+import com.glasslauncher.tv.data.ForYou
 import com.glasslauncher.tv.data.Moods
 import com.glasslauncher.tv.data.UpNext
 import kotlinx.coroutines.Dispatchers
@@ -115,7 +116,7 @@ private val IMDB = Color(0xFFF5C518)
 internal val CARD = Color(0xFF1C1C1F)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Widgets }
+private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -243,12 +244,25 @@ internal fun HomePage(
         val seen = lastSeen
         value = if (!auto || seen == null) emptyList() else withContext(Dispatchers.IO) { runCatching { app.recs.similar(seen) }.getOrDefault(emptyList()) }
     }
+    // For You: from the titles already here, worked out on the TV.
+    val forYouOn = settings.homeForYou && !kids
+    val forYouList = remember(forYouOn, cwItems, catalogItems, recRows, movies, series, settings.heroHidden, infoRev) {
+        if (!forYouOn) emptyList() else {
+            val mine = (movies + series).map { app.shelf.filled(it) }
+            val pool = catalogItems + recRows.trending + recRows.films + recRows.series
+            val hidden = settings.heroHidden.toSet()
+            val taste = ForYou.taste(cwItems, mine, pool.filter { it.key in hidden }.distinctBy { it.key }, System.currentTimeMillis())
+            val skip = hidden + cwItems.map { it.key } + mine.map { it.key } + app.cw.finishedKeys()
+            ForYou.pick(pool, taste, skip).takeIf { it.size >= 4 }.orEmpty()
+        }
+    }
     val quickList = remember(movies, series, auto, infoRev) {
         if (!auto) emptyList() else Moods.pick((movies + series).map { app.shelf.filled(it) }, null, 30, emptySet(), false).takeIf { it.size >= 4 }.orEmpty()
     }
     val parts = buildList {
         if (showAiring) add(Part.Airing)
         if (watchItems.isNotEmpty()) add(Part.Watch)
+        if (forYouList.isNotEmpty()) add(Part.ForYou)
         if (showMovies) add(Part.Movies)
         if (showSeries) add(Part.Series)
         if (recTrending.isNotEmpty()) add(Part.Trending)
@@ -534,7 +548,7 @@ internal fun HomePage(
                     }
                 }
                 // ── recommendations
-                @Composable fun recs(part: Part, title: String, list: List<HeroItem>) = section(part, title) {
+                @Composable fun recs(part: Part, title: String, list: List<HeroItem>, note: String = "") = section(part, title, note) {
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
                         PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item }, onOpen = { openCard(item) },
@@ -581,6 +595,7 @@ internal fun HomePage(
                             Part.Mine1, Part.Mine2, Part.Mine3, Part.Mine4, Part.Mine5, Part.Mine6 -> mineList.firstOrNull { Collections.row(it.slot) == p.name }?.let { mine(p, it) }
                             Part.Because -> recs(p, Lang.tr("Because you watched") + " " + lastSeen?.name.orEmpty(), becauseList)
                             Part.Quick -> recs(p, "Quick watches", quickList)
+                            Part.ForYou -> recs(p, "For You", forYouList, "Picked on this TV from what you watch")
                             Part.Apps -> appsRow()
                             Part.Widgets -> widgetsRow()
                         }

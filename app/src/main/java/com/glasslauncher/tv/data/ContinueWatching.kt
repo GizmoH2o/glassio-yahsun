@@ -332,6 +332,9 @@ class ContinueWatching(
         return true
     }
 
+    /** Every series you've finished an episode of, by key. */
+    fun finishedKeys(): Set<String> = finished.map { it.key }.toSet()
+
     /** When [key]'s series was finished up to its card's episode (the row's NEW EPISODE), 0 for none. */
     fun finishedAt(key: String): Long = finished.firstOrNull { it.key == key }?.at ?: 0L
 

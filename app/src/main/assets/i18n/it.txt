@@ -878,3 +878,6 @@ Your own rows: hold OK on a title, or use its page, to add it to one	Le tue file
 Automatic rows	File automatiche
 Because you watched, and Quick watches from your library	Perché hai visto e Da vedere al volo dalla tua libreria
 Quick watches	Da vedere al volo
+For You	Per te
+Picked on this TV from what you watch	Scelti su questa TV in base a ciò che guardi
+A row picked on this TV from what you watch and save. It sends nothing anywhere	Una fila scelta su questa TV in base a ciò che guardi e salvi. Non invia nulla

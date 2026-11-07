@@ -879,3 +879,6 @@ Your own rows: hold OK on a title, or use its page, to add it to one	Ваши р
 Automatic rows	Автоматические ряды
 Because you watched, and Quick watches from your library	Потому что вы смотрели и Короткое из вашей библиотеки
 Quick watches	Короткое
+For You	Для вас
+Picked on this TV from what you watch	Подобрано на этом ТВ по тому, что вы смотрите
+A row picked on this TV from what you watch and save. It sends nothing anywhere	Ряд, подобранный на этом ТВ по тому, что вы смотрите и сохраняете. Ничего никуда не отправляет

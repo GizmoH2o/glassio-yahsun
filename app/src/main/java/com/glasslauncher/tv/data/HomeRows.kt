@@ -6,7 +6,7 @@ import org.json.JSONObject
 object HomeRows {
     /** Every row, in the usual order, with its usual title. */
     private val ALL = listOf(
-        "Airing" to "Airing this week", "Watch" to "Continue watching", "Movies" to "Movies in your library",
+        "Airing" to "Airing this week", "Watch" to "Continue watching", "ForYou" to "For You", "Movies" to "Movies in your library",
         "Series" to "Series in your library", "Trending" to "Trending now", "RecFilms" to "Popular films",
         "RecSeries" to "Popular series", "Col1" to "Pixar", "Col2" to "Studio Ghibli", "Col3" to "Marvel Studios",
         "Mine1" to "Your collection", "Mine2" to "Your collection", "Mine3" to "Your collection", "Mine4" to "Your collection",

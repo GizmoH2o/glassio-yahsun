@@ -878,3 +878,6 @@ Your own rows: hold OK on a title, or use its page, to add it to one	Tus propias
 Automatic rows	Filas automáticas
 Because you watched, and Quick watches from your library	Porque viste y Para ver rápido de tu biblioteca
 Quick watches	Para ver rápido
+For You	Para ti
+Picked on this TV from what you watch	Elegido en esta TV según lo que ves
+A row picked on this TV from what you watch and save. It sends nothing anywhere	Una fila elegida en esta TV según lo que ves y guardas. No envía nada a ningún sitio
