@@ -661,6 +661,7 @@ final class LiveView extends View {
     }
 
     @Override protected void onDraw(Canvas c) {
+        if (mode != GUIDE) live.aimPreview(null, null);
         if (w == 0) return;
         if (standIn != null) c.drawRect(0, 0, w, h, standIn);
         Marquee.moving = false;
@@ -4525,6 +4526,8 @@ final class LiveView extends View {
         int save = a < 0.995f ? c.saveLayerAlpha(0, 0, w, h, Math.round(255 * a)) : c.save();
         // Dark everywhere but the preview window, where the video shows through.
         preview.set(P_X * k, P_Y * k, (P_X + P_W) * k, (P_Y + P_H) * k);
+        List<Xtream.Channel> resting = guideChannels();
+        live.aimPreview(!gGroups && closingTo < 0 && gRow < resting.size() ? resting.get(gRow) : null, preview);
         c.save();
         if (LiveTheme.cinema()) {       // its corners as round as the home screen's pictures
             previewHole.rewind();

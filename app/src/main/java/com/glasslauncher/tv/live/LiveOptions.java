@@ -222,6 +222,15 @@ final class LiveOptions {
         sp(c).edit().putBoolean("alertsQuietRecording", on).apply();
     }
 
+    /** The guide's preview of the channel rested on (LivePreview). */
+    static boolean channelPreview(Context c) {
+        return sp(c).getBoolean("channelPreview", true);
+    }
+
+    static void setChannelPreview(Context c, boolean on) {
+        sp(c).edit().putBoolean("channelPreview", on).apply();
+    }
+
     /** Every Multiview box on the video chip; off, only the focused one (the rest in software). */
     static boolean multiviewHardware(Context c) {
         return sp(c).getBoolean("multiviewHardware", true);

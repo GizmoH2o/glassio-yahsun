@@ -400,6 +400,8 @@ final class Russian {
             case "More matches on than your provider allows.": return "Матчей больше, чем позволяет провайдер.";
             case "Multiview on the video chip": return "Мультипросмотр на видеочипе";
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Каждое окно использует видеочип для плавного движения. Выключите, если мультипросмотр дёргается.";
+            case "Channel preview in the guide": return "Предпросмотр канала в гиде";
+            case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Задержитесь на канале в гиде, и он покажется в окне без звука. Используется ещё один поток провайдера.";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

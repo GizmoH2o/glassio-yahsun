@@ -144,6 +144,12 @@ final class LiveRecordings {
         return "rec:" + channel + ":" + start;
     }
 
+    /** Whether anything is recording now. */
+    static boolean anyRecording(Context c) {
+        for (Rec r : all(c)) if (RECORDING.equals(r.state)) return true;
+        return false;
+    }
+
     /** Whether the show on channel `channel` from `start` is being recorded now. */
     static boolean recording(Context c, int channel, long start) {
         String id = idOf(channel, start);

@@ -389,6 +389,8 @@ final class French {
             case "More matches on than your provider allows.": return "Plus de matchs que votre fournisseur n’en autorise.";
             case "Multiview on the video chip": return "Multivue sur la puce vidéo";
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Chaque case utilise la puce vidéo pour un mouvement fluide. Désactivez si la multivue saccade.";
+            case "Channel preview in the guide": return "Aperçu de la chaîne dans le guide";
+            case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Restez sur une chaîne du guide et elle s’affiche sans son dans la fenêtre. Cela utilise un flux de plus de votre fournisseur.";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

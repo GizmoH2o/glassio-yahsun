@@ -337,6 +337,7 @@ public class Live extends Activity {
         nightDim.setFocusable(false);
         root.addView(nightDim, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        channelPreview = new LivePreview(this, root);
         TestHook.register(this, testHook);
         readIntent(getIntent());
         if (Xtream.signedIn(this)) load(); else view.showSignIn();
@@ -488,6 +489,7 @@ public class Live extends Activity {
     }
 
     @Override protected void onStop() {
+        if (channelPreview != null) channelPreview.close();
         LiveScores.get(this).unwatch(scores);
         try {
             unregisterReceiver(recordingProblem);
@@ -1459,6 +1461,20 @@ public class Live extends Activity {
     }
 
     /** The stream format: Live TV's setting, or (Auto) what the provider prefers. */
+    /** The guide's preview of another channel. */
+    private LivePreview channelPreview;
+
+    /** The row the guide rests on and its video window; null: none. */
+    void aimPreview(Xtream.Channel ch, android.graphics.RectF window) {
+        if (channelPreview != null) channelPreview.aim(ch, window);
+    }
+
+    /** The stream format a preview asks for. */
+    String previewFormat() {
+        String f = LiveOptions.format(this);
+        return !f.equals(LiveOptions.AUTO) ? f : lineup == null ? "ts" : lineup.format;
+    }
+
     private String chosenFormat() {
         String f = LiveOptions.format(this);
         return !f.equals(LiveOptions.AUTO) ? f : lineup == null ? "ts" : lineup.format;

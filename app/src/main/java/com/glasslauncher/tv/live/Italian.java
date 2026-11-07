@@ -389,6 +389,8 @@ final class Italian {
             case "More matches on than your provider allows.": return "Più partite di quante ne consenta il provider.";
             case "Multiview on the video chip": return "Multivista sul chip video";
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Ogni riquadro usa il chip video per un movimento fluido. Disattiva se la multivista scatta.";
+            case "Channel preview in the guide": return "Anteprima del canale nella guida";
+            case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Fermati su un canale nella guida e va in onda senza audio nella finestra. Usa un altro flusso del provider.";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";
