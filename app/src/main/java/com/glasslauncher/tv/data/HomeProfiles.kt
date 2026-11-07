@@ -18,7 +18,7 @@ class HomeProfiles(ctx: Context, private val settings: Settings) {
         /** The settings each profile has its own. */
         val KEYS = listOf(
             "accent", "textSize", "homeSource", "homeAiring", "homeMovies", "homeSeries", "homeExpand", "homeFollow",
-            "continueMode", "cwTrakt", "cwNuvio", "cwStremio", "cwLegacy", "cwDays", "cwNewFirst", "cwUpNext", "cwCatchup",
+            "continueMode", "cwTrakt", "cwNuvio", "cwStremio", "cwLegacy", "cwDays", "cwNewFirst", "cwUpNext", "cwCatchup", "titleRich",
             "heroHidden", "heroBecause", "heroSeasonal", "homeTicker", "kidsMode", "kidsApps",
             "homeOrder", "homeHidden", "homeNames", "homeCollections",
             "widgetsRow", "widgetWeather", "calLinks", "haEntities", "trailerMode", "recsMode", "cardOk",

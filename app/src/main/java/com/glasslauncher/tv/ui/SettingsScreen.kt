@@ -303,6 +303,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { st.trailerMode = cycle(listOf("auto", "on", "off"), st.trailerMode, it); if (st.trailerMode == "on") TrailerGuard.playedWell(ctx) }),
                 Adjust("OK on a card", "Open its title page, or play straight away", { if (st.cardOk == "play") "Play straight away" else "Title page" },
                     { st.cardOk = cycle(listOf("title", "play"), st.cardOk, it) }),
+                Toggle("Rich title pages", "Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles", { st.titleRich }, { st.titleRich = it }),
                 Adjust("Recommendations", "Trending and popular titles from TMDB. Auto: with no Nuvio or Stremio account signed in",
                     { when (st.recsMode) { "always" -> "Always"; "off" -> "Off"; else -> "Auto" } },
                     { st.recsMode = cycle(listOf("auto", "always", "off"), st.recsMode, it); scope.launch(Dispatchers.IO) { runCatching { app.recs.refresh() } } }),

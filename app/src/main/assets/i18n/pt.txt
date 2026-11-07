@@ -841,3 +841,12 @@ Up next	A seguir
 When you finish an episode, the next one takes its place, whichever app you watched it in	Ao terminar um episódio, o seguinte toma o seu lugar, seja qual for a app onde o viu
 Catch-up on Home	Catch-up no Início
 Past shows you left partway in Live TV join the row, and OK carries on where you stopped	Programas passados que deixou a meio na TV em direto entram na fila, e OK continua onde parou
+Where to watch	Onde ver
+Cast	Elenco
+More with	Mais com
+Your recording	A sua gravação
+Streaming	Streaming
+Directed by 	Realizado por 
+Created by 	Criado por 
+Rich title pages	Páginas de título completas
+Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	As páginas de título mostram onde ver, incluindo TV em direto e gravações, e o elenco com os seus outros títulos

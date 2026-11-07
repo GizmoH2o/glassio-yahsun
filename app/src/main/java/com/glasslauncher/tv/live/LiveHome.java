@@ -1079,6 +1079,20 @@ public final class LiveHome {
      * Channels whose name has all of `words` in it, from the list kept on the TV, favourites first, with what's on now;
      * locked groups left out. Empty before Live TV is set up.
      */
+    /** The airings from now on of the title called `name` (its title page). */
+    public static List<Airing> airingsOf(Context c, String name, int max) {
+        List<Airing> out = new ArrayList<>();
+        for (Airing a : findShows(c, name, 40)) if (out.size() < max && LiveSearchRules.sameShow(a.title, name)) out.add(a);
+        return out;
+    }
+
+    /** The finished recordings of the title called `name` (its title page). */
+    public static List<Airing> recordingsOf(Context c, String name, int max) {
+        List<Airing> out = new ArrayList<>();
+        for (Airing a : findRecordings(c, name, 40)) if (out.size() < max && LiveSearchRules.sameShow(a.title, name)) out.add(a);
+        return out;
+    }
+
     /** Shows in the full guide with these words in their title, from now on: what's on first (Home's search). */
     public static List<Airing> findShows(Context c, String words, int max) {
         List<Airing> out = new ArrayList<>();

@@ -112,6 +112,28 @@ class Recs(private val settings: Settings, private val http: Http) {
         }.getOrDefault(emptyList())
     }
 
+    /** Blocking: who made [item] and who's in it; [TitlePeople.NONE] without a token or when TMDB doesn't know it. */
+    fun people(item: HeroItem): TitlePeople {
+        if (token.isBlank() || !item.id.matches(Regex("tt\\d{6,10}"))) return TitlePeople.NONE
+        return runCatching {
+            val isMovie = item.type.equals("movie", true)
+            val k = if (isMovie) "movie" else "tv"
+            val found = http.json("https://api.themoviedb.org/3/find/${item.id}?external_source=imdb_id", month, token)
+                .optJSONArray(if (isMovie) "movie_results" else "tv_results")?.optJSONObject(0) ?: return TitlePeople.NONE
+            TitlePeople.parse(http.json("https://api.themoviedb.org/3/$k/${found.optInt("id")}?append_to_response=credits", 7 * day, token), isMovie)
+        }.onFailure { Glog.w("TMDB credits", it) }.getOrDefault(TitlePeople.NONE)
+    }
+
+    /** Blocking: a person's best known films and series. */
+    fun titlesOf(person: Int): List<HeroItem> {
+        if (token.isBlank()) return emptyList()
+        return runCatching {
+            val genres = genreNames()
+            TitlePeople.known(http.json("https://api.themoviedb.org/3/person/$person/combined_credits", 7 * day, token))
+                .mapNotNull { o -> runCatching { tmdbItem(o, null, genres) }.getOrNull() }
+        }.onFailure { Glog.w("TMDB person", it) }.getOrDefault(emptyList())
+    }
+
     // ── Cinemeta (no key)
 
     private fun fromCinemeta(): Rows {

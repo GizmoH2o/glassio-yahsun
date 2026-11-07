@@ -37,6 +37,17 @@ final class LiveSearchRules {
         return Xtream.fold(title.replace("[New]", "").replace("[Live]", "")).trim();
     }
 
+    /** Whether a guide's or recording's `title` is the title called `name`, marks, year and episode numbers aside. */
+    static boolean sameShow(String title, String name) {
+        String want = bare(name);
+        return !want.isEmpty() && want.equals(bare(title));
+    }
+
+    private static String bare(String title) {
+        // The year before folding, which takes its brackets: a name that ends in a number (Blade Runner 2049) keeps it.
+        return plain(title.replaceAll("\\((19|20)\\d{2}\\)\\s*$", "")).replaceAll("\\s+s\\d+\\s*e\\d+$", "").trim();
+    }
+
     /** Whether `title` has all the words of `words`, in any order, whatever the case and accents. */
     static boolean matches(String title, String words) {
         String[] parts = Xtream.fold(words).trim().split("\\s+");

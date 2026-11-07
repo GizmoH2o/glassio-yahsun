@@ -842,3 +842,12 @@ Up next	Далее
 When you finish an episode, the next one takes its place, whichever app you watched it in	Когда серия закончена, её место занимает следующая, в каком бы приложении вы ни смотрели
 Catch-up on Home	Архив на главном экране
 Past shows you left partway in Live TV join the row, and OK carries on where you stopped	Прошедшие передачи, недосмотренные в Live TV, попадают в ряд, а OK продолжает с места остановки
+Where to watch	Где смотреть
+Cast	В ролях
+More with	Ещё с участием:
+Your recording	Ваша запись
+Streaming	Стриминг
+Directed by 	Режиссёр: 
+Created by 	Создатель: 
+Rich title pages	Подробные страницы
+Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	Страницы показывают, где смотреть, включая Live TV и записи, и актёров с другими их работами

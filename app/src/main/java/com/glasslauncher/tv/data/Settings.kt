@@ -302,6 +302,8 @@ class Settings(private val ctx: Context) {
     var cwUpNext: Boolean get() = b("cwUpNext", true); set(v) = putB("cwUpNext", v)
     /** Continue Watching: Live TV's past shows you left partway join the row. */
     var cwCatchup: Boolean get() = b("cwCatchup", true); set(v) = putB("cwCatchup", v)
+    /** Title pages: where to watch (Live TV and recordings too), and the cast with their other titles. */
+    var titleRich: Boolean get() = b("titleRich", true); set(v) = putB("titleRich", v)
     /** After you leave the player, the carousel opens on what you just watched. */
     /** How many titles in progress open the carousel (0 = all); the rest mix in with the catalogs. */
     var cwLead: Int get() = i("cwLead", 3); set(v) = putI("cwLead", v)

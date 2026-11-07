@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,13 +55,17 @@ import com.glasslauncher.tv.data.HeroPicks
 import com.glasslauncher.tv.data.NuvioLaunch
 import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.TitleDetails
+import com.glasslauncher.tv.data.TitlePeople
+import com.glasslauncher.tv.live.LiveHome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * A title's own page: its picture and details, Resume or Play, its trailer with sound, its streaming app, My Library and
- * Not interested; a series' seasons and episodes; More like this. [onOpen] goes to another title's page.
+ * Not interested; a series' seasons and episodes; where to watch (Live TV, your recordings, its other apps); the cast,
+ * each with their other titles; More like this. [onOpen] goes to another title's page.
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -91,6 +97,32 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val seasonEntry = remember { RowEntry() }
     val epEntry = remember { RowEntry() }
     val moreEntry = remember { RowEntry() }
+    val watchEntry = remember { RowEntry() }
+    val castEntry = remember { RowEntry() }
+    val withEntry = remember { RowEntry() }
+    val scope = rememberCoroutineScope()
+    val full = st.titleRich
+    val airings by produceState(emptyList<LiveHome.Airing>(), item.key, full) {
+        value = if (!full) emptyList() else withContext(Dispatchers.IO) { runCatching { LiveHome.airingsOf(ctx, item.name, 8) }.getOrDefault(emptyList()) }
+    }
+    val recorded by produceState(emptyList<LiveHome.Airing>(), item.key, full) {
+        value = if (!full) emptyList() else withContext(Dispatchers.IO) { runCatching { LiveHome.recordingsOf(ctx, item.name, 8) }.getOrDefault(emptyList()) }
+    }
+    val people by produceState(TitlePeople.NONE, item.key, full) {
+        value = if (!full) TitlePeople.NONE else withContext(Dispatchers.IO) { app.recs.people(item) }
+    }
+    // OK on someone in the cast: their other titles, in a row under it.
+    var person by remember(item.key) { mutableStateOf<TitlePeople.Person?>(null) }
+    val theirs by produceState(emptyList<HeroItem>(), person) {
+        val p = person
+        value = emptyList()
+        if (p != null) {
+            val got = withContext(Dispatchers.IO) { app.recs.titlesOf(p.id) }.filter { it.key != item.key }.let { l -> if (kids) l.filter { HeroPicks.isKids(it) } else l }
+            value = got
+            if (got.isEmpty()) toast(ctx, "No other titles found for ${p.name}")
+        }
+    }
+    LaunchedEffect(theirs) { if (theirs.isNotEmpty()) { delay(120); runCatching { withEntry.req.requestFocus() } } }
     LaunchedEffect(item.key) { delay(120); runCatching { first.requestFocus() } }
     val more by produceState(emptyList<HeroItem>(), item.key) {
         value = withContext(Dispatchers.IO) {
@@ -103,6 +135,24 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
             if (kids) like.filter { HeroPicks.isKids(it) } else like
         }
     }
+
+    // Where to watch: what's on now, your recordings, its other apps, then what's on later.
+    val nowTime = remember(airings) { System.currentTimeMillis() }
+    val onNow = airings.filter { it.onNow(nowTime) }
+    val later = airings.filterNot { it.onNow(nowTime) }
+    val otherApps = if (full) links.drop(1) else emptyList()
+    val anywhere = onNow.size + recorded.size + otherApps.size + later.size
+    // The rows top to bottom, for Up and Down: each goes to the one beside it that's there.
+    val stops = buildList {
+        add(first)
+        if (hasSeasons) { add(seasonEntry.req); add(epEntry.req) }
+        if (anywhere > 0) add(watchEntry.req)
+        if (people.cast.isNotEmpty()) add(castEntry.req)
+        if (theirs.isNotEmpty()) add(withEntry.req)
+        if (more.isNotEmpty()) add(moreEntry.req)
+    }
+    fun above(r: FocusRequester) = stops.getOrNull(stops.indexOf(r) - 1) ?: FocusRequester.Cancel
+    fun below(r: FocusRequester) = stops.getOrNull(stops.indexOf(r) + 1) ?: FocusRequester.Cancel
 
     Box(Modifier.fillMaxSize().background(Ds.Bg).focusProperties { exit = { FocusRequester.Cancel } }.focusGroup()) {
         val pic = shown.background.ifBlank { shown.poster }
@@ -128,7 +178,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     Spacer(Modifier.height((7 * s).dp))
                     Text(shown.overview, color = Color(0xFFD0D0D4), fontSize = (9.5f * s).sp, lineHeight = (13.5f * s).sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
                 }
-                if (details.cast.isNotEmpty()) {
+                if (people.makers.isNotEmpty()) {
+                    Spacer(Modifier.height((5 * s).dp))
+                    Text((if (shown.type.equals("movie", true)) "Directed by " else "Created by ") + people.makers.joinToString(", "), color = Text2, fontSize = (8 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                } else if (details.cast.isNotEmpty() && people.cast.isEmpty()) {
                     Spacer(Modifier.height((5 * s).dp))
                     Text("Starring " + details.cast.take(4).joinToString(", "), color = Text2, fontSize = (8 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
@@ -137,7 +190,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
             // The buttons. With no player app for titles on this TV, no Play: the trailer and any streaming app it's on.
             Row(Modifier.padding(start = (EDGE * s).dp), horizontalArrangement = dsGap(s), verticalAlignment = Alignment.CenterVertically) {
                 var firstUsed = false
-                val toRows = Modifier.nav(down = if (hasSeasons) seasonEntry.req else if (more.isNotEmpty()) moreEntry.req else FocusRequester.Cancel)
+                val toRows = Modifier.nav(down = below(first))
                 fun firstMod(): Modifier = if (firstUsed) toRows else { firstUsed = true; toRows.nav(left = FocusRequester.Cancel).focusRequester(first) }
                 if (canPlay) DsButton(if (resume != null) (if (resume.upNext) "Play" else "Resume") + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play", s, firstMod(), primary = true,
                     leading = { c -> PlayGlyph(Modifier.size((8.5f * s).dp), c) }) { NuvioLaunch.play(ctx, st, app.http, resume ?: item) }
@@ -191,10 +244,68 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 ) {
                     itemsIndexed(eps, key = { _, e -> "$seasonOn:${e.number}" }) { i, e ->
                         val current = resume != null && seasonOn == fromResume && e.number == epNow
-                        EpisodeCard(e, item, s, now, if (current) resume?.progress ?: -1f else -1f, epEntry.of(i).nav(up = seasonEntry.req, down = if (more.isNotEmpty()) moreEntry.req else FocusRequester.Cancel, left = edge(i == 0), right = edge(i == eps.lastIndex))) {
+                        EpisodeCard(e, item, s, now, if (current) resume?.progress ?: -1f else -1f, epEntry.of(i).nav(up = seasonEntry.req, down = below(epEntry.req), left = edge(i == 0), right = edge(i == eps.lastIndex))) {
                             if (canPlay) NuvioLaunch.openEpisode(ctx, st, app.http, item, e.season, e.number)
                             else toast(ctx, "No app for titles on this TV: Nuvio or Stremio plays them")
                         }
+                    }
+                }
+            }
+
+            if (anywhere > 0) {
+                Spacer(Modifier.height((12 * s).dp))
+                DsHeading("Where to watch", s, Modifier.padding(start = (EDGE * s).dp))
+                LazyRow(
+                    state = watchEntry.state,
+                    contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
+                    horizontalArrangement = Arrangement.spacedBy((6 * s).dp),
+                ) {
+                    fun place(i: Int) = watchEntry.of(i).nav(up = above(watchEntry.req), down = below(watchEntry.req), left = edge(i == 0), right = edge(i == anywhere - 1))
+                    fun airing(a: LiveHome.Airing) {
+                        if (a.onNow(System.currentTimeMillis())) ctx.startActivity(LiveHome.open(ctx, a.channel, false))
+                        else scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(ctx, a, true) }) }
+                    }
+                    itemsIndexed(onNow, key = { _, a -> "now:${a.channel}:${a.start}" }) { i, a ->
+                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(i)) { airing(a) }
+                    }
+                    itemsIndexed(recorded, key = { _, a -> "rec:${a.recording}" }) { i, a ->
+                        TextCard(a.channelName.ifBlank { a.title }, "Your recording", s, place(onNow.size + i)) { ctx.startActivity(LiveHome.openRecording(ctx, a.recording)) }
+                    }
+                    itemsIndexed(otherApps, key = { _, l -> "app:${l.service}" }) { i, l ->
+                        TextCard(l.service, "Streaming", s, place(onNow.size + recorded.size + i)) {
+                            runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") }
+                        }
+                    }
+                    itemsIndexed(later, key = { _, a -> "later:${a.channel}:${a.start}" }) { i, a ->
+                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(onNow.size + recorded.size + otherApps.size + i)) { airing(a) }
+                    }
+                }
+            }
+
+            if (people.cast.isNotEmpty()) {
+                Spacer(Modifier.height((12 * s).dp))
+                DsHeading("Cast", s, Modifier.padding(start = (EDGE * s).dp))
+                LazyRow(
+                    state = castEntry.state,
+                    contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
+                    horizontalArrangement = Arrangement.spacedBy((6 * s).dp),
+                ) {
+                    itemsIndexed(people.cast, key = { _, p -> p.id }) { i, p ->
+                        PersonCard(p, s, castEntry.of(i).nav(up = above(castEntry.req), down = below(castEntry.req), left = edge(i == 0), right = edge(i == people.cast.lastIndex))) { person = p }
+                    }
+                }
+            }
+
+            if (theirs.isNotEmpty()) {
+                Spacer(Modifier.height((12 * s).dp))
+                DsHeading(Lang.tr("More with") + " " + person?.name.orEmpty(), s, Modifier.padding(start = (EDGE * s).dp))
+                LazyRow(
+                    state = withEntry.state,
+                    contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
+                    horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
+                ) {
+                    itemsIndexed(theirs, key = { _, h -> h.key }) { i, h ->
+                        SmallPoster(h, s, withEntry.of(i).nav(up = above(withEntry.req), down = below(withEntry.req), left = edge(i == 0), right = edge(i == theirs.lastIndex))) { onOpen(h) }
                     }
                 }
             }
@@ -207,11 +318,30 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
                     horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
                 ) {
-                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = if (hasSeasons) epEntry.req else first, down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex))) { onOpen(h) } }
+                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = above(moreEntry.req), down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex))) { onOpen(h) } }
                 }
             }
         }
         if (trailerOn) trailerIds?.let { ids -> TrailerPlayer(ids) { trailerOn = false } }
+    }
+}
+
+/** Someone in the cast: their photo, name and role. */
+@Composable
+private fun PersonCard(p: TitlePeople.Person, s: Float, modifier: Modifier, onClick: () -> Unit) {
+    val ctx = LocalContext.current
+    var focused by remember { mutableStateOf(false) }
+    Column(
+        modifier.width((74 * s).dp).onFocusChanged { focused = it.isFocused }.tvPress(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(Modifier.size((58 * s).dp).cardFocus(s, focused, 29f, 1.06f).clip(CircleShape).background(Ds.Surface), contentAlignment = Alignment.Center) {
+            if (p.photo.isNotBlank()) AsyncImage(remember(p.photo) { ImageRequest.Builder(ctx).data(p.photo).size(200, 200).build() }, p.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else RawText(p.name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1) }, color = Text2, fontSize = (14 * s).sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height((5 * s).dp))
+        RawText(p.name, color = Color.White, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        RawText(p.role.ifBlank { " " }, color = Text2, fontSize = (7.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

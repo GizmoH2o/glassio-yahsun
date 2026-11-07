@@ -75,6 +75,21 @@ class LiveHomeSearchTest {
         assertEquals(listOf("News Abroad@far", "News Here@mine"), titles(LiveSearchRules.shows(listOf(other, mine), setOf("mine"), now, 10)))
     }
 
+    @Test fun `the same show, marks and numbers aside`() {
+        assertTrue(LiveSearchRules.sameShow("Suits", "Suits"))
+        assertTrue(LiveSearchRules.sameShow("SUITS [New]", "Suits"))
+        assertTrue(LiveSearchRules.sameShow("Suits S06E04", "Suits"))
+        assertTrue(LiveSearchRules.sameShow("Suits - S6 E4", "Suits"))
+        assertTrue(LiveSearchRules.sameShow("Heat (1995)", "Heat"))
+    }
+
+    @Test fun `another show with the same words isn't`() {
+        assertFalse(LiveSearchRules.sameShow("Dexter: Resurrection", "Dexter"))
+        assertFalse(LiveSearchRules.sameShow("Buster Poindexter", "Dexter"))
+        assertFalse(LiveSearchRules.sameShow("Blade Runner", "Blade Runner 2049"))
+        assertFalse(LiveSearchRules.sameShow("Anything", "   "))
+    }
+
     @Test fun `a title matches all the words, in any order, ignoring case and accents`() {
         assertTrue(LiveSearchRules.matches("Arsenal v Chelsea", "chelsea arsenal"))
         assertTrue(LiveSearchRules.matches("Pokémon", "pokemon"))

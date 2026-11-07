@@ -253,7 +253,7 @@ private fun ChannelCard(a: LiveHome.Airing, s: Float, modifier: Modifier, onClic
 
 /** A plain card of text (a channel, an app). */
 @Composable
-private fun TextCard(title: String, sub: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
+internal fun TextCard(title: String, sub: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Column(
         modifier.width((150 * s).dp)
