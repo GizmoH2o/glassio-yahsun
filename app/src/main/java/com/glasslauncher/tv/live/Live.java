@@ -2051,7 +2051,63 @@ public class Live extends Activity {
         format = "ts";
         startCatchup(0);
         view.showBanner(channel);
+        findBreaks(r.file);
     }
+
+    // MARK: - A recording's ad breaks
+
+    private List<long[]> breaks;
+    private long[] offeredBreak;
+
+    /** The recording's ad breaks: kept from before, else listened for now (an older recording). */
+    private void findBreaks(final String file) {
+        breaks = null;
+        offeredBreak = null;
+        main.removeCallbacks(breakTick);
+        if (!LiveOptions.adBreaks(this)) return;
+        io.execute(() -> {
+            List<long[]> found = LiveBreaks.saved(file);
+            if (found == null) {
+                try {
+                    found = LiveBreaks.analyze(file);
+                } catch (Exception e) {
+                    AppLog.w("breaks: " + e.getMessage());
+                }
+            }
+            final List<long[]> result = found;
+            main.post(() -> {
+                if (!file.equals(recordingFile)) return;
+                breaks = result;
+                main.removeCallbacks(breakTick);
+                main.post(breakTick);
+            });
+        });
+    }
+
+    /** Once a second while a recording plays: arriving in a break, the card (or the skip, with Skip breaks on). */
+    private final Runnable breakTick = new Runnable() {
+        @Override public void run() {
+            if (recordingFile == null || breaks == null || breaks.isEmpty()) return;
+            if (player != null && player.isPlaying()) {
+                long[] b = LiveBreaks.at(breaks, player.getCurrentPosition());
+                if (b != null && b != offeredBreak) {
+                    offeredBreak = b;
+                    final long end = b[1];
+                    long left = Math.max(1, (end - player.getCurrentPosition()) / 1000);
+                    String how = left >= 60 ? left / 60 + Ui.tr(" min ", " min ") + left % 60 + " s" : left + " s";
+                    if (LiveOptions.adBreaksAuto(Live.this)) {
+                        player.seekTo(end);
+                        view.flash(Ui.tr("Intervalo pulado", "Ad break skipped"));
+                    } else {
+                        view.card(Ui.tr("Intervalo comercial", "Ad break"), how, Ui.tr("OK para pular", "OK to skip"), () -> {
+                            if (player != null && recordingFile != null) player.seekTo(end);
+                        });
+                    }
+                }
+            }
+            main.postDelayed(this, 1000);
+        }
+    };
 
     /** Whether what plays is a recording. */
     boolean recorded() {

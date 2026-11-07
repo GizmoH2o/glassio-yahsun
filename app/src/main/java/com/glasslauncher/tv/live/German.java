@@ -403,6 +403,13 @@ final class German {
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Jedes Feld nutzt den Videochip für flüssige Bewegung. Schalte es aus, wenn Multiview ruckelt.";
             case "Channel preview in the guide": return "Sendervorschau im Guide";
             case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Bleib im Guide auf einem Sender und er läuft stumm im Fenster. Das nutzt einen weiteren Stream deines Anbieters.";
+            case "Ad break": return "Werbepause";
+            case "OK to skip": return "OK zum Überspringen";
+            case "Ad break skipped": return "Werbepause übersprungen";
+            case "Find ad breaks": return "Werbepausen finden";
+            case "Skip ad breaks by themselves": return "Werbepausen selbst überspringen";
+            case "Listens to recordings for their ad breaks; reaching one, OK skips it. It can be a few seconds out.": return "Hört Aufnahmen nach Werbepausen ab; bei einer überspringt OK sie. Kann ein paar Sekunden danebenliegen.";
+            case "Without asking. If it's wrong, part of the show could be skipped.": return "Ohne zu fragen. Liegt es falsch, kann ein Teil der Sendung übersprungen werden.";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

@@ -402,6 +402,13 @@ final class Russian {
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Каждое окно использует видеочип для плавного движения. Выключите, если мультипросмотр дёргается.";
             case "Channel preview in the guide": return "Предпросмотр канала в гиде";
             case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Задержитесь на канале в гиде, и он покажется в окне без звука. Используется ещё один поток провайдера.";
+            case "Ad break": return "Рекламная пауза";
+            case "OK to skip": return "OK — пропустить";
+            case "Ad break skipped": return "Реклама пропущена";
+            case "Find ad breaks": return "Находить рекламу";
+            case "Skip ad breaks by themselves": return "Пропускать рекламу самому";
+            case "Listens to recordings for their ad breaks; reaching one, OK skips it. It can be a few seconds out.": return "Прослушивает записи и находит рекламу; на ней OK пропускает её. Может ошибаться на несколько секунд.";
+            case "Without asking. If it's wrong, part of the show could be skipped.": return "Без вопросов. При ошибке может пропустить часть передачи.";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

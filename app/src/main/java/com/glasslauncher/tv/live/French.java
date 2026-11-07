@@ -391,6 +391,13 @@ final class French {
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Chaque case utilise la puce vidéo pour un mouvement fluide. Désactivez si la multivue saccade.";
             case "Channel preview in the guide": return "Aperçu de la chaîne dans le guide";
             case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Restez sur une chaîne du guide et elle s’affiche sans son dans la fenêtre. Cela utilise un flux de plus de votre fournisseur.";
+            case "Ad break": return "Coupure pub";
+            case "OK to skip": return "OK pour passer";
+            case "Ad break skipped": return "Coupure pub passée";
+            case "Find ad breaks": return "Repérer les coupures pub";
+            case "Skip ad breaks by themselves": return "Passer les coupures tout seul";
+            case "Listens to recordings for their ad breaks; reaching one, OK skips it. It can be a few seconds out.": return "Écoute les enregistrements pour trouver les pubs ; à l'une d'elles, OK la passe. Peut se tromper de quelques secondes.";
+            case "Without asking. If it's wrong, part of the show could be skipped.": return "Sans demander. S'il se trompe, une partie de l'émission peut être passée.";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

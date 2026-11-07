@@ -393,6 +393,13 @@ final class Spanish {
             case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Cada cuadro usa el chip de vídeo para un movimiento fluido. Desactívalo si la multivista se traba.";
             case "Channel preview in the guide": return "Vista previa del canal en la guía";
             case "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.": return "Detente en un canal de la guía y se reproduce sin sonido en la ventana. Usa otra conexión de tu proveedor.";
+            case "Ad break": return "Pausa publicitaria";
+            case "OK to skip": return "OK para saltar";
+            case "Ad break skipped": return "Pausa publicitaria saltada";
+            case "Find ad breaks": return "Encontrar pausas publicitarias";
+            case "Skip ad breaks by themselves": return "Saltar las pausas solo";
+            case "Listens to recordings for their ad breaks; reaching one, OK skips it. It can be a few seconds out.": return "Escucha las grabaciones para hallar las pausas; al llegar a una, OK la salta. Puede fallar unos segundos.";
+            case "Without asking. If it's wrong, part of the show could be skipped.": return "Sin preguntar. Si se equivoca, se podría saltar parte del programa.";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

@@ -181,6 +181,18 @@ public class RecordService extends Service {
         r.end = Math.min(r.end, now);    // stopped early: as long as it really is
         LiveRecordings.put(this, r);
         AppLog.w("live: recording " + r.state + ", " + r.size / 1_000_000 + " MB" + (r.why.isEmpty() ? "" : " (" + r.why + ")"));
+        if (r.state.equals(LiveRecordings.DONE) && LiveOptions.adBreaks(this)) {     // its ad breaks, while it's fresh
+            final String file = r.file;
+            Thread t = new Thread(() -> {
+                try {
+                    LiveBreaks.analyze(file);
+                } catch (Exception e) {
+                    AppLog.w("breaks: " + e.getMessage());
+                }
+            }, "live-breaks");
+            t.setPriority(Thread.MIN_PRIORITY);
+            t.start();
+        }
         if (!r.why.isEmpty()) {
             LiveRecordings.tell(this, r, r.state.equals(LiveRecordings.FAILED) ? Ui.tr("Gravação falhou", "Recording failed")
                     : Ui.tr("Gravação parou antes", "Recording stopped early"));

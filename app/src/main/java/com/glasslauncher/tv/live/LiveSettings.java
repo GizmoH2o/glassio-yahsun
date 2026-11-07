@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -103,7 +103,7 @@ final class LiveSettings {
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, RESET_ROW},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
                     RESET_ROW},
-            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
+            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
             {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, RESET_ROW},
             {},
             {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW}};
@@ -426,6 +426,8 @@ final class LiveSettings {
             case SCORES_ROW: return Ui.tr("Placar ao vivo", "Live scores");
             case SPOILER_GUARD_ROW: return Ui.tr("Esconder placar nas reprises", "Hide scores on catch-up");
             case UP_NEXT_ROW: return Ui.tr("Cartão A seguir", "Up next card");
+            case BREAKS_ROW: return Ui.tr("Achar os intervalos comerciais", "Find ad breaks");
+            case BREAKS_AUTO_ROW: return Ui.tr("Pular os intervalos sozinho", "Skip ad breaks by themselves");
             case PREVIEW_CHANNEL_ROW: return Ui.tr("Prévia do canal no guia", "Channel preview in the guide");
             case MULTI_CHIP_ROW: return Ui.tr("Multivisão no chip de vídeo", "Multiview on the video chip");
             case CLOSE_GAMES_ROW: return Ui.tr("Jogos apertados", "Close games");
@@ -619,6 +621,8 @@ final class LiveSettings {
             case SCORES_ROW: return onOff(LiveOptions.scores(c));
             case SPOILER_GUARD_ROW: return onOff(LiveOptions.spoilerGuard(c));
             case UP_NEXT_ROW: return onOff(LiveOptions.upNextCard(c));
+            case BREAKS_ROW: return onOff(LiveOptions.adBreaks(c));
+            case BREAKS_AUTO_ROW: return LiveOptions.adBreaks(c) ? onOff(LiveOptions.adBreaksAuto(c)) : "—";
             case PREVIEW_CHANNEL_ROW: return onOff(LiveOptions.channelPreview(c));
             case MULTI_CHIP_ROW: return onOff(LiveOptions.multiviewHardware(c));
             case CLOSE_GAMES_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.closeGames(c)) : "—";
@@ -881,6 +885,10 @@ final class LiveSettings {
                             "Shows that are over stay in the guide (catch-up channels: at least their catch-up).");
                     case MATCH_CENTRE_ROW: return Ui.tr("Uma aba no player com linha do tempo, estatísticas, escalações e tabela dos jogos de futebol.",
                             "A player tab with the timeline, stats, lineups and table of football matches.");
+                    case BREAKS_ROW: return Ui.tr("Ouve as gravações para achar os intervalos; ao chegar num, OK pula. Pode errar alguns segundos.",
+                            "Listens to recordings for their ad breaks; reaching one, OK skips it. It can be a few seconds out.");
+                    case BREAKS_AUTO_ROW: return Ui.tr("Sem perguntar. Se ele errar, uma parte do programa pode ser pulada.",
+                            "Without asking. If it's wrong, part of the show could be skipped.");
                     case PREVIEW_CHANNEL_ROW: return Ui.tr("Pare num canal do guia e ele aparece na janela, sem som. Usa uma conexão a mais do provedor.",
                             "Rest on a channel in the guide and it plays in the window, silently. It uses one more of your provider's streams.");
                     case SMART_ROW: return Ui.tr("Um grupo no guia com canais feitos por regras. OK vai ao canal que está passando o programa.",
@@ -1344,6 +1352,8 @@ final class LiveSettings {
             case MERGE_ROW: return LiveOptions.merge(c);
             case GUIDE_START_ROW: return LiveOptions.guideOnStart(c);
             case FULL_GUIDE_ROW: return LiveOptions.fullGuide(c);
+            case BREAKS_ROW: return LiveOptions.adBreaks(c);
+            case BREAKS_AUTO_ROW: return LiveOptions.adBreaksAuto(c);
             case PREVIEW_CHANNEL_ROW: return LiveOptions.channelPreview(c);
             case MULTI_CHIP_ROW: return LiveOptions.multiviewHardware(c);
             case CLOSE_GAMES_ROW: return LiveOptions.closeGames(c);
@@ -1652,7 +1662,7 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
-                || id == KEEP_PAST_ROW || id == PREVIEW_CHANNEL_ROW || id == MULTI_CHIP_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
+                || id == KEEP_PAST_ROW || id == BREAKS_ROW || id == BREAKS_AUTO_ROW || id == PREVIEW_CHANNEL_ROW || id == MULTI_CHIP_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
@@ -2309,6 +2319,8 @@ final class LiveSettings {
             case MERGE_ROW: LiveOptions.setMerge(c, !LiveOptions.merge(c)); live.relist(); announce(); return;
             case COUNTRY_ROW: LiveOptions.setCountryTags(c, !LiveOptions.countryTags(c)); view.invalidate(); announce(); return;
             case HIDE_NO_GUIDE_ROW: LiveOptions.setHideNoGuide(c, !LiveOptions.hideNoGuide(c)); live.relist(); announce(); return;
+            case BREAKS_ROW: LiveOptions.setAdBreaks(c, !LiveOptions.adBreaks(c)); announce(); return;
+            case BREAKS_AUTO_ROW: LiveOptions.setAdBreaksAuto(c, !LiveOptions.adBreaksAuto(c)); announce(); return;
             case PREVIEW_CHANNEL_ROW: LiveOptions.setChannelPreview(c, !LiveOptions.channelPreview(c)); announce(); return;
             case MULTI_CHIP_ROW: LiveOptions.setMultiviewHardware(c, !LiveOptions.multiviewHardware(c)); announce(); return;
             case CLOSE_GAMES_ROW: LiveOptions.setCloseGames(c, !LiveOptions.closeGames(c)); announce(); return;
@@ -2618,6 +2630,8 @@ final class LiveSettings {
             case COUNTRY_ROW:
             case HIDE_NO_GUIDE_ROW:
             case KEEP_PAST_ROW:
+            case BREAKS_ROW:
+            case BREAKS_AUTO_ROW:
             case PREVIEW_CHANNEL_ROW:
             case MULTI_CHIP_ROW:
             case CLOSE_GAMES_ROW:

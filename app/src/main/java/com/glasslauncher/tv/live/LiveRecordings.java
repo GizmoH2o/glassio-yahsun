@@ -134,6 +134,8 @@ final class LiveRecordings {
             if (!list.get(i).id.equals(id)) continue;
             //noinspection ResultOfMethodCallIgnored
             new File(list.get(i).file).delete();
+            //noinspection ResultOfMethodCallIgnored
+            LiveBreaks.fileFor(list.get(i).file).delete();
             list.remove(i);
         }
         save(c, list);

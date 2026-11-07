@@ -1826,10 +1826,11 @@ final class LiveView extends View {
         if (ok(code) && (offering() || goalPressed)) {
             if (down && e.getRepeatCount() == 0) {
                 goalPressed = true;
-                Xtream.Channel to = goalTo;
-                goalTo = null;
+                Runnable act = goalAct;
+                goalAct = null;
+                goalOffer = null;
                 goalAt = 0;
-                tune(to);
+                act.run();
             } else if (!down) {
                 goalPressed = false;
             }
@@ -4963,8 +4964,9 @@ final class LiveView extends View {
     private String goalTeam = "", goalLine = "";
     private long goalAt;
     private Paint goalBig, goalSmall;
-    /** Where OK goes while the card's up: the match, on another channel; null for none. */
-    private Xtream.Channel goalTo;
+    /** What OK does while the card's up (going to the match, skipping a break), and its line; null for nothing. */
+    private Runnable goalAct;
+    private String goalOffer;
     /** OK went to the card: its release isn't anything else's press. */
     private boolean goalPressed;
     private static final long GOAL_MS = 6000, GOAL_OFFER_MS = 10_000;
@@ -4983,21 +4985,27 @@ final class LiveView extends View {
 
     /** The same; with `to`, it stays longer and OK goes to that channel. */
     void card(String head, String line, Xtream.Channel to) {
+        card(head, line, to == null ? null : Ui.tr("OK para assistir", "OK to watch") + "  ·  " + nameOf(to), to == null ? null : () -> tune(to));
+    }
+
+    /** A card whose OK does `act` (said by `offer`) while it's up, for longer than a plain one. */
+    void card(String head, String line, String offer, Runnable act) {
         goalTeam = head;
         goalLine = line;
-        goalTo = to;
+        goalOffer = act == null ? null : offer;
+        goalAct = act;
         goalAt = SystemClock.uptimeMillis();
-        announceForAccessibility(head + ", " + line);
+        announceForAccessibility(head + ", " + line + (goalOffer == null ? "" : ", " + goalOffer));
         invalidate();
     }
 
     private long goalMs() {
-        return goalTo != null ? GOAL_OFFER_MS : GOAL_MS;
+        return goalAct != null ? GOAL_OFFER_MS : GOAL_MS;
     }
 
-    /** Whether the card's up offering a channel, with nothing else on screen to take OK. */
+    /** Whether the card's up offering something, with nothing else on screen to take OK. */
     private boolean offering() {
-        return goalTo != null && goalAt != 0 && SystemClock.uptimeMillis() - goalAt <= goalMs() && mode == WATCH && !overlay.visible();
+        return goalAct != null && goalAt != 0 && SystemClock.uptimeMillis() - goalAt <= goalMs() && mode == WATCH && !overlay.visible();
     }
 
     /** The goal card, sliding in and out; true while it's on screen. */
@@ -5010,7 +5018,7 @@ final class LiveView extends View {
         }
         float a = Ui.clamp(Math.min(t / 300f, (length - t) / 400f));
         String head = goalTeam;
-        String offer = goalTo == null ? null : Ui.tr("OK para assistir", "OK to watch") + "  ·  " + nameOf(goalTo);
+        String offer = goalOffer;
         float cw = Math.max(goalBig.measureText(head), goalSmall.measureText(goalLine)) + 80 * k;
         if (offer != null) {
             cw = Math.min(GOAL_W * k, Math.max(cw, goalSmall.measureText(offer) + 80 * k));

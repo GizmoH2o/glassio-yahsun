@@ -61,11 +61,24 @@ final class LiveOptions {
      * The player's buffer for `buffer`: Media3's defaults (start after 2.5 s loaded, 5 s after a stall), or more
      * before starting and after a stall, for connections that stall: slower to start, steadier after.
      */
+    /**
+     * The buffer {min, max, to start, after a stall} (ms). Recordings (local files) get the same: media3 1.11's own for
+     * local files loads again only under 1 s buffered, and this TV's video decoder stops with a few seconds still queued,
+     * so a recording stopped for good at 49 s (2.7 s buffered, never loading again). Pure.
+     */
+    static int[] bufferMs(int buffer) {
+        if (buffer == LARGE) return new int[] {30_000, 60_000, 5_000, 10_000};
+        if (buffer == EXTRA) return new int[] {50_000, 120_000, 10_000, 20_000};
+        return new int[] {DefaultLoadControl.DEFAULT_MIN_BUFFER_MS, DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+                DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS};
+    }
+
     static LoadControl loadControl(int buffer) {
-        DefaultLoadControl.Builder b = new DefaultLoadControl.Builder();
-        if (buffer == LARGE) b.setBufferDurationsMs(30_000, 60_000, 5_000, 10_000);
-        else if (buffer == EXTRA) b.setBufferDurationsMs(50_000, 120_000, 10_000, 20_000);
-        return b.build();
+        int[] ms = bufferMs(buffer);
+        return new DefaultLoadControl.Builder()
+                .setBufferDurationsMs(ms[0], ms[1], ms[2], ms[3])
+                .setBufferDurationsMsForLocalPlayback(ms[0], ms[1], ms[2], ms[3])
+                .build();
     }
 
     // MARK: - Playback
@@ -220,6 +233,24 @@ final class LiveOptions {
 
     static void setAlertsQuietRecording(Context c, boolean on) {
         sp(c).edit().putBoolean("alertsQuietRecording", on).apply();
+    }
+
+    /** Recordings' ad breaks found from their sound, with a Skip break card (LiveBreaks). */
+    static boolean adBreaks(Context c) {
+        return sp(c).getBoolean("adBreaks", true);
+    }
+
+    static void setAdBreaks(Context c, boolean on) {
+        sp(c).edit().putBoolean("adBreaks", on).apply();
+    }
+
+    /** Ad breaks skipped without asking. */
+    static boolean adBreaksAuto(Context c) {
+        return sp(c).getBoolean("adBreaksAuto", false);
+    }
+
+    static void setAdBreaksAuto(Context c, boolean on) {
+        sp(c).edit().putBoolean("adBreaksAuto", on).apply();
     }
 
     /** The guide's preview of the channel rested on (LivePreview). */
