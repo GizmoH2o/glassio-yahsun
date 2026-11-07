@@ -315,6 +315,51 @@ final class LiveTheme {
         return String.format(java.util.Locale.ROOT, "%08d", n * COUNT + current);
     }
 
+    /** Whether `code` is a design (8 digits within the parts there are, or 4 from before designs). Pure. */
+    static boolean validCode(String code) {
+        if (code == null) return false;
+        if (code.matches("\\d{4}")) {
+            int b = code.charAt(0) - '0', r = code.charAt(1) - '0', l = code.charAt(2) - '0', f = code.charAt(3) - '0';
+            return b < OLD_BG.length && r < OLD_ROUND.length && l < CUSTOM && f < COUNT;
+        }
+        return partsOf(code) != null;
+    }
+
+    /** An 8-digit code's parts (COLORS to LETTERS: the designs they come from), then its focus color; null for none. Pure. */
+    static int[] partsOf(String code) {
+        if (code == null || !code.matches("\\d{8}")) return null;
+        long n = Long.parseLong(code);
+        if (n >= CODES) return null;
+        int[] out = new int[PARTS + 1];
+        out[PARTS] = (int) (n % COUNT);
+        n /= COUNT;
+        for (int p = 0; p < PARTS; p++) {
+            out[p] = SOURCES[(int) (n % SOURCES.length)];
+            n /= SOURCES.length;
+        }
+        return out;
+    }
+
+    /**
+     * A code's colors, for its page: the background, the panels, the guide's program on now, the focus, the text on it
+     * and the highlights. What's on screen stays as it is.
+     */
+    static synchronized int[] swatch(String code) {
+        int[] keepCustom = custom.clone();
+        int keepStyle = style, keepCurrent = current;
+        boolean keepContrast = highContrast;
+        try {
+            highContrast = false;
+            if (!readCode(code)) return new int[0];
+            return new int[] {bg, panel, cellNow, tile, ink, text};
+        } finally {
+            System.arraycopy(keepCustom, 0, custom, 0, custom.length);
+            style = keepStyle;
+            highContrast = keepContrast;
+            use(keepCurrent);
+        }
+    }
+
     /** Custom from a code (or a four-digit one from before designs), saved; false when it isn't one. */
     static boolean useCode(Context c, String code) {
         if (!readCode(code)) return false;
@@ -708,9 +753,18 @@ final class LiveTheme {
     }
 
     /** Reads the theme in use (each process, as it starts). */
+    /** When the file was last read (its time then): another process may change it (a design from the phone page). */
+    private static long loadedAt = -1;
+
+    /** Whether the design file changed since it was read here. */
+    static boolean changedElsewhere(Context c) {
+        return file(c).lastModified() != loadedAt;
+    }
+
     static void load(Context c) {
         int i = WHITE, s = CINEMA;      // a new install; one with a file keeps what it chose
         File f = file(c);
+        loadedAt = f.lastModified();
         if (f.exists()) {
             s = ZERO;
             try (FileInputStream in = new FileInputStream(f)) {
@@ -756,6 +810,7 @@ final class LiveTheme {
                     .append(",0,1,0,").append(morning).append(',').append(late);
             for (int p = 0; p < PARTS; p++) s.append(',').append(custom[p]);
             Xtream.write(file(c), s.toString());
+            loadedAt = file(c).lastModified();     // this process's own change
         } catch (IOException e) {
             AppLog.w("live: couldn't save the theme");
         }

@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -54,7 +54,8 @@ final class LiveSettings {
     /** Each section's settings (the remote's buttons have their own list). */
     private static final int KEYS_SECTION = 7;
     /** Design without Custom's own rows (the design isn't Custom). */
-    private static final int[] THEME_PLAIN = {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CODE_ROW, OPACITY_ROW,
+    private static final int[] THEME_PLAIN = {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW,
+            COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW,
             TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW};
 
     /** A section's rows (Custom's parts only while Custom is the design). */
@@ -100,7 +101,7 @@ final class LiveSettings {
             {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
-                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW},
+                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW, COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
@@ -443,6 +444,10 @@ final class LiveSettings {
             case MORNING_ROW: return Ui.tr("Design de manhã", "Design in the morning");
             case LATE_ROW: return Ui.tr("Design de madrugada", "Design late at night");
             case CODE_ROW: return Ui.tr("Código do design", "Design code");
+            case SAVE_DESIGN_ROW: return Ui.tr("Guardar este design", "Save this design");
+            case MY_DESIGNS_ROW: return Ui.tr("Meus designs", "My designs");
+            case COMMUNITY_ROW: return Ui.tr("Designs da comunidade", "Community designs");
+            case COMMUNITY_ON_ROW: return Ui.tr("Mostrar os designs da comunidade", "Show community designs");
             case RESET_ROW: return Ui.tr("Voltar ao padrão desta seção", "Reset this section");
             case CHECK_ROW: return Ui.tr("Verificar a conexão", "Connection check");
             case GUIDE_PAGE_ROW: return Ui.tr("Saúde do guia", "Guide health");
@@ -673,6 +678,13 @@ final class LiveSettings {
             case MORNING_ROW: return LiveTheme.morningStyle() < 0 ? Ui.tr("O mesmo", "The same") : LiveTheme.styleName(LiveTheme.morningStyle());
             case LATE_ROW: return LiveTheme.lateStyle() < 0 ? Ui.tr("Como à noite", "Like the night") : LiveTheme.styleName(LiveTheme.lateStyle());
             case CODE_ROW: return LiveTheme.style() == LiveTheme.CUSTOM ? LiveTheme.code() : Ui.tr("Digitar um", "Type one in");
+            case SAVE_DESIGN_ROW: return "";
+            case MY_DESIGNS_ROW: {
+                int n = LiveDesigns.mine(c).size();
+                return n == 0 ? Ui.tr("Nenhum", "None") : String.valueOf(n);
+            }
+            case COMMUNITY_ROW: return LiveOptions.communityDesigns(c) ? "›" : "—";
+            case COMMUNITY_ON_ROW: return onOff(LiveOptions.communityDesigns(c));
             case RESET_ROW:
             case HEAD_STREAM:
             case HEAD_SOUND:
@@ -814,6 +826,102 @@ final class LiveSettings {
         };
         if (LiveOptions.hasPin(c)) lock.run();
         else view.askNewPin(lock);
+    }
+
+    // MARK: - Designs to keep and share (LiveDesigns)
+
+    private void myDesigns() {
+        final Context c = context();
+        final List<LiveDesigns.Design> list = LiveDesigns.mine(c);
+        if (list.isEmpty()) {
+            view.flash(Ui.tr("Nenhum ainda: guarde um com Guardar este design", "None yet: keep one with Save this design"));
+            return;
+        }
+        String[] names = new String[list.size()];
+        for (int i = 0; i < names.length; i++) names[i] = list.get(i).name + "  ·  " + list.get(i).code;
+        LiveSheet.menu(c).setTitle(Ui.tr("Meus designs", "My designs")).setItems(names, (d, i) -> designMenu(i, list.get(i))).asList().show();
+    }
+
+    private void designMenu(final int i, final LiveDesigns.Design d) {
+        final Context c = context();
+        LiveSheet.menu(c).setTitle(d.name).setItems(new String[] {Ui.tr("Usar", "Use"), Ui.tr("Compartilhar", "Share"), Ui.tr("Renomear", "Rename"),
+                Ui.tr("Apagar", "Delete")}, (dlg, which) -> {
+            if (which == 0) useDesign(d.code, d.name);
+            else if (which == 1) shareDesign(d.name, d.code);
+            else if (which == 2) LiveNamePad.ask(c, Ui.tr("Renomear", "Rename"), d.name, name -> {
+                LiveDesigns.rename(c, i, name);
+                view.invalidate();
+            });
+            else {
+                LiveDesigns.remove(c, i);
+                view.flash(Ui.tr("Apagado: ", "Deleted: ") + d.name);
+                view.invalidate();
+            }
+        }).show();
+    }
+
+    private void useDesign(String code, String name) {
+        Context c = context();
+        if (!LiveTheme.useCode(c, code)) return;
+        LiveTheme.applyFonts(c);
+        view.restyle();
+        view.flash(name + Ui.tr(" está aplicado", " is on"));
+        view.invalidate();
+    }
+
+    /** A design's QR code: its page on this TV's phone page when Phone remote is on, else its name and code as text. */
+    private void shareDesign(String name, String code) {
+        Context c = context();
+        android.content.SharedPreferences glass = c.getApplicationContext().getSharedPreferences("glass", Context.MODE_PRIVATE);
+        String ip = glass.getBoolean("phoneRemote", false) ? com.glasslauncher.tv.net.Net.INSTANCE.localIp() : null;
+        String text;
+        try {
+            text = ip != null ? "http://" + ip + ":9090/design?d=" + code + "&n=" + java.net.URLEncoder.encode(name, "UTF-8")
+                    : "Glassio Yahsun design \"" + name + "\": " + code;
+        } catch (java.io.UnsupportedEncodingException e) {
+            text = code;
+        }
+        android.widget.ImageView qr = new android.widget.ImageView(c);
+        qr.setImageBitmap(com.glasslauncher.tv.net.Net.INSTANCE.qr(text, 480));
+        int pad = Math.round(24 * c.getResources().getDisplayMetrics().density);
+        qr.setPadding(pad, pad, pad, pad);
+        LiveTheme.dialog(c).setTitle(name + "  ·  " + code.substring(0, 4) + " " + code.substring(4))
+                .setMessage(ip != null ? Ui.tr("Leia com o celular: abre a página do design.", "Scan it with your phone: it opens the design's page.")
+                        : Ui.tr("Leia com o celular, ou digite o código na outra TV.", "Scan it with your phone, or type the code on the other TV."))
+                .setView(qr).setPositiveButton("OK", null).show();
+    }
+
+    private void communityDesigns() {
+        final Context c = context();
+        if (!LiveOptions.communityDesigns(c)) {
+            view.flash(Ui.tr("Ligue Mostrar os designs da comunidade primeiro", "Turn on Show community designs first"));
+            return;
+        }
+        view.flash(Ui.tr("Lendo os designs da comunidade…", "Reading the community designs…"));
+        new Thread(() -> {
+            final List<LiveDesigns.Design> list = LiveDesigns.community(c);
+            view.post(() -> {
+                if (list.isEmpty()) {
+                    view.flash(Ui.tr("Não deu para ler os designs da comunidade agora", "Couldn't read the community designs just now"));
+                    return;
+                }
+                String[] names = new String[list.size()];
+                for (int i = 0; i < names.length; i++) {
+                    LiveDesigns.Design d = list.get(i);
+                    names[i] = d.name + (d.author.isEmpty() ? "" : "  ·  " + d.author);
+                }
+                LiveSheet.menu(c).setTitle(Ui.tr("Designs da comunidade", "Community designs")).setItems(names, (dlg, i) -> {
+                    final LiveDesigns.Design d = list.get(i);
+                    LiveSheet.menu(c).setTitle(d.name).setItems(new String[] {Ui.tr("Usar", "Use"), Ui.tr("Guardar em Meus designs", "Keep in My designs"),
+                            Ui.tr("Compartilhar", "Share")}, (dlg2, which) -> {
+                        if (which == 0) useDesign(d.code, d.name);
+                        else if (which == 1) view.flash(LiveDesigns.keep(c, d.name, d.code) ? Ui.tr("Guardado em Meus designs", "Kept in My designs")
+                                : Ui.tr("Meus designs está cheio (20): apague um", "My designs is full (20): delete one"));
+                        else shareDesign(d.name, d.code);
+                    }).show();
+                }).asList().show();
+            });
+        }, "community-designs").start();
     }
 
     /** Live TV's text at `pct` percent: Live TV opens again, every paint made at the new size. */
@@ -1055,6 +1163,13 @@ final class LiveSettings {
                             "From midnight to sunrise, another design (← → to change it).");
                     case RESET_ROW: return Ui.tr("Os ajustes desta seção como eram no começo (o PIN, as contas e as listas ficam).",
                             "This section's settings as they first were (your PIN, accounts and lists stay).");
+                    case SAVE_DESIGN_ROW: return Ui.tr("Guarda o Personalizado com um nome, para voltar a ele ou compartilhar.",
+                            "Keeps your Custom design under a name, to go back to it or share it.");
+                    case MY_DESIGNS_ROW: return Ui.tr("Seus designs guardados: usar, compartilhar com um QR code, renomear ou apagar.",
+                            "Your kept designs: use one, share it with a QR code, rename or delete it.");
+                    case COMMUNITY_ROW: return Ui.tr("Designs escolhidos pelo Glassio Yahsun no GitHub: experimente ou guarde.",
+                            "Designs picked by Glassio Yahsun on GitHub: try one or keep it.");
+                    case COMMUNITY_ON_ROW: return Ui.tr("Desligado, a lista não aparece e nada é buscado.", "Off, the list isn't shown and nothing is fetched.");
                     case CODE_ROW: return LiveTheme.style() == LiveTheme.CUSTOM
                             ? Ui.tr("O código do seu Personalizado: digite-o em outra TV para ter o mesmo. OK para digitar um.",
                                     "Your Custom design's code: type it on another TV to get the same. OK to type one in.")
@@ -1445,6 +1560,7 @@ final class LiveSettings {
             case VOICE_ROW: return LiveOptions.voiceChannels(c);
             case VOICE_COMMANDS_ROW: return LiveOptions.voiceCommands(c);
             case HIGH_CONTRAST_ROW: return LiveOptions.highContrast(c);
+            case COMMUNITY_ON_ROW: return LiveOptions.communityDesigns(c);
             case UNRATED_ROW: return LiveOptions.unratedNeedsPin(c);
             default: return null;
         }
@@ -1726,7 +1842,7 @@ final class LiveSettings {
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id == TEXT_SCALE_ROW || id == HIGH_CONTRAST_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == UNRATED_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -2432,6 +2548,7 @@ final class LiveSettings {
             case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, (LiveOptions.channelMark(c) + dir + 3) % 3); view.invalidate(); announce(); return;
             case VOICE_ROW: LiveOptions.setVoiceChannels(c, !LiveOptions.voiceChannels(c)); announce(); return;
             case VOICE_COMMANDS_ROW: LiveOptions.setVoiceCommands(c, !LiveOptions.voiceCommands(c)); announce(); return;
+            case COMMUNITY_ON_ROW: LiveOptions.setCommunityDesigns(c, !LiveOptions.communityDesigns(c)); announce(); return;
             case UNRATED_ROW: {
                 final boolean on = !LiveOptions.unratedNeedsPin(c);
                 family(() -> LiveOptions.setUnratedNeedsPin(context(), on));
@@ -2750,6 +2867,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW:
             case HIGH_CONTRAST_ROW:
             case UNRATED_ROW:
+            case COMMUNITY_ON_ROW:
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:
             case LOGO_SOURCE_ROW:
@@ -2943,6 +3061,21 @@ final class LiveSettings {
             case RESET_ROW:
                 askReset(c, section);
                 break;
+            case SAVE_DESIGN_ROW: {
+                if (LiveTheme.style() != LiveTheme.CUSTOM) {
+                    view.flash(Ui.tr("Escolha Personalizado (ou um código de design) primeiro", "Choose Custom (or a design code) first"));
+                    break;
+                }
+                final String code = LiveTheme.code();
+                LiveNamePad.ask(c, Ui.tr("Nome do design", "Name this design"), "", name -> {
+                    if (LiveDesigns.keep(c, name, code)) view.flash(Ui.tr("Guardado em Meus designs", "Kept in My designs"));
+                    else view.flash(Ui.tr("Meus designs está cheio (20): apague um", "My designs is full (20): delete one"));
+                    view.invalidate();
+                });
+                break;
+            }
+            case MY_DESIGNS_ROW: myDesigns(); break;
+            case COMMUNITY_ROW: communityDesigns(); break;
             case CODE_ROW:      // another TV's design, by its code
                 LivePinPad.askNumber(c, Ui.tr("Código do design", "Design code"), Ui.tr("Os 8 números de outra TV", "The 8 digits from another TV"), typed -> {
                     if (!LiveTheme.useCode(c, typed)) return false;

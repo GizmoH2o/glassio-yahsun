@@ -69,6 +69,8 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             if (idx > 0 && line.substring(0, idx).trim().equals("content-length", true)) len = line.substring(idx + 1).trim().toIntOrNull() ?: 0
         }
         val path = target.substringBefore('?'); val q = target.substringAfter('?', "")
+        // A shared design's page (its QR code): no code needed, it only shows a design's colors and code.
+        if (method == "GET" && path == "/design") { respond(c, 200, "text/html", com.glasslauncher.tv.live.LiveDesigns.page(query(q, "d"), query(q, "n"))); return }
         if (!MessageDigest.isEqual(query(q, "t").toByteArray(), token.toByteArray())) { respond(c, 403, "text/plain", "Forbidden"); return }
         if (method == "GET" && path == "/") { respond(c, 200, "text/html", PAGE); return }
         if (method == "GET" && path == "/api/state") { respond(c, 200, "application/json", state().toString()); return }
@@ -270,6 +272,8 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
                 else -> com.glasslauncher.tv.live.LivePhone.delete(app, j.optString("id"))
             }
         }
+        // A Live TV design by its code (shared from another TV, or a community one).
+        "/api/design" -> com.glasslauncher.tv.live.LiveDesigns.apply(app, j.optString("code"))
         "/api/search" -> {
             val words = j.optString("q").trim().take(100)
             require(words.isNotEmpty()) { "Type what to look for" }
@@ -478,6 +482,8 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <input type="password" id="bc" placeholder="Code for the backup" autocomplete="new-password"><button onclick="bk()">Download a backup</button>
 <p style="margin-top:14px">Restore one: Glassio's settings on the TV are replaced, then it restarts.</p>
 <input type="file" id="bkf" accept=".json,application/json"><input type="password" id="rc" placeholder="Code of that backup" autocomplete="off" style="margin-top:8px"><button class="d" onclick="rs()">Restore on the TV</button>
+<h2>Apply a design</h2><p>A Live TV design’s 8 digits, from another TV’s Share or a community design: Live TV shows it at once.</p>
+<input type="text" id="dsg" placeholder="8 digits" inputmode="numeric"><button onclick="send('/api/design',{code:v('dsg')},'dsg')">Apply on the TV</button>
 <h2>Backup to WebDAV</h2><p>Nextcloud, Synology, Koofr, pCloud and others: the weekly backup goes to this folder too, locked with your backup code. Use an <b>app password</b> from your service’s security settings. The last 4 are kept.</p><p id="davs"></p>
 <input type="text" id="du" placeholder="https://cloud.example.com/remote.php/dav/files/you/Glassio"><input type="text" id="dn" placeholder="Username" style="margin-top:8px" autocomplete="off"><input type="password" id="dp" placeholder="App password" style="margin-top:8px" autocomplete="new-password">
 <div class="row"><button onclick="send('/api/dav',{url:v('du'),user:v('dn'),pass:document.getElementById('dp').value},'dp')">Save</button><button class="s" onclick="send('/api/dav/now',{})">Back up now</button></div>

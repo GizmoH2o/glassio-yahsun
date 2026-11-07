@@ -349,7 +349,15 @@ public class Live extends Activity {
         LiveScores.get(this).watch(scores);
         registerReceiver(recordingProblem, new android.content.IntentFilter(LiveRecordings.PROBLEM), null, null,
                 android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
-        registerReceiver(synced, new android.content.IntentFilter(LiveSyncStores.SYNCED), null, null,
+        if (LiveTheme.changedElsewhere(this)) {      // a design put on from the phone page while Live TV was away
+            LiveTheme.load(this);
+            LiveTheme.applyFonts(this);
+            view.themeChanged();
+            view.restyle();
+        }
+        android.content.IntentFilter changes = new android.content.IntentFilter(LiveSyncStores.SYNCED);
+        changes.addAction(LiveDesigns.THEME);
+        registerReceiver(synced, changes, null, null,
                 android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         main.removeCallbacks(ratingWatch);
         main.postDelayed(ratingWatch, 15_000);
@@ -368,6 +376,13 @@ public class Live extends Activity {
     /** Another TV's changes came in (Sync with other TVs): the favorites, the profiles and the names read again. */
     private final android.content.BroadcastReceiver synced = new android.content.BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) {
+            if (LiveDesigns.THEME.equals(i.getAction())) {     // a design put on from the phone page
+                LiveTheme.load(Live.this);
+                LiveTheme.applyFonts(Live.this);
+                view.themeChanged();
+                view.restyle();
+                return;
+            }
             relist();
         }
     };
@@ -556,6 +571,29 @@ public class Live extends Activity {
                 r.why = Ui.tr("a TV estava desligada", "the TV was off");
                 LiveRecordings.put(Live.this, r);
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
+                return;
+            }
+            if (i.hasExtra("theme_keep")) {      // the design file copied aside (true), or put back from there (false)
+                java.io.File here = new java.io.File(getFilesDir(), "live-theme.txt"), aside = new java.io.File(getExternalFilesDir(null), "theme-kept.txt");
+                try {
+                    java.io.File from = i.getBooleanExtra("theme_keep", true) ? here : aside, to = from == here ? aside : here;
+                    try (java.io.FileInputStream in = new java.io.FileInputStream(from)) {
+                        Xtream.write(to, Xtream.read(in));
+                    }
+                    if (to == here) {
+                        LiveTheme.load(Live.this);
+                        LiveTheme.applyFonts(Live.this);
+                        view.themeChanged();
+                        view.restyle();
+                    }
+                    AppLog.w("theme_keep: " + (to == here ? "put back" : "kept aside"));
+                } catch (java.io.IOException e) {
+                    AppLog.w("theme_keep failed: " + e.getMessage());
+                }
+                return;
+            }
+            if (i.hasExtra("designs_test")) {       // the community designs from this file (the app's external files)
+                LiveDesigns.testFile = i.getStringExtra("designs_test");
                 return;
             }
             if (i.hasExtra("speech")) {     // each line TalkBack would hear, logged ("speech: …")

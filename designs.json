@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "designs": [
+    {
+      "name": "Midnight Glass",
+      "code": "00201123",
+      "author": "Glassio Yahsun"
+    },
+    {
+      "name": "Stadium",
+      "code": "06033678",
+      "author": "Glassio Yahsun"
+    },
+    {
+      "name": "Cinema Red",
+      "code": "01439179",
+      "author": "Glassio Yahsun"
+    },
+    {
+      "name": "Golden Hour",
+      "code": "02206114",
+      "author": "Glassio Yahsun"
+    },
+    {
+      "name": "Pitch Green",
+      "code": "01207223",
+      "author": "Glassio Yahsun"
+    }
+  ]
+}

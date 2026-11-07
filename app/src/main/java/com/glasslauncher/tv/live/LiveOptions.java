@@ -1063,6 +1063,15 @@ final class LiveOptions {
         sp(c).edit().putBoolean("unratedPin", on).apply();
     }
 
+    /** The community's designs (LiveDesigns): shown, and read from the repository once a day. */
+    static boolean communityDesigns(Context c) {
+        return sp(c).getBoolean("communityDesigns", true);
+    }
+
+    static void setCommunityDesigns(Context c, boolean on) {
+        sp(c).edit().putBoolean("communityDesigns", on).apply();
+    }
+
     /** Live TV's text size, percent: Normal, Large, Larger. */
     static final int[] TEXT_SCALES = {100, 115, 130};
 
