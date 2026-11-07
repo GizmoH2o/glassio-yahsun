@@ -109,6 +109,18 @@ final class LiveResume {
         return out;
     }
 
+    /** Whether the channel's catch-up (`archiveDays`, 0: none) still reaches the program, with a little to spare. */
+    static boolean canCarryOn(Entry e, int archiveDays, long now) {
+        return archiveDays > 0 && e.program.start > now - archiveDays * 24 * 3600_000L + 3600_000L;
+    }
+
+    /** Opens the program in `ch` left partway that started at `start` where it was left; null when it isn't in the list. */
+    static Intent resumeIntent(Context c, Xtream.Channel ch, long start) {
+        if (ch == null) return null;
+        for (Entry e : entries(c)) if (e.channel == ch.id && e.program.start == start) return intent(c, ch, e.program, e.position);
+        return null;
+    }
+
     /** Where each program left partway got to, by "channel id:its start": {position, length} (the guide asks Resume?). */
     static synchronized java.util.Map<String, long[]> positions(Context c) {
         java.util.Map<String, long[]> out = new java.util.HashMap<>();

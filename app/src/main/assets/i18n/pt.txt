@@ -836,3 +836,8 @@ Search also looks through the TV guide, your recordings and your library	A busca
 In your library	Na sua biblioteca
 On TV	Na TV
 Your recordings	Suas gravações
+UP NEXT	A SEGUIR
+Up next	A seguir
+When you finish an episode, the next one takes its place, whichever app you watched it in	Ao terminar um episódio, o seguinte toma o seu lugar, seja qual for a app onde o viu
+Catch-up on Home	Catch-up no Início
+Past shows you left partway in Live TV join the row, and OK carries on where you stopped	Programas passados que deixou a meio na TV em direto entram na fila, e OK continua onde parou

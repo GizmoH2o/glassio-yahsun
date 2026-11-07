@@ -973,6 +973,7 @@ public class Live extends Activity {
             if (ch != null) {
                 // From the home screen's favorites row: in Favorites; from the TV's channel list, as it is.
                 if (Xtream.isFavorite(lineup, ch.id)) view.useCategory(Xtream.FAVORITES);
+                view.toVideo();
                 if (playing == null || playing.id != ch.id) play(ch);
             }
         }
@@ -991,12 +992,18 @@ public class Live extends Activity {
         if (askRecording != null) {      // the home screen's Continue Watching: a recording
             LiveRecordings.Rec r = LiveRecordings.find(this, askRecording);
             askRecording = null;
-            if (r != null && !r.file.isEmpty() && new java.io.File(r.file).exists()) playRecording(r);
+            if (r != null && !r.file.isEmpty() && new java.io.File(r.file).exists()) {
+                view.toVideo();
+                playRecording(r);
+            }
         }
         if (askResume >= 0) {      // Continue Watching: the program, where it was
             Xtream.Channel ch = find(askResume);
             askResume = -1;
-            if (ch != null && resumeProgram != null && resumeProgram.end > resumeProgram.start) playCatchup(ch, resumeProgram, resumeFrom);
+            if (ch != null && resumeProgram != null && resumeProgram.end > resumeProgram.start) {
+                view.toVideo();
+                playCatchup(ch, resumeProgram, resumeFrom);
+            }
         }
     }
 

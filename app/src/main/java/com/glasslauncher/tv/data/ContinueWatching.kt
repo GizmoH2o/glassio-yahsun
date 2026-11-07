@@ -24,7 +24,8 @@ data class CwEntry(val imdb: String, val season: Int, val episode: Int, val perc
  * Legacy writes to its own log while you watch ("[atividade] inicio tt… T1E3 42%", "[visto] ponto gravado
  * … (63%)", "[player] saida"). The log is read through the TV's local adb shell (LocalShell), so Android's
  * "Allow access to all device logs?" prompt never appears; only the one-time "Allow USB debugging" does.
- * The list is kept on the TV, newest first; titles past 92% count as finished and leave the list.
+ * The list is kept on the TV, newest first; titles past 92% count as finished and leave the list, and a series'
+ * next episode comes in its place (UpNext), in whichever app you finished it.
  * The official Nuvio app writes no such log: it saves what you watch to the Nuvio account, which this reads; Stremio
  * keeps it in its account's library (each title's position), which this reads too.
  */
@@ -36,6 +37,8 @@ class ContinueWatching(
 ) {
     private val sp = ctx.getSharedPreferences("glass_cw", Context.MODE_PRIVATE)
     val entries = MutableStateFlow(load())
+    /** The furthest episode finished of each series (UpNext), newest first. */
+    @Volatile private var finished = loadFinished()
     val items = MutableStateFlow<List<HeroItem>>(emptyList())
     /** Key of the title you were watching last; bumped when you leave the player (carousel jumps to it). */
     val lastWatched = MutableStateFlow<String?>(null)
@@ -98,6 +101,8 @@ class ContinueWatching(
                 val sa = stremio
                 if (settings.cwStremio && settings.continueMode != "off" && sa != null && sa.connected &&
                     now - stremioAt > every()) { stremioAt = now; syncStremio(sa) }
+                // A new episode of a series you finished comes out with nothing here changing.
+                if (now - builtAt > 6 * 3600_000L) rebuildItems()
                 woke = false
                 runCatching { accountsWake.tryAcquire(20, java.util.concurrent.TimeUnit.SECONDS) }
                 accountsWake.drainPermits()
@@ -147,12 +152,15 @@ class ContinueWatching(
      */
     private fun syncTrakt() {
         val paused = runCatching { trakt.playback() }.getOrElse { Glog.w("Trakt sync", it); traktStatus.value = "Sync failed: ${it.message}"; return }
+        val watched = runCatching { trakt.history() }.getOrElse { Glog.w("Trakt history", it); emptyList() }
         var changed: Boolean
+        var noted = false
         synchronized(this) {
             val ids = JSONObject()
             val list = entries.value.filterNot { it.app == "Trakt" }.toMutableList()
+            for (w in watched) if (w.season > 0 && finish(w.imdb, w.season, w.episode, w.at, "Trakt")) noted = true
             for (p in paused) {
-                if (p.percent >= 92) continue
+                if (p.percent >= 92) { if (p.season > 0 && finish(p.imdb, p.season, p.episode, p.at, "Trakt")) noted = true; continue }
                 val e = CwEntry(p.imdb, p.season, p.episode, p.percent, p.at, "Trakt")
                 val other = list.firstOrNull { it.imdb == p.imdb }
                 if (other != null && other.at >= p.at) continue
@@ -169,7 +177,7 @@ class ContinueWatching(
             sp.edit().putString("traktIds", ids.toString()).apply()
         }
         traktStatus.value = "${paused.size} paused on Trakt"
-        if (changed) rebuildItems()     // the same list as before: the cards stay (no details read again)
+        if (changed || noted) rebuildItems()     // the same list as before: the cards stay (no details read again)
     }
 
     private fun nuvioKeys(): JSONObject = runCatching { JSONObject(sp.getString("nuvioKeys", null) ?: "{}") }.getOrDefault(JSONObject())
@@ -186,11 +194,12 @@ class ContinueWatching(
         // Cinemeta names the title: only IMDb ids (tt…).
         val latest = onePerTitle(all.filter { it.id.startsWith("tt") })
         var changed: Boolean
+        var noted = false
         synchronized(this) {
             val keys = JSONObject()
             val list = entries.value.filterNot { it.app == "Nuvio" }.toMutableList()
             for (p in latest) {
-                if (p.percent >= 92) continue
+                if (p.percent >= 92) { if (p.type != "movie" && p.season > 0 && finish(p.id, p.season, p.episode, p.at, "Nuvio")) noted = true; continue }
                 val e = CwEntry(p.id, p.season, p.episode, p.percent, p.at, "Nuvio")
                 val other = list.firstOrNull { it.imdb == p.id }
                 if (other != null && other.at >= p.at) continue
@@ -209,7 +218,7 @@ class ContinueWatching(
         val n = latest.count { it.percent < 92 }
         Glog.i("Nuvio watch progress: ${all.size} entries on the account, ${latest.size} titles with IMDb ids, $n in progress")
         nuvioStatus.value = if (n == 1) "1 title in progress" else "$n titles in progress"
-        if (changed) rebuildItems()     // the same list as before: the cards stay (no details read again)
+        if (changed || noted) rebuildItems()     // the same list as before: the cards stay (no details read again)
     }
 
     /** Forces a Stremio account sync on the next round (after signing in, or turning it on). */
@@ -224,10 +233,11 @@ class ContinueWatching(
         // Cinemeta names the title: only IMDb ids (tt…); a series only with its episode known.
         val latest = all.filter { it.id.startsWith("tt") && (it.type == "movie" || it.season > 0 || it.episode > 0) }
         var changed: Boolean
+        var noted = false
         synchronized(this) {
             val list = entries.value.filterNot { it.app == "Stremio" }.toMutableList()
             for (p in latest) {
-                if (p.percent >= 92) continue
+                if (p.percent >= 92) { if (p.type != "movie" && p.season > 0 && finish(p.id, p.season, p.episode, p.at, "Stremio")) noted = true; continue }
                 val e = CwEntry(p.id, if (p.type == "movie") 0 else p.season, if (p.type == "movie") 0 else p.episode, p.percent, p.at, "Stremio")
                 val other = list.firstOrNull { it.imdb == p.id }
                 if (other != null && other.at >= p.at) continue
@@ -244,7 +254,7 @@ class ContinueWatching(
         val n = latest.count { it.percent < 92 }
         Glog.i("Stremio watch progress: ${all.size} titles with a position, ${latest.size} with IMDb ids, $n in progress")
         stremioStatus.value = if (n == 1) "1 title in progress" else "$n titles in progress"
-        if (changed) rebuildItems()     // the same list as before: the cards stay (no details read again)
+        if (changed || noted) rebuildItems()     // the same list as before: the cards stay (no details read again)
     }
 
     companion object {
@@ -304,7 +314,7 @@ class ContinueWatching(
     private fun upsert(e: CwEntry) {
         // One entry per title: a newer episode of the same series replaces the older one.
         val list = entries.value.filterNot { it.imdb == e.imdb }.toMutableList()
-        if (e.percent < 92) list.add(0, e)
+        if (e.percent < 92) list.add(0, e) else if (e.season > 0) finish(e.imdb, e.season, e.episode, e.at, e.app)
         val trimmed = list.sortedByDescending { it.at }.take(30)
         entries.value = trimmed
         save(trimmed)
@@ -312,13 +322,31 @@ class ContinueWatching(
         scope.launch(Dispatchers.IO) { rebuildItems() }
     }
 
-    fun clear() { entries.value = emptyList(); save(emptyList()); items.value = emptyList() }
+    /** Remembers [imdb]'s episode as finished; whether that changes anything. */
+    @Synchronized
+    private fun finish(imdb: String, season: Int, episode: Int, at: Long, app: String): Boolean {
+        val l = UpNext.note(finished, Finished(imdb, season, episode, at, app))
+        if (l == finished) return false
+        finished = l
+        saveFinished(l)
+        return true
+    }
+
+    /** When [key]'s series was finished up to its card's episode (the row's NEW EPISODE), 0 for none. */
+    fun finishedAt(key: String): Long = finished.firstOrNull { it.key == key }?.at ?: 0L
+
+    @Synchronized
+    fun clear() {
+        entries.value = emptyList(); save(emptyList()); items.value = emptyList()
+        finished = finished.map { it.copy(hidden = true) }; saveFinished(finished)
+    }
 
     /**
      * Whether [markWatched] can mark this title watched in the app it came from: the Nuvio account, Trakt, or Stremio
      * for a film (an episode there needs Stremio's own list of the series' episodes, which this doesn't keep).
      */
     fun canMarkWatched(key: String): Boolean {
+        if (items.value.any { it.key == key && it.upNext }) return false     // the next episode: the entry, if any, is an older one
         val e = entries.value.firstOrNull { it.key == key } ?: return false
         return when (e.app) {
             "Nuvio" -> nuvio?.connected == true
@@ -338,7 +366,10 @@ class ContinueWatching(
                 "Stremio" -> stremio?.markWatched(e.imdb) == true
                 else -> false
             }
-            if (ok) remove(key)
+            if (ok) {
+                remove(key)
+                if (e.season > 0) { finish(e.imdb, e.season, e.episode, System.currentTimeMillis(), e.app); rebuildItems() }
+            }
             done(ok)
         }
     }
@@ -358,6 +389,9 @@ class ContinueWatching(
             val sa = stremio
             if (sa != null) scope.launch(Dispatchers.IO) { sa.rewind(e.imdb) }
         }
+        synchronized(this) {
+            if (finished.any { it.key == key }) { finished = UpNext.hide(finished, key.substringAfter(':')); saveFinished(finished) }
+        }
         val l = entries.value.filterNot { it.key == key }
         entries.value = l; save(l)
         scope.launch(Dispatchers.IO) { rebuildItems() }
@@ -368,39 +402,60 @@ class ContinueWatching(
         // Settings › Continue Watching › Keep: only what was watched within that many days (0: everything).
         val days = settings.cwDays
         val since = if (days > 0) System.currentTimeMillis() - days * 24L * 3600 * 1000 else 0L
-        val out = entries.value.filter { it.percent >= 2 && it.at >= since }.mapNotNull { e ->
+        val on = settings.cwUpNext
+        val all = entries.value
+        val going = (if (on) UpNext.inProgress(all, finished) else all).filter { it.percent >= 2 && it.at >= since }.mapNotNull { e ->
             runCatching {
                 val meta = http.json("https://v3-cinemeta.strem.io/meta/${e.type}/${e.imdb}.json", 7L * 24 * 3600 * 1000).optJSONObject("meta")
                     ?: return@runCatching null
-                fun str(k: String) = meta.optString(k).takeIf { it.isNotBlank() && it != "null" }.orEmpty()
-                val rating = meta.optString("imdbRating").toDoubleOrNull()?.let { String.format(Locale.US, "%.1f", it) }.orEmpty()
-                val year = Regex("(19|20)\\d{2}").find(str("releaseInfo").ifBlank { str("year") })?.value.orEmpty()
-                val genres = meta.optJSONArray("genres")?.let { a -> (0 until minOf(3, a.length())).map { a.optString(it) } }.orEmpty()
-                val sub = if (e.type == "series") "S${e.season} · E${e.episode}" else ""
-                // The episode's own title, from the series' list of episodes.
-                val episodeTitle = if (e.type != "series") "" else meta.optJSONArray("videos")?.let { v ->
-                    (0 until v.length()).mapNotNull { v.optJSONObject(it) }
-                        .firstOrNull { it.optInt("season") == e.season && it.optInt("episode", it.optInt("number")) == e.episode }
-                        ?.let { it.optString("name").ifBlank { it.optString("title") } }
-                }?.takeIf { it.isNotBlank() && it != "null" }.orEmpty()
-                HeroItem(
-                    key = e.key, id = e.imdb, type = e.type, name = str("name"),
-                    poster = str("poster"), background = str("background").ifBlank { str("poster") }, logo = str("logo"),
-                    overview = str("description"), rating = rating, year = year, genres = genres, platform = "",
-                    progress = e.percent / 100f, sub = sub, source = if (e.app == "Trakt") "" else e.app,
-                    episodeTitle = episodeTitle,
-                )
+                card(meta, e.key, e.imdb, e.type, e.season, e.episode, e.app, e.at).copy(progress = e.percent / 100f)
             }.getOrNull()
         }
+        val now = System.currentTimeMillis()
+        val next = if (!on) emptyList() else UpNext.waiting(finished, all).filter { it.at >= since }.mapNotNull { f ->
+            runCatching {
+                // Hours, not a week: this is what tells a new episode is out.
+                val meta = http.json("https://v3-cinemeta.strem.io/meta/series/${f.imdb}.json", 6 * 3600_000L).optJSONObject("meta")
+                    ?: return@runCatching null
+                val ep = UpNext.next(HomeShelf.parse(meta).episodes, f.season, f.episode, now) ?: return@runCatching null
+                if (!UpNext.fresh(f, ep, now)) return@runCatching null
+                card(meta, f.key, f.imdb, "series", ep.season, ep.episode, f.app, f.at).copy(upNext = true)
+            }.getOrNull()
+        }
+        val out = (going + next).sortedByDescending { it.watchedAt }
+        builtAt = now
         items.value = out
         HeroSnapshot.save(ctx, "cw", out)
+    }
+
+    @Volatile private var builtAt = 0L
+
+    /** A row's card from a title's details: the episode's numbers and own title for a series. */
+    private fun card(meta: JSONObject, key: String, id: String, type: String, season: Int, episode: Int, app: String, at: Long): HeroItem {
+        fun str(k: String) = meta.optString(k).takeIf { it.isNotBlank() && it != "null" }.orEmpty()
+        val rating = meta.optString("imdbRating").toDoubleOrNull()?.let { String.format(Locale.US, "%.1f", it) }.orEmpty()
+        val year = Regex("(19|20)\\d{2}").find(str("releaseInfo").ifBlank { str("year") })?.value.orEmpty()
+        val genres = meta.optJSONArray("genres")?.let { a -> (0 until minOf(3, a.length())).map { a.optString(it) } }.orEmpty()
+        val sub = if (type == "series") "S$season · E$episode" else ""
+        // The episode's own title, from the series' list of episodes.
+        val episodeTitle = if (type != "series") "" else meta.optJSONArray("videos")?.let { v ->
+            (0 until v.length()).mapNotNull { v.optJSONObject(it) }
+                .firstOrNull { it.optInt("season") == season && it.optInt("episode", it.optInt("number")) == episode }
+                ?.let { it.optString("name").ifBlank { it.optString("title") } }
+        }?.takeIf { it.isNotBlank() && it != "null" }.orEmpty()
+        return HeroItem(
+            key = key, id = id, type = type, name = str("name"),
+            poster = str("poster"), background = str("background").ifBlank { str("poster") }, logo = str("logo"),
+            overview = str("description"), rating = rating, year = year, genres = genres, platform = "",
+            sub = sub, source = if (app == "Trakt") "" else app, episodeTitle = episodeTitle, watchedAt = at,
+        )
     }
 
     /** The saved cards still in the entries and within the days kept (the entries load before the cards). */
     private fun keepRecent(list: List<HeroItem>): List<HeroItem> {
         val days = settings.cwDays
         val since = if (days > 0) System.currentTimeMillis() - days * 24L * 3600 * 1000 else 0L
-        val keep = entries.value.filter { it.at >= since }.map { it.key }.toHashSet()
+        val keep = (entries.value.filter { it.at >= since }.map { it.key } + finished.filter { it.at >= since }.map { it.key }).toHashSet()
         return list.filter { it.key in keep }
     }
 
@@ -414,6 +469,20 @@ class ContinueWatching(
             CwEntry(o.getString("imdb"), o.optInt("s"), o.optInt("e"), o.optInt("p"), o.optLong("at"), o.optString("app"))
         }
     }.getOrDefault(emptyList())
+
+    private fun loadFinished(): List<Finished> = runCatching {
+        val a = JSONArray(sp.getString("finished", "[]"))
+        (0 until a.length()).map { i ->
+            val o = a.getJSONObject(i)
+            Finished(o.getString("imdb"), o.optInt("s"), o.optInt("e"), o.optLong("at"), o.optString("app"), o.optBoolean("hidden"))
+        }
+    }.getOrDefault(emptyList())
+
+    private fun saveFinished(l: List<Finished>) {
+        val a = JSONArray()
+        l.forEach { a.put(JSONObject().put("imdb", it.imdb).put("s", it.season).put("e", it.episode).put("at", it.at).put("app", it.app).put("hidden", it.hidden)) }
+        sp.edit().putString("finished", a.toString()).apply()
+    }
 
     private fun save(l: List<CwEntry>) {
         val a = JSONArray()

@@ -705,9 +705,13 @@ public final class LiveHome {
 
     /** A card Live TV adds to the front of the home screen's Continue Watching row. */
     public static final class HomeCard {
-        /** MATCH (a followed match on now), CHANNEL (the channel last watched), RECORDING (a finished recording). */
-        public static final int MATCH = 0, CHANNEL = 1, RECORDING = 2;
+        /** MATCH (a followed match on now), CHANNEL (the channel last watched), RECORDING (a finished one), RESUME (a past show left partway). */
+        public static final int MATCH = 0, CHANNEL = 1, RECORDING = 2, RESUME = 3;
         public int kind, channel;
+        /** RESUME: when the show started. */
+        public long start;
+        /** When it was watched or recorded, for the row's order; 0: on now, in front. */
+        public long at;
         /** Stays the same while it's the same card (hidden with hold OK by it). */
         public String key = "", title = "", sub = "", art = "", logo = "", recording = "";
         /** The channel's country tag ("" with the tags off or none known). */
@@ -719,10 +723,12 @@ public final class LiveHome {
     /** The finished recordings shown, at most, and how long one stays there after it ended. */
     private static final int RECORDINGS_MAX = 3;
     private static final long RECORDING_DAYS = 14 * 24 * 3600_000L;
+    /** The past shows left partway shown, at most. */
+    private static final int RESUMES_MAX = 3;
 
     /**
-     * The cards, in order: a followed match on now, the channel last watched (what's on it now), then the newest finished
-     * recordings. Empty when Live TV isn't signed in.
+     * The cards: a followed match on now, the channel last watched (what's on it now), then past shows left partway and
+     * the newest finished recordings. Empty when Live TV isn't signed in.
      */
     public static List<HomeCard> homeCards(Context c) {
         List<HomeCard> out = new ArrayList<>();
@@ -759,6 +765,26 @@ public final class LiveHome {
             if (p != null) k.progress = progress(p.start, p.end, now);
             out.add(k);
         }
+        int resumes = 0;
+        for (LiveResume.Entry e : LiveResume.entries(c)) {
+            if (resumes >= RESUMES_MAX) break;
+            Xtream.Channel ch = channelOf(c, e.channel);
+            if (ch == null || LiveOptions.isLockedAnyProcess(c, ch.category) || !LiveResume.canCarryOn(e, ch.archive, now)) continue;
+            HomeCard k = new HomeCard();
+            k.kind = HomeCard.RESUME;
+            k.channel = ch.id;
+            k.start = e.program.start;
+            k.at = e.at;
+            k.key = "live-resume:" + ch.id + ":" + e.program.start;
+            k.title = e.program.title.isEmpty() ? shownName(c, ch) : e.program.title;
+            k.sub = "Catch-up  ·  " + shownName(c, ch) + "  ·  " + day(e.program.start, now);
+            k.country = countryOf(c, ch);
+            k.logo = logoOf(c, ch);
+            k.art = LiveArt.of(c, e.program, null);
+            if (e.length > 0) k.progress = Math.min(1f, (float) e.position / e.length);
+            out.add(k);
+            resumes++;
+        }
         List<LiveRecordings.Rec> done = new ArrayList<>();
         for (LiveRecordings.Rec r : LiveRecordings.all(c)) {
             if (!LiveRecordings.DONE.equals(r.state) || r.file == null || r.file.isEmpty() || r.ch == null) continue;
@@ -778,6 +804,7 @@ public final class LiveHome {
             k.channel = r.ch.id;
             k.recording = r.id;
             k.key = "live-rec:" + r.id;
+            k.at = r.end;
             k.title = p.title.isEmpty() ? shownName(c, r.ch) : p.title;
             k.sub = "Recorded  ·  " + shownName(c, r.ch) + "  ·  " + day(r.start, now);
             k.country = countryOf(c, r.ch);
@@ -786,6 +813,12 @@ public final class LiveHome {
             out.add(k);
         }
         return out;
+    }
+
+    /** Live TV on a past show left partway, where it was left; just the channel when it's gone from the list. Blocking. */
+    public static Intent openResume(Context c, int channel, long start) {
+        Intent i = LiveResume.resumeIntent(c, channelOf(c, channel), start);
+        return i != null ? i : open(c, channel, false);
     }
 
     /** Whether what's on now on `channel` is being recorded (the home card's menu: Record or Stop recording). Blocking. */

@@ -91,6 +91,7 @@ import com.glasslauncher.tv.data.HeroPicks
 import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.LiveCards
 import com.glasslauncher.tv.data.NuvioLaunch
+import com.glasslauncher.tv.data.UpNext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -177,9 +178,9 @@ internal fun HomePage(
         if (kids) emptyList()
         else if (settings.continueMode == "off") liveCards
         else {
-            val cw = cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source, episodeTitle = c.episodeTitle) }
-            // New episodes first (as watched, among themselves), then the rest as watched.
-            liveCards + if (settings.cwNewFirst) cw.sortedBy { if ((newEps[it.key] ?: 0) > 0) 0 else 1 } else cw
+            val cw = cwItems.map { c -> (enriched[c.key] ?: c).let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }.copy(progress = c.progress, sub = c.sub, source = c.source, episodeTitle = c.episodeTitle, watchedAt = c.watchedAt, upNext = c.upNext) }
+            // One row: what's on now, then new episodes, then everything as you watched it.
+            UpNext.order(liveCards, cw, newEps.filterValues { it > 0 }.keys, settings.cwNewFirst)
         }
     }
     val kidsMovies = remember(movies, kids, infoRev) { if (kids) movies.filter { HeroPicks.isKids(app.shelf.filled(it)) } else movies }
@@ -261,7 +262,7 @@ internal fun HomePage(
     val toTitle: (HeroItem) -> Unit = { item -> titleFromPart = inPart; onTitle(item) }
     /** OK on a card: its page, or straight to playing (Settings › Home › OK on a card); with no player app, always its page. */
     val openCard: (HeroItem) -> Unit = { item ->
-        if (settings.cardOk == "play" && NuvioLaunch.playable(ctx, settings)) NuvioLaunch.open(ctx, settings, app.http, item) else toTitle(item)
+        if (settings.cardOk == "play" && NuvioLaunch.playable(ctx, settings)) NuvioLaunch.play(ctx, settings, app.http, item) else toTitle(item)
     }
     LaunchedEffect(restoreFocus) { if (restoreFocus > 0) { delay(60); inPart = titleFromPart; runCatching { (if (fromMore) heroMore else req(titleFromPart)).requestFocus() }; fromMore = false } }
     // The row with the focus went (its last card taken out, a row turned off): the focus to the row below, else the
@@ -954,7 +955,7 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))
         // Top left: LIVE, or the app it came from; top right: how many newer episodes are out.
-        if (live && item.type != LiveCards.TYPE_RECORDING) Text("LIVE", color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
+        if (live && item.type != LiveCards.TYPE_RECORDING && item.type != LiveCards.TYPE_RESUME) Text("LIVE", color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((3 * s).dp)).background(RED).padding(horizontal = (4 * s).dp, vertical = (1 * s).dp))
         sourceTag(item.source)?.let { (name, dot) ->
             Row(Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((3 * s).dp)).background(Color.Black.copy(alpha = 0.55f))
@@ -975,6 +976,8 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
         }
         if (newer > 0) Text("NEW EPISODE", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (5 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(RED).padding(horizontal = (4 * s).dp))
+        else if (item.upNext) Text("UP NEXT", color = Color.Black, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (5 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(Color.White).padding(horizontal = (4 * s).dp))
         if (item.progress >= 0f) {
             val p = item.progress.coerceIn(0f, 1f)
             val accent = RED

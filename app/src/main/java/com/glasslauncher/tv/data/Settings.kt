@@ -298,6 +298,10 @@ class Settings(private val ctx: Context) {
     var textSize: String get() = s("textSize", "normal"); set(v) = putS("textSize", v)
     /** Continue Watching: series with a new episode out since you watched go first (after Live TV's cards). */
     var cwNewFirst: Boolean get() = b("cwNewFirst", true); set(v) = putB("cwNewFirst", v)
+    /** Continue Watching: the next episode takes the place of one you finished. */
+    var cwUpNext: Boolean get() = b("cwUpNext", true); set(v) = putB("cwUpNext", v)
+    /** Continue Watching: Live TV's past shows you left partway join the row. */
+    var cwCatchup: Boolean get() = b("cwCatchup", true); set(v) = putB("cwCatchup", v)
     /** After you leave the player, the carousel opens on what you just watched. */
     /** How many titles in progress open the carousel (0 = all); the rest mix in with the catalogs. */
     var cwLead: Int get() = i("cwLead", 3); set(v) = putI("cwLead", v)

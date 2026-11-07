@@ -837,3 +837,8 @@ Search also looks through the TV guide, your recordings and your library	Пои�
 In your library	В вашей библиотеке
 On TV	На ТВ
 Your recordings	Ваши записи
+UP NEXT	ДАЛЕЕ
+Up next	Далее
+When you finish an episode, the next one takes its place, whichever app you watched it in	Когда серия закончена, её место занимает следующая, в каком бы приложении вы ни смотрели
+Catch-up on Home	Архив на главном экране
+Past shows you left partway in Live TV join the row, and OK carries on where you stopped	Прошедшие передачи, недосмотренные в Live TV, попадают в ряд, а OK продолжает с места остановки

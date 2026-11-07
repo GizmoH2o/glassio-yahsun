@@ -139,8 +139,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 var firstUsed = false
                 val toRows = Modifier.nav(down = if (hasSeasons) seasonEntry.req else if (more.isNotEmpty()) moreEntry.req else FocusRequester.Cancel)
                 fun firstMod(): Modifier = if (firstUsed) toRows else { firstUsed = true; toRows.nav(left = FocusRequester.Cancel).focusRequester(first) }
-                if (canPlay) DsButton(if (resume != null) "Resume" + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play", s, firstMod(), primary = true,
-                    leading = { c -> PlayGlyph(Modifier.size((8.5f * s).dp), c) }) { NuvioLaunch.open(ctx, st, app.http, resume ?: item) }
+                if (canPlay) DsButton(if (resume != null) (if (resume.upNext) "Play" else "Resume") + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play", s, firstMod(), primary = true,
+                    leading = { c -> PlayGlyph(Modifier.size((8.5f * s).dp), c) }) { NuvioLaunch.play(ctx, st, app.http, resume ?: item) }
                 links.firstOrNull()?.let { l ->
                     DsButton(l.service, s, firstMod(), leading = { ServiceIcon(l.pkg, s) }) { runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") } }
                 }

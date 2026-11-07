@@ -2585,6 +2585,14 @@ final class LiveView extends View {
         return b.toString();
     }
 
+    /** Something from outside Live TV (a card, search) starts playing: full screen, whatever was left open. */
+    void toVideo() {
+        if (gGroups) closeGuideGroups();
+        live.setPreview(false);
+        if (mode != WATCH) leave(WATCH);
+        invalidate();
+    }
+
     /** A channel picked in search: on, full screen. */
     void watchFromSearch(Xtream.Channel channel) {
         live.play(channel);

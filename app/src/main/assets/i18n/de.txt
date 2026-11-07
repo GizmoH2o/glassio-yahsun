@@ -837,3 +837,8 @@ Search also looks through the TV guide, your recordings and your library	Die Suc
 In your library	In deiner Mediathek
 On TV	Im TV
 Your recordings	Deine Aufnahmen
+UP NEXT	ALS NÄCHSTES
+Up next	Als Nächstes
+When you finish an episode, the next one takes its place, whichever app you watched it in	Ist eine Folge zu Ende, rückt die nächste nach, egal in welcher App du sie gesehen hast
+Catch-up on Home	Catch-up auf dem Startbildschirm
+Past shows you left partway in Live TV join the row, and OK carries on where you stopped	Vergangene Sendungen, die du in Live-TV abgebrochen hast, erscheinen in der Reihe; OK macht dort weiter, wo du aufgehört hast

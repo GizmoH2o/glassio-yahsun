@@ -22,7 +22,8 @@ object HeroSnapshot {
                 .put("overview", h.overview).put("rating", h.rating).put("year", h.year)
                 .put("genres", JSONArray(h.genres)).put("platform", h.platform).put("progress", h.progress.toDouble())
                 .put("sub", h.sub).put("addonArt", h.addonArt).put("bestArt", h.bestArt).put("country", h.country)
-                .put("runtime", h.runtime).put("source", h.source).put("episodeTitle", h.episodeTitle))
+                .put("runtime", h.runtime).put("source", h.source).put("episodeTitle", h.episodeTitle)
+                .put("watchedAt", h.watchedAt).put("upNext", h.upNext))
             val f = file(ctx, name)
             val tmp = File(f.path + ".tmp")
             tmp.writeText(a.toString())
@@ -46,6 +47,7 @@ object HeroSnapshot {
                 progress = o.optDouble("progress", -1.0).toFloat(), sub = o.optString("sub"), addonArt = o.optString("addonArt"),
                 bestArt = o.optString("bestArt"), country = o.optString("country"), runtime = o.optString("runtime"),
                 source = o.optString("source"), episodeTitle = o.optString("episodeTitle"),
+                watchedAt = o.optLong("watchedAt"), upNext = o.optBoolean("upNext"),
             )
         }
     }.getOrElse { Glog.w("snapshot $name", it); emptyList() }

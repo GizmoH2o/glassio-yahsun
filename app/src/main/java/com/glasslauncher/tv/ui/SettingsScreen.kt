@@ -559,6 +559,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     st.cwDays.let { if (it == 0) "Everything" else if (it % 7 == 0 && it < 28) "${it / 7} week" + (if (it > 7) "s" else "") else "$it days" }
                 }, { st.cwDays = cycle(listOf(0, 7, 14, 30, 60, 90), st.cwDays, it); app.cw.rebuild() }))
                 add(Toggle("New episodes first", "A series with an episode out since you watched goes to the front (NEW EPISODE)", { st.cwNewFirst }, { st.cwNewFirst = it }))
+                add(Toggle("Up next", "When you finish an episode, the next one takes its place, whichever app you watched it in", { st.cwUpNext }, { st.cwUpNext = it; app.cw.rebuild() }))
+                add(Toggle("Catch-up on Home", "Past shows you left partway in Live TV join the row, and OK carries on where you stopped", { st.cwCatchup }, { st.cwCatchup = it }))
                 add(Note("Apps"))
                 add(Toggle("Nuvio Legacy", if (app.cw.hasLogAccess()) "Reading what you watch in Nuvio Legacy" else "Allow USB debugging for Glassio when the TV asks", { st.cwLegacy }, { st.cwLegacy = it }))
                 val nuvioAcct = app.library.nuvio

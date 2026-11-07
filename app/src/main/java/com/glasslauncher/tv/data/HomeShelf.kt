@@ -141,8 +141,9 @@ class HomeShelf(
         val map = HashMap<String, Int>()
         for (c in items) {
             val (season, episode) = episodeOf(c.sub) ?: continue
-            val since = watched[c.key] ?: continue
-            val n = newSince(info.value[c.key]?.episodes ?: continue, season, episode, since, now)
+            val since = (if (c.upNext) cw.finishedAt(c.key).takeIf { it > 0 } else watched[c.key]) ?: continue
+            // A next episode's card counts the episode itself; the others, those after it.
+            val n = newSince(info.value[c.key]?.episodes ?: continue, season, if (c.upNext) episode - 1 else episode, since, now)
             if (n > 0) map[c.key] = n
         }
         return map

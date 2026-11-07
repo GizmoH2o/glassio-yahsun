@@ -141,6 +141,23 @@ class Trakt(ctx: Context) {
         }
     }
 
+    data class Watched(val imdb: String, val season: Int, val episode: Int, val at: Long)
+
+    /** The episodes you finished lately, newest first (GET /sync/history): paused ones leave /sync/playback when done. */
+    fun history(): List<Watched> {
+        if (!connected) return emptyList()
+        val (code, text) = call("GET", "/sync/history/episodes?limit=50", auth = true)
+        check(code == 200) { "Trakt answered HTTP $code" }
+        val a = JSONArray(text)
+        return (0 until a.length()).mapNotNull { i ->
+            val o = a.optJSONObject(i) ?: return@mapNotNull null
+            val show = o.optJSONObject("show")?.optJSONObject("ids")?.optString("imdb")?.takeIf { it.startsWith("tt") } ?: return@mapNotNull null
+            val ep = o.optJSONObject("episode") ?: return@mapNotNull null
+            val at = runCatching { java.time.Instant.parse(o.optString("watched_at")).toEpochMilli() }.getOrDefault(0L)
+            Watched(show, ep.optInt("season"), ep.optInt("number"), at)
+        }
+    }
+
     data class Listed(val imdb: String, val type: String, val at: Long)
 
     /** Your Trakt watchlist (movies and shows with an IMDb id), newest first. */

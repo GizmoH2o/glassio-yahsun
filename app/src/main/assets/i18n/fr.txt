@@ -836,3 +836,8 @@ Search also looks through the TV guide, your recordings and your library	La rech
 In your library	Dans votre bibliothèque
 On TV	À la TV
 Your recordings	Vos enregistrements
+UP NEXT	À SUIVRE
+Up next	À suivre
+When you finish an episode, the next one takes its place, whichever app you watched it in	Quand vous finissez un épisode, le suivant prend sa place, quelle que soit l'appli utilisée
+Catch-up on Home	Replay sur l'accueil
+Past shows you left partway in Live TV join the row, and OK carries on where you stopped	Les émissions passées laissées en cours dans TV en direct rejoignent la rangée, et OK reprend là où vous en étiez

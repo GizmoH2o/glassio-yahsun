@@ -836,3 +836,8 @@ Search also looks through the TV guide, your recordings and your library	La rice
 In your library	Nella tua libreria
 On TV	In TV
 Your recordings	Le tue registrazioni
+UP NEXT	A SEGUIRE
+Up next	A seguire
+When you finish an episode, the next one takes its place, whichever app you watched it in	Finito un episodio, il successivo prende il suo posto, in qualunque app tu l'abbia visto
+Catch-up on Home	Catch-up nella Home
+Past shows you left partway in Live TV join the row, and OK carries on where you stopped	I programmi passati lasciati a metà in TV in diretta entrano nella fila, e OK riprende da dove eri rimasto

@@ -51,6 +51,10 @@ data class HeroItem(
     val source: String = "",
     /** The episode in progress's own title ("Risky Business"), under a Continue Watching card; "" when not known. */
     val episodeTitle: String = "",
+    /** When you last watched it, for the row's order; 0 for what's on now, and for the catalogs. */
+    val watchedAt: Long = 0,
+    /** A Continue Watching card for the next episode (in [sub]), the one before it finished. */
+    val upNext: Boolean = false,
 )
 
 /**

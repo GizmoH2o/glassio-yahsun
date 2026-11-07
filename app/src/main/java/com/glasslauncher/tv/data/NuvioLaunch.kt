@@ -111,6 +111,12 @@ object NuvioLaunch {
         }
     }
 
+    /** A card's OK: the next episode's own page where that can be, else as [open]. */
+    fun play(ctx: Context, s: Settings, http: Http, item: HeroItem) {
+        val ep = if (item.upNext) HomeShelf.episodeOf(item.sub) else null
+        if (ep != null) openEpisode(ctx, s, http, item, ep.first, ep.second) else open(ctx, s, http, item)
+    }
+
     /** Opens [item] in the app it came from, else where "Open titles in" says; or in [target] when given. */
     fun open(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) {
         val pkg = TARGETS.getValue(target)
