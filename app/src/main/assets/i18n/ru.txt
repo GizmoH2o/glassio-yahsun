@@ -851,3 +851,19 @@ Directed by 	Режиссёр:
 Created by 	Создатель: 
 Rich title pages	Подробные страницы
 Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	Страницы показывают, где смотреть, включая Live TV и записи, и актёров с другими их работами
+In the mood for	Настроение
+Looking through your titles…	Ищем среди ваших титулов…
+Nothing fits both yet. Try one filter.	Пока ничего не подходит под оба. Попробуйте один фильтр.
+Mood and time filters	Фильтры по настроению и времени
+Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts	Поиск предлагает Смешное, Страшное, До 30 мин и другое из библиотеки, каталогов и чартов
+Funny	Смешное
+Feel-good	Для настроения
+Exciting	Захватывающее
+Scary	Страшное
+Romantic	Романтика
+True stories	Реальные истории
+With the kids	С детьми
+Under 30 min	До 30 мин
+Under 1 hour	До 1 часа
+Under 2 hours	До 2 часов
+Nothing fits this yet.	Пока ничего не подходит.

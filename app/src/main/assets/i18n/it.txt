@@ -850,3 +850,19 @@ Directed by 	Regia di
 Created by 	Creato da 
 Rich title pages	Pagine titolo complete
 Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	Le pagine titolo mostrano dove guardarlo, TV in diretta e registrazioni comprese, e il cast con gli altri titoli
+In the mood for	Voglia di
+Looking through your titles…	Cerco tra i tuoi titoli…
+Nothing fits both yet. Try one filter.	Ancora niente per entrambi. Prova un filtro.
+Mood and time filters	Filtri per umore e durata
+Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts	La ricerca mostra Divertente, Paura, Meno di 30 min e altro, tra libreria, cataloghi e classifiche
+Funny	Divertente
+Feel-good	Feel-good
+Exciting	Avvincente
+Scary	Paura
+Romantic	Romantico
+True stories	Storie vere
+With the kids	Con i bambini
+Under 30 min	Meno di 30 min
+Under 1 hour	Meno di 1 ora
+Under 2 hours	Meno di 2 ore
+Nothing fits this yet.	Ancora niente.

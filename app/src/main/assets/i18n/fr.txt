@@ -850,3 +850,19 @@ Directed by 	Réalisé par
 Created by 	Créé par 
 Rich title pages	Pages de titre détaillées
 Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	Les pages de titre indiquent où regarder, TV en direct et enregistrements compris, et la distribution avec ses autres titres
+In the mood for	Envie de
+Looking through your titles…	Recherche dans vos titres…
+Nothing fits both yet. Try one filter.	Rien ne correspond aux deux pour le moment. Essayez un filtre.
+Mood and time filters	Filtres d'humeur et de durée
+Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts	La recherche propose Drôle, Effrayant, Moins de 30 min et plus, dans votre bibliothèque, vos catalogues et les classements
+Funny	Drôle
+Feel-good	Feel-good
+Exciting	Palpitant
+Scary	Effrayant
+Romantic	Romantique
+True stories	Histoires vraies
+With the kids	Avec les enfants
+Under 30 min	Moins de 30 min
+Under 1 hour	Moins d'1 heure
+Under 2 hours	Moins de 2 heures
+Nothing fits this yet.	Rien ne correspond pour le moment.

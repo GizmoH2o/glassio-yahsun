@@ -850,3 +850,19 @@ Directed by 	Dirigida por
 Created by 	Creada por 
 Rich title pages	Páginas de título completas
 Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	Las páginas de título muestran dónde verlo, incluidas la TV en directo y tus grabaciones, y el reparto con sus otros títulos
+In the mood for	Con ganas de
+Looking through your titles…	Buscando entre tus títulos…
+Nothing fits both yet. Try one filter.	Nada encaja con ambos todavía. Prueba un filtro.
+Mood and time filters	Filtros de ánimo y tiempo
+Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts	La búsqueda muestra Divertido, Miedo, Menos de 30 min y más, en tu biblioteca, catálogos y listas
+Funny	Divertido
+Feel-good	Para sentirse bien
+Exciting	Emocionante
+Scary	Miedo
+Romantic	Romántico
+True stories	Historias reales
+With the kids	Con los niños
+Under 30 min	Menos de 30 min
+Under 1 hour	Menos de 1 hora
+Under 2 hours	Menos de 2 horas
+Nothing fits this yet.	Nada encaja todavía.

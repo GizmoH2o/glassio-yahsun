@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -115,6 +116,16 @@ class HomeShelf(
             overview = item.overview.ifBlank { i.overview }, rating = item.rating.ifBlank { i.rating },
             year = item.year.ifBlank { i.year }, genres = item.genres.ifEmpty { i.genres }, runtime = item.runtime.ifBlank { i.runtime },
         )
+    }
+
+    /** Reads the details of [items] not known yet (each kept on disk): the filled-in cards then have them. */
+    suspend fun lookUp(items: List<HeroItem>) = coroutineScope {
+        val gate = Semaphore(4)
+        items.filter { it.key !in info.value }.chunked(12).forEach { chunk ->
+            val got = chunk.map { item -> async(Dispatchers.IO) { gate.withPermit { item.key to fetch(item) } } }.awaitAll()
+            val add = got.mapNotNull { (k, v) -> v?.let { k to it } }.toMap()
+            if (add.isNotEmpty()) info.value = info.value + add
+        }
     }
 
     private fun fetch(item: HeroItem): TitleInfo? = runCatching {

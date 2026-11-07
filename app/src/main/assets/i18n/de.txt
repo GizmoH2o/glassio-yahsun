@@ -851,3 +851,19 @@ Directed by 	Regie:
 Created by 	Von 
 Rich title pages	Ausführliche Titelseiten
 Title pages show where to watch, Live TV and your recordings included, and the cast with their other titles	Titelseiten zeigen, wo du es sehen kannst, auch in Live-TV und deinen Aufnahmen, und die Besetzung mit ihren anderen Titeln
+In the mood for	Lust auf
+Looking through your titles…	Deine Titel werden durchsucht…
+Nothing fits both yet. Try one filter.	Noch nichts passt zu beidem. Versuch einen Filter.
+Mood and time filters	Stimmungs- und Zeitfilter
+Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts	Die Suche zeigt Lustig, Gruselig, Unter 30 Min. und mehr, aus Mediathek, Katalogen und Charts
+Funny	Lustig
+Feel-good	Wohlfühlen
+Exciting	Spannend
+Scary	Gruselig
+Romantic	Romantisch
+True stories	Wahre Geschichten
+With the kids	Mit den Kindern
+Under 30 min	Unter 30 Min.
+Under 1 hour	Unter 1 Stunde
+Under 2 hours	Unter 2 Stunden
+Nothing fits this yet.	Dazu passt noch nichts.

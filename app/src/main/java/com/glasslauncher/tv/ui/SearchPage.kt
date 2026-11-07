@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.glasslauncher.tv.GlassApp
 import com.glasslauncher.tv.data.HeroItem
+import com.glasslauncher.tv.data.Moods
 import com.glasslauncher.tv.live.LiveHome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -105,6 +106,29 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val apps = remember(q, allApps) { if (q.length < 2) emptyList() else app.apps.ordered(includeHidden = true).filter { it.label.contains(q, ignoreCase = true) }.take(8) }
     val rows by app.recs.rows.collectAsState()
     LaunchedEffect(Unit) { if (rows.trending.isEmpty()) withContext(Dispatchers.IO) { runCatching { app.recs.refresh() } } }
+    // Nothing typed: the mood and time filters, across your library, the catalogs and the charts.
+    val moods = app.settings.moodFilters
+    val kids = app.settings.kidsMode
+    var mood by remember { mutableStateOf<Moods.Mood?>(null) }
+    var maxMinutes by remember { mutableStateOf(0) }
+    val filtering = moods && q.length < 2 && (mood != null || maxMinutes > 0)
+    val catalog by app.catalogs.items.collectAsState()
+    val going by app.cw.items.collectAsState()
+    val info by app.shelf.info.collectAsState()
+    val pool = remember(filtering, saved, watch, nuvio, stremio, catalog, rows) {
+        if (!filtering) emptyList<HeroItem>() else (saved + watch + nuvio + stremio) + going.filter { it.type == "movie" || it.type == "series" } + catalog + rows.trending + rows.films + rows.series
+    }
+    var looking by remember { mutableStateOf(false) }
+    LaunchedEffect(pool) {
+        if (pool.isEmpty()) return@LaunchedEffect
+        looking = true
+        runCatching { app.shelf.lookUp(Moods.lacking(pool.distinctBy { it.key }).take(Moods.LOOKUP)) }
+        looking = false
+    }
+    val fitting = remember(pool, mood, maxMinutes, info, kids) {
+        val mineKeys = (saved + watch + nuvio + stremio).map { it.key }.toSet()
+        Moods.pick(pool.map { app.shelf.filled(it) }, mood, maxMinutes, mineKeys, kids)
+    }
     val lastTitle = remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }
     LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { keyFocus.requestFocus() } }     // Down from the tabs
@@ -122,10 +146,13 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val recordRow = remember { RowEntry() }
     val channelRow = remember { RowEntry() }
     val appRow = remember { RowEntry() }
-    val hasTitles = if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
+    val moodRow = remember { RowEntry() }
+    val timeRow = remember { RowEntry() }
+    val chips = moods && q.length < 2
+    val hasTitles = if (filtering) fitting.isNotEmpty() else if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
     val hasChannels = q.length >= 2 && channels.isNotEmpty()
     val hasApps = q.length >= 2 && apps.isNotEmpty()
-    val order = listOfNotNull(mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
+    val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
         showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
         channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
     fun above(r: RowEntry) = order.getOrNull(order.indexOf(r) - 1)?.req
@@ -172,7 +199,26 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(androidx.compose.foundation.rememberScrollState()).onFocusChanged { inResults = it.hasFocus }) {
             // Nothing typed: what's trending, so the page is never empty.
             if (q.length < 2) {
-                if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, toTabs, lastTitle, lastFocus, onTitle)
+                if (chips) {
+                    DsHeading("In the mood for", s)
+                    LazyRow(state = moodRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (2 * s).dp, bottom = (3 * s).dp), horizontalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                        val list = if (kids) Moods.ALL.filter { it.label != Moods.KIDS } else Moods.ALL
+                        itemsIndexed(list, key = { _, it -> it.label }) { i, it ->
+                            Chip(it.label, mood == it, s, moodRow.of(i).nav(up = toTabs, down = timeRow.req, left = if (i == 0) keyFocus else null, right = edge(i == list.lastIndex))) { mood = if (mood == it) null else it }
+                        }
+                    }
+                    LazyRow(state = timeRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (2 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                        itemsIndexed(Moods.TIMES, key = { _, it -> it.first }) { i, it ->
+                            Chip(it.second, maxMinutes == it.first, s, timeRow.of(i).nav(up = moodRow.req, down = below(timeRow), left = if (i == 0) keyFocus else null, right = edge(i == Moods.TIMES.lastIndex))) { maxMinutes = if (maxMinutes == it.first) 0 else it.first }
+                        }
+                    }
+                    Spacer(Modifier.height((8 * s).dp))
+                }
+                if (filtering) {
+                    val heading = listOfNotNull(mood?.label?.let { Lang.tr(it) }, Moods.TIMES.firstOrNull { it.first == maxMinutes }?.second?.let { Lang.tr(it) }).joinToString("  ·  ")
+                    if (fitting.isNotEmpty()) TitlesRow(heading, fitting, s, titleRow, FocusRequester.Cancel, keyFocus, timeRow.req, lastTitle, lastFocus, onTitle)
+                    else Text(if (looking) "Looking through your titles…" else if (mood != null && maxMinutes > 0) "Nothing fits both yet. Try one filter." else "Nothing fits this yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
+                } else if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, if (chips) timeRow.req else toTabs, lastTitle, lastFocus, onTitle)
             } else {
                 if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
                 if (mine.isNotEmpty()) TitlesRow("In your library", mine, s, mineRow, below(mineRow), keyFocus, toTabs, lastTitle, lastFocus, onTitle)
@@ -220,6 +266,20 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
             }
         }
     }
+}
+
+/** A filter: OK turns it on or off. */
+@Composable
+private fun Chip(label: String, on: Boolean, s: Float, modifier: Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val accent = LocalAccent.current
+    Text(
+        (if (on) "✓  " else "") + Lang.tr(label), color = if (focused) Ds.Ink else if (on) Color.White else Text2, fontSize = (9.5f * s).sp,
+        fontWeight = if (focused || on) FontWeight.Bold else FontWeight.SemiBold, maxLines = 1,
+        modifier = modifier.onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
+            .clip(RoundedCornerShape(50)).background(if (focused) Color.White else if (on) accent else Ds.Surface)
+            .padding(horizontal = (9 * s).dp, vertical = (3.5f * s).dp),
+    )
 }
 
 @Composable
