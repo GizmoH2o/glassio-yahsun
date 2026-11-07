@@ -183,7 +183,7 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
                 onWatch = { open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false)) },
                 onGuide = { open(ctx, LiveHome.open(ctx, -1, true)) },
                 onSearch = { open(ctx, LiveHome.search(ctx)) },
-                onFollowing = onFollowing)
+                onFollowing = if (app.settings.menuFollowing) null else onFollowing)     // a tab of its own, unless turned off
         }
         if (p.onNow.isEmpty()) item(key = "pick") {
             EmptyCardView("Choose your favorite channels", "They show here with what's on now, and first in Live TV.",
@@ -222,7 +222,7 @@ private fun scoresChoice(ctx: Context, term: String, ask: (DialogState) -> Unit,
 
 /** Following: the next match of what you follow in a spotlight, then what you follow, then what's coming up. */
 @Composable
-fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
+fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null, onClose: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -278,6 +278,7 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
     }
     val first = remember { FocusRequester() }
     val chip = remember { FocusRequester() }
+    LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { first.requestFocus() } }     // Down from the tabs
     LaunchedEffect(team, data != null, teamData != null) {
         val back = cameFrom
         if (team == null && back != null && data?.terms?.contains(back) == true) focusFirst(chip) else focusFirst(first)
@@ -320,12 +321,12 @@ fun FollowingScreen(app: GlassApp, onClose: () -> Unit) {
             if (d == null) return@LivePage
             val spot = d.spot
             item(key = "spot") {
-                if (spot != null) Spotlight(spot, s, shown, Modifier.fillMaxWidth().height((170 * s).dp).focusRequester(first)) { watch(spot) }
+                if (spot != null) Spotlight(spot, s, shown, Modifier.fillMaxWidth().height((170 * s).dp).nav(up = toTabs).focusRequester(first)) { watch(spot) }
                 else EmptyCardView(
                     if (d.terms.isEmpty()) "Follow your teams and shows" else "Nothing in the next hours",
                     if (d.terms.isEmpty()) "Choose a team or a show: every match shows here, with the live score, and a reminder before it starts."
                     else "Upcoming matches and episodes show here as soon as they're in the guide.",
-                    s, Modifier.fillMaxWidth().height((120 * s).dp).focusRequester(first), onClick = follow,
+                    s, Modifier.fillMaxWidth().height((120 * s).dp).nav(up = toTabs).focusRequester(first), onClick = follow,
                 )
             }
             section("Following", s)
@@ -713,7 +714,7 @@ private fun EmptyCardView(title: String, sub: String, s: Float, modifier: Modifi
  * the page; what's on, how far in, and the page's buttons (Watch first). No picture: the same on the plain page.
  */
 @Composable
-private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusRequester, toTabs: FocusRequester?, onWatch: () -> Unit, onGuide: () -> Unit, onSearch: () -> Unit, onFollowing: () -> Unit) {
+private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusRequester, toTabs: FocusRequester?, onWatch: () -> Unit, onGuide: () -> Unit, onSearch: () -> Unit, onFollowing: (() -> Unit)?) {
     rev.hashCode()     // read: a refresh (the program found, its picture) redraws it
     Box(Modifier.requiredWidth((960 * s).dp).height((290 * s).dp)) {
         if (a != null && a.art.isNotEmpty()) {
@@ -743,7 +744,7 @@ private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusReques
                 DsButton("Watch", s, Modifier.nav(up = toTabs).focusRequester(first), primary = true, onClick = onWatch)
                 DsButton("TV guide", s, Modifier.nav(up = toTabs), onClick = onGuide)
                 DsButton("Search", s, Modifier.nav(up = toTabs), onClick = onSearch)
-                DsButton("Following", s, Modifier.nav(up = toTabs), onClick = onFollowing)
+                if (onFollowing != null) DsButton("Following", s, Modifier.nav(up = toTabs), onClick = onFollowing)
             }
         }
     }

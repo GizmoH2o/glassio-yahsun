@@ -289,7 +289,7 @@ final class Spanish {
             case "Done. Undo": return "Hecho. Deshacer";
             case "Use these": return "Usar estos";
             case "Back": return "Atrás";
-            case "of your channels have a guide": return "de tus canales tienen guía";
+            case "of your TV channels have a guide": return "de tus canales de TV tienen guía";
             case "Turn on the full guide to see this": return "Activa la guía completa para verlo";
             case "Last update": return "Última actualización";
             case "Days ahead": return "Días por delante";
@@ -316,6 +316,14 @@ final class Spanish {
             case "Stay here": return "Quedarse aquí";
             case "What else is on": return "Qué más hay";
             case "Also starting at ": return "También empieza a las ";
+            case "Keep past shows through updates": return "Conservar programas pasados";
+            case "Older shows on catch-up channels": return "Programas antiguos en canales con catch-up";
+            case "Find guides by channel name": return "Buscar guías por nombre de canal";
+            case "HD versions of SD channels": return "Versiones HD de canales SD";
+            case "Each update keeps what's over, up to the days above. The guide takes more room.": return "Cada actualización conserva lo pasado, hasta los días de arriba. La guía ocupa más espacio.";
+            case "Catch-up channels ask your provider for older shows.": return "Los canales con catch-up piden programas más antiguos a tu proveedor.";
+            case "A channel with no guide takes the one with its exact name, when only one has it.": return "Un canal sin guía usa la de su nombre exacto, cuando solo uno lo tiene.";
+            case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "Un canal SD reproduce la copia HD de otra categoría cuando la guía muestra que es el mismo canal.";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

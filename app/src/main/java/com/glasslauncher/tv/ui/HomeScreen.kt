@@ -572,7 +572,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             // The pages with tabs: the bar above them, the page below it.
             // (Library and Search stay there under a title's page opened from them, as they were.)
             val tabPage = if (screen == Screen.Title) titleFrom else screen
-            if (tabPage == Screen.Library || tabPage == Screen.LiveTv || tabPage == Screen.Search) Box(
+            if (tabPage == Screen.Library || tabPage == Screen.LiveTv || tabPage == Screen.Following || tabPage == Screen.Search) Box(
                 Modifier.fillMaxSize().background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
             ) {
                 val onTop = screen != Screen.Title
@@ -580,6 +580,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 Box(Modifier.fillMaxSize().padding(top = if (tabPage == Screen.LiveTv) 0.dp else (48 * s).dp)) {
                     if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, downAsk = tabDown, toTabs = tabFocus, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
                     if (tabPage == Screen.LiveTv) LiveTvScreen(app, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
+                    if (tabPage == Screen.Following) FollowingScreen(app, downAsk = tabDown, toTabs = tabFocus) { onScreen(Screen.Home) }
                     if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
                 }
                 // What scrolls up goes dark behind the tabs, so nothing reads through them.
@@ -589,7 +590,6 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
                 androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle) }
             }
-            if (screen == Screen.Following) FollowingScreen(app) { onScreen(Screen.Home) }
             pickerFor?.let { e ->
                 IconPicker(
                     app, e,

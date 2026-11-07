@@ -287,7 +287,7 @@ final class French {
             case "Done. Undo": return "Fait. Annuler";
             case "Use these": return "Utiliser ces réglages";
             case "Back": return "Retour";
-            case "of your channels have a guide": return "de vos chaînes ont un guide";
+            case "of your TV channels have a guide": return "de vos chaînes TV ont un guide";
             case "Turn on the full guide to see this": return "Activez le guide complet pour le voir";
             case "Last update": return "Dernière mise à jour";
             case "Days ahead": return "Jours à venir";
@@ -314,6 +314,14 @@ final class French {
             case "Stay here": return "Rester ici";
             case "What else is on": return "Autres programmes";
             case "Also starting at ": return "Commence aussi à ";
+            case "Keep past shows through updates": return "Garder les programmes passés";
+            case "Older shows on catch-up channels": return "Programmes anciens sur les chaînes en replay";
+            case "Find guides by channel name": return "Trouver les guides par nom de chaîne";
+            case "HD versions of SD channels": return "Versions HD des chaînes SD";
+            case "Each update keeps what's over, up to the days above. The guide takes more room.": return "Chaque mise à jour garde ce qui est passé, jusqu'aux jours ci-dessus. Le guide prend plus de place.";
+            case "Catch-up channels ask your provider for older shows.": return "Les chaînes en replay demandent les programmes plus anciens à votre fournisseur.";
+            case "A channel with no guide takes the one with its exact name, when only one has it.": return "Une chaîne sans guide prend celui de son nom exact, quand un seul le porte.";
+            case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "Une chaîne SD lit la copie HD d'une autre catégorie quand le guide montre que c'est la même chaîne.";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

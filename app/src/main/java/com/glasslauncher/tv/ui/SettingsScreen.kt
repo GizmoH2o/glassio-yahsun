@@ -481,6 +481,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Weather in the menu", "Temperature, conditions, high / low, humidity and wind (city in Clock & glass)", { st.menuWeather }, { st.menuWeather = it; app.weather.reload() }),
                 Toggle("City in the menu", "", { st.menuCity }, { st.menuCity = it }),
                 Toggle("Live TV tab and Following", "Your IPTV channels with a full guide, and the teams and shows you follow (in the menu)", { st.menuLive }, { st.menuLive = it }),
+                Toggle("Following tab", "The teams and shows you follow, in the top bar. Off, it's in the menu.", { st.menuFollowing }, { st.menuFollowing = it }),
                 Toggle("Library tab", "", { st.menuLibrary }, { st.menuLibrary = it }),
                 Toggle("Android settings in the menu", "", { st.menuAndroid }, { st.menuAndroid = it }),
                 Toggle("Wi-Fi in the menu", "", { st.menuWifi }, { st.menuWifi = it }),

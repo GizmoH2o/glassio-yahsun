@@ -882,7 +882,10 @@ final class Xtream {
 
     /** With merging on, the groups kept apart (none: an empty set); off, null. */
     private static java.util.Set<String> mergeKeeping(Context c) {
-        return LiveOptions.merge(c) ? LiveOptions.separateGroups(c) : null;
+        if (!LiveOptions.merge(c)) return null;
+        java.util.Set<String> keeping = new java.util.HashSet<>(LiveOptions.separateGroups(c));
+        if (LiveOptions.hdTwins(c)) keeping.add(LiveMerge.TWINS);
+        return keeping;
     }
 
     /**

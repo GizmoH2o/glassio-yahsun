@@ -824,3 +824,5 @@ the menu	le menu
 This trailer won't play on the TV	Cette bande-annonce ne se lit pas sur la TV
 Colour from the picture	Couleur de l'image
 Home's dark background picks up a little colour from the selected title	Le fond sombre de l'accueil prend un peu de la couleur du titre sélectionné
+Following tab	Onglet Suivis
+The teams and shows you follow, in the top bar. Off, it's in the menu.	Les équipes et émissions que vous suivez, dans la barre du haut. Désactivé : dans le menu.

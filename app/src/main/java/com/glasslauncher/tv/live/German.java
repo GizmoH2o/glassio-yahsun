@@ -299,7 +299,7 @@ final class German {
             case "Done. Undo": return "Fertig. Rückgängig";
             case "Use these": return "Übernehmen";
             case "Back": return "Zurück";
-            case "of your channels have a guide": return "deiner Sender haben einen Guide";
+            case "of your TV channels have a guide": return "deiner TV-Sender haben einen Guide";
             case "Turn on the full guide to see this": return "Schalte den vollständigen Guide ein, um das zu sehen";
             case "Last update": return "Letztes Update";
             case "Days ahead": return "Tage voraus";
@@ -326,6 +326,14 @@ final class German {
             case "Stay here": return "Hier bleiben";
             case "What else is on": return "Was läuft sonst";
             case "Also starting at ": return "Beginnt ebenfalls um ";
+            case "Keep past shows through updates": return "Vergangene Sendungen behalten";
+            case "Older shows on catch-up channels": return "Ältere Sendungen bei Catch-up-Sendern";
+            case "Find guides by channel name": return "Guides über den Sendernamen finden";
+            case "HD versions of SD channels": return "HD-Versionen von SD-Sendern";
+            case "Each update keeps what's over, up to the days above. The guide takes more room.": return "Jede Aktualisierung behält Vergangenes bis zu den Tagen oben. Der Guide braucht mehr Platz.";
+            case "Catch-up channels ask your provider for older shows.": return "Catch-up-Sender fragen deinen Anbieter nach älteren Sendungen.";
+            case "A channel with no guide takes the one with its exact name, when only one has it.": return "Ein Sender ohne Guide nimmt den mit genau seinem Namen, wenn nur einer ihn hat.";
+            case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "Ein SD-Sender spielt die HD-Kopie aus einer anderen Kategorie, wenn der Guide zeigt, dass es derselbe Sender ist.";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

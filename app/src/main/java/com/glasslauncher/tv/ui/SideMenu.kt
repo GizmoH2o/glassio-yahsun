@@ -163,8 +163,8 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                     }
                 } else if (!themes) {
                     val rows = buildList<Triple<String, String, () -> Unit>> {
-                        // Live TV and the Library are tabs now; here, what the tabs don't cover.
-                        if (st.menuLive) add(Triple("following", "Following") { onFollowing() })
+                        // Live TV, Following and the Library are tabs; here, what the tabs don't cover.
+                        if (st.menuLive && !st.menuFollowing) add(Triple("following", "Following") { onFollowing() })
                         add(Triple("sliders", "Glassio settings") { onSettings() })
                         if (st.menuAndroid) add(Triple("gear", "Android settings") { open(ctx, android.provider.Settings.ACTION_SETTINGS) })
                         if (st.menuWifi) add(Triple("wifi", "Wi-Fi") { open(ctx, android.provider.Settings.ACTION_WIFI_SETTINGS) })

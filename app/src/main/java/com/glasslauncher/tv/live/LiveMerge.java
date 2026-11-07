@@ -150,6 +150,27 @@ final class LiveMerge {
         return s.isEmpty() ? name : s;
     }
 
+    /** In `separate`: an SD channel takes the HD copy of itself from another category. */
+    static final String TWINS = "\u0000hd-twins";
+
+    /** The name as compared, without its country and quality tags. Pure. */
+    static String nameKey(String name) {
+        return read(name).rest;
+    }
+
+    /**
+     * The better copies of SD channel `ch` in other categories, among the channels of its name: only those with its
+     * own guide channel, the proof they're the same programme. Pure.
+     */
+    static List<Xtream.Channel> hdTwins(Xtream.Channel ch, List<Xtream.Channel> sameName) {
+        List<Xtream.Channel> out = new ArrayList<>();
+        if (ch.quality != SD || ch.epg == null || ch.epg.isEmpty()) return out;
+        for (Xtream.Channel o : sameName) {
+            if (o != ch && o.quality > SD && ch.epg.equalsIgnoreCase(o.epg) && !String.valueOf(ch.category).equals(o.category)) out.add(o);
+        }
+        return out;
+    }
+
     private static Boolean hevcDecoder;
 
     /** Whether the TV decodes HEVC (then HEVC sources come first in a tier: the same picture for less). */
@@ -191,6 +212,30 @@ final class LiveMerge {
             if (g == null) byRest.put(key, g = new ArrayList<>());
             g.add(ch);
         }
+        // An SD channel's HD copies from other categories join its group, and stay where they are too.
+        // Each group's own: a visitor here still belongs to its group in its own category.
+        Map<List<Xtream.Channel>, Set<Xtream.Channel>> visitors = new java.util.IdentityHashMap<>();
+        if (separate.contains(TWINS)) {
+            Map<String, List<Xtream.Channel>> byName = new HashMap<>();
+            for (Xtream.Channel ch : prefixOf.keySet()) {
+                String k = nameKey(ch.name);
+                List<Xtream.Channel> same = byName.get(k);
+                if (same == null) byName.put(k, same = new ArrayList<>());
+                same.add(ch);
+            }
+            for (List<Xtream.Channel> list : byRest.values()) {
+                for (Xtream.Channel ch : new ArrayList<>(list)) {
+                    for (Xtream.Channel o : hdTwins(ch, byName.get(nameKey(ch.name)))) {
+                        if (!list.contains(o)) {
+                            list.add(o);
+                            Set<Xtream.Channel> here = visitors.get(list);
+                            if (here == null) visitors.put(list, here = new HashSet<>());
+                            here.add(o);
+                        }
+                    }
+                }
+            }
+        }
         boolean hevc = hevcOk();
         Map<Xtream.Channel, Xtream.Channel> shownAs = new HashMap<>();
         int merged = 0, sources = 0;
@@ -198,6 +243,7 @@ final class LiveMerge {
         for (Map.Entry<String, List<Xtream.Channel>> e : byRest.entrySet()) {
             List<Xtream.Channel> list = e.getValue();
             if (list.size() < 2) continue;
+            Set<Xtream.Channel> visiting = visitors.containsKey(list) ? visitors.get(list) : new HashSet<>();
             // Two countries' channels of the same name stay apart ("US: Fox", "UK: Fox"); those without a code go with the first.
             Map<String, List<Xtream.Channel>> byPrefix = new LinkedHashMap<>();
             for (Xtream.Channel ch : list) {
@@ -222,8 +268,12 @@ final class LiveMerge {
                     for (Xtream.Channel ch : members) ch.group = group;
                     continue;
                 }
-                Xtream.Channel lead = lead(members, group, hevc);
+                boolean own = false;
+                for (Xtream.Channel ch : members) own |= !visiting.contains(ch);
+                if (!own) continue;
+                Xtream.Channel lead = lead(members, group, hevc, visiting);
                 for (Xtream.Channel ch : members) {
+                    if (visiting.contains(ch)) continue;        // it stays in its own category, as itself
                     shownAs.put(ch, lead);
                     owner.put(ch.id, lead);
                 }
@@ -250,11 +300,12 @@ final class LiveMerge {
     }
 
     /** The merged channel: its sources best first; its id, catch-up and guide from the source with the most catch-up. */
-    private static Xtream.Channel lead(List<Xtream.Channel> members, String group, boolean hevc) {
+    private static Xtream.Channel lead(List<Xtream.Channel> members, String group, boolean hevc, Set<Xtream.Channel> visiting) {
         List<Xtream.Channel> src = new ArrayList<>(members);
         java.util.Collections.sort(src, (a, b) -> Integer.compare(rank(b, hevc), rank(a, hevc)));   // stable: the provider's order after
-        Xtream.Channel anchor = src.get(0), shortest = members.get(0);
-        for (Xtream.Channel s : src) if (s.archive > anchor.archive) anchor = s;
+        Xtream.Channel anchor = null, shortest = members.get(0);
+        // Its id is one of its own: a visitor's belongs to that channel, in its category.
+        for (Xtream.Channel s : src) if (!visiting.contains(s) && (anchor == null || s.archive > anchor.archive)) anchor = s;
         for (Xtream.Channel s : members) if (s.name.length() < shortest.name.length()) shortest = s;
         Xtream.Channel lead = new Xtream.Channel();
         lead.id = anchor.id;

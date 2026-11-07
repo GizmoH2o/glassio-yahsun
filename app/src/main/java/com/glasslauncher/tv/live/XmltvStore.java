@@ -43,12 +43,14 @@ final class XmltvStore {
     private static final int ABOUT_MAX = 320;
     /**
      * The shows that are over from the guide before: on a channel the new file still has, up to where the new file
-     * starts for it (it knows better from there), within the days kept. `?`: from, now.
+     * starts for it (it knows better from there), within that channel's days (temp.keep). `?`: now.
      */
     private static final String CARRY_PAST = "INSERT INTO p (epg, start, stop, title, key, about, icon, age, sub, rep) "
             + "SELECT o.epg, o.start, o.stop, o.title, o.key, o.about, o.icon, o.age, o.sub, o.rep "
             + "FROM old.p o JOIN (SELECT epg, MIN(start) AS first FROM main.p GROUP BY epg) n ON n.epg = o.epg "
-            + "WHERE o.stop > ? AND o.stop <= ? AND o.stop <= n.first";
+            + "JOIN temp.keep k ON k.epg = o.epg WHERE o.stop > k.since AND o.stop <= ? AND o.stop <= n.first";
+    /** Room to leave on the TV when keeping them: past that, a guide update lets the past go. */
+    private static final long SPARE_BYTES = 500_000_000L;
     /** The database's layout: 2 added the shows' pictures (an older one is fetched again). */
     /** The guide's layout: 3 added each programme's rating, 4 the channels' logos (an older guide is fetched again). */
     private static final int VERSION = 6;      // 5: sub-title and repeat kept apart; 6: NEW and LIVE carried between channels
@@ -376,6 +378,42 @@ final class XmltvStore {
         return progress;
     }
 
+    /** The guide file's channel names ({id: name}); none before an update has read them. */
+    private static Map<String, String> fileNames(Context c) {
+        Map<String, String> out = new HashMap<>();
+        synchronized (XmltvStore.class) {
+            SQLiteDatabase d = read(c);
+            if (d == null) return out;
+            try (Cursor q = d.rawQuery("SELECT epg, name FROM names", null)) {
+                while (q.moveToNext()) out.put(q.getString(0), q.getString(1));
+            } catch (RuntimeException ignored) {     // a guide from before there were names
+            }
+        }
+        return out;
+    }
+
+    /** Channels with no guide take the one with exactly their name (LiveGuideMatch). */
+    static void matchNames(Context c, Xtream.Lineup l) {
+        if (!LiveOptions.fullGuide(c) || !LiveOptions.matchNames(c)) return;
+        Set<String> guided = guided(c);
+        Map<String, String> names = LiveGuideMatch.unique(fileNames(c), guided);
+        if (names.isEmpty()) return;
+        int matched = 0;
+        for (Xtream.Channel ch : l.all()) {
+            if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) continue;
+            String id = LiveGuideMatch.find(ch.name, names);
+            if (id == null) continue;
+            ch.epg = id;
+            matched++;
+        }
+        AppLog.w("guide: " + matched + " channels found their guide by name");
+    }
+
+    /** Whether there's room to keep the past: a good margin past what the guide takes already. Pure. */
+    static boolean roomToKeep(long free, long size) {
+        return free > size * 2 + SPARE_BYTES;
+    }
+
     /** Signed out: it was that provider's guide. */
     static void clear(Context c) {
         close();
@@ -415,15 +453,23 @@ final class XmltvStore {
         // A copy of what it needs: the lineup changes on the screen's thread.
         Set<String> wanted = new HashSet<>();
         int archive = 0;
+        // Each guide channel's days: its catch-up, or the past days kept, whichever is more.
+        Map<String, Integer> days = new HashMap<>();
+        int kept = LiveOptions.pastDays(c);
         for (Xtream.Channel ch : lineup.all()) {
-            if (ch.epg != null && !ch.epg.isEmpty()) wanted.add(ch.epg.toLowerCase(Locale.ROOT));
+            if (ch.epg != null && !ch.epg.isEmpty()) {
+                String key = ch.epg.toLowerCase(Locale.ROOT);
+                wanted.add(key);
+                Integer had = days.get(key);
+                days.put(key, Math.max(had == null ? 0 : had, Math.max(ch.archive, kept)));
+            }
             archive = Math.max(archive, ch.archive);
         }
-        final int pastDays = Math.max(archive, LiveOptions.pastDays(c));
+        final int pastDays = Math.max(archive, kept);
         new Thread(() -> {
             try {
                 long t0 = System.currentTimeMillis();
-                long n = build(c, wanted, pastDays);
+                long n = build(c, wanted, pastDays, days);
                 AppLog.w("guide: " + n + " programs for " + wanted.size() + " guide channels in "
                         + (System.currentTimeMillis() - t0) / 1000 + " s, " + c.getDatabasePath(DB).length() / 1_000_000 + " MB");
                 Runnable r = replaced;
@@ -439,7 +485,7 @@ final class XmltvStore {
         return true;
     }
 
-    private static long build(Context c, Set<String> wanted, int pastDays) throws IOException, XmlPullParserException {
+    private static long build(Context c, Set<String> wanted, int pastDays, Map<String, Integer> days) throws IOException, XmlPullParserException {
         long now = System.currentTimeMillis();
         long from = now - pastDays * DAY, to = now + LiveOptions.daysAhead(c) * DAY;
         String custom = LiveOptions.guideUrl(c);
@@ -459,6 +505,7 @@ final class XmltvStore {
                     + "sub TEXT, rep INTEGER)");
             w.execSQL("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT)");
             w.execSQL("CREATE TABLE ch (epg TEXT PRIMARY KEY, icon TEXT)");
+            w.execSQL("CREATE TABLE names (epg TEXT PRIMARY KEY, name TEXT)");
             conn.setConnectTimeout(15_000);
             conn.setReadTimeout(60_000);
             conn.setRequestProperty("User-Agent", Live.USER_AGENT);
@@ -491,6 +538,7 @@ final class XmltvStore {
             p.setInput(xml, null);
             SQLiteStatement insert = w.compileStatement("INSERT INTO p VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
             SQLiteStatement logo = w.compileStatement("INSERT OR IGNORE INTO ch VALUES (?, ?)");
+            SQLiteStatement nameRow = w.compileStatement("INSERT OR IGNORE INTO names VALUES (?, ?)");
             Set<String> seen = new HashSet<>();
             Map<String, Long> starts = new HashMap<>();
             Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
@@ -502,10 +550,15 @@ final class XmltvStore {
                 if (e == XmlPullParser.START_TAG && "channel".equals(p.getName())) {     // its logo (<icon src=…>)
                     String id = p.getAttributeValue(null, "id");
                     String key = id == null ? "" : id.toLowerCase(Locale.ROOT);
-                    String src = "";
+                    String src = "", shownName = "";
                     for (int depth = 1; depth > 0; ) {
                         int t = p.next();
                         if (t == XmlPullParser.START_TAG) {
+                            if (depth == 1 && "display-name".equals(p.getName())) {
+                                String text = p.nextText().trim();     // ends on its end tag: the depth stays
+                                if (shownName.isEmpty()) shownName = text;
+                                continue;
+                            }
                             if (depth == 1 && "icon".equals(p.getName()) && src.isEmpty()) {
                                 String s = p.getAttributeValue(null, "src");
                                 if (s != null && s.startsWith("http")) src = s;
@@ -521,6 +574,11 @@ final class XmltvStore {
                         logo.bindString(1, key);
                         logo.bindString(2, src);
                         logo.executeInsert();
+                    }
+                    if (!shownName.isEmpty() && wanted.contains(key)) {
+                        nameRow.bindString(1, key);
+                        nameRow.bindString(2, shownName);
+                        nameRow.executeInsert();
                     }
                     continue;
                 }
@@ -629,7 +687,7 @@ final class XmltvStore {
             // Holds what searches compare, so they read this and not the long descriptions in the table.
             w.execSQL("CREATE INDEX by_search ON p (start, stop, key)");
             carryMarks(w, marked);
-            if (count > 0) count += carryPast(w, c.getDatabasePath(DB), from, now);
+            if (count > 0) count += carryPast(c, w, c.getDatabasePath(DB), days, now);
             w.execSQL("INSERT INTO meta VALUES ('at', '" + now + "'), ('count', '" + count + "'), ('channels', '" + seen.size()
                     + "'), ('v', '" + VERSION + "')");
         } finally {
@@ -660,15 +718,28 @@ final class XmltvStore {
     }
 
     /** Copies what's over from the guide in use (CARRY_PAST); how many. A guide it can't read just keeps nothing. */
-    private static long carryPast(SQLiteDatabase w, File old, long from, long now) {
+    private static long carryPast(Context c, SQLiteDatabase w, File old, Map<String, Integer> days, long now) {
         long inFile = oldest(w);
         long kept = 0;
-        if (old.exists()) {
+        boolean room = roomToKeep(old.getParentFile() == null ? 0 : old.getParentFile().getUsableSpace(), old.length());
+        if (!room) AppLog.w("guide: past shows not kept: the TV is short of room");
+        if (old.exists() && LiveOptions.keepPast(c) && room) {
             try {
+                w.execSQL("CREATE TEMP TABLE keep (epg TEXT PRIMARY KEY, since INTEGER)");
+                w.beginTransaction();
+                try (SQLiteStatement row = w.compileStatement("INSERT INTO temp.keep VALUES (?, ?)")) {
+                    for (Map.Entry<String, Integer> e : days.entrySet()) {
+                        row.bindString(1, e.getKey());
+                        row.bindLong(2, now - e.getValue() * DAY);
+                        row.executeInsert();
+                    }
+                    w.setTransactionSuccessful();
+                } finally {
+                    w.endTransaction();
+                }
                 w.execSQL("ATTACH DATABASE ? AS old", new Object[] {old.getPath()});
                 try (SQLiteStatement carry = w.compileStatement(CARRY_PAST)) {
-                    carry.bindLong(1, from);
-                    carry.bindLong(2, now);
+                    carry.bindLong(1, now);
                     kept = carry.executeUpdateDelete();
                 } finally {
                     w.execSQL("DETACH DATABASE old");

@@ -824,3 +824,5 @@ the menu	el menú
 This trailer won't play on the TV	Este tráiler no se reproduce en la TV
 Colour from the picture	Color de la imagen
 Home's dark background picks up a little colour from the selected title	El fondo oscuro de Inicio toma un poco del color del título seleccionado
+Following tab	Pestaña Siguiendo
+The teams and shows you follow, in the top bar. Off, it's in the menu.	Los equipos y programas que sigues, en la barra superior. Desactivado: en el menú.

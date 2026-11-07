@@ -72,12 +72,19 @@ final class LiveSettingsPages {
             List<String> without = new ArrayList<>();
             Set<String> locked = LiveOptions.locked(live);      // never by name on this page, PIN or not
             locked.addAll(LiveOptions.adultIds(lineup.categories));
-            int with = 0;
+            java.util.Map<String, String> groups = new java.util.HashMap<>();
+            for (Xtream.Category g : lineup.categories) groups.put(g.id, g.name);
+            int with = 0, expected = 0;
             for (Xtream.Channel ch : new ArrayList<>(all)) {
-                if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) with++;
-                else if (!isIn(locked, ch)) without.add((ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch));
+                if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) {
+                    with++;
+                    expected++;
+                } else if (LiveGuideMatch.expectsGuide(groups.get(ch.category), ch.name)) {
+                    expected++;
+                    if (!isIn(locked, ch)) without.add((ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch));
+                }
             }
-            total = all.size();
+            total = expected;
             have = with;
             missing = without;
             view.postInvalidate();
@@ -240,7 +247,7 @@ final class LiveSettingsPages {
         cards.card(c, r, false, 24);
         boolean known = guideKnown();
         c.drawText(known ? guidePercent() + "%" : "—", r.left + 32 * k, r.top + 104 * k, big);
-        c.drawText(known ? Ui.tr("dos seus canais têm guia", "of your channels have a guide")
+        c.drawText(known ? Ui.tr("dos seus canais de TV têm guia", "of your TV channels have a guide")
                 : Ui.tr("Ligue o guia completo para ver", "Turn on the full guide to see this"), r.left + 32 * k, r.top + 156 * k, small);
         float bar = r.left + 32 * k, barW = r.width() - 64 * k, barY = r.top + 200 * k;
         cards.card(c, bar(bar, barY, barW), false, 4);

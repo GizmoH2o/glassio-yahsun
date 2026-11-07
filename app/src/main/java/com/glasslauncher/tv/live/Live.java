@@ -787,6 +787,7 @@ public class Live extends Activity {
         }
         LiveChannelEdits.apply(this, l);        // names and numbers changed by hand
         LiveGroups.apply(this, l);              // the groups made by hand
+        XmltvStore.matchNames(this, l);         // channels with no guide, by exactly their name
         if (LiveOptions.hideNoGuide(this)) LiveGroups.onlyGuided(l, XmltvStore.guided(this));
         applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
         if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(l);     // a Kids profile: the children's channels only

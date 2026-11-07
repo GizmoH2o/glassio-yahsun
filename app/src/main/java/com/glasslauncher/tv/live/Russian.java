@@ -298,7 +298,7 @@ final class Russian {
             case "Done. Undo": return "Готово. Отменить";
             case "Use these": return "Применить";
             case "Back": return "Назад";
-            case "of your channels have a guide": return "ваших каналов имеют гид";
+            case "of your TV channels have a guide": return "ваших ТВ-каналов имеют гид";
             case "Turn on the full guide to see this": return "Включите полный гид, чтобы увидеть это";
             case "Last update": return "Последнее обновление";
             case "Days ahead": return "Дней вперёд";
@@ -325,6 +325,14 @@ final class Russian {
             case "Stay here": return "Остаться здесь";
             case "What else is on": return "Что ещё идёт";
             case "Also starting at ": return "Также начинается в ";
+            case "Keep past shows through updates": return "Сохранять прошедшие передачи";
+            case "Older shows on catch-up channels": return "Старые передачи на каналах с архивом";
+            case "Find guides by channel name": return "Искать гид по названию канала";
+            case "HD versions of SD channels": return "HD-версии SD-каналов";
+            case "Each update keeps what's over, up to the days above. The guide takes more room.": return "Каждое обновление сохраняет прошедшее, до указанных выше дней. Гид занимает больше места.";
+            case "Catch-up channels ask your provider for older shows.": return "Каналы с архивом запрашивают старые передачи у провайдера.";
+            case "A channel with no guide takes the one with its exact name, when only one has it.": return "Канал без гида берёт гид с точно таким же названием, если он один.";
+            case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "SD-канал показывает HD-копию из другой категории, если гид подтверждает, что это тот же канал.";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

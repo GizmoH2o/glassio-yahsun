@@ -27,8 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.glasslauncher.tv.GlassApp
 
 /**
- * The tabs in the top bar, Apple TV style: Home, Live TV, Library, Search. Lit when it's the page on, white when
- * selected; OK goes there. Live TV and Library can be turned off in Settings › Look & motion; none in Kids mode, whose
+ * The tabs in the top bar, Apple TV style: Home, Live TV, Following, Library, Search. Lit when it's the page on, white when
+ * selected; OK goes there. Live TV, Following and Library can be turned off in Settings › Look & motion; none in Kids mode, whose
  * only page is Home. [current]'s tab holds [entry], so Up from a page lands on the tab of that page.
  */
 @Composable
@@ -38,6 +38,7 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
     val tabs = buildList {
         add("Home" to Screen.Home)
         if (st.menuLive) add("Live TV" to Screen.LiveTv)
+        if (st.menuLive && st.menuFollowing) add("Following" to Screen.Following)
         if (st.menuLibrary) add("Library" to Screen.Library)
         add("Search" to Screen.Search)
     }

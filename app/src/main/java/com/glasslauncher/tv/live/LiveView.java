@@ -3986,7 +3986,8 @@ final class LiveView extends View {
      */
     private void addOlder(Xtream.Channel channel, List<Xtream.Program> full, long now) {
         android.content.Context c = getContext();
-        if (!Xtream.kind(c).equals(Xtream.XTREAM) || !LiveCatchup.wantsOlder(channel.archive, full.get(0).start, now)) return;
+        if (!LiveOptions.catchupTable(c) || !Xtream.kind(c).equals(Xtream.XTREAM)
+                || !LiveCatchup.wantsOlder(channel.archive, full.get(0).start, now)) return;
         Xtream.SavedGuide saved = Xtream.savedGuide(c, channel.id);
         List<Xtream.Program> older = saved != null && now - saved.at <= LiveOptions.guideHours(c) * HOUR ? saved.programs : null;
         if (older == null) {

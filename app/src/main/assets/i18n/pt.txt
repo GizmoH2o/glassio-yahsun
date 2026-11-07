@@ -824,3 +824,5 @@ the menu	o menu
 This trailer won't play on the TV	Este trailer não toca na TV
 Colour from the picture	Cor da imagem
 Home's dark background picks up a little colour from the selected title	O fundo escuro do Início ganha um pouco da cor do título selecionado
+Following tab	Aba Seguindo
+The teams and shows you follow, in the top bar. Off, it's in the menu.	Os times e programas que você segue, na barra superior. Desligada: no menu.

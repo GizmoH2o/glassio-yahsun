@@ -825,3 +825,5 @@ the menu	das Menü
 This trailer won't play on the TV	Dieser Trailer läuft nicht auf dem Fernseher
 Colour from the picture	Farbe aus dem Bild
 Home's dark background picks up a little colour from the selected title	Der dunkle Hintergrund der Startseite nimmt etwas Farbe des gewählten Titels an
+Following tab	Tab Folge ich
+The teams and shows you follow, in the top bar. Off, it's in the menu.	Die Teams und Sendungen, denen du folgst, in der oberen Leiste. Aus: im Menü.

@@ -287,7 +287,7 @@ final class Italian {
             case "Done. Undo": return "Fatto. Annulla";
             case "Use these": return "Usa questi";
             case "Back": return "Indietro";
-            case "of your channels have a guide": return "dei tuoi canali ha la guida";
+            case "of your TV channels have a guide": return "dei tuoi canali TV ha la guida";
             case "Turn on the full guide to see this": return "Attiva la guida completa per vederlo";
             case "Last update": return "Ultimo aggiornamento";
             case "Days ahead": return "Giorni avanti";
@@ -314,6 +314,14 @@ final class Italian {
             case "Stay here": return "Resta qui";
             case "What else is on": return "Cos'altro c'è";
             case "Also starting at ": return "Inizia anche alle ";
+            case "Keep past shows through updates": return "Mantieni i programmi passati";
+            case "Older shows on catch-up channels": return "Programmi più vecchi sui canali con catch-up";
+            case "Find guides by channel name": return "Trova le guide dal nome del canale";
+            case "HD versions of SD channels": return "Versioni HD dei canali SD";
+            case "Each update keeps what's over, up to the days above. The guide takes more room.": return "Ogni aggiornamento mantiene ciò che è passato, fino ai giorni qui sopra. La guida occupa più spazio.";
+            case "Catch-up channels ask your provider for older shows.": return "I canali con catch-up chiedono al provider i programmi più vecchi.";
+            case "A channel with no guide takes the one with its exact name, when only one has it.": return "Un canale senza guida usa quella con il suo nome esatto, se ce n'è una sola.";
+            case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "Un canale SD riproduce la copia HD di un'altra categoria quando la guida mostra che è lo stesso canale.";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";

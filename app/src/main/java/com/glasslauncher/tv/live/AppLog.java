@@ -7,6 +7,9 @@ final class AppLog {
     private AppLog() {}
 
     static void w(String message) {
-        Log.i("GlassioLive", message);
+        try {
+            Log.i("GlassioLive", message);
+        } catch (RuntimeException ignored) {      // no Android here: the unit tests
+        }
     }
 }

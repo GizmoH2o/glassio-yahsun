@@ -824,3 +824,5 @@ the menu	il menu
 This trailer won't play on the TV	Questo trailer non si riproduce sulla TV
 Colour from the picture	Colore dall'immagine
 Home's dark background picks up a little colour from the selected title	Lo sfondo scuro della Home prende un po' del colore del titolo selezionato
+Following tab	Scheda Seguiti
+The teams and shows you follow, in the top bar. Off, it's in the menu.	Le squadre e i programmi che segui, nella barra in alto. Disattivata: nel menu.

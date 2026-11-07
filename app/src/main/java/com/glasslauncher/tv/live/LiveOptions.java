@@ -167,6 +167,42 @@ final class LiveOptions {
         sp(c).edit().putInt("guideHours", h).apply();
     }
 
+    /** Whether a guide update keeps the shows that are over, up to the past days kept. */
+    static boolean keepPast(Context c) {
+        return sp(c).getBoolean("keepPast", true);
+    }
+
+    static void setKeepPast(Context c, boolean on) {
+        sp(c).edit().putBoolean("keepPast", on).apply();
+    }
+
+    /** Whether a catch-up channel's guide reaches further back with the provider's table. */
+    static boolean catchupTable(Context c) {
+        return sp(c).getBoolean("catchupTable", true);
+    }
+
+    static void setCatchupTable(Context c, boolean on) {
+        sp(c).edit().putBoolean("catchupTable", on).apply();
+    }
+
+    /** Whether a channel with no guide takes the one with exactly its name. */
+    static boolean matchNames(Context c) {
+        return sp(c).getBoolean("matchNames", true);
+    }
+
+    static void setMatchNames(Context c, boolean on) {
+        sp(c).edit().putBoolean("matchNames", on).apply();
+    }
+
+    /** Whether an SD channel takes the HD copy of itself from another category as a source. */
+    static boolean hdTwins(Context c) {
+        return sp(c).getBoolean("hdTwins", true);
+    }
+
+    static void setHdTwins(Context c, boolean on) {
+        sp(c).edit().putBoolean("hdTwins", on).apply();
+    }
+
     /** How many days of programs that are over the guide keeps (on catch-up channels, at least their catch-up). */
     static int pastDays(Context c) {
         return sp(c).getInt("pastDays", 1);

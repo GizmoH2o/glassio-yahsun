@@ -825,3 +825,5 @@ the menu	меню
 This trailer won't play on the TV	Этот трейлер не воспроизводится на телевизоре
 Colour from the picture	Цвет из изображения
 Home's dark background picks up a little colour from the selected title	Тёмный фон главного экрана принимает оттенок выбранного тайтла
+Following tab	Вкладка «Подписки»
+The teams and shows you follow, in the top bar. Off, it's in the menu.	Команды и передачи, на которые вы подписаны, на верхней панели. Выкл.: в меню.

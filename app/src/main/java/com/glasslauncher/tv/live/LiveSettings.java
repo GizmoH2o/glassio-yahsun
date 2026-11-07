@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -92,12 +92,12 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, SEPARATE_ROW, HEALTH_ROW,
+            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, HD_TWINS_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
-            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
+            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, RESET_ROW},
@@ -378,6 +378,10 @@ final class LiveSettings {
             case PAST_DAYS_ROW: return Ui.tr("Dias passados no guia", "Past days to keep in the guide");
             case GUIDE_START_ROW: return Ui.tr("Atualizar o guia ao abrir", "Update the guide on start");
             case FULL_GUIDE_ROW: return Ui.tr("Guia completo (XMLTV)", "Full guide (XMLTV)");
+            case KEEP_PAST_ROW: return Ui.tr("Guardar programas passados", "Keep past shows through updates");
+            case CATCHUP_TABLE_ROW: return Ui.tr("Mais passado nos canais com reprise", "Older shows on catch-up channels");
+            case MATCH_NAMES_ROW: return Ui.tr("Achar o guia pelo nome", "Find guides by channel name");
+            case HD_TWINS_ROW: return Ui.tr("Versão HD dos canais SD", "HD versions of SD channels");
             case DAYS_AHEAD_ROW: return Ui.tr("Dias à frente no guia", "Days ahead in the guide");
             case GUIDE_SHIFT_ROW: return Ui.tr("Ajustar o horário do guia", "Guide time offset");
             case GUIDE_SIZE_ROW: return Ui.tr("Tamanho do guia", "Guide size");
@@ -557,6 +561,10 @@ final class LiveSettings {
             }
             case GUIDE_START_ROW: return onOff(LiveOptions.guideOnStart(c));
             case FULL_GUIDE_ROW: return onOff(LiveOptions.fullGuide(c));
+            case KEEP_PAST_ROW: return onOff(LiveOptions.keepPast(c));
+            case CATCHUP_TABLE_ROW: return onOff(LiveOptions.catchupTable(c));
+            case MATCH_NAMES_ROW: return onOff(LiveOptions.matchNames(c));
+            case HD_TWINS_ROW: return onOff(LiveOptions.hdTwins(c));
             case DAYS_AHEAD_ROW: {
                 int d = LiveOptions.daysAhead(c);
                 return d + " " + (d == 1 ? Ui.tr("dia", "day") : Ui.tr("dias", "days"));
@@ -845,6 +853,14 @@ final class LiveSettings {
                             "How long a channel's saved guide lasts before it's fetched again.");
                     case PAST_DAYS_ROW: return Ui.tr("Programas que já passaram ficam no guia (canais com reprise: pelo menos a reprise).",
                             "Shows that are over stay in the guide (catch-up channels: at least their catch-up).");
+                    case KEEP_PAST_ROW: return Ui.tr("Cada atualização mantém o que já passou, até os dias acima. O guia ocupa mais espaço.",
+                            "Each update keeps what's over, up to the days above. The guide takes more room.");
+                    case CATCHUP_TABLE_ROW: return Ui.tr("Canais com reprise buscam programas mais antigos no provedor.",
+                            "Catch-up channels ask your provider for older shows.");
+                    case MATCH_NAMES_ROW: return Ui.tr("Um canal sem guia usa o de nome igual, se só um tiver esse nome.",
+                            "A channel with no guide takes the one with its exact name, when only one has it.");
+                    case HD_TWINS_ROW: return Ui.tr("Um canal SD toca a cópia HD de outra categoria quando o guia confirma que é o mesmo.",
+                            "An SD channel plays the HD copy from another category when the guide shows it's the same channel.");
                     case FULL_GUIDE_ROW: return Ui.tr("O guia inteiro do provedor de uma vez: o guia abre na hora e a busca acha programas.",
                             "Your provider's whole guide at once: the guide fills instantly and search finds shows.");
                     case DAYS_AHEAD_ROW: return Ui.tr("Quantos dias à frente o guia completo guarda.", "How many days ahead the full guide keeps.");
@@ -1276,6 +1292,10 @@ final class LiveSettings {
             case MERGE_ROW: return LiveOptions.merge(c);
             case GUIDE_START_ROW: return LiveOptions.guideOnStart(c);
             case FULL_GUIDE_ROW: return LiveOptions.fullGuide(c);
+            case KEEP_PAST_ROW: return LiveOptions.keepPast(c);
+            case CATCHUP_TABLE_ROW: return LiveOptions.catchupTable(c);
+            case MATCH_NAMES_ROW: return LiveOptions.matchNames(c);
+            case HD_TWINS_ROW: return LiveOptions.hdTwins(c);
             case BOOT_ROW: return LiveOptions.startOnBoot(c);
             case WAKE_ROW: return LiveOptions.startOnWake(c);
             case PREVIEW_ROW: return LiveOptions.homePreviews(c);
@@ -1568,6 +1588,7 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
+                || id == KEEP_PAST_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
@@ -2224,6 +2245,10 @@ final class LiveSettings {
             case MERGE_ROW: LiveOptions.setMerge(c, !LiveOptions.merge(c)); live.relist(); announce(); return;
             case COUNTRY_ROW: LiveOptions.setCountryTags(c, !LiveOptions.countryTags(c)); view.invalidate(); announce(); return;
             case HIDE_NO_GUIDE_ROW: LiveOptions.setHideNoGuide(c, !LiveOptions.hideNoGuide(c)); live.relist(); announce(); return;
+            case KEEP_PAST_ROW: LiveOptions.setKeepPast(c, !LiveOptions.keepPast(c)); announce(); return;
+            case CATCHUP_TABLE_ROW: LiveOptions.setCatchupTable(c, !LiveOptions.catchupTable(c)); announce(); return;
+            case MATCH_NAMES_ROW: LiveOptions.setMatchNames(c, !LiveOptions.matchNames(c)); live.relist(); announce(); return;
+            case HD_TWINS_ROW: LiveOptions.setHdTwins(c, !LiveOptions.hdTwins(c)); live.relist(); announce(); return;
             case KEEP_DAYS_ROW: LiveOptions.setKeepDays(c, LiveOptions.step(LiveOptions.KEEP_DAYS, LiveOptions.keepDays(c), dir)); announce(); return;
             case KEEP_SHOW_ROW: LiveOptions.setKeepPerShow(c, LiveOptions.step(LiveOptions.KEEP_SHOW, LiveOptions.keepPerShow(c), dir)); announce(); return;
             case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, !LiveOptions.guideLogosLeft(c)); view.invalidate(); announce(); return;
@@ -2509,6 +2534,10 @@ final class LiveSettings {
             case CATEGORY_SORT_ROW:
             case COUNTRY_ROW:
             case HIDE_NO_GUIDE_ROW:
+            case KEEP_PAST_ROW:
+            case CATCHUP_TABLE_ROW:
+            case MATCH_NAMES_ROW:
+            case HD_TWINS_ROW:
             case VOICE_ROW:
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:
