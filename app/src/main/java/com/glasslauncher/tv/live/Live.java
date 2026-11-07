@@ -1035,6 +1035,10 @@ public class Live extends Activity {
 
     /** Tunes to `ch` live (remembered for next time). */
     void play(Xtream.Channel ch) {
+        if (ch.smart) {      // a rule's row: the real channel that has what's on it now
+            view.tuneSmart(ch);
+            return;
+        }
         if (!copying) copiesTried.clear();
         if (locked(ch) || ratedLocked(onNowOf(ch))) {
             view.askPin(() -> { unlocked = true; play(ch); }, () -> { if (playing == null) view.openGuide(); });

@@ -55,6 +55,8 @@ final class Xtream {
         List<Channel> sources;
         /** An M3U channel's address, a MAG channel's command; "" for Xtream's (made from the login). */
         String url = "";
+        /** A row made from a rule (LiveSmart), not one of the provider's channels: never played or kept. */
+        boolean smart;
     }
 
     static final class Category {
@@ -507,6 +509,8 @@ final class Xtream {
         String sub = "";
         /** The age it's rated for (the full guide's rating: TV-14 is 14, R 17, 18 18…), -1 when it has none. */
         int age = -1;
+        /** In a Smart channel's row: the real channel that has it; null everywhere else. */
+        Channel via;
     }
 
     private static final java.util.regex.Pattern MARK_BRACKET =

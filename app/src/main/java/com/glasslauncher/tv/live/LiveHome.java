@@ -591,7 +591,7 @@ public final class LiveHome {
      * reminders count them: live events only, unless Match alerts is All airings. One channel per airing; on now
      * first, a match (X v Y) before the shows about it; at most `max`.
      */
-    private static List<Object[]> airings(Context c, List<String> terms, long now, long ahead, int max) {
+    static List<Object[]> airings(Context c, List<String> terms, long now, long ahead, int max) {
         List<Object[]> out = new ArrayList<>();
         Set<String> seen = new HashSet<>(), folded = new HashSet<>();
         boolean all = LiveOptions.followAll(c);
@@ -1356,7 +1356,7 @@ public final class LiveHome {
     private static long epgStamp;
 
     /** The channels by guide id, kept while the saved list and its merging stay the same. */
-    private static synchronized Map<String, Xtream.Channel> byEpg(Context c) {
+    static synchronized Map<String, Xtream.Channel> byEpg(Context c) {
         long stamp = Xtream.lineupStamp(c);
         if (epgCache != null && stamp == epgStamp) return epgCache;
         Map<String, Xtream.Channel> out = readByEpg(c);

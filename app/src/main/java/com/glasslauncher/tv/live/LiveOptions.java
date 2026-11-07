@@ -195,6 +195,39 @@ final class LiveOptions {
     }
 
     /** Whether the Recordings page marks recordings that won't all fit the account's streams. */
+    /** Smart channels: the group in the guide, its two ready-made rows, and your own rules (LiveSmart). */
+    static boolean smartChannels(Context c) {
+        return sp(c).getBoolean("smartChannels", true);
+    }
+
+    static void setSmartChannels(Context c, boolean on) {
+        sp(c).edit().putBoolean("smartChannels", on).apply();
+    }
+
+    static boolean smartFollowing(Context c) {
+        return sp(c).getBoolean("smartFollowing", true);
+    }
+
+    static void setSmartFollowing(Context c, boolean on) {
+        sp(c).edit().putBoolean("smartFollowing", on).apply();
+    }
+
+    static boolean smartNew(Context c) {
+        return sp(c).getBoolean("smartNew", true);
+    }
+
+    static void setSmartNew(Context c, boolean on) {
+        sp(c).edit().putBoolean("smartNew", on).apply();
+    }
+
+    static String smartRules(Context c) {
+        return sp(c).getString("smartRules", "[]");
+    }
+
+    static void setSmartRules(Context c, String json) {
+        sp(c).edit().putString("smartRules", json).apply();
+    }
+
     static boolean recordClashes(Context c) {
         return sp(c).getBoolean("recordClashes", true);
     }

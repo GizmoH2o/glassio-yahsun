@@ -114,6 +114,8 @@ final class LiveView extends View {
     private final Xtream.Category search = new Xtream.Category();
     // Recordings: a category of its own (after Search), a stand-in channel per recording (its id below zero).
     private final Xtream.Category recordings = new Xtream.Category();
+    /** The rows made from rules (LiveSmart), when there are any. */
+    private final Xtream.Category smartGroup = new Xtream.Category();
     private final Map<Integer, LiveRecordings.Rec> recById = new HashMap<>();
     private final Map<Integer, String> recNote = new HashMap<>();
     // History: the channels watched lately (the remote's long ↑, TiviMate's), after Recordings.
@@ -210,6 +212,13 @@ final class LiveView extends View {
         history.name = Ui.tr("Histórico", "History");
         if (!l.categories.contains(history)) l.categories.add(Math.min(2, l.categories.size()), history);
         refreshHistory();
+        smartGroup.id = "smart";
+        smartGroup.name = Ui.tr("Canais inteligentes", "Smart channels");
+        smartGroup.channels.clear();
+        smartGroup.channels.addAll(LiveSmart.channels(getContext()));
+        for (Xtream.Channel ch : smartGroup.channels) l.byId.put(ch.id, ch);
+        l.categories.remove(smartGroup);
+        if (!smartGroup.channels.isEmpty()) l.categories.add(Math.min(3, l.categories.size()), smartGroup);
         recStamp = -1;
         refreshRecordings();
         runSearch();
@@ -250,7 +259,7 @@ final class LiveView extends View {
         List<Xtream.Category> mine = new ArrayList<>();
         for (int i = 0; i < providerOrder.size(); i++) {
             Xtream.Category cg = providerOrder.get(i);
-            if (i < 2 || cg == search || cg == recordings || cg == history) allCategories.add(cg); else mine.add(cg);
+            if (i < 2 || cg == search || cg == recordings || cg == history || cg == smartGroup) allCategories.add(cg); else mine.add(cg);
         }
         if (byCategory == LiveOptions.BY_NAME) Collections.sort(mine, (a, b) -> LiveCountry.compareCategories(a.name, b.name));
         allCategories.addAll(mine);
@@ -345,7 +354,7 @@ final class LiveView extends View {
         lineup.categories.clear();
         for (int i = 0; i < allCategories.size(); i++) {
             Xtream.Category cg = allCategories.get(i);
-            if (i < 2 || cg == search || cg == recordings || cg == history || !hidden.contains(cg.id)) lineup.categories.add(cg);
+            if (i < 2 || cg == search || cg == recordings || cg == history || cg == smartGroup || !hidden.contains(cg.id)) lineup.categories.add(cg);
         }
     }
 
@@ -2336,6 +2345,55 @@ final class LiveView extends View {
         live.play(target);
     }
 
+    /** A Smart channel's row, tuned to: the real channel with what's on it now, else what comes next is said. */
+    void tuneSmart(Xtream.Channel smart) {
+        List<Xtream.Program> row = programs(smart);
+        long now = System.currentTimeMillis();
+        Xtream.Program on = LiveSmart.onNow(row, now);
+        if (on != null && on.via != null) {
+            tune(on.via);
+            return;
+        }
+        Xtream.Program next = LiveSmart.next(row, now);
+        flash(next == null ? Ui.tr("Nada no guia por enquanto", "Nothing in the guide for now")
+                : Ui.tr("Nada agora. A seguir: ", "Nothing on now. Next: ") + next.title + " · " + Ui.time(next.start));
+    }
+
+    /** OK in a Smart channel's row: on now, its channel, full screen; later, a reminder or a recording on its channel. */
+    private void smartOk(Xtream.Channel smart, Xtream.Program p) {
+        long now = System.currentTimeMillis();
+        if (p == null || p.via == null || p.start <= now) {
+            boolean on = (p != null && p.via != null) || LiveSmart.onNow(programs(smart), now) != null;
+            if (p != null && p.via != null) tune(p.via);
+            else tuneSmart(smart);
+            if (on) closeGuide();
+            return;
+        }
+        final Xtream.Channel real = p.via;
+        laterMenu(real, p, () -> {
+            tune(real);
+            closeGuide();
+        });
+    }
+
+    /** Hold OK on a Smart channel's row: it goes (a ready-made one can be turned on again in the settings). */
+    private void smartMenu(final Xtream.Channel smart) {
+        final android.content.Context c = getContext();
+        LiveSheet.menu(c)
+                .setTitle(smart.name)
+                .setIcons("close")
+                .setItems(new String[] {Ui.tr("Remover este canal", "Remove this channel")}, (d, which) -> {
+                    int rule = LiveSmart.ruleOf(smart.id);
+                    if (rule == LiveSmart.FOLLOWING) LiveOptions.setSmartFollowing(c, false);
+                    else if (rule == LiveSmart.NEW) LiveOptions.setSmartNew(c, false);
+                    else LiveSmart.remove(c, rule);
+                    flash(Ui.tr("Removido: ", "Removed: ") + smart.name);
+                    gRow = 0;
+                    live.relist();
+                })
+                .show();
+    }
+
     /** A message for two seconds. */
     void flash(String message) {
         setStatus(message);
@@ -3953,6 +4011,16 @@ final class LiveView extends View {
     private void fetchGuide(Xtream.Channel channel, List<Xtream.Program> had) {
         android.content.Context c = getContext();
         long now = System.currentTimeMillis();
+        if (channel.smart) {
+            List<Xtream.Program> row = LiveSmart.schedule(c, channel);
+            synchronized (epg) {
+                epgPending.remove(channel.id);
+                epgAt.put(channel.id, now);
+                epg.put(channel.id, row);
+            }
+            postInvalidate();
+            return;
+        }
         List<Xtream.Program> got = null, before = had;
         long at = now;
         // The full guide first, when it has this channel.
@@ -5301,6 +5369,10 @@ final class LiveView extends View {
         List<Xtream.Channel> rows = guideChannels();
         if (gRow >= rows.size()) return;
         Xtream.Channel channel = rows.get(gRow);
+        if (channel.smart) {
+            smartMenu(channel);
+            return;
+        }
         long now = System.currentTimeMillis();
         List<Xtream.Program> list = programs(channel);
         int at = programAt(list, gTime);
@@ -5596,6 +5668,10 @@ final class LiveView extends View {
 
     /** A channel's choices: favorite, rename, renumber (the provider's again), out of History. */
     private void channelMenu(final Xtream.Channel channel, final boolean inHistory) {
+        if (channel.smart) {
+            smartMenu(channel);
+            return;
+        }
         final android.content.Context c = getContext();
         final boolean edited = LiveChannelEdits.edited(c, channel.id);
         final List<String> labels = new ArrayList<>(), icons = new ArrayList<>();
@@ -5770,6 +5846,10 @@ final class LiveView extends View {
         }
         List<Xtream.Program> list = gRow < rows.size() ? programs(rows.get(gRow)) : null;
         int at = programAt(list, gTime);
+        if (rows.get(gRow).smart && (ok(code) || code == KeyEvent.KEYCODE_INFO)) {
+            smartOk(rows.get(gRow), gCol == 1 && at >= 0 ? list.get(at) : null);
+            return;
+        }
         long floor = guideFloor(rows.get(gRow), now);
         switch (code) {
             case KeyEvent.KEYCODE_DPAD_UP: gRow = Math.max(0, gRow - 1); break;
