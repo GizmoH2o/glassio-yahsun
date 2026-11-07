@@ -558,6 +558,24 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.hasExtra("speech")) {     // each line TalkBack would hear, logged ("speech: …")
+                LiveSpeech.log = i.getBooleanExtra("speech", false);
+                return;
+            }
+            if (i.hasExtra("contrast")) {       // high contrast on or off, as the setting does ("follow": as Home's again)
+                if ("follow".equals(i.getStringExtra("contrast"))) LiveOptions.followHomeContrast(Live.this);
+                else LiveOptions.setHighContrast(Live.this, i.getBooleanExtra("contrast", false));
+                LiveTheme.contrast(LiveOptions.highContrast(Live.this));
+                view.themeChanged();
+                view.restyle();
+                return;
+            }
+            if (i.hasExtra("textscale")) {      // Live TV's text size (100, 115, 130), Live TV opened again
+                LiveOptions.setTextScale(Live.this, i.getIntExtra("textscale", 100));
+                Ui.textScale = LiveOptions.textScale(Live.this);
+                recreate();
+                return;
+            }
             if (i.hasExtra("familykids")) familyKidsTest = i.getBooleanExtra("familykids", false);     // Family Mode as if Kids
             if (i.hasExtra("familylimit")) LiveFamily.setLimit(Live.this, i.getIntExtra("familylimit", 0));
             if (i.hasExtra("familybed")) LiveFamily.setBedtime(Live.this, i.getIntExtra("familybed", 0));

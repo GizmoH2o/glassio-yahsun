@@ -63,7 +63,7 @@ final class LiveNamePad extends Dialog {
         }
         pad.setFocusable(true);
         pad.requestFocus();
-        pad.announceForAccessibility(title);
+        LiveSpeech.say(pad, title);
     }
 
     // MARK: - Keys

@@ -1063,6 +1063,32 @@ final class LiveOptions {
         sp(c).edit().putBoolean("unratedPin", on).apply();
     }
 
+    /** Live TV's text size, percent: Normal, Large, Larger. */
+    static final int[] TEXT_SCALES = {100, 115, 130};
+
+    static int textScale(Context c) {
+        return sp(c).getInt("textScale", 100);
+    }
+
+    static void setTextScale(Context c, int pct) {
+        sp(c).edit().putInt("textScale", pct).apply();
+    }
+
+    /** High contrast in Live TV: as Home's (Settings › Look & motion) until it's chosen here. */
+    static boolean highContrast(Context c) {
+        if (sp(c).contains("highContrast")) return sp(c).getBoolean("highContrast", false);
+        return c.getApplicationContext().getSharedPreferences("glass", Context.MODE_PRIVATE).getBoolean("highContrast", false);
+    }
+
+    static void setHighContrast(Context c, boolean on) {
+        sp(c).edit().putBoolean("highContrast", on).apply();
+    }
+
+    /** Back to following Home's High contrast (the test hook's reset). */
+    static void followHomeContrast(Context c) {
+        sp(c).edit().remove("highContrast").apply();
+    }
+
     static boolean hasPin(Context c) {
         return !sp(c).getString("pin", "").isEmpty();
     }

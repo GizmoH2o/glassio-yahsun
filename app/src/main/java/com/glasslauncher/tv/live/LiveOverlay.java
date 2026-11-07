@@ -273,7 +273,7 @@ final class LiveOverlay {
         if (to == peekAhead) return false;
         peekAhead = to;
         Xtream.Program p = list.get(now + to);
-        view.announceForAccessibility(Ui.time(p.start) + ", " + p.title);
+        LiveSpeech.say(view, Ui.time(p.start) + ", " + p.title);
         view.invalidate();
         return true;
     }
@@ -1236,7 +1236,7 @@ final class LiveOverlay {
                     return true;
                 case KeyEvent.KEYCODE_DPAD_DOWN:
                     onBar = false;
-                    view.announceForAccessibility(name(buttons[focus], false));
+                    LiveSpeech.say(view, name(buttons[focus], false));
                     view.invalidate();
                     return true;
                 case KeyEvent.KEYCODE_DPAD_CENTER:
@@ -1278,7 +1278,7 @@ final class LiveOverlay {
         focus = next;
         focusX.target = buttonX(focus);
         focusW.target = buttonW(focus);
-        view.announceForAccessibility(name(buttons[focus], false));
+        LiveSpeech.say(view, name(buttons[focus], false));
         view.invalidate();
     }
 

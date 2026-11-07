@@ -447,6 +447,18 @@ final class French {
             case "Shows rated this age or older ask for the PIN: the guide's rating, else TMDB's.": return "Les programmes de cette classification ou plus demandent le PIN : celle du guide, sinon celle de TMDB.";
             case "Without a TMDB token (Home's Settings), only the guide's.": return "Sans jeton TMDB (Réglages de l'Accueil), seulement celle du guide.";
             case "Shows neither the guide nor TMDB rates. Off, they play.": return "Ceux que ni le guide ni TMDB ne classent. Désactivé, ils passent.";
+            case "Text size": return "Taille du texte";
+            case "High contrast": return "Contraste élevé";
+            case "All of Live TV's text, larger: Live TV opens again with it.": return "Tout le texte du direct, plus grand : le direct se rouvre avec.";
+            case "Over any design: black and solid, white edges, a yellow focus. As Home's until it's chosen here.": return "Sur n'importe quel design : noir et opaque, bords blancs, un focus jaune. Comme celui de l'Accueil, jusqu'à ce qu'il soit choisi ici.";
+            case "Live TV opens again at the new size": return "Le direct se rouvre à la nouvelle taille";
+            case "Larger": return "Plus grand";
+            case "now: ": return "maintenant : ";
+            case "favorite": return "favori";
+            case "on now": return "en ce moment";
+            case "reminder set": return "rappel prévu";
+            case "recording set": return "enregistrement prévu";
+            case "Space": return "Espace";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

@@ -69,7 +69,7 @@ final class LivePlayerMatch {
         slide.target = 1;
         open = true;
         read();
-        view.announceForAccessibility(Ui.tr("Central da partida", "Match Centre"));
+        LiveSpeech.say(view, Ui.tr("Central da partida", "Match Centre"));
         view.invalidate();
     }
 
@@ -143,7 +143,7 @@ final class LivePlayerMatch {
                 if (to != section) {
                     section = to;
                     first = landing();
-                    view.announceForAccessibility(name(current()));
+                    LiveSpeech.say(view, name(current()));
                     view.invalidate();
                 }
                 return true;

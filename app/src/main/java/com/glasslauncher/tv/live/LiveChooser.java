@@ -115,7 +115,7 @@ final class LiveChooser extends Dialog {
         }
         page.setFocusable(true);
         page.requestFocus();
-        page.announceForAccessibility(title + ", " + labels[focus]);
+        LiveSpeech.say(page, title + ", " + labels[focus]);
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
@@ -144,7 +144,7 @@ final class LiveChooser extends Dialog {
             default:
                 return true;
         }
-        page.announceForAccessibility(labels[focus]);
+        LiveSpeech.say(page, labels[focus]);
         page.invalidate();
         return true;
     }

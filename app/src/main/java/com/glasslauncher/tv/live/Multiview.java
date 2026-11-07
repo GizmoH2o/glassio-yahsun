@@ -451,7 +451,8 @@ public class Multiview extends Activity {
         main.removeCallbacks(rebalance);
         main.postDelayed(rebalance, 900);      // once the focus rests: the hardware decoder comes to it
         Box b = boxes.get(focus);
-        grid.announceForAccessibility(b.channel == null ? Ui.tr("Adicionar canal", "Add channel") : b.channel.name);
+        LiveSpeech.say(grid, b.channel == null ? Ui.tr("Adicionar canal", "Add channel")
+                : LiveSpeech.join(b.channel.num > 0 ? String.valueOf(b.channel.num) : "", LiveCountry.named(this, b.channel)));
         grid.invalidate();
     }
 
@@ -722,7 +723,7 @@ public class Multiview extends Activity {
         void say(String text) {
             message = text;
             messageAt = SystemClock.uptimeMillis();
-            announceForAccessibility(text);
+            LiveSpeech.say(this, text);
             invalidate();
             postDelayed(this::invalidate, 3200);
         }

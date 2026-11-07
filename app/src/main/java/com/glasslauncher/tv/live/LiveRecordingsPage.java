@@ -84,7 +84,7 @@ final class LiveRecordingsPage extends Dialog {
         }
         page.setFocusable(true);
         page.requestFocus();
-        page.announceForAccessibility(Ui.tr("Gravações", "Recordings"));
+        LiveSpeech.say(page, Ui.tr("Gravações", "Recordings"));
     }
 
     /** The recordings and the schedule's recordings, read again (one stopped, deleted, cancelled). */
@@ -176,8 +176,23 @@ final class LiveRecordingsPage extends Dialog {
             default:
                 break;
         }
+        if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN || code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            LiveSpeech.say(page, focusSaid());
+        }
         page.invalidate();
         return true;
+    }
+
+    /** The focused recording (or one set for later), as TalkBack says it. */
+    private String focusSaid() {
+        LiveRecordings.Rec r = rec();
+        if (r != null) return LiveSpeech.join(r.title.isEmpty() ? view.nameWithCountry(r.ch) : r.title, when(r.start, r.end), view.nameWithCountry(r.ch),
+                r.state.equals(LiveRecordings.RECORDING) ? Ui.tr("gravando", "recording") : "");
+        if (kind() == LATER && at < later.size()) {
+            LiveSchedule.Item it = later.get(at);
+            return LiveSpeech.join(it.title, when(it.start, it.end), view.nameWithCountry(it.ch), Ui.tr("gravação marcada", "recording set"));
+        }
+        return "";
     }
 
     /** OK: a recording plays; one set for later, its choices. */

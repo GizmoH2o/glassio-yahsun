@@ -441,7 +441,7 @@ final class LiveView extends View {
     /** A channel (or program) starts, or a key while watching: what's playing shows over the video. */
     void showBanner(Xtream.Channel c) {
         Xtream.Program past = live.catchup();
-        announceForAccessibility((c.num > 0 ? c.num + " " : "") + c.name + (past == null ? "" : ", " + past.title));
+        LiveSpeech.say(this, LiveSpeech.join(spoken(c), past == null ? "" : past.title));
         overlay.brief();     // drawn only while watching: from the guide or the list, it shows as they go
         invalidate();
     }
@@ -534,7 +534,7 @@ final class LiveView extends View {
 
     void setStatus(String s) {
         status = s == null ? "" : s;
-        if (!status.isEmpty()) announceForAccessibility(status);
+        if (!status.isEmpty()) LiveSpeech.say(this, status);
         invalidate();
     }
 
@@ -2279,7 +2279,7 @@ final class LiveView extends View {
         Xtream.Channel next = list.get((at + dir + list.size()) % list.size());
         programs(next);     // its guide, if it isn't here yet
         overlay.peek(next);
-        announceForAccessibility((next.num > 0 ? next.num + " " : "") + next.name);
+        LiveSpeech.say(this, spoken(next));
     }
 
     private static boolean ok(int code) {
@@ -2304,7 +2304,7 @@ final class LiveView extends View {
         digitsAt = SystemClock.uptimeMillis();
         removeCallbacks(digitsDone);
         postDelayed(digitsDone, DIGITS_MS);
-        announceForAccessibility(digits + (digitsChannel == null ? "" : ", " + digitsChannel.name));
+        LiveSpeech.say(this, LiveSpeech.join(digits, digitsChannel == null ? "" : LiveSpeech.channel(0, nameOf(digitsChannel), tagOf(digitsChannel))));
         invalidate();
     }
 
@@ -3301,7 +3301,7 @@ final class LiveView extends View {
                 break;
         }
         Xtream.Program p = progs.get(Math.max(0, Math.min(last, sIdx)));
-        announceForAccessibility(Ui.time(p.start) + ", " + p.title);
+        LiveSpeech.say(this, Ui.time(p.start) + ", " + p.title);
     }
 
     /** A show later on: be reminded, or record it (each a toggle), or watch the channel now (TiviMate's). */
@@ -4148,7 +4148,7 @@ final class LiveView extends View {
         List<Xtream.Channel> rows = guideChannels();
         if (rows.isEmpty()) flash(Ui.tr("Nenhum canal com este filtro", "No channels with this filter"));
         aimGuide(true);
-        announceForAccessibility(filterName(f) + ", " + rows.size());
+        LiveSpeech.say(this, filterName(f) + ", " + rows.size());
         invalidate();
     }
 
@@ -4585,7 +4585,7 @@ final class LiveView extends View {
         gGroupTop.snap(gGroupTopI);
         gPanel.target = 1;
         live.shiftPreview(videoRight() ? 0 : GP_W);       // the window moves over with the guide (TiviMate's)
-        announceForAccessibility(lineup.categories.get(gCat).name);
+        LiveSpeech.say(this, lineup.categories.get(gCat).name);
         invalidate();
     }
 
@@ -4613,7 +4613,7 @@ final class LiveView extends View {
                     gGroupTopI = scroll(gGroupIdx, gGroupTopI, groupRows(), panelCats.size());
                     gGroupRow.target = gGroupIdx;
                     gGroupTop.target = gGroupTopI;
-                    announceForAccessibility(lineup.categories.get(gCat).name);
+                    LiveSpeech.say(this, lineup.categories.get(gCat).name);
                 }
                 break;
             }
@@ -5234,7 +5234,7 @@ final class LiveView extends View {
         goalOffer = act == null ? null : offer;
         goalAct = act;
         goalAt = SystemClock.uptimeMillis();
-        announceForAccessibility(head + ", " + line + (goalOffer == null ? "" : ", " + goalOffer));
+        LiveSpeech.say(this, head + ", " + line + (goalOffer == null ? "" : ", " + goalOffer));
         invalidate();
     }
 
@@ -5605,7 +5605,7 @@ final class LiveView extends View {
         else for (int i = favs.size() - 1; i >= 0; i--) if (favs.get(i).id == channel.id) favs.remove(i);
         final Xtream.Channel ch = channel;
         epgIo.execute(() -> Xtream.setFavorite(getContext(), ch, on));
-        announceForAccessibility(on ? Ui.tr("Nos favoritos", "Added to favorites") : Ui.tr("Fora dos favoritos", "Removed from favorites"));
+        LiveSpeech.say(this, on ? Ui.tr("Nos favoritos", "Added to favorites") : Ui.tr("Fora dos favoritos", "Removed from favorites"));
         invalidate();
     }
 
@@ -6144,7 +6144,7 @@ final class LiveView extends View {
                     }
                     break;
             }
-            if (gHead > 0) announceForAccessibility(headName());
+            if (gHead > 0) LiveSpeech.say(this, headName());
             invalidate();
             return;
         }
@@ -6152,7 +6152,7 @@ final class LiveView extends View {
         long now = System.currentTimeMillis();
         if (code == KeyEvent.KEYCODE_DPAD_UP && (rows.isEmpty() || gRow == 0)) {      // above the top row: the header
             gHead = 1;
-            announceForAccessibility(headName());
+            LiveSpeech.say(this, headName());
             invalidate();
             return;
         }
@@ -6267,6 +6267,22 @@ final class LiveView extends View {
         announceGuide();
     }
 
+    /** A channel as TalkBack says it: its number, its name as shown, its country. */
+    String spoken(Xtream.Channel c) {
+        return c == null ? "" : LiveSpeech.channel(c.num, nameOf(c), tagOf(c));
+    }
+
+    /** A show's state, said after it: on now, a reminder or a recording set, recording now. */
+    private String[] states(Xtream.Channel c, Xtream.Program p) {
+        android.content.Context ctx = getContext();
+        long now = System.currentTimeMillis();
+        boolean on = p.start <= now && p.end > now;
+        return new String[] {on ? Ui.tr("agora", "on now") : "",
+                LiveSchedule.has(ctx, LiveSchedule.REMIND, c.id, p.start) ? Ui.tr("lembrete marcado", "reminder set") : "",
+                LiveSchedule.has(ctx, LiveSchedule.RECORD, c.id, p.start) ? Ui.tr("gravação marcada", "recording set") : "",
+                on && LiveRecordings.recording(ctx, c.id, p.start) ? Ui.tr("gravando", "recording") : ""};
+    }
+
     /** TalkBack reads the focused channel and program. */
     private void announceGuide() {
         List<Xtream.Channel> rows = guideChannels();
@@ -6274,12 +6290,12 @@ final class LiveView extends View {
         Xtream.Channel channel = rows.get(gRow);
         List<Xtream.Program> list = programs(channel);
         int i = programAt(list, gCol == 1 ? gTime : System.currentTimeMillis());
-        String text = numberAndName(channel, " ");
+        String text = spoken(channel);
         if (i >= 0) {
             Xtream.Program p = list.get(i);
-            text += ", " + Ui.time(p.start) + " – " + Ui.time(p.end) + ", " + p.title;
+            text = LiveSpeech.show(Ui.time(p.start) + " – " + Ui.time(p.end), p.title, text, states(channel, p));
         }
-        announceForAccessibility(text);
+        LiveSpeech.say(this, text);
     }
 
     // MARK: - Helpers
@@ -6320,9 +6336,15 @@ final class LiveView extends View {
                     : lineup.categories.get(cat).name + ", " + lineup.categories.get(cat).channels.size() + Ui.tr(" canais", " channels");
         } else {
             List<Xtream.Channel> list = channels();
-            text = ch < list.size() ? (list.get(ch).num > 0 ? list.get(ch).num + " " : "") + list.get(ch).name : "";
+            text = "";
+            if (ch < list.size()) {
+                Xtream.Channel c = list.get(ch);
+                Xtream.Program on = onNow(c, System.currentTimeMillis());
+                text = LiveSpeech.join(spoken(c), on == null ? "" : Ui.tr("agora: ", "now: ") + on.title,
+                        Xtream.isFavorite(lineup, c.id) ? Ui.tr("favorito", "favorite") : "");
+            }
         }
-        if (!text.isEmpty()) announceForAccessibility(text);
+        if (!text.isEmpty()) LiveSpeech.say(this, text);
     }
 
     private String ellipsize(String s, Paint p, float width) {

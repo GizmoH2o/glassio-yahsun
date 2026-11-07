@@ -102,8 +102,8 @@ public class ReminderActivity extends Activity {
         card.removeCallbacks(timeUp);
         card.postDelayed(timeUp, countdown ? Math.max(0, left) : STAYS_MS);
         card.invalidate();
-        card.announceForAccessibility((countdown ? Ui.tr("Mudando para ", "Switching to ") + item.ch.name + ": "
-                : Ui.tr("Lembrete: ", "Reminder: ")) + item.title + ", " + item.ch.name);
+        LiveSpeech.say(card, (countdown ? Ui.tr("Mudando para ", "Switching to ") + LiveCountry.named(this, item.ch) + ": "
+                : Ui.tr("Lembrete: ", "Reminder: ")) + item.title + ", " + LiveCountry.named(this, item.ch));
     }
 
     /** A match alert: the panel, its own channel at once, the others as the full guide finds them. */
@@ -123,7 +123,7 @@ public class ReminderActivity extends Activity {
         }
         p.removeCallbacks(timeUp);
         p.postDelayed(timeUp, PANEL_STAYS_MS);
-        p.announceForAccessibility(Ui.tr("Ao vivo agora: ", "On now: ") + LiveFollow.named(this, it.series.substring(LiveFollow.SERIES.length())));
+        LiveSpeech.say(p, Ui.tr("Ao vivo agora: ", "On now: ") + LiveFollow.named(this, it.series.substring(LiveFollow.SERIES.length())));
         final android.content.Context app = getApplicationContext();
         new Thread(() -> {
             java.util.List<Object[]> found = LiveFollow.airing(app, it);
@@ -265,7 +265,7 @@ public class ReminderActivity extends Activity {
                     if (next != focus) {
                         focus = next;
                         Xtream.Channel ch = (Xtream.Channel) rows.get(focus)[0];
-                        announceForAccessibility((ch.num > 0 ? ch.num + " " : "") + ch.name);
+                        LiveSpeech.say(this, LiveSpeech.join(ch.num > 0 ? String.valueOf(ch.num) : "", LiveCountry.named(getContext(), ch)));
                         invalidate();
                     }
                     return true;

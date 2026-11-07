@@ -51,7 +51,7 @@ final class LiveProfilesPage extends Dialog {
         }
         page.setFocusable(true);
         page.requestFocus();
-        page.announceForAccessibility(Ui.tr("Quem está assistindo?", "Who's watching?"));
+        LiveSpeech.say(page, Ui.tr("Quem está assistindo?", "Who's watching?"));
     }
 
     private void reload() {
@@ -92,7 +92,7 @@ final class LiveProfilesPage extends Dialog {
             case KeyEvent.KEYCODE_MENU: choices(); break;
             default: break;
         }
-        page.announceForAccessibility(focus < profiles.size() ? profiles.get(focus).name : Ui.tr("Adicionar perfil", "Add profile"));
+        LiveSpeech.say(page, focus < profiles.size() ? profiles.get(focus).name : Ui.tr("Adicionar perfil", "Add profile"));
         page.invalidate();
         return true;
     }

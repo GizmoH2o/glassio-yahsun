@@ -125,7 +125,7 @@ final class LivePlayerInfo {
         open = true;
         slide.snap(0);
         slide.target = 1;
-        if (!items.isEmpty()) view.announceForAccessibility(show + ", " + items.get(0).text);
+        if (!items.isEmpty()) LiveSpeech.say(view, show + ", " + items.get(0).text);
         view.invalidate();
     }
 
@@ -215,21 +215,21 @@ final class LivePlayerInfo {
     private void across(int dir) {
         if (area == TABS) {
             tabFocus = Math.max(0, Math.min(tabs.size() - 1, tabFocus + dir));
-            view.announceForAccessibility(tabs.get(tabFocus).text);
+            LiveSpeech.say(view, tabs.get(tabFocus).text);
         } else if (area == LATER) {
             if (dir < 0 && !items.isEmpty()) {
                 area = ACTIONS;
-                view.announceForAccessibility(items.get(itemFocus).text);
+                LiveSpeech.say(view, items.get(itemFocus).text);
             }
         } else {
             int to = itemFocus + dir;
             if (to >= 0 && to < items.size() && line[to] == line[itemFocus]) {
                 itemFocus = to;
-                view.announceForAccessibility(items.get(itemFocus).text);
+                LiveSpeech.say(view, items.get(itemFocus).text);
             } else if (dir > 0 && !later.isEmpty()) {
                 area = LATER;
                 laterFocus = Math.min(laterFocus, later.size() - 1);
-                view.announceForAccessibility(later.get(laterFocus).time + ", " + later.get(laterFocus).title);
+                LiveSpeech.say(view, later.get(laterFocus).time + ", " + later.get(laterFocus).title);
             }
         }
     }
@@ -246,14 +246,14 @@ final class LivePlayerInfo {
                 area = TABS;
             } else if (to < later.size()) {
                 laterFocus = to;
-                view.announceForAccessibility(later.get(to).time + ", " + later.get(to).title);
+                LiveSpeech.say(view, later.get(to).time + ", " + later.get(to).title);
             }
             return;
         }
         int to = nearest(mids, line, line[itemFocus] + dir, mids[itemFocus]);
         if (to >= 0) {
             itemFocus = to;
-            view.announceForAccessibility(items.get(to).text);
+            LiveSpeech.say(view, items.get(to).text);
         } else if (dir < 0) {
             area = TABS;
             tabFocus = tabOn;

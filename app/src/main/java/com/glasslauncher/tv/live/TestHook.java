@@ -37,6 +37,12 @@ import android.content.IntentFilter;
  *                                                                    (extra time over), then the check. With --ez familykids
  *                                                                    true it counts as a Kids profile (until the process ends);
  *                                                                    --ei familylimit MIN and --ei familybed HOUR set the rules
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez speech true        Live TV (open):
+ *                                                                    each line TalkBack would hear, logged ("speech: …")
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez contrast true      Live TV (open):
+ *                                                                    high contrast on (false: off), as the setting does
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ei textscale 130      Live TV (open):
+ *                                                                    its text size (100, 115, 130), Live TV opened again
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez countries true     Live TV (open):
  *                                                                    which channels show a country, into live-countries.txt
  *                                                                    (Android/data/com.glassioyahsun.tv/files; names only)

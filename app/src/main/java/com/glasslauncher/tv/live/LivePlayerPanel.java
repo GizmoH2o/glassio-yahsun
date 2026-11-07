@@ -125,7 +125,7 @@ final class LivePlayerPanel {
         open = true;
         slide.snap(0);
         slide.target = 1;
-        if (focus >= 0) view.announceForAccessibility(title + ", " + this.rows.get(focus).text);
+        if (focus >= 0) LiveSpeech.say(view, title + ", " + this.rows.get(focus).text);
         view.invalidate();
     }
 
@@ -199,7 +199,7 @@ final class LivePlayerPanel {
             case KeyEvent.KEYCODE_DPAD_DOWN: {
                 int was = focus;
                 move(code == KeyEvent.KEYCODE_DPAD_UP ? -1 : 1);
-                if (focus != was) view.announceForAccessibility(rows.get(focus).text);
+                if (focus != was) LiveSpeech.say(view, rows.get(focus).text);
                 return true;
             }
             case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -210,7 +210,7 @@ final class LivePlayerPanel {
                 if (to != one.size) {
                     one.pick.accept(to);
                     reload();
-                    view.announceForAccessibility(one.text + ", " + one.sizes[to]);
+                    LiveSpeech.say(view, one.text + ", " + one.sizes[to]);
                 }
                 return true;
             }

@@ -179,7 +179,7 @@ final class LiveSheet extends Dialog {
         }
         sheet.setFocusable(true);
         sheet.requestFocus();
-        sheet.announceForAccessibility(title + (message.length() > 0 ? ". " + message : "")
+        LiveSpeech.say(sheet, title + (message.length() > 0 ? ". " + message : "")
                 + (labels.length > 0 ? ". " + labels[0] : ""));
     }
 
@@ -243,7 +243,7 @@ final class LiveSheet extends Dialog {
             if (next == focus) return;
             focus = next;
             at.target = focus;
-            announceForAccessibility(labels[focus]);
+            LiveSpeech.say(this, labels[focus]);
             invalidate();
         }
 

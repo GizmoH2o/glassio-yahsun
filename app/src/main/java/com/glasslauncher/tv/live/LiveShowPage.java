@@ -102,7 +102,7 @@ final class LiveShowPage extends Dialog {
         }
         page.setFocusable(true);
         page.requestFocus();
-        page.announceForAccessibility(show.title);
+        LiveSpeech.say(page, show.title);
     }
 
     /** When it's on again (the full guide, the next week), on the channels of the list. */
@@ -262,10 +262,10 @@ final class LiveShowPage extends Dialog {
             default:
                 return;
         }
-        if (row == 0 && !labels.isEmpty()) page.announceForAccessibility(labels.get(button));
-        else if (row == 1 && nowAt < nowShows.size()) page.announceForAccessibility(names.name(nowChannels.get(nowAt)) + ", " + nowShows.get(nowAt).title);
-        else if (row == 2 && airAt < nextShows.size()) page.announceForAccessibility(nextShows.get(airAt).title + ", " + when(nextShows.get(airAt)));
-        else if (row == 3 && pastAt < pastShows.size()) page.announceForAccessibility(pastShows.get(pastAt).title + ", " + day(pastShows.get(pastAt).start));
+        if (row == 0 && !labels.isEmpty()) LiveSpeech.say(page, labels.get(button));
+        else if (row == 1 && nowAt < nowShows.size()) LiveSpeech.say(page, names.name(nowChannels.get(nowAt)) + ", " + nowShows.get(nowAt).title);
+        else if (row == 2 && airAt < nextShows.size()) LiveSpeech.say(page, nextShows.get(airAt).title + ", " + when(nextShows.get(airAt)));
+        else if (row == 3 && pastAt < pastShows.size()) LiveSpeech.say(page, pastShows.get(pastAt).title + ", " + day(pastShows.get(pastAt).start));
         page.invalidate();
     }
 
@@ -305,8 +305,8 @@ final class LiveShowPage extends Dialog {
             default:
                 return true;
         }
-        if (row == 0 && !labels.isEmpty()) page.announceForAccessibility(labels.get(button));
-        else if (row > 0) page.announceForAccessibility(airingLine(row - 1));
+        if (row == 0 && !labels.isEmpty()) LiveSpeech.say(page, labels.get(button));
+        else if (row > 0) LiveSpeech.say(page, airingLine(row - 1));
         page.invalidate();
         return true;
     }

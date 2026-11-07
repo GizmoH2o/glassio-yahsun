@@ -449,6 +449,18 @@ final class Spanish {
             case "Shows rated this age or older ask for the PIN: the guide's rating, else TMDB's.": return "Los programas con esta clasificación o más piden el PIN: la de la guía, si no la de TMDB.";
             case "Without a TMDB token (Home's Settings), only the guide's.": return "Sin un token de TMDB (Ajustes del Inicio), solo la de la guía.";
             case "Shows neither the guide nor TMDB rates. Off, they play.": return "Los que ni la guía ni TMDB clasifican. Desactivado, se reproducen.";
+            case "Text size": return "Tamaño del texto";
+            case "High contrast": return "Alto contraste";
+            case "All of Live TV's text, larger: Live TV opens again with it.": return "Todo el texto de la TV en vivo, más grande: la TV en vivo se abre de nuevo con él.";
+            case "Over any design: black and solid, white edges, a yellow focus. As Home's until it's chosen here.": return "Sobre cualquier diseño: negro y sólido, bordes blancos, foco amarillo. Como el del Inicio, hasta elegirlo aquí.";
+            case "Live TV opens again at the new size": return "La TV en vivo se abre de nuevo con el nuevo tamaño";
+            case "Larger": return "Más grande";
+            case "now: ": return "ahora: ";
+            case "favorite": return "favorito";
+            case "on now": return "ahora";
+            case "reminder set": return "recordatorio puesto";
+            case "recording set": return "grabación programada";
+            case "Space": return "Espacio";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

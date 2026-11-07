@@ -78,7 +78,7 @@ final class LivePinPad extends Dialog {
         }
         pad.setFocusable(true);
         pad.requestFocus();
-        pad.announceForAccessibility(title + (hint.isEmpty() ? "" : ". " + hint));
+        LiveSpeech.say(pad, title + (hint.isEmpty() ? "" : ". " + hint));
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent e) {
@@ -124,7 +124,7 @@ final class LivePinPad extends Dialog {
     private void type(char digit) {
         if (typed.length() >= MAX) return;
         typed += digit;
-        pad.announceForAccessibility(typed.length() + "");
+        LiveSpeech.say(pad, typed.length() + "");
         if (checkAsTyped && typed.length() >= 4 && done.got(typed)) finish(true);
         pad.invalidate();
     }
@@ -142,7 +142,7 @@ final class LivePinPad extends Dialog {
         // Not right: the dots shake and clear, to try again.
         shakeAt = SystemClock.uptimeMillis();
         typed = "";
-        pad.announceForAccessibility(Ui.tr("PIN errado", "Wrong PIN"));
+        LiveSpeech.say(pad, Ui.tr("PIN errado", "Wrong PIN"));
         pad.invalidate();
     }
 

@@ -99,7 +99,7 @@ final class LiveSettingsGallery {
                 if (row == TILES) {
                     place = Math.max(0, Math.min(LiveTheme.STYLES - 1, place + (code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1)));
                     first = LiveRail.window(place, LiveTheme.STYLES, VISIBLE, first);
-                    view.announceForAccessibility(LiveTheme.styleName(LiveTheme.ordered(place)));
+                    LiveSpeech.say(view, LiveTheme.styleName(LiveTheme.ordered(place)));
                 }
                 break;
             case KeyEvent.KEYCODE_DPAD_UP:

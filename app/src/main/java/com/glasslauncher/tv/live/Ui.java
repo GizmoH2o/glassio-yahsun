@@ -128,10 +128,18 @@ final class Ui {
         }
     }
 
+    /** Live TV's text size (Settings › Design › Text size), percent: every paint made after it's set. */
+    static volatile int textScale = 100;
+
+    /** `size` at `pct` percent (0: as it is). Pure. */
+    static float scaled(float size, int pct) {
+        return pct <= 0 ? size : size * pct / 100f;
+    }
+
     static Paint text(Typeface face, float size, int color) {
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
         p.setTypeface(face);
-        p.setTextSize(size);
+        p.setTextSize(scaled(size, textScale));
         p.setColor(color);
         return p;
     }

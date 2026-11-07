@@ -93,7 +93,7 @@ final class LiveSearch extends Dialog {
         }
         page.setFocusable(true);
         page.requestFocus();
-        page.announceForAccessibility(Ui.tr("Buscar. Digite ou aperte o microfone para falar.", "Search. Type, or press the microphone to speak."));
+        LiveSpeech.say(page, Ui.tr("Buscar. Digite ou aperte o microfone para falar.", "Search. Type, or press the microphone to speak."));
     }
 
     // MARK: - Searching
@@ -303,10 +303,10 @@ final class LiveSearch extends Dialog {
             return true;
         }
         switch (code) {
-            case KeyEvent.KEYCODE_DPAD_UP: up(); break;
-            case KeyEvent.KEYCODE_DPAD_DOWN: down(); break;
-            case KeyEvent.KEYCODE_DPAD_LEFT: left(); break;
-            case KeyEvent.KEYCODE_DPAD_RIGHT: right(); break;
+            case KeyEvent.KEYCODE_DPAD_UP: up(); LiveSpeech.say(page, focusSaid()); break;
+            case KeyEvent.KEYCODE_DPAD_DOWN: down(); LiveSpeech.say(page, focusSaid()); break;
+            case KeyEvent.KEYCODE_DPAD_LEFT: left(); LiveSpeech.say(page, focusSaid()); break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT: right(); LiveSpeech.say(page, focusSaid()); break;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
@@ -319,6 +319,28 @@ final class LiveSearch extends Dialog {
         }
         page.invalidate();
         return true;
+    }
+
+    /** What's focused, as TalkBack says it: the search line, a key, a channel or a show found. */
+    private String focusSaid() {
+        if (zone == BAR) return onFollow ? LiveSpeech.join(Ui.tr("Seguir", "Follow"), query) : LiveSpeech.join(Ui.tr("Buscar", "Search"), query);
+        if (zone == KEYS) {
+            if (key < CHARS) return String.valueOf(chars().charAt(key));
+            if (key == PAGE_KEY) return symbols ? Ui.tr("Letras", "Letters") : Ui.tr("Símbolos", "Symbols");
+            if (key == SPACE_KEY) return Ui.tr("Espaço", "Space");
+            if (key == DELETE_KEY) return Ui.tr("Apagar", "Delete");
+            return Ui.tr("Limpar", "Clear");
+        }
+        if (zone == CHANNELS) return chAt < channels.size() ? view.spoken(channels.get(chAt)) : "";
+        if (zone >= SHOWS && zone - SHOWS < groups.size()) {
+            List<Hit> list = groups.get(zone - SHOWS);
+            int at = showAt[zone - SHOWS];
+            if (at < list.size()) {
+                Hit h = list.get(at);
+                return LiveSpeech.show(h.when, h.p.title, view.spoken(h.ch));
+            }
+        }
+        return "";
     }
 
     private String chars() {
@@ -412,7 +434,7 @@ final class LiveSearch extends Dialog {
                 if (key < CHARS) setQuery(query + chars().charAt(key));
                 else if (key == PAGE_KEY) {
                     symbols = !symbols;
-                    page.announceForAccessibility(symbols ? Ui.tr("Símbolos", "Symbols") : Ui.tr("Letras", "Letters"));
+                    LiveSpeech.say(page, symbols ? Ui.tr("Símbolos", "Symbols") : Ui.tr("Letras", "Letters"));
                 } else if (key == SPACE_KEY) {
                     if (!query.isEmpty() && !query.endsWith(" ")) setQuery(query + " ");
                 } else if (key == DELETE_KEY) backspace();

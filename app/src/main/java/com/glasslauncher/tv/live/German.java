@@ -459,6 +459,18 @@ final class German {
             case "Shows rated this age or older ask for the PIN: the guide's rating, else TMDB's.": return "Sendungen ab dieser Altersfreigabe fragen nach der PIN: die Freigabe aus dem Programm, sonst die von TMDB.";
             case "Without a TMDB token (Home's Settings), only the guide's.": return "Ohne TMDB-Token (Einstellungen der Startseite) nur die aus dem Programm.";
             case "Shows neither the guide nor TMDB rates. Off, they play.": return "Sendungen, die weder das Programm noch TMDB einstuft. Aus: Sie laufen.";
+            case "Text size": return "Textgröße";
+            case "High contrast": return "Hoher Kontrast";
+            case "All of Live TV's text, larger: Live TV opens again with it.": return "Der ganze Text von Live-TV, größer: Live-TV öffnet sich damit neu.";
+            case "Over any design: black and solid, white edges, a yellow focus. As Home's until it's chosen here.": return "Über jedem Design: schwarz und deckend, weiße Ränder, ein gelber Fokus. Wie auf der Startseite, bis es hier gewählt wird.";
+            case "Live TV opens again at the new size": return "Live-TV öffnet sich in der neuen Größe neu";
+            case "Larger": return "Größer";
+            case "now: ": return "jetzt: ";
+            case "favorite": return "Favorit";
+            case "on now": return "läuft jetzt";
+            case "reminder set": return "Erinnerung gesetzt";
+            case "recording set": return "Aufnahme geplant";
+            case "Space": return "Leerzeichen";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

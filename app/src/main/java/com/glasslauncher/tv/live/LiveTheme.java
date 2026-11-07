@@ -232,16 +232,19 @@ final class LiveTheme {
 
     /** An info tag's color (10+, 1080p, Dolby): Glassio's faint white, the other designs' accent, faint. */
     static int chip() {
+        if (highContrast) return 0xFF2E2E2E;
         return glassio() ? 0x33FFFFFF : 0x47000000 | (text & 0x00FFFFFF);
     }
 
     /** A menu's or a dialog's card: Glassio's dark glass in its own colors (as its home screen's dialogs), else [panel]. */
     static int sheet() {
+        if (highContrast) return panel;
         return glassio() ? 0xF0181820 : panel;
     }
 
     /** That card's light edge (0: none): Glassio's a little brighter than a tile's, as its dialogs have. */
     static int sheetRim() {
+        if (highContrast) return rim;
         return glassio() ? 0x38FFFFFF : rim;
     }
 
@@ -730,6 +733,8 @@ final class LiveTheme {
         if (morning < -1 || morning >= STYLES) morning = -1;
         if (late < -1 || late >= STYLES) late = -1;
         tick(c);
+        highContrast = LiveOptions.highContrast(c);
+        Ui.textScale = LiveOptions.textScale(c);
         use(i);
     }
 
@@ -772,6 +777,33 @@ final class LiveTheme {
         column = 0xFF000000 | (bgTop & 0x00FFFFFF);
         card = panel;
         pane = mix(bgTop, bg, 0.5f);
+        if (highContrast) contrastColors();
+    }
+
+    /** High contrast (Settings › Design): over whichever design, black and solid, white edges, a yellow focus with black on it. */
+    static volatile boolean highContrast;
+
+    /** High contrast on or off, the design's colors made again. */
+    static void contrast(boolean on) {
+        highContrast = on;
+        use(current);
+    }
+
+    private static void contrastColors() {
+        bg = bgTop = 0xFF000000;
+        surface = 0x40FFFFFF;
+        cellNow = 0xFF2A2A2A;
+        cellLater = 0xFF161616;
+        cellPast = 0xFF000000;
+        rim = 0xC0FFFFFF;
+        tile = 0xFFFFD60A;
+        ink = 0xFF000000;
+        text = 0xFFFFD60A;
+        panel = 0xFF0A0A0A;
+        card = panel;
+        railColor = 0xFF000000;
+        column = 0xFF000000;
+        pane = 0xFF000000;
     }
 
     /** Design `d`'s colors: the background, the tiles at rest, the guide's programs, the glass edge. */

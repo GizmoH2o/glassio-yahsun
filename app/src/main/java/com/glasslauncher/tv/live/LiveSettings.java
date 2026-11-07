@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -55,7 +55,7 @@ final class LiveSettings {
     private static final int KEYS_SECTION = 7;
     /** Design without Custom's own rows (the design isn't Custom). */
     private static final int[] THEME_PLAIN = {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CODE_ROW, OPACITY_ROW,
-            RESET_ROW};
+            TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW};
 
     /** A section's rows (Custom's parts only while Custom is the design). */
     /** An M3U or MAG playlist in use: no subscription to show (set as the settings open). */
@@ -100,7 +100,7 @@ final class LiveSettings {
             {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
-                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, RESET_ROW},
+                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
@@ -458,6 +458,8 @@ final class LiveSettings {
             case CUSTOM_INFO_ROW:
             case CUSTOM_FONT_ROW: return LiveTheme.partName(partOf(i));
             case OPACITY_ROW: return Ui.tr("Fundo dos ajustes", "Settings background");
+            case TEXT_SCALE_ROW: return Ui.tr("Tamanho do texto", "Text size");
+            case HIGH_CONTRAST_ROW: return Ui.tr("Alto contraste", "High contrast");
             case CC_ON_ROW: return Ui.tr("Legendas", "Captions");
             case CC_SIZE_ROW: return Ui.tr("Tamanho", "Size");
             case CC_STYLE_ROW: return Ui.tr("Fundo", "Background");
@@ -698,6 +700,8 @@ final class LiveSettings {
                 int pct = LiveOptions.panelOpacity(c);
                 return pct >= 100 ? Ui.tr("Sólido", "Solid") : pct + "%";
             }
+            case TEXT_SCALE_ROW: return numberName(TEXT_SCALE_ROW, LiveOptions.textScale(c));
+            case HIGH_CONTRAST_ROW: return onOff(LiveOptions.highContrast(c));
             case HEALTH_ROW: {
                 int n = LiveHealth.week(c).size();
                 return n == 0 ? Ui.tr("Tudo bem esta semana", "All good this week")
@@ -812,6 +816,16 @@ final class LiveSettings {
         else view.askNewPin(lock);
     }
 
+    /** Live TV's text at `pct` percent: Live TV opens again, every paint made at the new size. */
+    private void textScale(int pct) {
+        android.content.Context c = context();
+        if (pct == LiveOptions.textScale(c)) return;
+        LiveOptions.setTextScale(c, pct);
+        Ui.textScale = pct;
+        view.flash(Ui.tr("A TV ao vivo abre de novo com o novo tamanho", "Live TV opens again at the new size"));
+        view.postDelayed(live::recreate, 900);
+    }
+
     /**
      * A Family Mode setting changes only with the parents' PIN, so a Kids profile can't change its own (one set first
      * when there's none).
@@ -834,7 +848,7 @@ final class LiveSettings {
             case CUSTOM_ROUND_ROW: case CUSTOM_FOCUS_ROW: case CUSTOM_INFO_ROW: case CUSTOM_FONT_ROW: case CC_SIZE_ROW: case CC_STYLE_ROW: case CC_COLOR_ROW: case FORMAT_ROW: case BUFFER_ROW:
             case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_HOURS_ROW:
             case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW: case CHANNEL_MARK_ROW:
-            case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW:
+            case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW: case TEXT_SCALE_ROW:
             case KIDS_LIMIT_ROW: case KIDS_BEDTIME_ROW: case KIDS_AGE_ROW:
             case RECORD_EARLY_ROW: case RECORD_LATE_ROW: case KEEP_DAYS_ROW: case KEEP_SHOW_ROW:
             case GUIDE_SHIFT_ROW:
@@ -1015,6 +1029,10 @@ final class LiveSettings {
                     case CC_STYLE_ROW:
                     case CC_COLOR_ROW: return Ui.tr("← → para trocar; o exemplo acima mostra como ficam.",
                             "← → to change it; the sample above shows how they look.");
+                    case TEXT_SCALE_ROW: return Ui.tr("O texto de toda a TV ao vivo, maior: a TV ao vivo abre de novo com ele.",
+                            "All of Live TV's text, larger: Live TV opens again with it.");
+                    case HIGH_CONTRAST_ROW: return Ui.tr("Sobre qualquer design: preto e sólido, bordas brancas, foco amarelo. Como o do Início, até ser escolhido aqui.",
+                            "Over any design: black and solid, white edges, a yellow focus. As Home's until it's chosen here.");
                     case OPACITY_ROW: return Ui.tr("Quanto o canal aparece atrás: menos é mais transparente (← → para trocar).",
                             "How much the channel shows through: lower is clearer (← → to change it).");
                     case CUSTOM_BG_ROW:
@@ -1426,6 +1444,7 @@ final class LiveSettings {
             case HIDE_NO_GUIDE_ROW: return LiveOptions.hideNoGuide(c);
             case VOICE_ROW: return LiveOptions.voiceChannels(c);
             case VOICE_COMMANDS_ROW: return LiveOptions.voiceCommands(c);
+            case HIGH_CONTRAST_ROW: return LiveOptions.highContrast(c);
             case UNRATED_ROW: return LiveOptions.unratedNeedsPin(c);
             default: return null;
         }
@@ -1572,7 +1591,7 @@ final class LiveSettings {
                 if (to < 0 || to >= SECTION_ROWS.length) return;
                 openSection(to, 0);
                 onRail = true;
-                view.announceForAccessibility(sectionName(to));
+                LiveSpeech.say(view, sectionName(to));
                 break;
             }
             case KeyEvent.KEYCODE_DPAD_RIGHT:
@@ -1625,7 +1644,7 @@ final class LiveSettings {
             default:
                 return;
         }
-        if (homeFocus != was) view.announceForAccessibility(homeFocus == LiveSettingsHome.SEARCH ? Ui.tr("Buscar", "Search")
+        if (homeFocus != was) LiveSpeech.say(view, homeFocus == LiveSettingsHome.SEARCH ? Ui.tr("Buscar", "Search")
                 : homeFocus >= LiveSettingsHome.FIRST_SECTION ? sectionName(homeFocus - LiveSettingsHome.FIRST_SECTION) : "");
     }
 
@@ -1705,7 +1724,7 @@ final class LiveSettings {
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
                 || id == KEEP_PAST_ROW || id == BREAKS_ROW || id == BREAKS_AUTO_ROW || id == PREVIEW_CHANNEL_ROW || id == MULTI_CHIP_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
-                || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
+                || id == HISTORY_ROW || id == OPACITY_ROW || id == TEXT_SCALE_ROW || id == HIGH_CONTRAST_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
                 || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == UNRATED_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
@@ -2020,6 +2039,7 @@ final class LiveSettings {
             case KEEP_SHOW_ROW: values = LiveOptions.KEEP_SHOW; now = LiveOptions.keepPerShow(c); labels = null; break;
             case HISTORY_ROW: values = LiveOptions.HISTORY_MAX; now = LiveOptions.historyMax(c); labels = null; break;
             case OPACITY_ROW: values = LiveOptions.PANEL_OPACITY; now = LiveOptions.panelOpacity(c); labels = null; break;
+            case TEXT_SCALE_ROW: values = LiveOptions.TEXT_SCALES; now = LiveOptions.textScale(c); labels = null; break;
             case AGE_ROW: values = LiveOptions.AGE_LOCKS; now = LiveOptions.ageLock(c); labels = null; break;
             case KIDS_LIMIT_ROW: values = LiveFamily.LIMITS; now = LiveFamily.limit(c); labels = null; break;
             case KIDS_BEDTIME_ROW: values = LiveFamily.BEDTIMES; now = LiveFamily.bedtime(c); labels = null; break;
@@ -2075,6 +2095,7 @@ final class LiveSettings {
                     LiveOptions.setPanelOpacity(c, values[i]);
                     opacity = LiveOptions.panelOpacity(c);
                     break;
+                case TEXT_SCALE_ROW: textScale(values[i]); return;
                 case KIDS_LIMIT_ROW: { final int v = values[i]; family(() -> LiveFamily.setLimit(context(), v)); return; }
                 case KIDS_BEDTIME_ROW: { final int v = values[i]; family(() -> LiveFamily.setBedtime(context(), v)); return; }
                 case KIDS_AGE_ROW: { final int v = values[i]; family(() -> LiveFamily.setKidsAge(context(), v)); return; }
@@ -2146,6 +2167,7 @@ final class LiveSettings {
             case KEEP_DAYS_ROW: return v == 0 ? Ui.tr("Desligado", "Off") : v + " " + Ui.tr("dias", "days");
             case KEEP_SHOW_ROW: return v == 0 ? Ui.tr("Todas", "All") : String.valueOf(v);
             case OPACITY_ROW: return v >= 100 ? Ui.tr("Sólido", "Solid") : v + "%";
+            case TEXT_SCALE_ROW: return v >= 130 ? Ui.tr("Maior", "Larger") : v >= 115 ? Ui.tr("Grande", "Large") : Ui.tr("Normal", "Normal");
             case AGE_ROW: return v <= 0 ? Ui.tr("Desligado", "Off") : v + "+";
             case KIDS_LIMIT_ROW:
                 if (v <= 0) return Ui.tr("Sem limite", "No limit");
@@ -2452,6 +2474,16 @@ final class LiveSettings {
                 announce();
                 return;
             }
+            case TEXT_SCALE_ROW: textScale(LiveOptions.step(LiveOptions.TEXT_SCALES, LiveOptions.textScale(c), dir)); return;
+            case HIGH_CONTRAST_ROW: {
+                boolean on = !LiveOptions.highContrast(c);
+                LiveOptions.setHighContrast(c, on);
+                LiveTheme.contrast(on);
+                view.themeChanged();
+                view.restyle();
+                announce();
+                return;
+            }
             case OPACITY_ROW:
                 LiveOptions.setPanelOpacity(c, LiveOptions.step(LiveOptions.PANEL_OPACITY, LiveOptions.panelOpacity(c), dir));
                 opacity = LiveOptions.panelOpacity(c);
@@ -2716,6 +2748,7 @@ final class LiveSettings {
             case RECORD_DRIVE_ROW:
             case VOICE_ROW:
             case VOICE_COMMANDS_ROW:
+            case HIGH_CONTRAST_ROW:
             case UNRATED_ROW:
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:
@@ -2763,6 +2796,7 @@ final class LiveSettings {
             case MORNING_ROW:
             case LATE_ROW:
             case OPACITY_ROW:
+            case TEXT_SCALE_ROW:
             case HISTORY_ROW:
             case CC_ON_ROW:
             case CC_SIZE_ROW:
@@ -3027,6 +3061,6 @@ final class LiveSettings {
     /** TalkBack reads the focused row and its value. */
     private void announce() {
         if (count() == 0 || screen == MAIN || screen == CHECK || screen == GUIDE_PAGE || screen == GALLERY) return;
-        view.announceForAccessibility(label(focus) + ", " + value(focus));
+        LiveSpeech.say(view, label(focus) + ", " + value(focus));
     }
 }

@@ -120,7 +120,7 @@ final class LiveRail {
                     focus = to;
                     first = window(focus, list.size(), VISIBLE, first);
                     Xtream.Channel ch = list.get(focus);
-                    view.announceForAccessibility((ch.num > 0 ? ch.num + " " : "") + ch.name);
+                    LiveSpeech.say(view, view.spoken(ch));
                 }
                 return true;
             }
@@ -130,7 +130,7 @@ final class LiveRail {
                 if (to != filter) {
                     filter = to;
                     focusPlaying();
-                    view.announceForAccessibility(names.get(filter));
+                    LiveSpeech.say(view, names.get(filter));
                 }
                 return true;
             }

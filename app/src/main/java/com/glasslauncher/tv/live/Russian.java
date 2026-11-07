@@ -458,6 +458,18 @@ final class Russian {
             case "Shows rated this age or older ask for the PIN: the guide's rating, else TMDB's.": return "Передачи с этим рейтингом или выше требуют PIN: рейтинг из программы, иначе из TMDB.";
             case "Without a TMDB token (Home's Settings), only the guide's.": return "Без токена TMDB (настройки главного экрана) — только из программы.";
             case "Shows neither the guide nor TMDB rates. Off, they play.": return "Те, что не оценены ни программой, ни TMDB. Выключено — они идут.";
+            case "Text size": return "Размер текста";
+            case "High contrast": return "Высокий контраст";
+            case "All of Live TV's text, larger: Live TV opens again with it.": return "Весь текст эфира крупнее: эфир откроется заново.";
+            case "Over any design: black and solid, white edges, a yellow focus. As Home's until it's chosen here.": return "Поверх любого дизайна: чёрный и сплошной, белые края, жёлтый фокус. Как на главном экране, пока не выбрано здесь.";
+            case "Live TV opens again at the new size": return "Эфир откроется заново с новым размером";
+            case "Larger": return "Крупнее";
+            case "now: ": return "сейчас: ";
+            case "favorite": return "избранное";
+            case "on now": return "идёт сейчас";
+            case "reminder set": return "напоминание поставлено";
+            case "recording set": return "запись запланирована";
+            case "Space": return "Пробел";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

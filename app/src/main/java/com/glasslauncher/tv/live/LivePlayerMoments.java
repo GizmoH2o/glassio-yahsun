@@ -70,14 +70,14 @@ final class LivePlayerMoments {
         slide.snap(0);
         slide.target = 1;
         open = true;
-        view.announceForAccessibility(locked ? Ui.tr("Mostrar momentos", "Show moments") : label(0));
+        LiveSpeech.say(view, locked ? Ui.tr("Mostrar momentos", "Show moments") : label(0));
         view.invalidate();
     }
 
     /** The moments themselves, now they've been asked for. */
     void unlock() {
         locked = false;
-        view.announceForAccessibility(label(0));
+        LiveSpeech.say(view, label(0));
         view.invalidate();
     }
 
@@ -116,7 +116,7 @@ final class LivePlayerMoments {
                 first = LiveRail.window(focus, match.moments.size(), TILES, first);
                 grow.snap(0);
                 grow.target = 1;
-                view.announceForAccessibility(label(focus));
+                LiveSpeech.say(view, label(focus));
                 view.invalidate();
                 return true;
             }
