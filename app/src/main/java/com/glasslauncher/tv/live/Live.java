@@ -351,6 +351,9 @@ public class Live extends Activity {
                 android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         main.removeCallbacks(ratingWatch);
         main.postDelayed(ratingWatch, 15_000);
+        main.removeCallbacks(familyWatch);
+        familyLast = 0;
+        main.postDelayed(familyWatch, 15_000);
         main.removeCallbacks(streamWatch);
         main.postDelayed(streamWatch, WATCH_MS);
         openedAt = android.os.SystemClock.uptimeMillis();
@@ -497,6 +500,9 @@ public class Live extends Activity {
         }
         sayWatching(null);
         main.removeCallbacks(ratingWatch);
+        main.removeCallbacks(familyWatch);
+        familyTick();       // the last seconds watched count too
+        familyLast = 0;
         main.removeCallbacks(streamWatch);
         if (shift != null && playing != null) {      // the pause ends with the screen: live again next time
             endShift();
@@ -539,6 +545,14 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.hasExtra("familykids")) familyKidsTest = i.getBooleanExtra("familykids", false);     // Family Mode as if Kids
+            if (i.hasExtra("familylimit")) LiveFamily.setLimit(Live.this, i.getIntExtra("familylimit", 0));
+            if (i.hasExtra("familybed")) LiveFamily.setBedtime(Live.this, i.getIntExtra("familybed", 0));
+            if (i.hasExtra("familyused")) {     // Family Mode: the profile watching has watched that many minutes today
+                testFamilyUsed(i.getIntExtra("familyused", 0));
+                return;
+            }
+            if (i.hasExtra("familykids") || i.hasExtra("familylimit") || i.hasExtra("familybed")) return;
             if (i.hasExtra("countries")) {      // logs which channels have a country and which don't (tag LiveCountry)
                 if (lineup != null) TestHook.countries(Live.this, lineup);
                 return;
@@ -843,7 +857,7 @@ public class Live extends Activity {
         XmltvStore.matchNames(this, l);         // channels with no guide, by exactly their name
         if (LiveOptions.hideNoGuide(this)) LiveGroups.onlyGuided(l, XmltvStore.guided(this));
         applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
-        if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(l);     // a Kids profile: the children's channels only
+        if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(this, l);     // a Kids profile: the children's channels only
         lineup = l;
         SharedPreferences p = prefs();
         int last = p.getInt("channel", -1);
@@ -1083,6 +1097,7 @@ public class Live extends Activity {
             return;
         }
         if (!copying) copiesTried.clear();
+        if (familyBlocks(() -> play(ch))) return;
         if (locked(ch) || ratedLocked(onNowOf(ch))) {
             view.askPin(() -> { unlocked = true; play(ch); }, () -> { if (playing == null) view.openGuide(); });
             return;
@@ -1507,6 +1522,7 @@ public class Live extends Activity {
     boolean ratedLocked(Xtream.Program p) {
         if (unlocked || p == null) return false;
         int age = LiveOptions.ageLock(this);
+        if (LiveFamily.kidsAge(this) > 0 && LiveProfiles.kids(this)) age = LiveFamily.kidsAge(this);     // a Kids profile's own
         if (age <= 0 || !LiveOptions.hasPin(this)) return false;
         int rated = LiveTmdb.age(this, p);
         return rated >= age;
@@ -1536,6 +1552,124 @@ public class Live extends Activity {
         }
     };
     private boolean askingRating;
+
+    // MARK: - Family Mode (LiveFamily): a Kids profile's daily limit and bedtime
+
+    /** When the last tick counted watching (0: it wasn't); whether the 5-minute card showed; whether Time's up shows. */
+    private long familyLast;
+    private boolean familyWarned, familyAsking;
+    /** What a Kids profile asked to watch when Time's up showed (null: what was on). */
+    private Runnable familyAgain;
+
+    private final Runnable familyWatch = new Runnable() {
+        @Override public void run() {
+            familyTick();
+            main.postDelayed(this, 15_000);
+        }
+    };
+
+    private boolean familyApplies() {
+        return LiveFamily.on(this) && (LiveProfiles.kids(this) || familyKidsTest);
+    }
+
+    /** The test hook's: the profile watching counts as a Kids one, until Live TV's process ends (nothing kept). */
+    private static boolean familyKidsTest;
+
+    /** Every 15 s: a Kids profile's watching counted, then the 5-minute card, or Time's up. */
+    private void familyTick() {
+        if (!familyApplies()) {
+            familyLast = 0;
+            return;
+        }
+        long now = System.currentTimeMillis();
+        String id = LiveProfiles.active(this).id;
+        boolean watching = player != null && player.isPlaying() && !familyAsking;
+        if (watching) LiveFamily.add(this, id, now, LiveFamily.tick(familyLast, now));
+        familyLast = watching ? now : 0;
+        if (familyAsking || isFinishing()) return;
+        int why = LiveFamily.stopNow(this, id, now);
+        if (why != LiveFamily.NONE) {
+            if (playing != null || watching) {
+                familyAgain = null;     // what's on stops: it carries on with more time
+                timesUp(why);
+            }
+            return;
+        }
+        long left = LiveFamily.leftNow(this, id, now);
+        if (watching && LiveFamily.warnNow(left, familyWarned)) {
+            familyWarned = true;
+            long mins = Math.max(1, Math.round(left / 60_000.0));
+            boolean bed = LiveFamily.nextStop(this, id, now) == LiveFamily.BEDTIME;
+            view.card(mins + Ui.tr(" min restantes", " min left"),
+                    bed ? Ui.tr("Depois é hora de dormir.", "Then it's bedtime.") : Ui.tr("Depois a TV ao vivo para por hoje.", "Then Live TV stops for today."));
+        }
+        if (left > LiveFamily.WARN_MS) familyWarned = false;
+    }
+
+    /** Whether a Kids profile can't watch now (Time's up shows). */
+    private boolean familyBlocks(Runnable again) {
+        if (!familyApplies()) return false;
+        familyAgain = again;        // what was asked for, played if time is given
+        if (familyAsking) return true;
+        int why = LiveFamily.stopNow(this, LiveProfiles.active(this).id, System.currentTimeMillis());
+        if (why == LiveFamily.NONE) return false;
+        timesUp(why);
+        return true;
+    }
+
+    /** Watching stops: why, then 30 minutes more or another profile (each with the parents' PIN), or the home screen. */
+    private void timesUp(int why) {
+        familyAsking = true;
+        if (player != null) player.stop();
+        boolean bed = why == LiveFamily.BEDTIME;
+        String head = bed ? Ui.tr("Hora de dormir", "It's bedtime") : Ui.tr("Acabou o tempo de hoje", "That's all for today");
+        String back = bed ? Ui.tr("A TV ao vivo volta às ", "Live TV is back at ") + Ui.time(wakeAt()) + "."
+                : Ui.tr("A TV ao vivo volta amanhã.", "Live TV is back tomorrow.");
+        CharSequence[] items = {Ui.tr("Mais 30 minutos", "30 more minutes"), Ui.tr("Trocar de perfil", "Switch profile"),
+                Ui.tr("Voltar ao Início", "Back to Home")};
+        LiveSheet.menu(this)
+                .setTitle(head)
+                .setMessage(back + "  " + Ui.tr("Mais tempo e outro perfil pedem o PIN.", "More time and another profile need the PIN."))
+                .setItems(items, (d, which) -> {
+                    if (which == 0) {
+                        Runnable more = () -> {
+                            LiveFamily.more(this, LiveProfiles.active(this).id, System.currentTimeMillis());
+                            familyAsking = false;
+                            familyWarned = false;
+                            Runnable again = familyAgain;
+                            familyAgain = null;
+                            if (again != null) again.run();
+                            else if (playing != null) resume();
+                        };
+                        if (LiveOptions.hasPin(this)) view.askPin(more, () -> timesUp(why));
+                        else more.run();
+                    } else if (which == 1) {
+                        familyAsking = false;       // a profile with time left plays; this one asks again
+                        view.openProfiles();
+                    } else {
+                        finish();
+                    }
+                })
+                .setOnCancelListener(d -> finish())
+                .show();
+    }
+
+    /** Today's or tomorrow's 7 am. */
+    private static long wakeAt() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        if (c.get(java.util.Calendar.HOUR_OF_DAY) >= LiveFamily.WAKE) c.add(java.util.Calendar.DAY_OF_MONTH, 1);
+        c.set(java.util.Calendar.HOUR_OF_DAY, LiveFamily.WAKE);
+        c.set(java.util.Calendar.MINUTE, 0);
+        return c.getTimeInMillis();
+    }
+
+    /** The test hook: today's time watched by the profile watching becomes `minutes`, then the check. */
+    void testFamilyUsed(int minutes) {
+        LiveFamily.setUsed(this, LiveProfiles.active(this).id, System.currentTimeMillis(), minutes * 60_000L);
+        LiveFamily.endGrace(this, LiveProfiles.active(this).id);
+        familyWarned = false;
+        familyTick();
+    }
 
     /** The PIN was typed (in the settings): locked categories play until Live TV leaves the screen. */
     void unlock() {
@@ -1895,6 +2029,7 @@ public class Live extends Activity {
 
     /** Plays past program `p` of `ch` from `from` (ms into it). */
     void playCatchup(Xtream.Channel ch, Xtream.Program p, long from) {
+        if (familyBlocks(() -> playCatchup(ch, p, from))) return;
         if (locked(ch) || ratedLocked(p)) {
             view.askPin(() -> { unlocked = true; playCatchup(ch, p, from); }, null);
             return;
@@ -2035,6 +2170,7 @@ public class Live extends Activity {
         Xtream.Channel ch = find(r.ch.id);
         if (ch == null) ch = r.ch;      // a channel the provider no longer has: its recording still plays
         final Xtream.Channel channel = ch;
+        if (familyBlocks(() -> playRecording(r))) return;
         if (locked(channel)) {
             view.askPin(() -> { unlocked = true; playRecording(r); }, null);
             return;

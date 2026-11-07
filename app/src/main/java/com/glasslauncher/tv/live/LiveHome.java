@@ -76,7 +76,7 @@ public final class LiveHome {
         Picker out = new Picker();
         Xtream.Lineup l = Xtream.saved(c);
         if (l == null) return out;
-        if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(l);
+        if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(c, l);
         Set<String> hidden = LiveOptions.hidden(c);
         for (int i = 1; i < l.categories.size(); i++) {
             Xtream.Category cg = l.categories.get(i);
@@ -1028,7 +1028,7 @@ public final class LiveHome {
             long at = Xtream.listFile(c).lastModified();
             if (miniLineup == null || miniLineupAt != at) {
                 miniLineup = Xtream.saved(c);
-                if (miniLineup != null && LiveProfiles.kids(c)) miniLineup = LiveProfiles.kidsOnly(miniLineup);
+                if (miniLineup != null && LiveProfiles.kids(c)) miniLineup = LiveProfiles.kidsOnly(c, miniLineup);
                 miniLineupAt = at;
             }
             l = miniLineup;
@@ -1055,7 +1055,7 @@ public final class LiveHome {
      */
     public static Mini miniFor(Context c, int channel) {
         Xtream.Lineup l = Xtream.saved(c);
-        if (l != null && LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(l);
+        if (l != null && LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(c, l);
         Xtream.Channel ch = l == null ? null : l.find(channel);
         if (ch == null || LiveOptions.isLockedAnyProcess(c, ch.category)) return null;
         return miniOf(c, l, ch);

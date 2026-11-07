@@ -2008,7 +2008,7 @@ final class LiveView extends View {
         List<Xtream.Program> progs = on == null ? null : programs(on);
         int at = progs == null ? -1 : programAt(progs, System.currentTimeMillis());
         LiveSheet.menu(getContext())
-                .setTitle(on == null ? Ui.tr("TV ao vivo", "Live TV") : (on.num > 0 ? on.num + "  " : "") + on.name)
+                .setTitle(on == null ? Ui.tr("TV ao vivo", "Live TV") : numberAndName(on, "  "))
                 .setMessage(at >= 0 ? progs.get(at).title : "")
                 .setIcons("home", "tv", "search", "list", "history", "profiles", "recordings", "guide", "multiview", "bedtime", "settings", "exit")
                 .setItems(items, (d, which) -> {
@@ -5784,6 +5784,27 @@ final class LiveView extends View {
         labels.add(Ui.tr("Logo", "Logo"));
         icons.add("tv");
         acts.add(() -> logoMenu(channel));
+        if (!LiveProfiles.kids(c) && LiveProfiles.anyKids(c)) {        // Family Mode: the parents' say on Kids profiles
+            final boolean hidden = LiveFamily.hidden(c).contains(channel.id), allowed = LiveFamily.allowed(c).contains(channel.id);
+            final boolean byWords = lineup != null && LiveProfiles.kidsByWords(lineup, channel);
+            labels.add(hidden ? Ui.tr("Mostrar nos perfis Kids", "Show on Kids profiles")
+                    : allowed ? Ui.tr("Tirar dos perfis Kids", "Take off Kids profiles")
+                    : byWords ? Ui.tr("Esconder dos perfis Kids", "Hide from Kids profiles")
+                    : Ui.tr("Permitir nos perfis Kids", "Allow on Kids profiles"));
+            icons.add("kids");
+            acts.add(() -> {
+                Runnable change = () -> {
+                    if (hidden) LiveFamily.setHidden(c, channel.id, false);
+                    else if (allowed) LiveFamily.setAllowed(c, channel.id, false);
+                    else if (byWords) LiveFamily.setHidden(c, channel.id, true);
+                    else LiveFamily.setAllowed(c, channel.id, true);
+                    boolean sees = hidden || allowed ? byWords : !byWords;       // what Kids profiles see now
+                    flash(sees ? Ui.tr("Agora nos perfis Kids", "Now on Kids profiles") : Ui.tr("Fora dos perfis Kids", "Not on Kids profiles"));
+                };
+                if (LiveOptions.hasPin(c) && !live.isUnlocked()) askPin(() -> { live.unlock(); change.run(); }, null);
+                else change.run();
+            });
+        }
         if (inHistory) {
             labels.add(Ui.tr("Tirar do Histórico", "Remove from History"));
             icons.add("delete");

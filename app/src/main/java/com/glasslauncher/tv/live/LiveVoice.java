@@ -292,7 +292,7 @@ final class LiveVoice {
         if (cached == null || cachedAt != at) {
             Xtream.Lineup l = Xtream.saved(c);
             if (l == null) return null;
-            if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(l);
+            if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(c, l);
             cached = new Catalog(l, Xtream.recent(c));
             cachedAt = at;
         }

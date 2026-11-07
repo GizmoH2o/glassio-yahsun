@@ -129,7 +129,15 @@ final class LiveProfiles {
      * The list as a Kids profile sees it: its favorites, then the children's channels (by their names or their
      * groups') in "All channels" and in each group that has any.
      */
-    static Xtream.Lineup kidsOnly(Xtream.Lineup l) {
+    static Xtream.Lineup kidsOnly(Context c, Xtream.Lineup l) {
+        return kidsOnly(l, LiveFamily.allowed(c), LiveFamily.hidden(c));
+    }
+
+    /**
+     * As kidsOnly, with the parents' own say (the channel menu, LiveFamily): `allow` joins whatever its name, `hide` goes
+     * whatever its name (and wins). Pure.
+     */
+    static Xtream.Lineup kidsOnly(Xtream.Lineup l, java.util.Set<Integer> allow, java.util.Set<Integer> hide) {
         Xtream.Lineup out = new Xtream.Lineup();
         out.at = l.at;
         out.version = l.version;
@@ -141,7 +149,8 @@ final class LiveProfiles {
             keep.id = cg.id;
             keep.name = cg.name;
             for (Xtream.Channel ch : cg.channels) {
-                if (i == 0 || groupIsKids || isKids(ch.name) || isKids(groupName(l, ch))) keep.channels.add(ch);
+                if (hide.contains(ch.id)) continue;
+                if (i == 0 || allow.contains(ch.id) || groupIsKids || isKids(ch.name) || isKids(groupName(l, ch))) keep.channels.add(ch);
             }
             if (i <= 1 || !keep.channels.isEmpty()) out.categories.add(keep);      // Favorites and All always
         }
@@ -152,6 +161,17 @@ final class LiveProfiles {
             if (kept.contains(e.getValue())) out.byId.put(e.getKey(), e.getValue());
         }
         return out;
+    }
+
+    /** Whether any profile is a Kids one. */
+    static boolean anyKids(Context c) {
+        for (Profile p : all(c)) if (p.kids) return true;
+        return false;
+    }
+
+    /** Whether the word list alone puts `ch` on Kids profiles (its name or its group's). */
+    static boolean kidsByWords(Xtream.Lineup l, Xtream.Channel ch) {
+        return isKids(ch.name) || isKids(groupName(l, ch));
     }
 
     private static String groupName(Xtream.Lineup l, Xtream.Channel ch) {

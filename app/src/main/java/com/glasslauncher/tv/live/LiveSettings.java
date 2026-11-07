@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -104,7 +104,7 @@ final class LiveSettings {
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
-            {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, RESET_ROW},
+            {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, KIDS_LIMIT_ROW, KIDS_BEDTIME_ROW, KIDS_AGE_ROW, RESET_ROW},
             {},
             {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW}};
 
@@ -478,6 +478,9 @@ final class LiveSettings {
             case PIN_ROW: return Ui.tr("PIN dos pais", "Parental PIN");
             case LOCKED_ROW: return Ui.tr("Categorias bloqueadas", "Locked categories");
             case AGE_ROW: return Ui.tr("Bloquear programas para maiores de", "Lock shows rated");
+            case KIDS_LIMIT_ROW: return Ui.tr("Tempo por dia nos perfis Kids", "Kids profiles' time a day");
+            case KIDS_BEDTIME_ROW: return Ui.tr("Hora de dormir nos perfis Kids", "Kids profiles' bedtime");
+            case KIDS_AGE_ROW: return Ui.tr("Classificação nos perfis Kids", "Kids profiles' age rating");
             default: return Ui.tr("Sair da conta", "Sign out");
         }
     }
@@ -729,6 +732,9 @@ final class LiveSettings {
                 int age = LiveOptions.ageLock(c);
                 return age <= 0 ? Ui.tr("Desligado", "Off") : age + "+";
             }
+            case KIDS_LIMIT_ROW: return numberName(KIDS_LIMIT_ROW, LiveFamily.limit(c));
+            case KIDS_BEDTIME_ROW: return numberName(KIDS_BEDTIME_ROW, LiveFamily.bedtime(c));
+            case KIDS_AGE_ROW: return numberName(KIDS_AGE_ROW, LiveFamily.kidsAge(c));
             case FOLLOW_ROW: {
                 List<String> f = LiveFollow.all(c);
                 return f.isEmpty() ? Ui.tr("Nada", "Nothing") : f.size() == 1 ? f.get(0) : f.get(0) + " +" + (f.size() - 1);
@@ -802,6 +808,22 @@ final class LiveSettings {
         else view.askNewPin(lock);
     }
 
+    /**
+     * A Family Mode setting changes only with the parents' PIN, so a Kids profile can't change its own (one set first
+     * when there's none).
+     */
+    private void family(Runnable change) {
+        Runnable done = () -> {
+            change.run();
+            announce();
+            view.invalidate();
+        };
+        android.content.Context c = context();
+        if (!LiveOptions.hasPin(c)) view.askNewPin(done);
+        else if (!live.isUnlocked()) view.askPin(() -> { live.unlock(); done.run(); }, null);
+        else done.run();
+    }
+
     private boolean pickable(int id) {
         switch (id) {
             case STYLE_ROW: case MORNING_ROW: case NIGHT_ROW: case LATE_ROW: case CUSTOM_LAYOUT_ROW: case CUSTOM_BG_ROW:
@@ -809,6 +831,7 @@ final class LiveSettings {
             case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_HOURS_ROW:
             case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW: case CHANNEL_MARK_ROW:
             case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW:
+            case KIDS_LIMIT_ROW: case KIDS_BEDTIME_ROW: case KIDS_AGE_ROW:
             case RECORD_EARLY_ROW: case RECORD_LATE_ROW: case KEEP_DAYS_ROW: case KEEP_SHOW_ROW:
             case GUIDE_SHIFT_ROW:
                 return true;
@@ -1065,6 +1088,12 @@ final class LiveSettings {
                     case PIN_ROW: return Ui.tr("Um PIN para as categorias bloqueadas.", "A PIN for the locked categories.");
                     case AGE_ROW: return Ui.tr("Programas com essa classificação ou mais pedem o PIN (as classificações do guia completo).",
                             "Shows rated this age or older ask for the PIN (from your full guide's ratings).");
+                    case KIDS_LIMIT_ROW: return Ui.tr("Quanto de TV ao vivo cada perfil Kids assiste por dia. Mais tempo pede o PIN.",
+                            "How much Live TV each Kids profile watches a day. More time needs the PIN.");
+                    case KIDS_BEDTIME_ROW: return Ui.tr("A TV ao vivo para nessa hora nos perfis Kids e volta às 7h.",
+                            "Live TV stops at this time on Kids profiles and comes back at 7 am.");
+                    case KIDS_AGE_ROW: return Ui.tr("Nos perfis Kids, programas com essa classificação ou mais pedem o PIN.",
+                            "On Kids profiles, shows rated this age or older ask for the PIN.");
                     case LOCKED_ROW: return LiveOptions.hasPin(context()) ? Ui.tr("Categorias que pedem o PIN.", "Categories that ask for the PIN.")
                             : Ui.tr("Primeiro ligue o PIN dos pais.", "Turn on the parental PIN first.");
                     default: return Ui.tr("Os canais somem até você entrar de novo.", "The channels go away until you sign in again.");
@@ -1665,7 +1694,7 @@ final class LiveSettings {
                 || id == KEEP_PAST_ROW || id == BREAKS_ROW || id == BREAKS_AUTO_ROW || id == PREVIEW_CHANNEL_ROW || id == MULTI_CHIP_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
-                || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
+                || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
                 || id == COUNTRY_ROW || id == VOICE_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
@@ -1980,6 +2009,9 @@ final class LiveSettings {
             case HISTORY_ROW: values = LiveOptions.HISTORY_MAX; now = LiveOptions.historyMax(c); labels = null; break;
             case OPACITY_ROW: values = LiveOptions.PANEL_OPACITY; now = LiveOptions.panelOpacity(c); labels = null; break;
             case AGE_ROW: values = LiveOptions.AGE_LOCKS; now = LiveOptions.ageLock(c); labels = null; break;
+            case KIDS_LIMIT_ROW: values = LiveFamily.LIMITS; now = LiveFamily.limit(c); labels = null; break;
+            case KIDS_BEDTIME_ROW: values = LiveFamily.BEDTIMES; now = LiveFamily.bedtime(c); labels = null; break;
+            case KIDS_AGE_ROW: values = LiveFamily.KIDS_AGES; now = LiveFamily.kidsAge(c); labels = null; break;
             default:
                 return false;
         }
@@ -2031,6 +2063,9 @@ final class LiveSettings {
                     LiveOptions.setPanelOpacity(c, values[i]);
                     opacity = LiveOptions.panelOpacity(c);
                     break;
+                case KIDS_LIMIT_ROW: { final int v = values[i]; family(() -> LiveFamily.setLimit(context(), v)); return; }
+                case KIDS_BEDTIME_ROW: { final int v = values[i]; family(() -> LiveFamily.setBedtime(context(), v)); return; }
+                case KIDS_AGE_ROW: { final int v = values[i]; family(() -> LiveFamily.setKidsAge(context(), v)); return; }
                 default: {      // AGE_ROW: a lock needs the parents' PIN; set one first when there's none
                     final int age = values[i];
                     if (age > 0 && !LiveOptions.hasPin(c)) {
@@ -2100,6 +2135,17 @@ final class LiveSettings {
             case KEEP_SHOW_ROW: return v == 0 ? Ui.tr("Todas", "All") : String.valueOf(v);
             case OPACITY_ROW: return v >= 100 ? Ui.tr("Sólido", "Solid") : v + "%";
             case AGE_ROW: return v <= 0 ? Ui.tr("Desligado", "Off") : v + "+";
+            case KIDS_LIMIT_ROW:
+                if (v <= 0) return Ui.tr("Sem limite", "No limit");
+                return v < 60 ? v + " min" : v % 60 == 0 ? v / 60 + " h" : v / 60 + " h " + v % 60 + " min";
+            case KIDS_BEDTIME_ROW: {
+                if (v <= 0) return Ui.tr("Desligado", "Off");
+                java.util.Calendar at = java.util.Calendar.getInstance();
+                at.set(java.util.Calendar.HOUR_OF_DAY, v);
+                at.set(java.util.Calendar.MINUTE, 0);
+                return Ui.time(at.getTimeInMillis());
+            }
+            case KIDS_AGE_ROW: return v <= 0 ? Ui.tr("Como o perfil principal", "As the main lock") : v + "+";
             default: return String.valueOf(v);
         }
     }
@@ -2474,6 +2520,9 @@ final class LiveSettings {
                 if (LiveOptions.scores(c)) LiveOptions.setRedCardAlerts(c, !LiveOptions.redCardAlerts(c));
                 announce();
                 return;
+            case KIDS_LIMIT_ROW: { final int v = LiveOptions.step(LiveFamily.LIMITS, LiveFamily.limit(c), dir); family(() -> LiveFamily.setLimit(context(), v)); return; }
+            case KIDS_BEDTIME_ROW: { final int v = LiveOptions.step(LiveFamily.BEDTIMES, LiveFamily.bedtime(c), dir); family(() -> LiveFamily.setBedtime(context(), v)); return; }
+            case KIDS_AGE_ROW: { final int v = LiveOptions.step(LiveFamily.KIDS_AGES, LiveFamily.kidsAge(c), dir); family(() -> LiveFamily.setKidsAge(context(), v)); return; }
             case AGE_ROW: {
                 final int age = LiveOptions.step(LiveOptions.AGE_LOCKS, LiveOptions.ageLock(c), dir);
                 if (age > 0 && !LiveOptions.hasPin(c)) {     // the lock needs a PIN: one now
@@ -2672,6 +2721,9 @@ final class LiveSettings {
             case RED_CARD_ROW:
             case GUIDE_SIZE_ROW:
             case AGE_ROW:
+            case KIDS_LIMIT_ROW:
+            case KIDS_BEDTIME_ROW:
+            case KIDS_AGE_ROW:
             case PREVIEW_ROW:
             case REMIND_LEAD_ROW:
             case RECORD_EARLY_ROW:

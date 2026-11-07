@@ -343,7 +343,7 @@ public class ReminderActivity extends Activity {
                 float tx = lx + lw + 24 * k, rw = b.right - 20 * k - tx;
                 rowName.setColor(on ? LiveTheme.ink : 0xFFF5F5F7);
                 rowMeta.setColor(on ? Ui.alpha(LiveTheme.ink, 0.75f) : 0xB3FFFFFF);
-                c.drawText(ellipsize((ch.num > 0 ? ch.num + "  " : "") + ch.name, rowName, rw), tx, b.top + 44 * k, rowName);
+                c.drawText(ellipsize((ch.num > 0 ? ch.num + "  " : "") + LiveCountry.named(getContext(), ch), rowName, rw), tx, b.top + 44 * k, rowName);
                 c.drawText(ellipsize(p.title, rowMeta, rw), tx, b.top + 78 * k, rowMeta);
             }
             String foot = loading ? Ui.tr("Procurando outros canais…", "Looking for other channels…")
@@ -439,7 +439,7 @@ public class ReminderActivity extends Activity {
             float tw = r.right - 32 * k - x;
             c.drawText(when.toUpperCase(Ui.locale()), x, r.top + 58 * k, small);
             c.drawText(ellipsize(item.title.isEmpty() ? item.ch.name : item.title, title, tw), x, r.top + 106 * k, title);
-            c.drawText(ellipsize((item.ch.num > 0 ? item.ch.num + "  " : "") + item.ch.name, meta, tw), x, r.top + 142 * k, meta);
+            c.drawText(ellipsize((item.ch.num > 0 ? item.ch.num + "  " : "") + LiveCountry.named(getContext(), item.ch), meta, tw), x, r.top + 142 * k, meta);
             // Watch, then Dismiss.
             float bw = 210 * k, bh = 60 * k, by = r.bottom - 32 * k - bh, bx = r.right - 32 * k - 2 * bw - 16 * k;
             drawButton(c, bx, by, bw, bh, countdown ? Ui.tr("Assistir já", "Watch now") : Ui.tr("Assistir", "Watch"), focusWatch);

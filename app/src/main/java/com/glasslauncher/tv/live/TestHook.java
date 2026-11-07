@@ -32,6 +32,11 @@ import android.content.IntentFilter;
  *                                                                    a plain picture behind everything, for captures
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez badsource true     Live TV (open):
  *                                                                    the source playing as if it kept failing (false: all forgotten)
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ei familyused 59      Live TV (open):
+ *                                                                    the profile watching has watched so many minutes today
+ *                                                                    (extra time over), then the check. With --ez familykids
+ *                                                                    true it counts as a Kids profile (until the process ends);
+ *                                                                    --ei familylimit MIN and --ei familybed HOUR set the rules
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez countries true     Live TV (open):
  *                                                                    which channels show a country, into live-countries.txt
  *                                                                    (Android/data/com.glassioyahsun.tv/files; names only)
