@@ -379,6 +379,18 @@ final class Spanish {
             case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Un aviso desde el minuto 80 con un gol de diferencia como mucho. OK va al partido.";
             case "Goals and close games show on Glassio's home screen too.": return "Los goles y partidos igualados también aparecen en el inicio de Glassio.";
             case "No alerts for a match being recorded, so they don't spoil it.": return "Sin avisos de un partido en grabación, para no arruinarlo.";
+            case "Picture in picture": return "Imagen en imagen";
+            case "My teams' live matches": return "Partidos en directo de mis equipos";
+            case "Save this view": return "Guardar esta vista";
+            case "Saved views": return "Vistas guardadas";
+            case "View saved": return "Vista guardada";
+            case "View deleted": return "Vista eliminada";
+            case "Those channels aren't in your list any more.": return "Esos canales ya no están en tu lista.";
+            case "Looking for matches…": return "Buscando partidos…";
+            case "None of your teams are playing now.": return "Ninguno de tus equipos juega ahora.";
+            case "More matches on than your provider allows.": return "Hay más partidos de los que permite tu proveedor.";
+            case "Multiview on the video chip": return "Multivista en el chip de vídeo";
+            case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Cada cuadro usa el chip de vídeo para un movimiento fluido. Desactívalo si la multivista se traba.";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -92,7 +92,7 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
+            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MULTI_CHIP_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
@@ -426,6 +426,7 @@ final class LiveSettings {
             case SCORES_ROW: return Ui.tr("Placar ao vivo", "Live scores");
             case SPOILER_GUARD_ROW: return Ui.tr("Esconder placar nas reprises", "Hide scores on catch-up");
             case UP_NEXT_ROW: return Ui.tr("Cartão A seguir", "Up next card");
+            case MULTI_CHIP_ROW: return Ui.tr("Multivisão no chip de vídeo", "Multiview on the video chip");
             case CLOSE_GAMES_ROW: return Ui.tr("Jogos apertados", "Close games");
             case ALERTS_HOME_ROW: return Ui.tr("Avisos na tela inicial", "Alerts on the home screen");
             case ALERTS_QUIET_ROW: return Ui.tr("Silêncio em jogos gravando", "Quiet for matches being recorded");
@@ -617,6 +618,7 @@ final class LiveSettings {
             case SCORES_ROW: return onOff(LiveOptions.scores(c));
             case SPOILER_GUARD_ROW: return onOff(LiveOptions.spoilerGuard(c));
             case UP_NEXT_ROW: return onOff(LiveOptions.upNextCard(c));
+            case MULTI_CHIP_ROW: return onOff(LiveOptions.multiviewHardware(c));
             case CLOSE_GAMES_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.closeGames(c)) : "—";
             case ALERTS_HOME_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.alertsOnHome(c)) : "—";
             case ALERTS_QUIET_ROW: return onOff(LiveOptions.alertsQuietRecording(c));
@@ -1012,6 +1014,8 @@ final class LiveSettings {
                             "A line at half-time and full-time of a team you follow, while Live TV is on.");
                     case RED_CARD_ROW: return Ui.tr("Uma linha quando há um cartão vermelho no jogo de um time que você segue, enquanto a TV ao vivo está aberta.",
                             "A line when there's a red card in a match of a team you follow, while Live TV is on.");
+                    case MULTI_CHIP_ROW: return Ui.tr("Todos os quadros usam o chip de vídeo, em movimento fluido. Desligue se a Multivisão travar.",
+                            "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.");
                     case CLOSE_GAMES_ROW: return Ui.tr("Um aviso a partir dos 80 minutos, com no máximo um gol de diferença. OK vai ao jogo.",
                             "A card from the 80th minute with one goal in it at most. OK goes to the match.");
                     case ALERTS_HOME_ROW: return Ui.tr("Gols e jogos apertados também aparecem na tela inicial do Glassio.",
@@ -1336,6 +1340,7 @@ final class LiveSettings {
             case MERGE_ROW: return LiveOptions.merge(c);
             case GUIDE_START_ROW: return LiveOptions.guideOnStart(c);
             case FULL_GUIDE_ROW: return LiveOptions.fullGuide(c);
+            case MULTI_CHIP_ROW: return LiveOptions.multiviewHardware(c);
             case CLOSE_GAMES_ROW: return LiveOptions.closeGames(c);
             case ALERTS_HOME_ROW: return LiveOptions.alertsOnHome(c);
             case ALERTS_QUIET_ROW: return LiveOptions.alertsQuietRecording(c);
@@ -1642,7 +1647,7 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
-                || id == KEEP_PAST_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
+                || id == KEEP_PAST_ROW || id == MULTI_CHIP_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
@@ -2299,6 +2304,7 @@ final class LiveSettings {
             case MERGE_ROW: LiveOptions.setMerge(c, !LiveOptions.merge(c)); live.relist(); announce(); return;
             case COUNTRY_ROW: LiveOptions.setCountryTags(c, !LiveOptions.countryTags(c)); view.invalidate(); announce(); return;
             case HIDE_NO_GUIDE_ROW: LiveOptions.setHideNoGuide(c, !LiveOptions.hideNoGuide(c)); live.relist(); announce(); return;
+            case MULTI_CHIP_ROW: LiveOptions.setMultiviewHardware(c, !LiveOptions.multiviewHardware(c)); announce(); return;
             case CLOSE_GAMES_ROW: LiveOptions.setCloseGames(c, !LiveOptions.closeGames(c)); announce(); return;
             case ALERTS_HOME_ROW: LiveOptions.setAlertsOnHome(c, !LiveOptions.alertsOnHome(c)); announce(); return;
             case ALERTS_QUIET_ROW: LiveOptions.setAlertsQuietRecording(c, !LiveOptions.alertsQuietRecording(c)); announce(); return;
@@ -2606,6 +2612,7 @@ final class LiveSettings {
             case COUNTRY_ROW:
             case HIDE_NO_GUIDE_ROW:
             case KEEP_PAST_ROW:
+            case MULTI_CHIP_ROW:
             case CLOSE_GAMES_ROW:
             case ALERTS_HOME_ROW:
             case ALERTS_QUIET_ROW:

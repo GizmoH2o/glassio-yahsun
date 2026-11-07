@@ -537,6 +537,11 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.hasExtra("multi")) {          // Multiview, with that channel number in its second box
+                multiSecond = i.getIntExtra("multi", -1);
+                openMultiview();
+                return;
+            }
             if (i.hasExtra("alertfor")) {       // a close-game card for that followed match, as it would come
                 LiveScores.Score s = LiveScores.get(Live.this).forTerm(Xtream.fold(i.getStringExtra("alertfor")));
                 if (s != null) scores.close(s);
@@ -1814,8 +1819,13 @@ public class Live extends Activity {
         releasePlayer();
         Intent i = new Intent(this, Multiview.class).putExtra(Multiview.EXTRA_UNLOCKED, unlocked);
         if (playing != null) i.putExtra(Multiview.EXTRA_CHANNEL, playing.id);
+        if (multiSecond >= 0) i.putExtra(Multiview.EXTRA_SECOND, multiSecond);
+        multiSecond = -1;
         startActivityForResult(i, MULTIVIEW);
     }
+
+    /** The test broadcast's second box, by channel number. */
+    private int multiSecond = -1;
 
     /** What voice search heard goes here (the search page). */
     private java.util.function.Consumer<String> heard;

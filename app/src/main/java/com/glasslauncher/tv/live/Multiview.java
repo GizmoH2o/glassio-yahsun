@@ -38,13 +38,15 @@ import java.util.concurrent.Executors;
 
 /**
  * Multiview (TiviMate's): two to four channels at once, in a grid (two side by side, one large and two small, or
- * two by two). The arrow keys move between the boxes; the focused one has the sound and a white frame. OK picks a
- * box's channel, the channel buttons change it, OK held (or Menu) offers full screen, removing it and the layout;
- * Back leaves, the focused channel full screen in Live TV. Never more boxes than the account may stream at once.
+ * two by two), or picture-in-picture. The arrow keys move between the boxes; the focused one has the sound and a white
+ * frame. OK picks a box's channel, the channel buttons change it, OK held (or Menu) offers full screen, removing it, the
+ * layout, saved views and a wall of your teams' live matches; Back leaves, the focused channel full screen in Live TV.
+ * Never more boxes than the account may stream at once.
  * Measurements in a 1920×1080 space (k = width / 1920).
  */
 public class Multiview extends Activity {
-    static final String EXTRA_CHANNEL = "com.glasslauncher.tv.live.extra.MULTI_CHANNEL", EXTRA_UNLOCKED = "com.glasslauncher.tv.live.extra.MULTI_UNLOCKED";
+    static final String EXTRA_CHANNEL = "com.glasslauncher.tv.live.extra.MULTI_CHANNEL", EXTRA_UNLOCKED = "com.glasslauncher.tv.live.extra.MULTI_UNLOCKED",
+            EXTRA_SECOND = "com.glasslauncher.tv.live.extra.MULTI_SECOND";
     /** The channel to play full screen when Multiview leaves (in the result). */
     static final String RESULT_CHANNEL = "com.glasslauncher.tv.live.extra.MULTI_RESULT";
 
@@ -56,6 +58,8 @@ public class Multiview extends Activity {
     private Xtream.Lineup lineup;
     private final List<Box> boxes = new ArrayList<>();
     private int layout = 2, focus, allowed = MAX_BOXES;
+    /** Picture-in-picture: two boxes, the second small over the first. */
+    private boolean pip;
     private boolean unlocked, okDown, okHeld;
 
     /** One box: its channel (null: empty), its player and surface, what it says (loading, an error). */
@@ -63,10 +67,14 @@ public class Multiview extends Activity {
         Xtream.Channel channel;
         ExoPlayer player;
         SurfaceView surface;
+        /** Its surface is above the others (picture-in-picture's small one). */
+        boolean over;
         String status = "";
         boolean tried;      // the other format, once
-        /** Its player has the TV's one hardware video decoder (the focused box's); else it decodes in software. */
+        /** Its player decodes on the video chip; else in software. */
         boolean hw;
+        /** The chip refused this box: software from then on. */
+        boolean refused;
         String format;
         Xtream.Program onNow;
     }
@@ -100,6 +108,8 @@ public class Multiview extends Activity {
                 layout = Math.max(1, Math.min(LiveTheme.cinema() ? 4 : 2, allowed));
                 Xtream.Channel ch = l == null ? null : l.find(first);
                 if (ch != null) setChannel(0, ch);
+                int second = getIntent().getIntExtra(EXTRA_SECOND, -1);     // the test broadcast's second box, by number
+                if (second >= 0 && l != null) for (Xtream.Channel c : l.all()) if (c.num == second) setChannel(1, c);
                 relayout();
             });
         });
@@ -123,8 +133,11 @@ public class Multiview extends Activity {
     // MARK: - The grid
 
     /** Box `i`'s place on screen (1920 space) in the current layout. */
-    private static void place(int layout, int i, RectF out) {
-        if (layout <= 1) {
+    private void place(int layout, int i, RectF out) {
+        if (pip) {
+            float[] at = LiveMultiRules.placePip(i);
+            out.set(at[0], at[1], at[2], at[3]);
+        } else if (layout <= 1) {
             out.set(160, 90, 1760, 990);
         } else if (layout == 2) {
             float w = 924, h = 520, y = 280;
@@ -160,8 +173,15 @@ public class Multiview extends Activity {
                 }
                 continue;
             }
+            boolean over = pip && i == 1;     // the small picture has to be above the big one
+            if (b.surface != null && b.over != over) {
+                root.removeView(b.surface);
+                b.surface = null;
+            }
             if (b.surface == null) {
                 b.surface = new SurfaceView(this);
+                b.over = over;
+                if (over) b.surface.setZOrderMediaOverlay(true);
                 root.addView(b.surface, 0, new FrameLayout.LayoutParams(1, 1, Gravity.TOP | Gravity.START));
                 if (b.player != null) b.player.setVideoSurfaceView(b.surface);
             }
@@ -189,6 +209,7 @@ public class Multiview extends Activity {
         stop(b);
         b.channel = ch;
         b.tried = false;
+        b.refused = false;
         String f = LiveOptions.format(this);
         b.format = !f.equals(LiveOptions.AUTO) ? f : lineup == null ? "ts" : lineup.format;
         b.onNow = null;
@@ -206,10 +227,11 @@ public class Multiview extends Activity {
     private void start(Box b) {
         if (b.channel == null || b.surface == null && boxes.indexOf(b) >= layout) return;
         if (b.player == null) {
-            // The TV runs one hardware video decoder at a time (a second one stalls, the first stutters): the
-            // focused box has it, the others decode in software (choppier: they're the ones without the sound).
-            b.hw = boxes.indexOf(b) == focus;
-            if (b.hw) {
+            // Every box on the video chip (two at 1080p50 run at full speed here; in software a box manages 7 fps).
+            // With the setting off, the focused box only, and it moves with the focus.
+            boolean allChip = LiveOptions.multiviewHardware(this);
+            b.hw = LiveMultiRules.hardware(allChip, b.refused, boxes.indexOf(b), focus);
+            if (b.hw && !allChip) {
                 for (Box o : boxes) {
                     if (o != b && o.player != null && o.hw) {     // it moves here: that one goes to software
                         stop(o);
@@ -285,6 +307,12 @@ public class Multiview extends Activity {
                     }
                     boolean decoder = e.errorCode >= PlaybackException.ERROR_CODE_DECODER_INIT_FAILED
                             && e.errorCode < PlaybackException.ERROR_CODE_AUDIO_TRACK_INIT_FAILED;
+                    if (decoder && box.hw && !box.refused) {      // the chip has no room for it: in software, then
+                        box.refused = true;
+                        stop(box);
+                        start(box);
+                        return;
+                    }
                     box.status = decoder ? Ui.tr("A TV não toca mais um ao mesmo tempo", "The TV can't play another one at once")
                             : Ui.tr("Não deu para tocar este canal", "Couldn't play this channel");
                     grid.invalidate();
@@ -530,9 +558,28 @@ public class Multiview extends Activity {
             labels.add(Ui.tr("Adicionar canal", "Add channel"));
             actions.add(() -> pick(focus));
         }
+        if (allowed >= 2 && !pip) {
+            labels.add(Ui.tr("Picture-in-picture", "Picture in picture"));
+            actions.add(() -> {
+                pip = true;
+                layout = 2;
+                relayout();
+            });
+        }
+        labels.add(Ui.tr("Jogos ao vivo dos meus times", "My teams' live matches"));
+        actions.add(this::wall);
+        if (filled() > 0) {
+            labels.add(Ui.tr("Salvar esta visão", "Save this view"));
+            actions.add(this::saveView);
+        }
+        final List<LiveMultiRules.View> saved = LiveMultiRules.parse(LiveOptions.multiViews(this));
+        if (!saved.isEmpty()) {
+            labels.add(Ui.tr("Visões salvas", "Saved views"));
+            actions.add(() -> views(saved));
+        }
         for (int n = 2; n <= MAX_BOXES; n++) {
             final int count = n;
-            if (n == layout) continue;
+            if (n == layout && !pip) continue;
             labels.add(n == 2 ? Ui.tr("2 lado a lado", "2 side by side") : n == 3 ? Ui.tr("3: um grande, dois pequenos", "3: one large, two small")
                     : Ui.tr("4 em grade", "4 in a grid"));
             actions.add(() -> {
@@ -541,6 +588,7 @@ public class Multiview extends Activity {
                             + Ui.tr(" canais ao mesmo tempo.", " streams at a time."));
                     return;
                 }
+                pip = false;
                 layout = count;
                 relayout();
             });
@@ -549,6 +597,109 @@ public class Multiview extends Activity {
                 .setTitle(b.channel == null ? Ui.tr("Multivisão", "Multiview") : b.channel.name)
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
                 .show();
+    }
+
+    private int filled() {
+        int n = 0;
+        for (int i = 0; i < layout; i++) if (boxes.get(i).channel != null) n++;
+        return n;
+    }
+
+    /** The channels on now, in order, as a view worth keeping. */
+    private void saveView() {
+        LiveMultiRules.View v = new LiveMultiRules.View();
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < layout; i++) {
+            Xtream.Channel ch = boxes.get(i).channel;
+            if (ch == null) continue;
+            v.channels.add(ch.id);
+            names.add(ch.name);
+        }
+        v.pip = pip;
+        v.name = LiveMultiRules.name(names);
+        LiveOptions.setMultiViews(this, LiveMultiRules.write(LiveMultiRules.add(LiveMultiRules.parse(LiveOptions.multiViews(this)), v)));
+        grid.say(Ui.tr("Visão salva", "View saved"));
+    }
+
+    private void views(List<LiveMultiRules.View> saved) {
+        String[] names = new String[saved.size()];
+        for (int i = 0; i < names.length; i++) names[i] = saved.get(i).name;
+        LiveSheet.menu(this)
+                .setTitle(Ui.tr("Visões salvas", "Saved views"))
+                .setItems(names, (d, which) -> viewMenu(saved, which))
+                .show();
+    }
+
+    private void viewMenu(List<LiveMultiRules.View> saved, int at) {
+        LiveMultiRules.View v = saved.get(at);
+        LiveSheet.menu(this)
+                .setTitle(v.name)
+                .setItems(new String[] {Ui.tr("Abrir", "Open"), Ui.tr("Apagar", "Delete")}, (d, which) -> {
+                    if (which == 0) {
+                        open(v);
+                    } else {
+                        LiveOptions.setMultiViews(this, LiveMultiRules.write(LiveMultiRules.remove(saved, at)));
+                        grid.say(Ui.tr("Visão apagada", "View deleted"));
+                    }
+                })
+                .show();
+    }
+
+    private void open(LiveMultiRules.View v) {
+        List<Xtream.Channel> list = new ArrayList<>();
+        for (int id : v.channels) {
+            Xtream.Channel ch = lineup.find(id);
+            if (ch != null) list.add(ch);
+        }
+        if (list.isEmpty()) {
+            grid.say(Ui.tr("Esses canais não estão mais na lista.", "Those channels aren't in your list any more."));
+            return;
+        }
+        fill(list, v.pip && list.size() == 2);
+    }
+
+    /** `list` in the boxes, as many as the account allows. */
+    private void fill(List<Xtream.Channel> list, boolean asPip) {
+        int count = Math.min(list.size(), allowed);
+        for (Box b : boxes) {
+            stop(b);
+            b.channel = null;
+            b.status = "";
+        }
+        pip = asPip;
+        layout = Math.max(1, count);
+        focus = 0;
+        relayout();
+        for (int i = 0; i < count; i++) setChannel(i, list.get(i));
+        sound();
+    }
+
+    /** The boxes filled with the matches of the teams you follow that are on now. */
+    private void wall() {
+        final Context app = getApplicationContext();
+        grid.say(Ui.tr("Procurando jogos…", "Looking for matches…"));
+        io.execute(() -> {
+            long now = System.currentTimeMillis();
+            List<Integer> on = new ArrayList<>();
+            for (Object[] o : LiveHome.airings(app, LiveFollow.all(app), now, 60_000, 12)) {
+                if (((Xtream.Program) o[1]).start <= now) on.add(((Xtream.Channel) o[0]).id);
+            }
+            main.post(() -> {
+                if (isFinishing()) return;
+                List<Integer> ids = LiveMultiRules.wall(on, allowed);
+                List<Xtream.Channel> list = new ArrayList<>();
+                for (int id : ids) {
+                    Xtream.Channel ch = lineup.find(id);
+                    if (ch != null && (unlocked || !locked(ch))) list.add(ch);
+                }
+                if (list.isEmpty()) {
+                    grid.say(Ui.tr("Nenhum dos seus times está jogando agora.", "None of your teams are playing now."));
+                    return;
+                }
+                fill(list, false);
+                if (on.size() > list.size()) grid.say(Ui.tr("Mais jogos no ar do que seu provedor permite.", "More matches on than your provider allows."));
+            });
+        });
     }
 
     // MARK: - Drawing: the frames, the labels, the focus
@@ -614,7 +765,7 @@ public class Multiview extends Activity {
                             : b.onNow == null ? b.channel.name : b.onNow.title;
                     c.drawText(ellipsize(line1, name, room), x, r.bottom - 48 * k, name);
                     c.drawText(ellipsize(line2, meta, room), x, r.bottom - 20 * k, meta);
-                    if (i == focus) {       // the box whose sound is playing
+                    if (i == focus && !(pip && i == 1)) {       // the box whose sound is playing
                         String on = Ui.tr("Com som", "Sound on");
                         float pw = pill.measureText(on) + 30 * k;
                         logo.set(r.left + 21 * k, r.top + 21 * k, r.left + 21 * k + pw, r.top + 21 * k + 42 * k);
@@ -634,7 +785,7 @@ public class Multiview extends Activity {
             String help = Ui.tr("OK escolhe o canal · segure OK: opções · Voltar: tela cheia",
                     "OK picks the channel · hold OK: options · Back: full screen");
             // At the foot: moving, and what OK does (only where there's room under the boxes).
-            if (layout >= 2) {
+            if (layout >= 2 && !pip) {
                 String moveHelp = Ui.tr("Mova para escolher  ·  O canal selecionado toca o som", "Move to choose  ·  The selected channel plays its sound");
                 float hy = 1040 * k;
                 float inset = layout == 4 ? 143 : 24;       // in line with the boxes

@@ -389,6 +389,18 @@ final class German {
             case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Ein Hinweis ab der 80. Minute bei höchstens einem Tor Unterschied. OK wechselt zum Spiel.";
             case "Goals and close games show on Glassio's home screen too.": return "Tore und enge Spiele erscheinen auch auf dem Glassio-Startbildschirm.";
             case "No alerts for a match being recorded, so they don't spoil it.": return "Keine Hinweise zu einem Spiel, das aufgenommen wird, damit nichts verraten wird.";
+            case "Picture in picture": return "Bild-in-Bild";
+            case "My teams' live matches": return "Live-Spiele meiner Teams";
+            case "Save this view": return "Diese Ansicht speichern";
+            case "Saved views": return "Gespeicherte Ansichten";
+            case "View saved": return "Ansicht gespeichert";
+            case "View deleted": return "Ansicht gelöscht";
+            case "Those channels aren't in your list any more.": return "Diese Sender sind nicht mehr in deiner Liste.";
+            case "Looking for matches…": return "Spiele werden gesucht…";
+            case "None of your teams are playing now.": return "Gerade spielt keines deiner Teams.";
+            case "More matches on than your provider allows.": return "Mehr Spiele laufen, als dein Anbieter erlaubt.";
+            case "Multiview on the video chip": return "Multiview auf dem Videochip";
+            case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Jedes Feld nutzt den Videochip für flüssige Bewegung. Schalte es aus, wenn Multiview ruckelt.";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

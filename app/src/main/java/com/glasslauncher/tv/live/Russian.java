@@ -388,6 +388,18 @@ final class Russian {
             case "A card from the 80th minute with one goal in it at most. OK goes to the match.": return "Оповещение с 80-й минуты при разнице не более мяча. OK переключает на матч.";
             case "Goals and close games show on Glassio's home screen too.": return "Голы и напряжённые матчи также показываются на главном экране Glassio.";
             case "No alerts for a match being recorded, so they don't spoil it.": return "Без оповещений о записываемом матче, чтобы не выдать результат.";
+            case "Picture in picture": return "Картинка в картинке";
+            case "My teams' live matches": return "Эфиры моих команд";
+            case "Save this view": return "Сохранить этот вид";
+            case "Saved views": return "Сохранённые виды";
+            case "View saved": return "Вид сохранён";
+            case "View deleted": return "Вид удалён";
+            case "Those channels aren't in your list any more.": return "Этих каналов больше нет в списке.";
+            case "Looking for matches…": return "Поиск матчей…";
+            case "None of your teams are playing now.": return "Ваши команды сейчас не играют.";
+            case "More matches on than your provider allows.": return "Матчей больше, чем позволяет провайдер.";
+            case "Multiview on the video chip": return "Мультипросмотр на видеочипе";
+            case "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.": return "Каждое окно использует видеочип для плавного движения. Выключите, если мультипросмотр дёргается.";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

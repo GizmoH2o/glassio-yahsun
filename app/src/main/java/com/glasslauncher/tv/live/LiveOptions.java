@@ -222,6 +222,24 @@ final class LiveOptions {
         sp(c).edit().putBoolean("alertsQuietRecording", on).apply();
     }
 
+    /** Every Multiview box on the video chip; off, only the focused one (the rest in software). */
+    static boolean multiviewHardware(Context c) {
+        return sp(c).getBoolean("multiviewHardware", true);
+    }
+
+    static void setMultiviewHardware(Context c, boolean on) {
+        sp(c).edit().putBoolean("multiviewHardware", on).apply();
+    }
+
+    /** Multiview's saved views (LiveMultiRules). */
+    static String multiViews(Context c) {
+        return sp(c).getString("multiViews", "[]");
+    }
+
+    static void setMultiViews(Context c, String json) {
+        sp(c).edit().putString("multiViews", json).apply();
+    }
+
     /** The player's Match tab (LivePlayerMatch). */
     static boolean matchCentre(Context c) {
         return sp(c).getBoolean("matchCentre", true);
