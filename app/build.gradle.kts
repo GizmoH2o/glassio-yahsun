@@ -85,6 +85,8 @@ dependencies {
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("io.coil-kt.coil3:coil-compose:3.3.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
+    // WebDAV backups (PROPFIND, MKCOL): the version coil already brings, named so it stays.
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")

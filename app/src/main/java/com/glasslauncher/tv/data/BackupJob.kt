@@ -28,6 +28,9 @@ class BackupJob : JobService() {
             val code = getSharedPreferences("glass", Context.MODE_PRIVATE).getString("backupAutoCode", "").orEmpty()
             if (code.isNotEmpty()) runCatching { Backup.saveToDownloads(this, Backup.make(this, code)) }
                 .onSuccess { Glog.w("Weekly backup saved") }.onFailure { Glog.w("Weekly backup failed", it) }
+            // And to the WebDAV folder, when there is one (Settings › System › Backup to WebDAV).
+            if (code.isNotEmpty() && WebDav.conf(this).ready) runCatching { WebDav.backUp(this, code) }
+                .onFailure { Glog.w("Weekly WebDAV backup failed", it) }
             jobFinished(params, false)
         }, "backup-job").start()
         return true

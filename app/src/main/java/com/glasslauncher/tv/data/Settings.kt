@@ -228,6 +228,11 @@ class Settings(private val ctx: Context) {
     var betaUpdates: Boolean get() = b("betaUpdates", false); set(v) = putB("betaUpdates", v)
     /** The code the weekly backup is locked with ("": no weekly backup). */
     var backupAutoCode: String get() = s("backupAutoCode", ""); set(v) = putS("backupAutoCode", v)
+    /** Backup to WebDAV (WebDav): its folder's address, the username and the (app) password; when one was last sent. */
+    var davUrl: String get() = s("davUrl", ""); set(v) = putS("davUrl", v.trim())
+    var davUser: String get() = s("davUser", ""); set(v) = putS("davUser", v.trim())
+    var davPass: String get() = s("davPass", ""); set(v) = putS("davPass", v)
+    val davLast: Long get() = sp.getLong("davLast", 0L)
     /** The rows of Home in order, by name ("": HomeRows' order). */
     var homeOrder: String get() = s("homeOrder", ""); set(v) = putS("homeOrder", v)
     /** The rows turned off, by name, with commas. */

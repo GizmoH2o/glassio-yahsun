@@ -773,6 +773,60 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         toast(ctx, "Weekly backup on")
                     }
                 },
+                Act("Backup to WebDAV", "Nextcloud, Synology, Koofr, pCloud…: the weekly backup goes there too, locked with your code; the last ${com.glasslauncher.tv.data.WebDav.KEEP} are kept",
+                    if (st.davUrl.isBlank()) Lang.tr("Off") else runCatching { java.net.URI(st.davUrl).host }.getOrNull() ?: Lang.tr("On")) {
+                    fun dav(): MenuDialog = MenuDialog("Backup to WebDAV", listOf(
+                        Lang.tr("Folder address") + "  ·  " + (if (st.davUrl.isBlank()) Lang.tr("Not set") else runCatching { java.net.URI(st.davUrl).host }.getOrNull().orEmpty()) to {
+                            dialog = TextEntry("Folder address", st.davUrl, "Like https://cloud.example.com/remote.php/dav/files/you/Glassio (the folder is made if it isn't there)") { st.davUrl = it }
+                        },
+                        Lang.tr("Username") + "  ·  " + st.davUser.ifBlank { Lang.tr("Not set") } to {
+                            dialog = TextEntry("Username", st.davUser, "Your WebDAV username") { st.davUser = it }
+                        },
+                        Lang.tr("Password") + "  ·  " + (if (st.davPass.isEmpty()) Lang.tr("Not set") else Lang.tr("Saved")) to {
+                            dialog = TextEntry("Password", "", "An app password (your service's security settings). Empty: remove it. Easier from the phone page", secret = true) { st.davPass = it }
+                        },
+                        Lang.tr("Back up now") to {
+                            fun send(code: String) {
+                                toast(ctx, "Backing up…")
+                                scope.launch(Dispatchers.IO) {
+                                    runCatching { com.glasslauncher.tv.data.WebDav.backUp(ctx, code) }.fold({ toast(ctx, "Backed up to WebDAV") }, { toast(ctx, "Couldn't back up: ${it.message}") })
+                                }
+                            }
+                            if (st.backupAutoCode.isNotEmpty()) send(st.backupAutoCode)
+                            else dialog = TextEntry("Backup code", "", "At least ${Backup.MIN_CODE} characters. You need it to restore: keep it somewhere safe", secret = true) { code ->
+                                if (code.length < Backup.MIN_CODE) toast(ctx, "The code needs at least ${Backup.MIN_CODE} characters") else send(code)
+                            }
+                        },
+                        Lang.tr("Restore from WebDAV") to {
+                            scope.launch(Dispatchers.IO) {
+                                val c = com.glasslauncher.tv.data.WebDav.conf(ctx)
+                                val names = runCatching { com.glasslauncher.tv.data.WebDav.list(c) }
+                                names.onFailure { toast(ctx, "Couldn't read the folder: ${it.message}") }
+                                val list = names.getOrNull() ?: return@launch
+                                if (list.isEmpty()) { toast(ctx, "No backups in that folder yet"); return@launch }
+                                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    dialog = MenuDialog("Restore from WebDAV", list.map { name ->
+                                        name.removePrefix("Glassio Yahsun backup ").removeSuffix(".json") to {
+                                            dialog = TextEntry("Restore the backup from " + name.removePrefix("Glassio Yahsun backup ").removeSuffix(".json"), "",
+                                                "Its code. Everything here now is replaced, then Glassio restarts", secret = true) { code ->
+                                                toast(ctx, "Restoring…")
+                                                scope.launch(Dispatchers.IO) {
+                                                    runCatching { Backup.restore(ctx, com.glasslauncher.tv.data.WebDav.download(c, name), code) }.fold({
+                                                        toast(ctx, "Restored ${it.settings} settings and ${it.files} files. Glassio restarts")
+                                                        kotlinx.coroutines.delay(1500)
+                                                        kotlinx.coroutines.withContext(Dispatchers.Main) { Backup.restart(ctx) }
+                                                    }, { toast(ctx, "Couldn't restore: ${it.message}") })
+                                                }
+                                            }
+                                        }
+                                    })
+                                }
+                            }
+                        },
+                        Lang.tr("Turn off") to { st.davUrl = ""; st.davUser = ""; st.davPass = ""; toast(ctx, "Backup to WebDAV off") },
+                    ))
+                    dialog = dav()
+                },
                 Act("Storage", "What Glassio keeps on this TV", "") {
                     scope.launch {
                         val sizes = kotlinx.coroutines.withContext(Dispatchers.IO) {

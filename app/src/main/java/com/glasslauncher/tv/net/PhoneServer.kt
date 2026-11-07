@@ -339,6 +339,21 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             app.settings.tmdbToken = t; app.catalogs.clearEnrichment()
             if (t.isBlank()) "TMDB token removed" else "TMDB token saved and working"
         }
+        // Backup to WebDAV: the folder, the username and the password (write-only), or a backup now with the weekly code.
+        "/api/dav" -> {
+            val url = j.optString("url").trim()
+            require(url.isEmpty() || url.startsWith("http://") || url.startsWith("https://")) { "The folder's address starts with https://" }
+            app.settings.davUrl = url
+            app.settings.davUser = j.optString("user").trim()
+            if (j.has("pass") && j.optString("pass").isNotEmpty()) app.settings.davPass = j.optString("pass")
+            if (url.isEmpty()) { app.settings.davUser = ""; app.settings.davPass = "" }
+            if (url.isEmpty()) "Backup to WebDAV off" else "WebDAV folder saved"
+        }
+        "/api/dav/now" -> {
+            val code = app.settings.backupAutoCode
+            require(code.isNotEmpty()) { "Turn on the weekly backup first (Settings › System): it has the code" }
+            "Backed up: " + com.glasslauncher.tv.data.WebDav.backUp(app, code)
+        }
         "/api/ha" -> { app.settings.haWebhook = j.optString("url"); app.settings.haOnLaunch = app.settings.haWebhook.startsWith("http"); "Home Assistant webhook saved" }
         "/api/cal/add" -> {
             val u = j.optString("url").trim()
@@ -394,6 +409,8 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             .put("tmdb", app.settings.tmdbToken.isNotBlank()).put("ha", app.settings.haWebhook.isNotBlank())
             .put("cals", cals).put("haBase", app.settings.haBase).put("haToken", app.settings.haToken.isNotBlank())
             .put("live", app.settings.phoneLive).put("calendar", app.settings.phoneCalendar)
+            .put("dav", runCatching { java.net.URI(app.settings.davUrl).host }.getOrNull().orEmpty()).put("davUser", app.settings.davUser)
+            .put("davPass", app.settings.davPass.isNotEmpty()).put("davLast", app.settings.davLast)
     }
 
     private fun err(m: String) = JSONObject().put("ok", false).put("error", m).toString()
@@ -461,6 +478,9 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <input type="password" id="bc" placeholder="Code for the backup" autocomplete="new-password"><button onclick="bk()">Download a backup</button>
 <p style="margin-top:14px">Restore one: Glassio's settings on the TV are replaced, then it restarts.</p>
 <input type="file" id="bkf" accept=".json,application/json"><input type="password" id="rc" placeholder="Code of that backup" autocomplete="off" style="margin-top:8px"><button class="d" onclick="rs()">Restore on the TV</button>
+<h2>Backup to WebDAV</h2><p>Nextcloud, Synology, Koofr, pCloud and others: the weekly backup goes to this folder too, locked with your backup code. Use an <b>app password</b> from your service’s security settings. The last 4 are kept.</p><p id="davs"></p>
+<input type="text" id="du" placeholder="https://cloud.example.com/remote.php/dav/files/you/Glassio"><input type="text" id="dn" placeholder="Username" style="margin-top:8px" autocomplete="off"><input type="password" id="dp" placeholder="App password" style="margin-top:8px" autocomplete="new-password">
+<div class="row"><button onclick="send('/api/dav',{url:v('du'),user:v('dn'),pass:document.getElementById('dp').value},'dp')">Save</button><button class="s" onclick="send('/api/dav/now',{})">Back up now</button></div>
 <h2>Screensaver video links</h2><div id="aerial"></div>
 <input type="text" id="av" placeholder="https://.../video.mp4"><button onclick="send('/api/aerial/add',{url:v('av')},'av')">Add video</button>
 </main><script>
@@ -535,6 +555,8 @@ return 'rest_command:\n  glassio_tune:\n    url: "'+b+'tune'+q+'"\n'+h+'    payl
 +'  glassio_play:\n    url: "'+b+'play'+q+'"\n'+h+'    payload: "{}"\n'}
 function load(){document.getElementById('hay').value=haYaml();api('/api/state').then(function(d){
 document.getElementById('livebox').style.display=d.live?'':'none';if(d.live&&!liveOn){liveOn=true;lShow()}
+var ds=document.getElementById('davs');ds.textContent=d.dav?('Folder on '+d.dav+(d.davUser?' · '+d.davUser:'')+(d.davPass?' · password saved':'')+(d.davLast?' · last backup '+new Date(d.davLast).toLocaleString():'')):'Not set';
+if(d.dav&&!v('du'))document.getElementById('du').placeholder='Saved (type the address again to change it)';if(d.davUser&&!v('dn'))document.getElementById('dn').value=d.davUser;
 calOn=!!d.calendar;document.getElementById('calbox').style.display=calOn?'':'none';
 if(calOn){var cu=location.host+'/api/live/calendar.ics?t='+encodeURIComponent(T);document.getElementById('calurl').value='webcal://'+cu;document.getElementById('calsub').href='webcal://'+cu}
 var a=document.getElementById('addons');a.textContent='';d.addons.forEach(function(x){var c=el('div','card');var t=el('b','',x.name);if(x.account)t.appendChild(el('span','tag',(x.from||'Nuvio')+' account'));c.appendChild(t);c.appendChild(el('small','',x.host));if(!x.account){var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/addon/remove',{url:x.url})};r.appendChild(b);c.appendChild(r)}a.appendChild(c)});

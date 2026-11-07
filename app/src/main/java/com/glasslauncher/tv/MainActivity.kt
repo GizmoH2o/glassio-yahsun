@@ -165,6 +165,12 @@ class MainActivity : ComponentActivity() {
         if (i?.getBooleanExtra("open_live", false) == true) { app.requestSettings.intValue = 102; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_following", false) == true) { app.requestSettings.intValue = 103; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_today", false) == true) { app.requestSettings.intValue = 104; app.requestSettingsRev.intValue++ }
+        // Test only: Backup to WebDAV's path with a stand-in file (WebDav.test), its outcome in the log.
+        if (i?.getBooleanExtra("dav_test", false) == true) Thread {
+            runCatching { com.glasslauncher.tv.data.WebDav.test(this) }
+                .fold({ com.glasslauncher.tv.data.Glog.i("WebDAV test: ok, ${it.size} in the folder: ${it.joinToString()}") },
+                    { com.glasslauncher.tv.data.Glog.w("WebDAV test failed", it) })
+        }.start()
         if (i?.hasExtra("timing") == true) com.glasslauncher.tv.data.Glog.timing = i.getBooleanExtra("timing", false)
         if (i?.hasExtra("dbg_hide") == true) com.glasslauncher.tv.ui.DebugHide.intValue = i.getIntExtra("dbg_hide", 0)
         i?.getStringExtra("dock_style")?.let { app.settings.dockStyle = it }

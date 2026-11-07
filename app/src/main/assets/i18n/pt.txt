@@ -916,3 +916,15 @@ Control from Home Assistant	Controle pelo Home Assistant
 Its automations can tune a channel, pause, play and show a notice: the commands to paste are on the phone page (Manage from phone), with Phone remote on	As automações dele podem pôr um canal, pausar, reproduzir e mostrar um aviso: os comandos para colar estão na página do celular (Gerenciar pelo celular), com o Controle pelo celular ligado
 Calendar on the phone page	Calendário na página do celular
 Add to calendar on a show, and a calendar your phone subscribes to: what you set and the matches you follow	Adicionar ao calendário num programa, e um calendário que o celular assina: o que você marcou e os jogos que segue
+Backup to WebDAV	Backup no WebDAV
+Nextcloud, Synology, Koofr, pCloud…: the weekly backup goes there too, locked with your code; the last %d are kept	Nextcloud, Synology, Koofr, pCloud…: o backup semanal vai para lá também, trancado com seu código; ficam os últimos %d
+Folder address	Endereço da pasta
+Username	Usuário
+Password	Senha
+Back up now	Fazer backup agora
+Restore from WebDAV	Restaurar do WebDAV
+Turn off	Desligar
+Backed up to WebDAV	Backup feito no WebDAV
+No backups in that folder yet	Ainda não há backups nessa pasta
+Backup to WebDAV off	Backup no WebDAV desligado
+Backing up…	Fazendo backup…

@@ -917,3 +917,15 @@ Control from Home Assistant	Управление из Home Assistant
 Its automations can tune a channel, pause, play and show a notice: the commands to paste are on the phone page (Manage from phone), with Phone remote on	Его автоматизации могут включить канал, поставить на паузу, продолжить и показать уведомление: команды для вставки — на странице телефона (Управление с телефона), при включённом Пульте телефона
 Calendar on the phone page	Календарь на странице телефона
 Add to calendar on a show, and a calendar your phone subscribes to: what you set and the matches you follow	«Добавить в календарь» у передачи и календарь, на который подписывается телефон: то, что вы поставили, и матчи, за которыми следите
+Backup to WebDAV	Резервная копия в WebDAV
+Nextcloud, Synology, Koofr, pCloud…: the weekly backup goes there too, locked with your code; the last %d are kept	Nextcloud, Synology, Koofr, pCloud…: еженедельная копия идёт и туда, под вашим кодом; хранятся последние %d
+Folder address	Адрес папки
+Username	Имя пользователя
+Password	Пароль
+Back up now	Сделать копию сейчас
+Restore from WebDAV	Восстановить из WebDAV
+Turn off	Выключить
+Backed up to WebDAV	Копия отправлена в WebDAV
+No backups in that folder yet	В этой папке пока нет копий
+Backup to WebDAV off	Копия в WebDAV выключена
+Backing up…	Создаю копию…
