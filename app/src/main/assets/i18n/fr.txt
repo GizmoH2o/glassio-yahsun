@@ -866,3 +866,15 @@ Under 30 min	Moins de 30 min
 Under 1 hour	Moins d'1 heure
 Under 2 hours	Moins de 2 heures
 Nothing fits this yet.	Rien ne correspond pour le moment.
+Add to a collection	Ajouter à une collection
+New collection	Nouvelle collection
+Collection name	Nom de la collection
+Friday films, for example	Films du vendredi, par exemple
+Give it a name	Donnez-lui un nom
+Delete this collection	Supprimer cette collection
+Your collection	Votre collection
+Your collections	Vos collections
+Your own rows: hold OK on a title, or use its page, to add it to one	Vos propres rangées : maintenez OK sur un titre, ou passez par sa page, pour l'ajouter
+Automatic rows	Rangées automatiques
+Because you watched, and Quick watches from your library	Parce que vous avez regardé, et À voir vite depuis votre bibliothèque
+Quick watches	À voir vite

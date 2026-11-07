@@ -588,7 +588,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> onScreen(to) }
             }
             if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
-                androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle) }
+                androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
             }
             pickerFor?.let { e ->
                 IconPicker(

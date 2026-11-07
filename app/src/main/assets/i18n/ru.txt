@@ -867,3 +867,15 @@ Under 30 min	До 30 мин
 Under 1 hour	До 1 часа
 Under 2 hours	До 2 часов
 Nothing fits this yet.	Пока ничего не подходит.
+Add to a collection	Добавить в подборку
+New collection	Новая подборка
+Collection name	Название подборки
+Friday films, for example	Например, Фильмы на пятницу
+Give it a name	Введите название
+Delete this collection	Удалить подборку
+Your collection	Ваша подборка
+Your collections	Ваши подборки
+Your own rows: hold OK on a title, or use its page, to add it to one	Ваши ряды: удерживайте OK на титуле или используйте его страницу, чтобы добавить
+Automatic rows	Автоматические ряды
+Because you watched, and Quick watches from your library	Потому что вы смотрели и Короткое из вашей библиотеки
+Quick watches	Короткое

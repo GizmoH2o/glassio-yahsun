@@ -22,6 +22,12 @@ class HomeRowsTest {
         assertEquals(true, "Watch" in o)
     }
 
+    @Test fun `a new row comes after the one it usually follows, not after your apps`() {
+        val o = HomeRows.order("Airing,Watch,Col3,Apps,Widgets")
+        assertEquals(true, o.indexOf("Mine1") in (o.indexOf("Col3") + 1) until o.indexOf("Apps"))
+        assertEquals(o.size, o.distinct().size)
+    }
+
     @Test fun `a row's own name, and back to the usual`() {
         val n = HomeRows.rename("{}", "Movies", " Films ")
         assertEquals("Films", HomeRows.name(n, "Movies"))

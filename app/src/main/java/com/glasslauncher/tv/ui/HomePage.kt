@@ -91,6 +91,8 @@ import com.glasslauncher.tv.data.HeroPicks
 import com.glasslauncher.tv.data.StreamLinks
 import com.glasslauncher.tv.data.LiveCards
 import com.glasslauncher.tv.data.NuvioLaunch
+import com.glasslauncher.tv.data.Collections
+import com.glasslauncher.tv.data.Moods
 import com.glasslauncher.tv.data.UpNext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -113,7 +115,7 @@ private val IMDB = Color(0xFFF5C518)
 internal val CARD = Color(0xFF1C1C1F)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Apps, Widgets }
+private enum class Part { Hero, Airing, Watch, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -233,6 +235,17 @@ internal fun HomePage(
         collections = if (settings.homeCollections) withContext(Dispatchers.IO) { runCatching { app.recs.collections() }.getOrDefault(emptyList()) } else emptyList()
     }
     val colParts = listOf(Part.Col1, Part.Col2, Part.Col3)
+    // Your own rows, and the automatic ones: like the title you watched last, and what's short in your library.
+    val mineList = if (settings.homeMine) Collections.parse(settings.myCollections) else emptyList()
+    val auto = settings.homeAuto && !kids
+    val lastSeen = cwItems.firstOrNull { it.id.startsWith("tt") }
+    val becauseList by androidx.compose.runtime.produceState(emptyList<HeroItem>(), auto, lastSeen?.key) {
+        val seen = lastSeen
+        value = if (!auto || seen == null) emptyList() else withContext(Dispatchers.IO) { runCatching { app.recs.similar(seen) }.getOrDefault(emptyList()) }
+    }
+    val quickList = remember(movies, series, auto, infoRev) {
+        if (!auto) emptyList() else Moods.pick((movies + series).map { app.shelf.filled(it) }, null, 30, emptySet(), false).takeIf { it.size >= 4 }.orEmpty()
+    }
     val parts = buildList {
         if (showAiring) add(Part.Airing)
         if (watchItems.isNotEmpty()) add(Part.Watch)
@@ -242,6 +255,9 @@ internal fun HomePage(
         if (recFilms.isNotEmpty()) add(Part.RecFilms)
         if (recSeries.isNotEmpty()) add(Part.RecSeries)
         collections.indices.forEach { if (it < colParts.size) add(colParts[it]) }
+        for (c in mineList) if (forKids(c.titles).isNotEmpty()) add(Part.valueOf(Collections.row(c.slot)))
+        if (becauseList.isNotEmpty()) add(Part.Because)
+        if (quickList.isNotEmpty()) add(Part.Quick)
         if (anyApps) add(Part.Apps)
         if (showWidgets) add(Part.Widgets)
     }.let { present ->
@@ -482,7 +498,7 @@ internal fun HomePage(
                     CardRow(s, req(Part.Airing), above(Part.Airing), below(Part.Airing), airing.map { it.item.key + ":" + it.episode.season + ":" + it.episode.episode }) { i, mod ->
                         val a = airing[i]
                         AiringCard(a, s, mod, onFocused = { selected = a.item }, onOpen = { openCard(a.item) },
-                            onHold = { onDialog(titleMenu(app, ctx, a.item)) })
+                            onHold = { onDialog(titleMenu(app, ctx, a.item, scope, onDialog)) })
                     }
                 }
                 }
@@ -504,8 +520,17 @@ internal fun HomePage(
                             val item = list[i]
                             PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item },
                                 onOpen = { openCard(item) },
-                                onHold = { if (!kids) onDialog(titleMenu(app, ctx, item)) })
+                                onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog)) })
                         }
+                    }
+                }
+                // ── your own rows
+                @Composable fun mine(part: Part, c: com.glasslauncher.tv.data.MyCollection) = section(part, c.name) {
+                    val list = forKids(c.titles)
+                    CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
+                        val item = list[i]
+                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item }, onOpen = { openCard(item) },
+                            onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog, c)) })
                     }
                 }
                 // ── recommendations
@@ -513,7 +538,7 @@ internal fun HomePage(
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
                         PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, onFocused = { selected = item }, onOpen = { openCard(item) },
-                            onHold = { if (!kids) onDialog(titleMenu(app, ctx, item)) })
+                            onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog)) })
                     }
                 }
                 val appsRow: @Composable () -> Unit = {
@@ -553,6 +578,9 @@ internal fun HomePage(
                             Part.RecFilms -> recs(Part.RecFilms, "Popular films", recFilms)
                             Part.RecSeries -> recs(Part.RecSeries, "Popular series", recSeries)
                             Part.Col1, Part.Col2, Part.Col3 -> collections.getOrNull(colParts.indexOf(p))?.let { (name, list) -> recs(p, name, forKids(list)) }
+                            Part.Mine1, Part.Mine2, Part.Mine3, Part.Mine4, Part.Mine5, Part.Mine6 -> mineList.firstOrNull { Collections.row(it.slot) == p.name }?.let { mine(p, it) }
+                            Part.Because -> recs(p, Lang.tr("Because you watched") + " " + lastSeen?.name.orEmpty(), becauseList)
+                            Part.Quick -> recs(p, "Quick watches", quickList)
                             Part.Apps -> appsRow()
                             Part.Widgets -> widgetsRow()
                         }
@@ -1209,7 +1237,7 @@ private fun AppTile(
 // ───────────────────────────── menus ─────────────────────────────
 
 /** Hold OK on a title in a row: open it in your other app; save it to (or take it out of) your Library. */
-private fun titleMenu(app: GlassApp, ctx: android.content.Context, item: HeroItem): DialogState {
+private fun titleMenu(app: GlassApp, ctx: android.content.Context, item: HeroItem, scope: kotlinx.coroutines.CoroutineScope, onDialog: (DialogState) -> Unit, from: com.glasslauncher.tv.data.MyCollection? = null): DialogState {
     val settings = app.settings
     val options = ArrayList<Pair<String, () -> Unit>>()
     for (t in NuvioLaunch.others(ctx, settings, item))
@@ -1223,6 +1251,14 @@ private fun titleMenu(app: GlassApp, ctx: android.content.Context, item: HeroIte
     }
     if (inStremio) options += "Remove from my Stremio library" to {
         app.library.removeFromStremio(item) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Stremio library · ${item.name}" else "Stremio: couldn't remove ${item.name}") }
+    }
+    if (settings.homeMine) options += "Add to a collection" to {
+        scope.launch { delay(80); onDialog(collectionMenu(app, ctx, scope, item, onDialog)) }
+        Unit
+    }
+    if (from != null) options += "Remove from ${from.name}" to {
+        settings.myCollections = Collections.write(Collections.toggle(Collections.parse(settings.myCollections), from.slot, item))
+        toast(ctx, "Removed from ${from.name} · ${item.name}")
     }
     return MenuDialog(item.name, options)
 }

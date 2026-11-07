@@ -69,7 +69,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
-fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOpen: (HeroItem) -> Unit) {
+fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOpen: (HeroItem) -> Unit, onDialog: (DialogState) -> Unit = {}) {
     val ctx = LocalContext.current
     val st = app.settings
     BackHandler { onClose() }
@@ -202,6 +202,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     val now = app.library.toggle(item)
                     toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
                 }
+                if (!kids && st.homeMine) DsButton("Add to a collection", s, firstMod()) { onDialog(collectionMenu(app, ctx, scope, item, onDialog)) }
                 if (!kids) DsButton("Not interested", s, toRows.nav(right = FocusRequester.Cancel)) {
                     st.heroHidden = (st.heroHidden + item.key).distinct()
                     toast(ctx, "${item.name} won't show on the big picture again (Settings › Home to bring it back)")

@@ -866,3 +866,15 @@ Under 30 min	Menos de 30 min
 Under 1 hour	Menos de 1 hora
 Under 2 hours	Menos de 2 horas
 Nothing fits this yet.	Ainda nada corresponde.
+Add to a collection	Adicionar a uma coleção
+New collection	Nova coleção
+Collection name	Nome da coleção
+Friday films, for example	Filmes de sexta, por exemplo
+Give it a name	Dê-lhe um nome
+Delete this collection	Eliminar esta coleção
+Your collection	A sua coleção
+Your collections	As suas coleções
+Your own rows: hold OK on a title, or use its page, to add it to one	As suas filas: mantenha OK num título, ou use a sua página, para o adicionar
+Automatic rows	Filas automáticas
+Because you watched, and Quick watches from your library	Porque viu e Para ver depressa da sua biblioteca
+Quick watches	Para ver depressa

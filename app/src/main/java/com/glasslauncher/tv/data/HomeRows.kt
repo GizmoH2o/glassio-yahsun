@@ -9,16 +9,22 @@ object HomeRows {
         "Airing" to "Airing this week", "Watch" to "Continue watching", "Movies" to "Movies in your library",
         "Series" to "Series in your library", "Trending" to "Trending now", "RecFilms" to "Popular films",
         "RecSeries" to "Popular series", "Col1" to "Pixar", "Col2" to "Studio Ghibli", "Col3" to "Marvel Studios",
+        "Mine1" to "Your collection", "Mine2" to "Your collection", "Mine3" to "Your collection", "Mine4" to "Your collection",
+        "Mine5" to "Your collection", "Mine6" to "Your collection", "Because" to "Because you watched", "Quick" to "Quick watches",
         "Apps" to "Apps", "Widgets" to "At a glance",
     )
 
     fun title(row: String): String = ALL.firstOrNull { it.first == row }?.second ?: row
 
-    /** The rows in order: those saved, then any new ones in their usual place at the end. A name no longer known is dropped. */
+    /** The rows in order: those saved, with any new one after the row it usually follows. A name no longer known is dropped. */
     fun order(saved: String): List<String> {
         val known = ALL.map { it.first }
-        val mine = saved.split(',').filter { it in known }.distinct()
-        return mine + known.filter { it !in mine }
+        val out = saved.split(',').filter { it in known }.distinct().toMutableList()
+        for ((i, row) in known.withIndex()) {
+            if (row in out) continue
+            out.add(if (i == 0) out.size else out.indexOf(known[i - 1]) + 1, row)
+        }
+        return out
     }
 
     /** The order with [row] moved one place ([by]: -1 up, 1 down); at the end it stays. */

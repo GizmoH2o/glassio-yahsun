@@ -867,3 +867,15 @@ Under 30 min	Unter 30 Min.
 Under 1 hour	Unter 1 Stunde
 Under 2 hours	Unter 2 Stunden
 Nothing fits this yet.	Dazu passt noch nichts.
+Add to a collection	Zu einer Sammlung hinzufügen
+New collection	Neue Sammlung
+Collection name	Name der Sammlung
+Friday films, for example	Zum Beispiel Filme am Freitag
+Give it a name	Gib ihr einen Namen
+Delete this collection	Diese Sammlung löschen
+Your collection	Deine Sammlung
+Your collections	Deine Sammlungen
+Your own rows: hold OK on a title, or use its page, to add it to one	Deine eigenen Reihen: OK auf einem Titel halten oder seine Seite nutzen, um ihn hinzuzufügen
+Automatic rows	Automatische Reihen
+Because you watched, and Quick watches from your library	Weil du gesehen hast und Kurz & gut aus deiner Mediathek
+Quick watches	Kurz & gut

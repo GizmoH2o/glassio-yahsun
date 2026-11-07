@@ -236,6 +236,11 @@ class Settings(private val ctx: Context) {
     var homeNames: String get() = s("homeNames", "{}"); set(v) = putS("homeNames", v)
     /** Rows of well-known studios' films on Home. */
     var homeCollections: Boolean get() = b("homeCollections", false); set(v) = putB("homeCollections", v)
+    /** Your own Home rows (Collections): on or off, and what's in them. */
+    var homeMine: Boolean get() = b("homeMine", true); set(v) = putB("homeMine", v)
+    var myCollections: String get() = s("myCollections", "[]"); set(v) = putS("myCollections", v)
+    /** Home's automatic rows: Because you watched, Quick watches. */
+    var homeAuto: Boolean get() = b("homeAuto", true); set(v) = putB("homeAuto", v)
     /** A poster rested on opens up into a wide card (picture, logo, details). */
     var homeExpand: Boolean get() = b("homeExpand", true); set(v) = putB("homeExpand", v)
     /** How many apps a row of the home screen's apps grid holds. */
