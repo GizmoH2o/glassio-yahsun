@@ -50,7 +50,8 @@ final class LiveCountry {
                 {"NLD", "NL"}, {"IND", "IN"}, {"PHI", "PH"}, {"PHL", "PH"}, {"RSA", "ZA"}, {"ZAF", "ZA"}, {"NGA", "NG"},
                 {"ARG", "AR"}, {"TUR", "TR"}, {"POL", "PL"}, {"SWE", "SE"}, {"NOR", "NO"}, {"DEN", "DK"}, {"DNK", "DK"},
                 {"FIN", "FI"}, {"BEL", "BE"}, {"SUI", "CH"}, {"CHE", "CH"}, {"AUT", "AT"}, {"GRE", "GR"}, {"GRC", "GR"},
-                {"TTO", "TT"}, {"BRB", "BB"}, {"BAH", "BS"}};
+                {"TTO", "TT"}, {"BRB", "BB"}, {"BAH", "BS"},
+                {"USL", "US"}};       // USL: US Latino ("USL: CINE LATINO")
         for (String[] a : alias) ALIAS.put(a[0], a[1]);
     }
 
@@ -61,6 +62,12 @@ final class LiveCountry {
     private static final Pattern BRACKET_SUFFIX = Pattern.compile("^(.+?)\\s*[\\[(|]\\s*([A-Za-z]{2,6})\\s*[\\])|]?\\s*$");
     private static final Pattern PUNCT_SUFFIX = Pattern.compile("^(.+?)\\s*" + SEP + "\\s*([A-Za-z]{2,6})\\s*$");
     private static final Pattern PLAIN_SUFFIX = Pattern.compile("^(.+?)\\s+([A-Z]{2,3})$");
+    /** "AU (STAN 52) | Hong Kong China v USA": the code, then the feed's own bracket. */
+    private static final Pattern CODE_BRACKET = Pattern.compile("^\\s*([A-Za-z]{2,3})\\s*(\\([^)]*\\)\\s*[|:].+)$");
+    /** "DAZN UK 01: …", "Kayo AU 02: …": a service, its country, then the feed's number. */
+    private static final Pattern FEED = Pattern.compile("^(.*\\p{L}.*?)\\s+([A-Z]{2,3})\\s+(\\d{1,3}\\s*:.*)$");
+    /** "LBW: Cartoon Network": the low-bandwidth copy, said after the name instead. */
+    private static final Pattern LOW_BW = Pattern.compile("^\\s*LBW\\s*[:|\\-]\\s*(.+)$");
 
     /** `raw` as a country code, null when it isn't one ("USA" → "US", "GB" → "UK"). */
     static String code(String raw, boolean plain) {
@@ -102,6 +109,11 @@ final class LiveCountry {
     private static Split read(String name, boolean category) {
         if (name == null) return new Split("", "");
         String s = name.trim();
+        Matcher low = LOW_BW.matcher(s);
+        if (low.matches()) {
+            Split rest = read(low.group(1), category);
+            return new Split(rest.code, rest.name + " (Low BW)");
+        }
         String flag = flag(s);
         if (flag != null) return new Split(flag, stripFlag(s));
         Matcher m;
@@ -109,6 +121,8 @@ final class LiveCountry {
         if ((m = PUNCT_PREFIX.matcher(s)).matches() && tag(m.group(1), false) != null) return new Split(tag(m.group(1), false), tidy(m.group(2)));
         if ((m = BRACKET_SUFFIX.matcher(s)).matches() && tag(m.group(2), false) != null) return new Split(tag(m.group(2), false), tidy(m.group(1)));
         if ((m = PUNCT_SUFFIX.matcher(s)).matches() && tag(m.group(2), false) != null) return new Split(tag(m.group(2), false), tidy(m.group(1)));
+        if ((m = CODE_BRACKET.matcher(s)).matches() && tag(m.group(1), false) != null) return new Split(tag(m.group(1), false), tidy(m.group(2)));
+        if ((m = FEED.matcher(s)).matches() && code(m.group(2), true) != null) return new Split(code(m.group(2), true), tidy(m.group(1)) + " " + m.group(3).trim());
         // "5 USA" is the channel 5USA: a word has to be left for the name, or the country word is part of it.
         if ((m = PLAIN_SUFFIX.matcher(s)).matches() && m.group(1).matches(".*\\p{L}.*") && code(m.group(2), true) != null) return new Split(code(m.group(2), true), tidy(m.group(1)));
         if (category && (m = PLAIN_PREFIX.matcher(s)).matches() && code(m.group(1), true) != null) return new Split(code(m.group(1), true), tidy(m.group(2)));
@@ -142,6 +156,26 @@ final class LiveCountry {
         return cat == null ? "" : cat;
     }
 
+    /**
+     * A name with its country in words, for plain text where no tag can be drawn ("Next on Sky Sports News UK"); the
+     * name as it is for no code.
+     */
+    static String withCode(String name, String code) {
+        if (code == null || code.isEmpty()) return name;
+        return name + " " + code;
+    }
+
+    /**
+     * `ch`'s name with its country, for the home screen's process (and anything without Live TV's categories): the
+     * provider's name as it is with the tags off (Live TV › Settings › Country tags).
+     */
+    static String named(Context c, Xtream.Channel ch) {
+        if (ch == null || ch.name == null) return "";
+        if (!LiveOptions.countryTags(c)) return ch.name;
+        Map<String, String> cats = savedCategories(c);
+        return withCode(shownName(ch, cats), of(ch, cats));
+    }
+
     /** `ch`'s name as shown beside its tag: without its country, but a US state stays ("AL | Birmingham | WIAT"). */
     static String shownName(Xtream.Channel ch, Map<String, String> categoryCountry) {
         if (ch == null || ch.name == null) return "";
@@ -170,13 +204,41 @@ final class LiveCountry {
         return c != 0 ? c : sa.code.compareTo(sb.code);
     }
 
+    /** Streaming services sold in one country only, as their categories name them (spaces gone, lower case). */
+    private static final Map<String, String> SERVICE = new HashMap<>();
+
+    static {
+        String[][] service = {{"kayo", "AU"}, {"kayoevents", "AU"}, {"stan", "AU"}, {"tsn+", "CA"}, {"sportsnet+", "CA"},
+                {"nowhk", "HK"}, {"starhub", "SG"}, {"astrosports", "MY"}, {"coupangplay", "KR"}, {"monomax", "TH"}};
+        for (String[] a : service) SERVICE.put(a[0], a[1]);
+    }
+
+    /**
+     * A category's country: from its name ("US | Entertainment"), else from any later part of it ("Sports | DAZN UK (2)",
+     * "Sports | DE Sports"), else the one country its service is sold in ("Sports | Kayo"). "" for none. Pure.
+     */
+    static String categoryCode(String name) {
+        if (name == null) return "";
+        String c = split(name, true).code;
+        if (!c.isEmpty()) return c;
+        String[] parts = name.split("\\|");
+        for (int i = 1; i < parts.length; i++) {
+            String part = parts[i].trim().replaceAll("\\s*\\(\\d+\\)$", "");
+            c = split(part, true).code;
+            if (!c.isEmpty()) return c;
+            String s = SERVICE.get(part.replace(" ", "").toLowerCase(Locale.ROOT));
+            if (s != null) return s;
+        }
+        return "";
+    }
+
     /** Each category's country (the ones whose names have one), by category id. */
     static Map<String, String> categories(Xtream.Lineup l) {
         Map<String, String> out = new HashMap<>();
         if (l == null) return out;
         for (Xtream.Category cg : l.categories) {
             if (cg.id == null) continue;
-            String c = split(cg.name, true).code;
+            String c = categoryCode(cg.name);
             if (!c.isEmpty()) out.put(cg.id, c);
         }
         return out;

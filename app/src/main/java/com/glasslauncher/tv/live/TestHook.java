@@ -32,6 +32,9 @@ import android.content.IntentFilter;
  *                                                                    a plain picture behind everything, for captures
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez badsource true     Live TV (open):
  *                                                                    the source playing as if it kept failing (false: all forgotten)
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez countries true     Live TV (open):
+ *                                                                    which channels show a country, into live-countries.txt
+ *                                                                    (Android/data/com.glassioyahsun.tv/files; names only)
  */
 final class TestHook {
     private TestHook() {}
@@ -48,6 +51,39 @@ final class TestHook {
         try {
             c.unregisterReceiver(r);
         } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    /** Writes (live-countries.txt in the app's external files) how many channels show a country, from where, and the ones without: names only. */
+    static void countries(Context ctx, Xtream.Lineup l) {
+        StringBuilder out = new StringBuilder();
+        java.util.Map<String, String> cats = LiveCountry.categories(l);
+        java.util.Map<String, String> catName = new java.util.HashMap<>();
+        for (Xtream.Category cg : l.categories) if (cg.id != null) catName.put(cg.id, cg.name);
+        int all = 0, byName = 0, byCat = 0, none = 0;
+        java.util.Map<String, int[]> perCat = new java.util.TreeMap<>();
+        for (Xtream.Channel ch : l.all()) {
+            all++;
+            String n = LiveCountry.splitCached(ch.name, false).code, c = LiveCountry.of(ch, cats);
+            String cg = String.valueOf(catName.get(ch.category)) + " => " + (cats.containsKey(ch.category) ? cats.get(ch.category) : "-");
+            int[] t = perCat.get(cg);
+            if (t == null) perCat.put(cg, t = new int[2]);
+            t[0]++;
+            if (!n.isEmpty()) byName++;
+            else if (!c.isEmpty()) byCat++;
+            else {
+                none++;
+                t[1]++;
+                out.append("none: " + ch.num + " " + ch.name + "  [" + catName.get(ch.category) + "]\n");
+            }
+        }
+        for (java.util.Map.Entry<String, int[]> e : perCat.entrySet())
+            out.append("cat: " + e.getKey() + "  " + e.getValue()[0] + " channels, " + e.getValue()[1] + " without\n");
+        out.append("total " + all + ": name " + byName + ", category " + byCat + ", none " + none + "\n");
+        try {
+            Xtream.write(new java.io.File(ctx.getExternalFilesDir(null), "live-countries.txt"), out.toString());
+        } catch (java.io.IOException e) {
+            AppLog.w("countries: " + e);
         }
     }
 

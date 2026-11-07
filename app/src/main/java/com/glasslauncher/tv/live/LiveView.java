@@ -1088,7 +1088,7 @@ final class LiveView extends View {
                 hint = Ui.tr("OK volta para ele", "OK goes back to it") + hold;
             } else {
                 Xtream.Program p = onNow(focused, System.currentTimeMillis());
-                String where = (focused.num > 0 ? focused.num + " " : "") + nameOf(focused);
+                String where = numberAndName(focused, " ");
                 hint = p == null || p.title.isEmpty() ? Ui.tr("OK muda para ", "OK switches to ") + where + hold
                         : Ui.tr("OK muda para ", "OK switches to ") + p.title + Ui.tr(" em ", " on ") + where + hold;
             }
@@ -1097,7 +1097,7 @@ final class LiveView extends View {
         }
         if (playing == null) return;
         Xtream.Program show = playingShow();
-        String title = show == null || show.title.isEmpty() ? nameOf(playing) : show.title;
+        String title = show == null || show.title.isEmpty() ? nameWithCountry(playing) : show.title;
         c.drawText(ellipsize(title, c3Title, room), x, y, c3Title);
         y -= 66 * k;
         String pill = Ui.tr("TOCANDO", "PLAYING");
@@ -1453,6 +1453,16 @@ final class LiveView extends View {
         if (ch == null || ch.name == null) return "";
         if (!LiveCountry.on(getContext())) return ch.name;
         return LiveCountry.shownName(ch, categoryCountry);
+    }
+
+    /** `ch`'s name with its country in words ("Sky Sports News UK"), for plain text where no tag can be drawn. */
+    String nameWithCountry(Xtream.Channel ch) {
+        return LiveCountry.withCode(nameOf(ch), tagOf(ch));
+    }
+
+    /** As nameWithCountry, its number first ("622  Sky Sports News UK"). */
+    String numberAndName(Xtream.Channel ch, String gap) {
+        return ch == null ? "" : (ch.num > 0 ? ch.num + gap : "") + nameWithCountry(ch);
     }
 
     /** A category's tag and its name as shown ("US | Entertainment" → US, "Entertainment"). */
@@ -2584,7 +2594,7 @@ final class LiveView extends View {
             }
             if (Xtream.isFavorite(lineup, ch.id) != fav.add) toggleFavorite(ch);
             AppLog.w("live: voice " + (fav.add ? "adds " : "removes ") + ch.name + " (favorites)");
-            flash(nameOf(ch) + (fav.add ? Ui.tr(" está nos favoritos", " is in your favorites") : Ui.tr(" saiu dos favoritos", " is out of your favorites")));
+            flash(nameWithCountry(ch) + (fav.add ? Ui.tr(" está nos favoritos", " is in your favorites") : Ui.tr(" saiu dos favoritos", " is out of your favorites")));
             return true;
         }
         // Only "watch …" (or "play …", "put on …") tunes: a channel's name said on its own is a search.
@@ -4985,7 +4995,7 @@ final class LiveView extends View {
 
     /** The same; with `to`, it stays longer and OK goes to that channel. */
     void card(String head, String line, Xtream.Channel to) {
-        card(head, line, to == null ? null : Ui.tr("OK para assistir", "OK to watch") + "  ·  " + nameOf(to), to == null ? null : () -> tune(to));
+        card(head, line, to == null ? null : Ui.tr("OK para assistir", "OK to watch") + "  ·  " + nameWithCountry(to), to == null ? null : () -> tune(to));
     }
 
     /** A card whose OK does `act` (said by `offer`) while it's up, for longer than a plain one. */
@@ -5710,7 +5720,7 @@ final class LiveView extends View {
         int checked = 0;
         for (int i = 0; i < sources.length; i++) if (sources[i] == now) checked = i;
         LiveSheet.menu(c)
-                .setTitle(Ui.tr("Logo de ", "Logo for ") + nameOf(channel))
+                .setTitle(Ui.tr("Logo de ", "Logo for ") + nameWithCountry(channel))
                 .setMessage(Ui.tr("Sem logo na escolhida, as outras completam.", "Where the one picked has none, the others fill in."))
                 .setIcons("settings", "tv", "guide", "search")
                 .setSingleChoiceItems(labels, checked, (d, which) -> {
@@ -5786,7 +5796,7 @@ final class LiveView extends View {
         }
         LiveSheet.menu(c)
                 .setIcons(icons.toArray(new String[0]))
-                .setTitle((channel.num > 0 ? channel.num + "  " : "") + channel.name)
+                .setTitle(numberAndName(channel, "  "))
                 .setItems(labels.toArray(new String[0]), (d, which) -> {
                     acts.get(which).run();
                     if (mode == LIST) {
@@ -6014,7 +6024,7 @@ final class LiveView extends View {
         Xtream.Channel channel = rows.get(gRow);
         List<Xtream.Program> list = programs(channel);
         int i = programAt(list, gCol == 1 ? gTime : System.currentTimeMillis());
-        String text = (channel.num > 0 ? channel.num + " " : "") + channel.name;
+        String text = numberAndName(channel, " ");
         if (i >= 0) {
             Xtream.Program p = list.get(i);
             text += ", " + Ui.time(p.start) + " – " + Ui.time(p.end) + ", " + p.title;

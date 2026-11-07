@@ -228,7 +228,7 @@ final class LiveRail {
         long now = System.currentTimeMillis();
         float x = X * k, base = LATER_Y * k + Ui.halfCap(chip);
         chip.setColor(0xFFFFFFFF);
-        String head = Ui.tr("Depois em ", "Later on ") + ch.name;
+        String head = Ui.tr("Depois em ", "Later on ") + view.nameWithCountry(ch);
         head = ellipsize(head, chip, 460 * k);
         c.drawText(head, x, base, chip);
         x += chip.measureText(head) + 24 * k;

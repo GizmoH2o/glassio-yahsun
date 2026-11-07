@@ -512,7 +512,7 @@ public class Multiview extends Activity {
         String[] items = new String[list.size()];
         for (int c = 0; c < list.size(); c++) {
             Xtream.Channel ch = list.get(c);
-            items[c] = (ch.num > 0 ? ch.num + "   " : "") + ch.name;
+            items[c] = (ch.num > 0 ? ch.num + "   " : "") + LiveCountry.named(this, ch);
         }
         LiveSheet.menu(this)
                 .setTitle(title)
@@ -760,7 +760,7 @@ public class Multiview extends Activity {
                     shade.setShader(new android.graphics.LinearGradient(0, r.bottom - lh, 0, r.bottom, 0x000B0B0D, 0xE00B0B0D, android.graphics.Shader.TileMode.CLAMP));
                     c.drawRect(r.left, r.bottom - lh, r.right, r.bottom, shade);
                     float x = r.left + 24 * k, room = r.width() - 48 * k;
-                    String line2 = (b.channel.num > 0 ? b.channel.num + "  " : "") + b.channel.name;
+                    String line2 = (b.channel.num > 0 ? b.channel.num + "  " : "") + LiveCountry.named(Multiview.this, b.channel);
                     String line1 = !b.status.isEmpty() && !b.status.equals("…") ? b.status
                             : b.onNow == null ? b.channel.name : b.onNow.title;
                     c.drawText(ellipsize(line1, name, room), x, r.bottom - 48 * k, name);

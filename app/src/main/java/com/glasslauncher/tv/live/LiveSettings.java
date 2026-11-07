@@ -334,7 +334,7 @@ final class LiveSettings {
         if (screen == HIDDEN || screen == LOCKED) return view.providerCategories().get(i).name;
         if (screen == SCHEDULE) {
             LiveSchedule.Item it = scheduled.get(i);
-            return it.title.isEmpty() ? it.ch.name : it.title;
+            return it.title.isEmpty() ? view.nameWithCountry(it.ch) : it.title;
         }
         if (screen == SEPARATE) return separate.get(i)[1];
         if (screen == SERIES) return series.get(i).title;
@@ -342,7 +342,7 @@ final class LiveSettings {
         if (screen == PLAYLISTS) return playlists.get(i).name();
         if (screen == ORDER) {
             Xtream.Channel ch = favorites().get(i);
-            return (ch.num > 0 ? ch.num + "   " : "") + ch.name;
+            return view.numberAndName(ch, "   ");
         }
         if (screen == MAIN) return sectionName(i);
         if (screen == KEYS) return LiveKeys.slotName(LiveKeys.SLOTS[i]);
@@ -488,7 +488,7 @@ final class LiveSettings {
             LiveSchedule.Item it = scheduled.get(i);
             java.text.SimpleDateFormat day = new java.text.SimpleDateFormat("EEE d", Ui.locale());
             return (LiveSchedule.reminder(it) ? Ui.tr("Lembrete", "Reminder") : Ui.tr("Gravação", "Recording"))
-                    + "  ·  " + day.format(new java.util.Date(it.start)) + ", " + Ui.time(it.start) + "  ·  " + it.ch.name;
+                    + "  ·  " + day.format(new java.util.Date(it.start)) + ", " + Ui.time(it.start) + "  ·  " + view.nameWithCountry(it.ch);
         }
         if (screen == SEPARATE) return Ui.tr("Separado", "Separate");
         if (screen == PLAYLISTS) {
@@ -499,7 +499,7 @@ final class LiveSettings {
             LiveSeries.Rule r = series.get(i);
             return (r.kind.equals(LiveSchedule.REMIND) ? Ui.tr("Lembrete", "Reminder") : Ui.tr("Gravação", "Recording"))
                     + "  ·  " + (r.newOnly ? Ui.tr("Episódios novos", "New episodes") : Ui.tr("Todos os episódios", "Every episode"))
-                    + "  ·  " + r.ch.name;
+                    + "  ·  " + view.nameWithCountry(r.ch);
         }
         if (screen == HIDDEN) {
             return LiveOptions.hidden(c).contains(view.providerCategories().get(i).id) ? Ui.tr("Oculta", "Hidden") : Ui.tr("Visível", "Shown");

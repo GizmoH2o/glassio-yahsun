@@ -690,7 +690,7 @@ final class LiveSearch extends Dialog {
                     view.drawLogo(c, channels.get(i), logo, 1);
                     Xtream.Channel ch = channels.get(i);
                     Paint p = on ? nameOn : name;
-                    String label = (ch.num > 0 ? ch.num + "  " : "") + ch.name;
+                    String label = view.numberAndName(ch, "  ");
                     if (on) nameMarquee.draw(c, label, tx, (y + CH_H + 36) * k, CH_W * k, p, k);     // focused: a long name scrolls
                     else c.drawText(ellipsize(label, p, CH_W * k), tx, (y + CH_H + 36) * k, p);
                 }
@@ -749,7 +749,7 @@ final class LiveSearch extends Dialog {
                     view.drawLogo(c, hit.ch, logo, 1);
                 }
                 Paint np = on ? nameOn : name;
-                String line2 = hit.when + "  ·  " + hit.ch.name;
+                String line2 = hit.when + "  ·  " + view.nameWithCountry(hit.ch);
                 if (on) {       // focused: a long name scrolls across
                     titleMarquee.draw(c, hit.p.title, tx, (y + SH_H + 36) * k, SH_W * k, np, k);
                     subMarquee.draw(c, line2, tx, (y + SH_H + 68) * k, SH_W * k, sub, k);

@@ -539,6 +539,10 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.hasExtra("countries")) {      // logs which channels have a country and which don't (tag LiveCountry)
+                if (lineup != null) TestHook.countries(Live.this, lineup);
+                return;
+            }
             if (i.hasExtra("multi")) {          // Multiview, with that channel number in its second box
                 multiSecond = i.getIntExtra("multi", -1);
                 openMultiview();
@@ -2157,7 +2161,7 @@ public class Live extends Activity {
                 return;
             }
             final LiveRecordings.Rec next = best;
-            view.upNext(next.title, Ui.tr("Gravado", "Recorded") + "  ·  " + ch.name, Ui.tr("Assistir", "Play now"),
+            view.upNext(next.title, Ui.tr("Gravado", "Recorded") + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir", "Play now"),
                     () -> playRecording(next), this::backToLive);
             return;
         }
@@ -2170,10 +2174,10 @@ public class Live extends Activity {
         }
         final Xtream.Program n = next;
         if (n.start <= now && n.end > now) {        // on now: the channel live
-            view.upNext(n.title, Ui.tr("Agora", "Now") + "  ·  " + ch.name, Ui.tr("Assistir ao vivo", "Watch live"),
+            view.upNext(n.title, Ui.tr("Agora", "Now") + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir ao vivo", "Watch live"),
                     this::backToLive, this::backToLive);
         } else if (n.end <= now && LiveView.replayable(ch, n, now)) {
-            view.upNext(n.title, Ui.time(n.start) + "  ·  " + ch.name, Ui.tr("Assistir", "Play now"),
+            view.upNext(n.title, Ui.time(n.start) + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir", "Play now"),
                     () -> playCatchup(ch, n), this::backToLive);
         } else {
             backToLive();

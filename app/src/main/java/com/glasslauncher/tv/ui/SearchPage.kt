@@ -231,7 +231,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     DsHeading("On TV", s)
                     LazyRow(state = showRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                         itemsIndexed(shows, key = { _, a -> a.key() }) { i, a ->
-                            TextCard(a.title, LiveHome.whenLine(a) + "  ·  " + a.channelName, s, showRow.of(i).nav(up = above(showRow), down = below(showRow), left = if (i == 0) keyFocus else null, right = edge(i == shows.lastIndex))) {
+                            TextCard(a.title, LiveHome.whenLine(a) + "  ·  " + a.channelWithCountry(), s, showRow.of(i).nav(up = above(showRow), down = below(showRow), left = if (i == 0) keyFocus else null, right = edge(i == shows.lastIndex))) {
                                 if (a.onNow(System.currentTimeMillis())) ctx.startActivity(LiveHome.open(ctx, a.channel, false))
                                 else scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(ctx, a, true) }) }
                             }
@@ -243,7 +243,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     DsHeading("Your recordings", s)
                     LazyRow(state = recordRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                         itemsIndexed(recordings, key = { _, a -> a.recording }) { i, a ->
-                            TextCard(a.title, a.channelName, s, recordRow.of(i).nav(up = above(recordRow), down = below(recordRow), left = if (i == 0) keyFocus else null, right = edge(i == recordings.lastIndex))) {
+                            TextCard(a.title, a.channelWithCountry(), s, recordRow.of(i).nav(up = above(recordRow), down = below(recordRow), left = if (i == 0) keyFocus else null, right = edge(i == recordings.lastIndex))) {
                                 ctx.startActivity(LiveHome.openRecording(ctx, a.recording))
                             }
                         }
@@ -308,7 +308,7 @@ private fun Key(label: String, s: Float, lastKey: MutableState<String>, keyFocus
 
 @Composable
 private fun ChannelCard(a: LiveHome.Airing, s: Float, modifier: Modifier, onClick: () -> Unit) {
-    TextCard((if (a.number > 0) "${a.number}  " else "") + a.channelName, a.title, s, modifier, onClick)
+    TextCard((if (a.number > 0) "${a.number}  " else "") + a.channelWithCountry(), a.title, s, modifier, onClick)
 }
 
 /** A plain card of text (a channel, an app). */

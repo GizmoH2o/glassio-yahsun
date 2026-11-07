@@ -68,8 +68,8 @@ final class LiveMatchDay {
     }
 
     /** The second line: LIVE (or the kick-off time) and the channel. */
-    static String where(Match m, long now) {
-        String ch = (m.ch.num > 0 ? m.ch.num + "  " : "") + m.ch.name;
+    static String where(Context c, Match m, long now) {
+        String ch = (m.ch.num > 0 ? m.ch.num + "  " : "") + LiveCountry.named(c, m.ch);
         return (now >= m.start ? Ui.tr("AO VIVO", "LIVE") : Ui.time(m.start)) + "  ·  " + ch;
     }
 }

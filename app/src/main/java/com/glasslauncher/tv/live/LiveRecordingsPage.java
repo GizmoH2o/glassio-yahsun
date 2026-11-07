@@ -216,7 +216,7 @@ final class LiveRecordingsPage extends Dialog {
             final LiveSchedule.Item it = later.get(at);
             LiveSheet.menu(c)
                     .setTitle(it.title.isEmpty() ? it.ch.name : it.title)
-                    .setMessage(when(it.start, it.end) + "  ·  " + it.ch.name)
+                    .setMessage(when(it.start, it.end) + "  ·  " + view.nameWithCountry(it.ch))
                     .setIcons("close")
                     .setItems(new String[] {Ui.tr("Cancelar a gravação", "Cancel the recording")}, (d, which) -> {
                         LiveSchedule.cancel(c, it.key());
@@ -243,7 +243,7 @@ final class LiveRecordingsPage extends Dialog {
         LiveSheet.menu(c)
                 .setTitle(r.title.isEmpty() ? r.ch.name : r.title)
                 .setMessage((r.why.isEmpty() ? "" : Character.toUpperCase(r.why.charAt(0)) + r.why.substring(1) + "  ·  ")
-                        + when(r.start, r.end) + "  ·  " + r.ch.name)
+                        + when(r.start, r.end) + "  ·  " + view.nameWithCountry(r.ch))
                 .setIcons(icons.toArray(new String[0]))
                 .setItems(labels.toArray(new String[0]), (DialogInterface d, int which) -> {
                     if (playable && which == 0) {
@@ -395,8 +395,8 @@ final class LiveRecordingsPage extends Dialog {
                     why = rec.why;
                     missed = rec.file.isEmpty();
                 }
-                t2 = !why.isEmpty() ? Character.toUpperCase(why.charAt(0)) + why.substring(1) + "  ·  " + ch.name
-                        : when(start, end) + "  ·  " + ch.name;
+                t2 = !why.isEmpty() ? Character.toUpperCase(why.charAt(0)) + why.substring(1) + "  ·  " + view.nameWithCountry(ch)
+                        : when(start, end) + "  ·  " + view.nameWithCountry(ch);
                 r.set(tx, top, tx + TILE_W * k, top + TILE_H * k);
                 if (on) r.inset(-8 * k, -8 * k);
                 fill.setColor(on ? LiveTheme.tile : LiveTheme.surface);

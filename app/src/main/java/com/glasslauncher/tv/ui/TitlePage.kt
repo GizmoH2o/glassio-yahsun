@@ -267,10 +267,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         else scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(ctx, a, true) }) }
                     }
                     itemsIndexed(onNow, key = { _, a -> "now:${a.channel}:${a.start}" }) { i, a ->
-                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(i)) { airing(a) }
+                        TextCard(a.channelWithCountry(), LiveHome.whenLine(a), s, place(i)) { airing(a) }
                     }
                     itemsIndexed(recorded, key = { _, a -> "rec:${a.recording}" }) { i, a ->
-                        TextCard(a.channelName.ifBlank { a.title }, "Your recording", s, place(onNow.size + i)) { ctx.startActivity(LiveHome.openRecording(ctx, a.recording)) }
+                        TextCard(a.channelWithCountry().ifBlank { a.title }, "Your recording", s, place(onNow.size + i)) { ctx.startActivity(LiveHome.openRecording(ctx, a.recording)) }
                     }
                     itemsIndexed(otherApps, key = { _, l -> "app:${l.service}" }) { i, l ->
                         TextCard(l.service, "Streaming", s, place(onNow.size + recorded.size + i)) {
@@ -278,7 +278,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         }
                     }
                     itemsIndexed(later, key = { _, a -> "later:${a.channel}:${a.start}" }) { i, a ->
-                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(onNow.size + recorded.size + otherApps.size + i)) { airing(a) }
+                        TextCard(a.channelWithCountry(), LiveHome.whenLine(a), s, place(onNow.size + recorded.size + otherApps.size + i)) { airing(a) }
                     }
                 }
             }

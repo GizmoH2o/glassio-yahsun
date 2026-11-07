@@ -81,7 +81,7 @@ final class LiveSettingsPages {
                     expected++;
                 } else if (LiveGuideMatch.expectsGuide(groups.get(ch.category), ch.name)) {
                     expected++;
-                    if (!isIn(locked, ch)) without.add((ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch));
+                    if (!isIn(locked, ch)) without.add(view.numberAndName(ch, "  "));
                 }
             }
             total = expected;
@@ -126,8 +126,8 @@ final class LiveSettingsPages {
         Xtream.Channel on = live.playing();
         LiveCheck.Advice a = check.advice();
         String under = on == null ? Ui.tr("Comece um canal primeiro: a verificação usa o que está passando.", "Start a channel first: the check uses what's playing.")
-                : check.running() ? Ui.tr("Testando em ", "Testing on ") + view.nameOf(on) + "…  " + check.secondsDone() + " / " + LiveCheck.SECONDS + " s"
-                : Ui.tr("Testado em ", "Tested on ") + view.nameOf(on) + Ui.tr(" por 20 segundos. O canal continuou passando.", " for 20 seconds. The channel kept playing.");
+                : check.running() ? Ui.tr("Testando em ", "Testing on ") + view.nameWithCountry(on) + "…  " + check.secondsDone() + " / " + LiveCheck.SECONDS + " s"
+                : Ui.tr("Testado em ", "Tested on ") + view.nameWithCountry(on) + Ui.tr(" por 20 segundos. O canal continuou passando.", " for 20 seconds. The channel kept playing.");
         c.drawText(ellipsize(under, small, 1720 * k), 96 * k, 184 * k, small);
         if (on == null) return;
         String[][] rows = {

@@ -207,6 +207,11 @@ public final class LiveHome {
         public String channelName = "", logo = "", title = "", teams = "", sub = "", art = "", term = "";
         /** The channel's country tag ("" with the tags off or none known); channelName is then without it. */
         public String country = "";
+
+        /** The channel's name with its country in words ("Sky Sports News UK"), where no tag is drawn beside it. */
+        public String channelWithCountry() {
+            return LiveCountry.withCode(channelName, country);
+        }
         public long start, end;
         /** A live broadcast (the guide's mark); a reminder or a recording set for it. */
         public boolean live, remind, record;
@@ -415,7 +420,7 @@ public final class LiveHome {
                     out.label = label;
                     out.tag = tag;
                     out.headline = s.line();
-                    out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + (ch.num > 0 ? ch.num + "  " : "") + ch.name;
+                    out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + (ch.num > 0 ? ch.num + "  " : "") + LiveCountry.named(app, ch);
                     out.live = true;
                     out.channel = ch.id;
                     out.key = s.event + ":" + s.homeScore + ":" + s.awayScore;
@@ -437,7 +442,7 @@ public final class LiveHome {
             out.label = "HAR";
             out.tag = "GOAL";
             out.headline = "HAR 1–0 NOR  ·  63'";
-            out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + ch.num + "  " + ch.name;
+            out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + ch.num + "  " + LiveCountry.named(c, ch);
             out.live = true;
             out.channel = ch.id;
             out.key = "test";
@@ -459,7 +464,7 @@ public final class LiveHome {
         String comp = competition(m.title);
         out.label = (comp.isEmpty() ? "Following" : comp).toUpperCase(Locale.US);
         out.headline = LiveMatchDay.headline(m, LiveMatchDay.score(c, m));
-        out.where = LiveMatchDay.where(m, now);
+        out.where = LiveMatchDay.where(c, m, now);
         out.live = now >= m.start;
         out.channel = m.ch.id;
         out.start = m.start;

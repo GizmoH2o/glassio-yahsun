@@ -535,7 +535,7 @@ final class LiveOverlay {
         x = drawPill(c, pill, x, y, lit ? RED : past != null ? LiveTheme.tile : (LiveTheme.text & 0x00FFFFFF) | 0x59000000,
                 past != null && !lit ? LiveTheme.ink : 0xFFFFFFFF, true) + 16 * k;
         if (past != null) {        // when it was, and where
-            String when = LiveCatchup.dayName(past.start, now) + "  ·  " + view.nameOf(ch);
+            String when = LiveCatchup.dayName(past.start, now) + "  ·  " + view.nameWithCountry(ch);
             c.drawText(ellipsize(when, small, 760 * k), x, y, small);
             x += Math.min(760 * k, small.measureText(when)) + 16 * k;
         }
@@ -777,7 +777,10 @@ final class LiveOverlay {
         String show = shown == null ? "" : shown.title;
         String note = shown == null ? "" : past ? Ui.tr("REPRISE", "CATCH-UP")
                 : LiveView.minutesLeft((int) Math.max(1, Math.round((shown.end - now) / 60_000.0)));
-        float textW = Math.min(760 * k, Math.max(Math.max(meta.measureText(name), meta.measureText(show)), small.measureText(note)));
+        String briefTag = view.tagOf(ch);
+        LiveCountry.label(meta, tagLabel);
+        float nameW = meta.measureText(name) + LiveCountry.tagWidth(briefTag, meta, tagLabel, k);
+        float textW = Math.min(760 * k, Math.max(Math.max(nameW, meta.measureText(show)), small.measureText(note)));
         r.set(left, top, textX + textW + 36 * k, top + ht);
         float rr = LiveTheme.panelRound(24 * k);
         fill.setColor(LiveTheme.sheet());
@@ -792,10 +795,10 @@ final class LiveOverlay {
         box.set(left + 22 * k, top + 26 * k, left + 182 * k, top + 102 * k);
         view.drawLogo(c, ch, box, 1);
         if (show.isEmpty()) {       // no guide: the channel alone, in the middle
-            c.drawText(ellipsize(name, meta, textW), textX, top + ht / 2 + Ui.halfCap(meta), meta);
+            drawNameAndTag(c, name, briefTag, textX, top + ht / 2 + Ui.halfCap(meta), textW);
             return;
         }
-        c.drawText(ellipsize(name, meta, textW), textX, top + 42 * k, meta);
+        drawNameAndTag(c, name, briefTag, textX, top + 42 * k, textW);
         c.drawText(ellipsize(show, meta, textW), textX, top + 80 * k, meta);
         c.drawText(ellipsize(note, small, textW), textX, top + 112 * k, small);
     }
@@ -970,7 +973,7 @@ final class LiveOverlay {
         float room = wd - 2 * pad, x = left + pad, y = top + 56 * k;
         long seconds = Math.max(0, cardFor.end - now) / 1000;
         String in = Ui.tr("em ", "in ") + seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
-        c.drawText(ellipsize(Ui.tr("A seguir em ", "Next on ") + view.nameOf(ch), cardMeta, room - cardMeta.measureText(in) - 20 * k), x, y, cardMeta);
+        c.drawText(ellipsize(Ui.tr("A seguir em ", "Next on ") + view.nameWithCountry(ch), cardMeta, room - cardMeta.measureText(in) - 20 * k), x, y, cardMeta);
         cardMeta.setTextAlign(Paint.Align.RIGHT);
         c.drawText(in, right - pad, y, cardMeta);
         cardMeta.setTextAlign(Paint.Align.LEFT);
@@ -1033,7 +1036,7 @@ final class LiveOverlay {
             alsoWhy.setColor((ink & 0x00FFFFFF) | 0xE6000000);
             alsoTitle.setColor(ink);
             float x = left + 20 * k, room = width - 40 * k;
-            c.drawText(ellipsize(view.nameOf(a.channel) + " · " + a.why, alsoWhy, room), x, top + 44 * k, alsoWhy);
+            c.drawText(ellipsize(view.nameWithCountry(a.channel) + " · " + a.why, alsoWhy, room), x, top + 44 * k, alsoWhy);
             c.drawText(ellipsize(a.title, alsoTitle, room), x, top + 86 * k, alsoTitle);
             c.restoreToCount(save);
         }
@@ -1337,7 +1340,7 @@ final class LiveOverlay {
         if (p != null) meta.append(meta.length() > 0 ? "  ·  " : "").append((p.end - p.start) / 60_000).append(" min");
         info.show(p == null ? view.nameOf(ch) : p.title, Ui.tr("AO VIVO", "LIVE"), RED, meta.toString(),
                 p == null ? "" : LiveNames.about(live, p.title, p.about), tabs, on, () -> infoActions(ch, p),
-                Ui.tr("Depois em ", "Later on ") + view.nameOf(ch), laterOn(ch));
+                Ui.tr("Depois em ", "Later on ") + view.nameWithCountry(ch), laterOn(ch));
     }
 
     /** What can be done from Info, in the mockup's order, then the rest of what the player does. */
