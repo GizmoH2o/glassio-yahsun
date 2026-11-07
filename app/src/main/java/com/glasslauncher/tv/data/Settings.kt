@@ -310,6 +310,8 @@ class Settings(private val ctx: Context) {
     var phoneRemote: Boolean get() = b("phoneRemote", false); set(v) = putB("phoneRemote", v)
     /** The phone page's Live TV section: what's on, the guide, reminders and recordings (LivePhone). */
     var phoneLive: Boolean get() = b("phoneLive", true); set(v) = putB("phoneLive", v)
+    /** The phone page's calendar: Add to calendar on a show, and a feed of what's set and the matches you follow (IcsWriter). */
+    var phoneCalendar: Boolean get() = b("phoneCalendar", true); set(v) = putB("phoneCalendar", v)
     var phoneToken: String get() = s("phoneToken", ""); set(v) = putS("phoneToken", v)
     var textSize: String get() = s("textSize", "normal"); set(v) = putS("textSize", v)
     /** Continue Watching: series with a new episode out since you watched go first (after Live TV's cards). */

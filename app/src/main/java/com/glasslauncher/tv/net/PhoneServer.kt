@@ -72,6 +72,22 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         if (!MessageDigest.isEqual(query(q, "t").toByteArray(), token.toByteArray())) { respond(c, 403, "text/plain", "Forbidden"); return }
         if (method == "GET" && path == "/") { respond(c, 200, "text/html", PAGE); return }
         if (method == "GET" && path == "/api/state") { respond(c, 200, "application/json", state().toString()); return }
+        // The calendar (Settings › System › Calendar on the phone page): the feed a phone subscribes to, or one show's file.
+        if (method == "GET" && (path == "/api/live/calendar.ics" || path == "/api/live/event.ics")) {
+            val ics = runCatching {
+                check(app.settings.phoneCalendar) { "Calendar on the phone page is off: Settings › System" }
+                val items = if (path == "/api/live/calendar.ics") com.glasslauncher.tv.live.LivePhone.calendar(app)
+                else listOf(com.glasslauncher.tv.live.LivePhone.calendarItem(app, query(q, "id").toIntOrNull() ?: -1,
+                    query(q, "start").toLongOrNull() ?: 0, query(q, "end").toLongOrNull() ?: 0, query(q, "title").take(200)))
+                com.glasslauncher.tv.data.IcsWriter.calendar("Glassio", items, System.currentTimeMillis(), 15)
+            }
+            ics.fold({
+                val file = if (path == "/api/live/event.ics") "Content-Disposition: attachment; filename=\"glassio-show.ics\"\r\n"
+                else "Content-Disposition: inline; filename=\"glassio.ics\"\r\n"
+                respond(c, 200, "text/calendar", it, file)
+            }, { respond(c, 400, "text/plain", it.message ?: "Failed") })
+            return
+        }
         // Live TV (Settings › System › Live TV on the phone page): reading it, blocking (the guide).
         if (method == "GET" && path.startsWith("/api/live/")) {
             val body = runCatching {
@@ -377,15 +393,15 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         return JSONObject().put("addons", addons).put("bg", back).put("apps", apps).put("aerial", aerial)
             .put("tmdb", app.settings.tmdbToken.isNotBlank()).put("ha", app.settings.haWebhook.isNotBlank())
             .put("cals", cals).put("haBase", app.settings.haBase).put("haToken", app.settings.haToken.isNotBlank())
-            .put("live", app.settings.phoneLive)
+            .put("live", app.settings.phoneLive).put("calendar", app.settings.phoneCalendar)
     }
 
     private fun err(m: String) = JSONObject().put("ok", false).put("error", m).toString()
 
-    private fun respond(c: Socket, code: Int, type: String, body: String) {
+    private fun respond(c: Socket, code: Int, type: String, body: String, extra: String = "") {
         val bytes = body.toByteArray(Charsets.UTF_8)
         val reason = when (code) { 200 -> "OK"; 400 -> "Bad Request"; 403 -> "Forbidden"; else -> "Not Found" }
-        val head = "HTTP/1.1 $code $reason\r\nContent-Type: $type; charset=utf-8\r\nContent-Length: ${bytes.size}\r\n" +
+        val head = "HTTP/1.1 $code $reason\r\nContent-Type: $type; charset=utf-8\r\nContent-Length: ${bytes.size}\r\n" + extra +
             "Cache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n"
         val out = c.getOutputStream()
         out.write(head.toByteArray(Charsets.UTF_8)); out.write(bytes); out.flush()
@@ -420,7 +436,10 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <div id="livebox" style="display:none"><h2>Live TV</h2><div class="row" id="ltabs"></div>
 <div id="lchq" style="margin-top:10px"><input type="text" id="lc" placeholder="Any channel: its name or number"><button class="s" style="margin-top:8px" onclick="lCh()">Find channel</button></div>
 <div id="lfind" style="display:none;margin-top:10px"><input type="text" id="lq" placeholder="A show or a team"><button onclick="lFind()">Find in the guide</button></div>
-<div id="llist" style="margin-top:10px"></div></div>
+<div id="llist" style="margin-top:10px"></div>
+<div id="calbox" style="display:none"><h2>Calendar</h2><p>What you set and the matches you follow, the next 7 days, in your phone’s calendar: it updates itself while you’re home. iPhone: Subscribe. Android: open the link with ICSx⁵ (free), which puts it in Google Calendar on the phone. Google Calendar on its own can’t reach the TV: use Add to calendar on a show instead.</p>
+<div class="row"><a id="calsub" href="#"><button class="s">Subscribe</button></a><button class="s" onclick="var t=document.getElementById('calurl');t.select();try{document.execCommand('copy');say('Copied',true)}catch(e){}">Copy link</button></div>
+<input type="text" id="calurl" readonly style="margin-top:8px"></div></div>
 <h2>Add-ons</h2><div id="addons"></div>
 <input type="text" id="au" placeholder="https://.../manifest.json  or  stremio://..."><button onclick="addAddon()">Add add-on</button>
 <div style="display:none"><h2>Background</h2><p>What's behind the home screen. Your pictures and videos live in Glassio's backgrounds folder on the TV.</p>
@@ -468,6 +487,8 @@ function lTabs(){var r=document.getElementById('ltabs');r.textContent='';LTS.for
 document.getElementById('lfind').style.display=LT=='find'?'':'none';document.getElementById('lchq').style.display=LT=='now'?'':'none'}
 function lShow(){lTabs();var L=document.getElementById('llist');L.textContent='';if(LT=='now')lCh();else if(LT=='find'){if(v('lq'))lFind()}
 else if(LT=='schedule'){L.textContent='Reading...';get('/api/live/schedule').then(lSched)}else{L.textContent='Reading...';get('/api/live/recordings').then(lRecs)}}
+var calOn=false;
+function calB(x,p){return btn('Add to calendar','s',function(){location.href='/api/live/event.ics?t='+encodeURIComponent(T)+'&id='+x.id+'&start='+p.start+'&end='+p.end+'&title='+encodeURIComponent(p.title)})}
 function setB(x,p,rec){return btn(rec?(p.record?'Recording':'Record'):(p.remind?'Reminder set':'Remind'),'s',function(){lAct('/api/live/set',{record:rec,id:x.id,start:p.start,end:p.end,title:p.title})})}
 function lCh(){var L=document.getElementById('llist');L.textContent='Reading...';get('/api/live/channels?q='+encodeURIComponent(v('lc'))).then(function(d){L.textContent='';
 if(d.error){L.textContent=d.error;return}if(!d.ready){L.textContent='Live TV is not signed in on the TV.';return}
@@ -484,11 +505,12 @@ function lFind(){var L=document.getElementById('llist'),q=v('lq');if(!q)return;L
 if(d.error){L.textContent=d.error;return}if(!d.airings.length){L.textContent='Nothing in the next 7 days.';return}var now=Date.now();
 d.airings.forEach(function(x){var c=el('div','card');c.appendChild(el('b','',x.title));c.appendChild(el('small','',dy(x.start)+' '+hm(x.start)+'  ·  '+chName(x)));
 var r=el('div','row');if(x.start<=now)r.appendChild(btn('Watch on TV','s',function(){lAct('/api/live/watch',{id:x.id})}));
-if(x.start>now)r.appendChild(setB(x,x,false));r.appendChild(setB(x,x,true));c.appendChild(r);L.appendChild(c)})}).catch(function(){L.textContent='Cannot reach the TV'})}
+if(x.start>now)r.appendChild(setB(x,x,false));r.appendChild(setB(x,x,true));if(calOn)r.appendChild(calB(x,x));c.appendChild(r);L.appendChild(c)})}).catch(function(){L.textContent='Cannot reach the TV'})}
 function lSched(d){var L=document.getElementById('llist');L.textContent='';if(d.error){L.textContent=d.error;return}if(!d.items.length){L.textContent='Nothing set.';return}
 d.items.forEach(function(x){var c=el('div','card');var t=el('b','',x.title);t.appendChild(el('span','tag',x.kind=='record'?'recording':'reminder'));c.appendChild(t);
 c.appendChild(el('small','',dy(x.start)+' '+hm(x.start)+'  ·  '+chName(x)));var r=el('div','row');
-r.appendChild(btn('Cancel','s d',function(){lAct('/api/live/cancel',{key:x.key})}));c.appendChild(r);L.appendChild(c)})}
+r.appendChild(btn('Cancel','s d',function(){lAct('/api/live/cancel',{key:x.key})}));
+if(calOn){var k=x.key.split(':');r.appendChild(calB({id:parseInt(k[1],10)},x))}c.appendChild(r);L.appendChild(c)})}
 function lRecs(d){var L=document.getElementById('llist');L.textContent='';if(d.error){L.textContent=d.error;return}if(!d.items.length){L.textContent='No recordings yet.';return}
 d.items.forEach(function(x){var c=el('div','card');c.appendChild(el('b','',x.title));
 c.appendChild(el('small','',dy(x.start)+' '+hm(x.start)+'  ·  '+chName(x)+'  ·  '+Math.round(x.size/1048576)+' MB'));var r=el('div','row');
@@ -513,6 +535,8 @@ return 'rest_command:\n  glassio_tune:\n    url: "'+b+'tune'+q+'"\n'+h+'    payl
 +'  glassio_play:\n    url: "'+b+'play'+q+'"\n'+h+'    payload: "{}"\n'}
 function load(){document.getElementById('hay').value=haYaml();api('/api/state').then(function(d){
 document.getElementById('livebox').style.display=d.live?'':'none';if(d.live&&!liveOn){liveOn=true;lShow()}
+calOn=!!d.calendar;document.getElementById('calbox').style.display=calOn?'':'none';
+if(calOn){var cu=location.host+'/api/live/calendar.ics?t='+encodeURIComponent(T);document.getElementById('calurl').value='webcal://'+cu;document.getElementById('calsub').href='webcal://'+cu}
 var a=document.getElementById('addons');a.textContent='';d.addons.forEach(function(x){var c=el('div','card');var t=el('b','',x.name);if(x.account)t.appendChild(el('span','tag',(x.from||'Nuvio')+' account'));c.appendChild(t);c.appendChild(el('small','',x.host));if(!x.account){var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/addon/remove',{url:x.url})};r.appendChild(b);c.appendChild(r)}a.appendChild(c)});
 var g=d.bg,m=document.getElementById('bgm');m.textContent='';BGM.forEach(function(o){var b=el('button',g.mode==o[0]?'':'s',o[1]);b.onclick=function(){send('/api/bg/mode',{mode:o[0]})};m.appendChild(b)});
 document.getElementById('bgnow').textContent=(g.image?'Picture: '+g.image+'  ':'')+(g.video?'Video: '+g.video:'');

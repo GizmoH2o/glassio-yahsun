@@ -231,6 +231,47 @@ public final class LivePhone {
         return watch(c, ch.id);
     }
 
+    // MARK: - The calendar (Settings › System › Calendar on the phone page)
+
+    /** "637  TNT Sports 1 UK": where a show is, for the calendar. */
+    private static String where(Context c, Xtream.Channel ch, Map<String, String> cats) {
+        String cc = countryOf(c, ch, cats);
+        return (ch.num > 0 ? ch.num + "  " : "") + nameOf(c, ch, cats) + (cc.isEmpty() ? "" : " " + cc);
+    }
+
+    /** The feed's shows: what's set, then the matches of what you follow, the next 7 days. Blocking (the guide). */
+    public static List<com.glasslauncher.tv.data.IcsWriter.Item> calendar(Context c) {
+        List<com.glasslauncher.tv.data.IcsWriter.Item> out = new ArrayList<>();
+        Map<String, String> cats = LiveCountry.savedCategories(c);
+        long now = System.currentTimeMillis(), to = now + 7 * 24 * HOUR;
+        Set<String> seen = new HashSet<>();
+        for (LiveSchedule.Item it : LiveSchedule.all(c)) {
+            if (it.ch == null || it.end <= now || it.start > to) continue;
+            boolean remind = LiveSchedule.reminder(it);
+            seen.add(it.ch.id + ":" + it.start);
+            out.add(new com.glasslauncher.tv.data.IcsWriter.Item(com.glasslauncher.tv.data.IcsWriter.uid(remind ? "remind" : "record", it.ch.id, it.start),
+                    it.title, where(c, it.ch, cats), remind ? "Reminder in Glassio" : "Recording in Glassio", it.start, it.end));
+        }
+        if (Xtream.ready(c)) {
+            for (String term : LiveFollow.all(c)) {
+                for (LiveHome.Airing a : LiveHome.team(c, term).matches) {
+                    if (a.ch == null || a.end <= now || a.start > to || !seen.add(a.ch.id + ":" + a.start)) continue;
+                    out.add(new com.glasslauncher.tv.data.IcsWriter.Item(com.glasslauncher.tv.data.IcsWriter.uid("match", a.ch.id, a.start),
+                            a.title, where(c, a.ch, cats), "You follow " + term, a.start, a.end));
+                }
+            }
+        }
+        java.util.Collections.sort(out, (x, y) -> Long.compare(x.getStart(), y.getStart()));
+        return out;
+    }
+
+    /** One show for Add to calendar: `title` on channel `id`, its times. */
+    public static com.glasslauncher.tv.data.IcsWriter.Item calendarItem(Context c, int id, long start, long end, String title) {
+        Xtream.Channel ch = channelOf(c, id);
+        return new com.glasslauncher.tv.data.IcsWriter.Item(com.glasslauncher.tv.data.IcsWriter.uid("show", ch.id, start),
+                title == null ? "" : title.trim(), where(c, ch, LiveCountry.savedCategories(c)), "From Glassio", start, end);
+    }
+
     // MARK: - Do
 
     private static Xtream.Channel channelOf(Context c, int id) {

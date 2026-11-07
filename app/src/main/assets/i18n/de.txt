@@ -915,3 +915,5 @@ Basic: playing, back on Home, the screensaver. All: also paused and playing agai
 Basic	Einfach
 Control from Home Assistant	Steuerung durch Home Assistant
 Its automations can tune a channel, pause, play and show a notice: the commands to paste are on the phone page (Manage from phone), with Phone remote on	Seine Automationen können einen Sender einschalten, pausieren, abspielen und eine Meldung zeigen: die Befehle zum Einfügen stehen auf der Handy-Seite (Vom Handy verwalten), mit Handy-Fernbedienung an
+Calendar on the phone page	Kalender auf der Handy-Seite
+Add to calendar on a show, and a calendar your phone subscribes to: what you set and the matches you follow	Zum Kalender hinzufügen bei einer Sendung, und ein Kalender, den dein Handy abonniert: was du eingestellt hast und die Spiele, denen du folgst
