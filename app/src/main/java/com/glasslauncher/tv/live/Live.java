@@ -349,6 +349,8 @@ public class Live extends Activity {
         LiveScores.get(this).watch(scores);
         registerReceiver(recordingProblem, new android.content.IntentFilter(LiveRecordings.PROBLEM), null, null,
                 android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
+        registerReceiver(synced, new android.content.IntentFilter(LiveSyncStores.SYNCED), null, null,
+                android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         main.removeCallbacks(ratingWatch);
         main.postDelayed(ratingWatch, 15_000);
         main.removeCallbacks(familyWatch);
@@ -362,6 +364,13 @@ public class Live extends Activity {
         if (locked(playing)) view.askPin(() -> { unlocked = true; resume(); }, view::openGuide);
         else resume();
     }
+
+    /** Another TV's changes came in (Sync with other TVs): the favorites, the profiles and the names read again. */
+    private final android.content.BroadcastReceiver synced = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            relist();
+        }
+    };
 
     /** A recording that failed or was cut short (the recorder's process tells): a card over what's on. */
     private final android.content.BroadcastReceiver recordingProblem = new android.content.BroadcastReceiver() {
@@ -496,6 +505,10 @@ public class Live extends Activity {
         LiveScores.get(this).unwatch(scores);
         try {
             unregisterReceiver(recordingProblem);
+        } catch (IllegalArgumentException ignored) {
+        }
+        try {
+            unregisterReceiver(synced);
         } catch (IllegalArgumentException ignored) {
         }
         sayWatching(null);

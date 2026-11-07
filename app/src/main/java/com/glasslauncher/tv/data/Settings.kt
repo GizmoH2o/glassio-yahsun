@@ -232,6 +232,8 @@ class Settings(private val ctx: Context) {
     var davUrl: String get() = s("davUrl", ""); set(v) = putS("davUrl", v.trim())
     var davUser: String get() = s("davUser", ""); set(v) = putS("davUser", v.trim())
     var davPass: String get() = s("davPass", ""); set(v) = putS("davPass", v)
+    /** Sync with other TVs at home (LanSync), which reads it in its own name. */
+    var syncOn: Boolean get() = b("syncOn", false); set(v) = putB("syncOn", v)
     val davLast: Long get() = sp.getLong("davLast", 0L)
     /** The rows of Home in order, by name ("": HomeRows' order). */
     var homeOrder: String get() = s("homeOrder", ""); set(v) = putS("homeOrder", v)

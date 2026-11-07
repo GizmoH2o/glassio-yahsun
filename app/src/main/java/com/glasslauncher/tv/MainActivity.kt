@@ -165,6 +165,11 @@ class MainActivity : ComponentActivity() {
         if (i?.getBooleanExtra("open_live", false) == true) { app.requestSettings.intValue = 102; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_following", false) == true) { app.requestSettings.intValue = 103; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_today", false) == true) { app.requestSettings.intValue = 104; app.requestSettingsRev.intValue++ }
+        // Test only: Sync with other TVs on or off, a pairing code shown (in the log), a sync now, the pairs forgotten.
+        if (i?.hasExtra("sync_on") == true) { app.settings.syncOn = i.getBooleanExtra("sync_on", false); Thread { com.glasslauncher.tv.data.LanSync.apply(this) }.start() }
+        if (i?.getBooleanExtra("sync_pair", false) == true) com.glasslauncher.tv.data.Glog.i("Sync test: pairing code " + com.glasslauncher.tv.data.LanSync.showCode())
+        if (i?.getBooleanExtra("sync_now", false) == true) Thread { com.glasslauncher.tv.data.Glog.i("Sync test: synced with " + com.glasslauncher.tv.data.LanSync.syncNow(this)) }.start()
+        if (i?.getBooleanExtra("sync_forget", false) == true) com.glasslauncher.tv.data.LanSync.peers(this).forEach { com.glasslauncher.tv.data.LanSync.forget(this, it.id) }
         // Test only: Backup to WebDAV's path with a stand-in file (WebDav.test), its outcome in the log.
         if (i?.getBooleanExtra("dav_test", false) == true) Thread {
             runCatching { com.glasslauncher.tv.data.WebDav.test(this) }

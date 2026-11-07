@@ -928,3 +928,17 @@ Backed up to WebDAV	Backup su WebDAV fatto
 No backups in that folder yet	Ancora nessun backup in quella cartella
 Backup to WebDAV off	Backup su WebDAV disattivato
 Backing up…	Backup in corso…
+Sync with other TVs	Sincronizza con altre TV
+Live TV's favorites and profiles, followed teams and shows, channel names and numbers, reminders and where you left catch-up shows, the same on your TVs at home (same Wi-Fi). Recordings stay on their TV	Preferiti e profili della TV in diretta, squadre e programmi seguiti, nomi e numeri dei canali, promemoria e dove eri rimasto nei programmi in replica, uguali sulle TV di casa (stesso Wi-Fi). Le registrazioni restano sulla loro TV
+Pair a TV	Associa una TV
+One TV shows a code, the other types it	Una TV mostra un codice, l'altra lo inserisce
+Turn on Sync with other TVs first	Attiva prima Sincronizza con altre TV
+Show a code on this TV	Mostra un codice su questa TV
+Type this code on the other TV	Inserisci questo codice sull'altra TV
+for 2 minutes	per 2 minuti
+Type another TV's code	Inserisci il codice di un'altra TV
+Which TV?	Quale TV?
+Paired TVs	TV associate
+Sync now	Sincronizza ora
+Synced	Sincronizzato
+No TVs paired yet	Ancora nessuna TV associata

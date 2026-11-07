@@ -929,3 +929,17 @@ Backed up to WebDAV	Auf WebDAV gesichert
 No backups in that folder yet	Noch keine Sicherungen in diesem Ordner
 Backup to WebDAV off	Sicherung auf WebDAV aus
 Backing up…	Wird gesichert…
+Sync with other TVs	Mit anderen Fernsehern abgleichen
+Live TV's favorites and profiles, followed teams and shows, channel names and numbers, reminders and where you left catch-up shows, the same on your TVs at home (same Wi-Fi). Recordings stay on their TV	Live-TV-Favoriten und Profile, gefolgte Teams und Sendungen, Sendernamen und -nummern, Erinnerungen und wo Sendungen zum Nachsehen standen, gleich auf deinen Fernsehern zu Hause (gleiches WLAN). Aufnahmen bleiben auf ihrem Fernseher
+Pair a TV	Fernseher koppeln
+One TV shows a code, the other types it	Ein Fernseher zeigt einen Code, der andere gibt ihn ein
+Turn on Sync with other TVs first	Schalte zuerst den Abgleich mit anderen Fernsehern ein
+Show a code on this TV	Einen Code auf diesem Fernseher zeigen
+Type this code on the other TV	Gib diesen Code auf dem anderen Fernseher ein
+for 2 minutes	2 Minuten lang
+Type another TV's code	Code eines anderen Fernsehers eingeben
+Which TV?	Welcher Fernseher?
+Paired TVs	Gekoppelte Fernseher
+Sync now	Jetzt abgleichen
+Synced	Abgeglichen
+No TVs paired yet	Noch keine Fernseher gekoppelt

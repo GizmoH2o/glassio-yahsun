@@ -929,3 +929,17 @@ Backed up to WebDAV	Копия отправлена в WebDAV
 No backups in that folder yet	В этой папке пока нет копий
 Backup to WebDAV off	Копия в WebDAV выключена
 Backing up…	Создаю копию…
+Sync with other TVs	Синхронизация с другими ТВ
+Live TV's favorites and profiles, followed teams and shows, channel names and numbers, reminders and where you left catch-up shows, the same on your TVs at home (same Wi-Fi). Recordings stay on their TV	Избранное и профили эфира, команды и передачи, за которыми вы следите, названия и номера каналов, напоминания и где вы остановились в записях эфира — одинаково на ваших ТВ дома (одна сеть Wi-Fi). Записи остаются на своём ТВ
+Pair a TV	Связать ТВ
+One TV shows a code, the other types it	Один ТВ показывает код, на другом его вводят
+Turn on Sync with other TVs first	Сначала включите синхронизацию с другими ТВ
+Show a code on this TV	Показать код на этом ТВ
+Type this code on the other TV	Введите этот код на другом ТВ
+for 2 minutes	в течение 2 минут
+Type another TV's code	Ввести код другого ТВ
+Which TV?	Какой ТВ?
+Paired TVs	Связанные ТВ
+Sync now	Синхронизировать сейчас
+Synced	Синхронизировано
+No TVs paired yet	Пока нет связанных ТВ

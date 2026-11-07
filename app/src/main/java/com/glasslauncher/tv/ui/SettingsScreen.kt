@@ -827,6 +827,42 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     ))
                     dialog = dav()
                 },
+                Toggle("Sync with other TVs", "Live TV's favorites and profiles, followed teams and shows, channel names and numbers, reminders and where you left catch-up shows, the same on your TVs at home (same Wi-Fi). Recordings stay on their TV",
+                    { st.syncOn }, { st.syncOn = it; scope.launch(Dispatchers.IO) { com.glasslauncher.tv.data.LanSync.apply(app) } }),
+                Act("Pair a TV", if (st.syncOn) "One TV shows a code, the other types it" else "Turn on Sync with other TVs first", "") {
+                    if (!st.syncOn) { toast(ctx, "Turn on Sync with other TVs first"); return@Act }
+                    dialog = MenuDialog("Pair a TV", listOf(
+                        Lang.tr("Show a code on this TV") to {
+                            val code = com.glasslauncher.tv.data.LanSync.showCode()
+                            dialog = MenuDialog(Lang.tr("Type this code on the other TV") + ":  " + code.substring(0, 3) + " " + code.substring(3) +
+                                "  ·  " + Lang.tr("for 2 minutes"), listOf(Lang.tr("Done") to { }))
+                        },
+                        Lang.tr("Type another TV's code") to {
+                            val near = com.glasslauncher.tv.data.LanSync.found.entries.filter { e -> com.glasslauncher.tv.data.LanSync.peers(ctx).none { it.id == e.key } }
+                            if (near.isEmpty()) toast(ctx, "No other TV with Sync on found yet: turn it on there, wait a moment and try again")
+                            else dialog = MenuDialog("Which TV?", near.map { e ->
+                                e.value.first to {
+                                    dialog = TextEntry("Code shown on " + e.value.first, "", "6 digits") { code ->
+                                        scope.launch(Dispatchers.IO) {
+                                            runCatching { com.glasslauncher.tv.data.LanSync.pairWith(ctx, e.value.second, e.value.third, code) }
+                                                .fold({ toast(ctx, "Paired with $it"); com.glasslauncher.tv.data.LanSync.syncNow(ctx) }, { toast(ctx, "Couldn't pair: ${it.message}") })
+                                        }
+                                    }
+                                }
+                            })
+                        },
+                    ))
+                },
+                Act("Paired TVs", "", com.glasslauncher.tv.data.LanSync.peers(ctx).size.let { if (it == 0) Lang.tr("None") else it.toString() }) {
+                    val list = com.glasslauncher.tv.data.LanSync.peers(ctx)
+                    if (list.isEmpty()) { toast(ctx, "No TVs paired yet"); return@Act }
+                    dialog = MenuDialog("Paired TVs", list.map { p ->
+                        (p.name.ifBlank { "TV" } + "  ·  " + Lang.tr("Remove")) to { com.glasslauncher.tv.data.LanSync.forget(ctx, p.id); toast(ctx, "Removed") }
+                    } + listOf(Lang.tr("Sync now") to {
+                        scope.launch(Dispatchers.IO) { val n = com.glasslauncher.tv.data.LanSync.syncNow(ctx); toast(ctx, if (n > 0) "Synced" else "No paired TV answered: is it on?") }
+                        Unit
+                    }))
+                },
                 Act("Storage", "What Glassio keeps on this TV", "") {
                     scope.launch {
                         val sizes = kotlinx.coroutines.withContext(Dispatchers.IO) {

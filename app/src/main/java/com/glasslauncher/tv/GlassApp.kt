@@ -131,6 +131,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         Thread { com.glasslauncher.tv.saver.SystemDream.restoreIfPending(this) }.apply { isDaemon = true }.start()
         icons.importDropFolder(apps.apps.value.map { it.pkg })
         com.glasslauncher.tv.net.PhoneRemote.apply(this)     // the phone remote, when it's on
+        Thread({ com.glasslauncher.tv.data.LanSync.apply(this) }, "sync-start").apply { isDaemon = true; start() }     // Sync with other TVs, when it's on
         ensureHomeService()
         com.glasslauncher.tv.ui.TrailerGuard.started(this)
         // TCL: a restart (Open Glassio when the TV starts) and Live TV's alarms reach Glassio only once it may auto-start.
