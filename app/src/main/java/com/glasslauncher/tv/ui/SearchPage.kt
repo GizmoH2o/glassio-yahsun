@@ -45,12 +45,14 @@ import com.glasslauncher.tv.data.HeroItem
 import com.glasslauncher.tv.live.LiveHome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val KEYS = "abcdefghijklmnopqrstuvwxyz1234567890".map { it.toString() }
 
 /**
- * Search everything from one box: titles (Cinemeta, no account needed), Live TV's channels and your apps. A keyboard of
+ * Search everything from one box: your library, titles (Cinemeta, no account needed), what's on in the TV guide, your
+ * recordings, Live TV's channels and your apps; each can be left out with Search everything off. A keyboard of
  * its own (the system's covers half the screen), results as you type. [query] is held by Home, so coming back from a
  * title finds it as you left it; [active]: this page is the one on (not under a title's page).
  */
@@ -79,6 +81,26 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         delay(350)
         value = withContext(Dispatchers.IO) { runCatching { LiveHome.findChannels(ctx, q, 12) }.getOrDefault(emptyList()) }
     }
+    val everything = app.settings.searchEverything
+    val shows by produceState(emptyList<LiveHome.Airing>(), q, everything) {
+        if (q.length < 2 || !everything) { value = emptyList(); return@produceState }
+        delay(350)
+        value = withContext(Dispatchers.IO) { runCatching { LiveHome.findShows(ctx, q, 12) }.getOrDefault(emptyList()) }
+    }
+    val recordings by produceState(emptyList<LiveHome.Airing>(), q, everything) {
+        if (q.length < 2 || !everything) { value = emptyList(); return@produceState }
+        delay(350)
+        value = withContext(Dispatchers.IO) { runCatching { LiveHome.findRecordings(ctx, q, 12) }.getOrDefault(emptyList()) }
+    }
+    val saved by app.library.saved.collectAsState()
+    val watch by app.library.watchlist.collectAsState()
+    val nuvio by app.library.nuvioList.collectAsState()
+    val stremio by app.library.stremioList.collectAsState()
+    val mine = remember(q, everything, saved, watch, nuvio, stremio) {
+        if (q.length < 2 || !everything) emptyList()
+        else (saved + watch + nuvio + stremio).distinctBy { it.key }.filter { it.name.contains(q.trim(), ignoreCase = true) }.take(20)
+    }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val allApps by app.apps.apps.collectAsState()
     val apps = remember(q, allApps) { if (q.length < 2) emptyList() else app.apps.ordered(includeHidden = true).filter { it.label.contains(q, ignoreCase = true) }.take(8) }
     val rows by app.recs.rows.collectAsState()
@@ -94,13 +116,18 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     }
 
     // Each row of results, top to bottom; the last column of keys goes to the first, any card's Left to the keyboard.
+    val mineRow = remember { RowEntry() }
     val titleRow = remember { RowEntry() }
+    val showRow = remember { RowEntry() }
+    val recordRow = remember { RowEntry() }
     val channelRow = remember { RowEntry() }
     val appRow = remember { RowEntry() }
     val hasTitles = if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
     val hasChannels = q.length >= 2 && channels.isNotEmpty()
     val hasApps = q.length >= 2 && apps.isNotEmpty()
-    val order = listOfNotNull(titleRow.takeIf { hasTitles }, channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
+    val order = listOfNotNull(mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
+        showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
+        channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
     fun above(r: RowEntry) = order.getOrNull(order.indexOf(r) - 1)?.req
     fun below(r: RowEntry) = order.getOrNull(order.indexOf(r) + 1)?.req ?: FocusRequester.Cancel
     val toResults = order.firstOrNull()?.req ?: FocusRequester.Cancel
@@ -119,7 +146,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     Row(Modifier.fillMaxSize().padding(start = (EDGE * s).dp, top = (6 * s).dp), horizontalArrangement = Arrangement.spacedBy((22 * s).dp)) {
         // No scrolling or focus group on either side (it all fits): those columns take the focus themselves, with nothing to show for it.
         Column(Modifier.width((206 * s).dp).fillMaxHeight()) {
-            Text("Titles, channels and apps", color = Text2, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold)
+            Text(if (everything) "Search everything" else "Titles, channels and apps", color = Text2, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height((4 * s).dp))
             Box(Modifier.fillMaxWidth().clip(RoundedCornerShape((Ds.R_CONTROL * s).dp)).background(Ds.Surface).padding(horizontal = (11 * s).dp, vertical = (7.5f * s).dp)) {
                 Text(q.ifEmpty { "Type with the keys below" }, color = if (q.isEmpty()) Text2 else Color.White, fontSize = (12.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -142,13 +169,40 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                 Key("Voice search", s, lastKey, keyFocus, Modifier.fillMaxWidth().nav(right = toResults)) { runCatching { voice.launch(voiceAsk) } }
             }
         }
-        Column(Modifier.weight(1f).fillMaxHeight().onFocusChanged { inResults = it.hasFocus }) {
+        Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(androidx.compose.foundation.rememberScrollState()).onFocusChanged { inResults = it.hasFocus }) {
             // Nothing typed: what's trending, so the page is never empty.
             if (q.length < 2) {
                 if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, toTabs, lastTitle, lastFocus, onTitle)
             } else {
-                if (titles.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
-                if (titles.isNotEmpty()) TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, toTabs, lastTitle, lastFocus, onTitle)
+                if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
+                if (mine.isNotEmpty()) TitlesRow("In your library", mine, s, mineRow, below(mineRow), keyFocus, toTabs, lastTitle, lastFocus, onTitle)
+                if (titles.isNotEmpty()) {
+                    if (mine.isNotEmpty()) Spacer(Modifier.height((10 * s).dp))
+                    TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, if (mine.isNotEmpty()) mineRow.req else toTabs, lastTitle, lastFocus, onTitle)
+                }
+                if (shows.isNotEmpty()) {
+                    Spacer(Modifier.height((10 * s).dp))
+                    DsHeading("On TV", s)
+                    LazyRow(state = showRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                        itemsIndexed(shows, key = { _, a -> a.key() }) { i, a ->
+                            TextCard(a.title, LiveHome.whenLine(a) + "  ·  " + a.channelName, s, showRow.of(i).nav(up = above(showRow), down = below(showRow), left = if (i == 0) keyFocus else null, right = edge(i == shows.lastIndex))) {
+                                if (a.onNow(System.currentTimeMillis())) ctx.startActivity(LiveHome.open(ctx, a.channel, false))
+                                else scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(ctx, a, true) }) }
+                            }
+                        }
+                    }
+                }
+                if (recordings.isNotEmpty()) {
+                    Spacer(Modifier.height((10 * s).dp))
+                    DsHeading("Your recordings", s)
+                    LazyRow(state = recordRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                        itemsIndexed(recordings, key = { _, a -> a.recording }) { i, a ->
+                            TextCard(a.title, a.channelName, s, recordRow.of(i).nav(up = above(recordRow), down = below(recordRow), left = if (i == 0) keyFocus else null, right = edge(i == recordings.lastIndex))) {
+                                ctx.startActivity(LiveHome.openRecording(ctx, a.recording))
+                            }
+                        }
+                    }
+                }
                 if (channels.isNotEmpty()) {
                     Spacer(Modifier.height((10 * s).dp))
                     DsHeading("Live TV", s)

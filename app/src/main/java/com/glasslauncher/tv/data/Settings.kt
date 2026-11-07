@@ -166,6 +166,7 @@ class Settings(private val ctx: Context) {
     /** Live TV and Following in the menu. */
     var menuLive: Boolean get() = b("menuLive", true); set(v) = putB("menuLive", v)
     var menuFollowing: Boolean get() = b("menuFollowing", true); set(v) = putB("menuFollowing", v)
+    var searchEverything: Boolean get() = b("searchEverything", true); set(v) = putB("searchEverything", v)
     var libraryNuvio: Boolean get() = b("libraryNuvio", true); set(v) = putB("libraryNuvio", v)
     /** The + button also saves to the Nuvio account's Library. */
     /** Catalogs also come from the add-ons installed on the Nuvio account (merged with the TV's own, never twice). */

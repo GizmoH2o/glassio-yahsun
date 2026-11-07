@@ -483,6 +483,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Live TV tab and Following", "Your IPTV channels with a full guide, and the teams and shows you follow (in the menu)", { st.menuLive }, { st.menuLive = it }),
                 Toggle("Following tab", "The teams and shows you follow, in the top bar. Off, it's in the menu.", { st.menuFollowing }, { st.menuFollowing = it }),
                 Toggle("Library tab", "", { st.menuLibrary }, { st.menuLibrary = it }),
+                Toggle("Search everything", "Search also looks through the TV guide, your recordings and your library", { st.searchEverything }, { st.searchEverything = it }),
                 Toggle("Android settings in the menu", "", { st.menuAndroid }, { st.menuAndroid = it }),
                 Toggle("Wi-Fi in the menu", "", { st.menuWifi }, { st.menuWifi = it }),
                 Toggle("Themes in the menu", "", { st.menuThemes }, { st.menuThemes = it }),

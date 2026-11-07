@@ -831,3 +831,8 @@ Glassio's version, settings and recent log for looking into a problem, with acco
 Making the report…	Création du rapport…
 Saved in Downloads: Glassio-problem-report.txt	Enregistré dans Téléchargements : Glassio-problem-report.txt
 Couldn't save the report	Impossible d'enregistrer le rapport
+Search everything	Tout rechercher
+Search also looks through the TV guide, your recordings and your library	La recherche parcourt aussi le guide TV, vos enregistrements et votre bibliothèque
+In your library	Dans votre bibliothèque
+On TV	À la TV
+Your recordings	Vos enregistrements

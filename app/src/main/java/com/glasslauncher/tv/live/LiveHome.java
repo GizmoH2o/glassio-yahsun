@@ -214,6 +214,8 @@ public final class LiveHome {
         public String score = "";
         /** On a team's page: the day's name above its first match ("Today", "Sat 18"), "" for the next ones. */
         public String day = "";
+        /** A finished recording's id, for Home's search; "" for anything else. */
+        public String recording = "";
         Xtream.Channel ch;
         Xtream.Program p;
 
@@ -1044,6 +1046,68 @@ public final class LiveHome {
      * Channels whose name has all of `words` in it, from the list kept on the TV, favourites first, with what's on now;
      * locked groups left out. Empty before Live TV is set up.
      */
+    /** Shows in the full guide with these words in their title, from now on: what's on first (Home's search). */
+    public static List<Airing> findShows(Context c, String words, int max) {
+        List<Airing> out = new ArrayList<>();
+        if (!Xtream.ready(c) || LiveProfiles.kids(c)) return out;
+        Xtream.Lineup l = Xtream.saved(c);
+        String[] parts = Xtream.fold(words).trim().split("\\s+");
+        if (l == null || parts.length == 0 || parts[0].isEmpty()) return out;
+        long now = System.currentTimeMillis();
+        List<String[]> phrases = new ArrayList<>();
+        phrases.add(parts);
+        // More than asked for: one show on many channels comes down to one.
+        List<XmltvStore.Found> found = XmltvStore.findAny(c, phrases, now, now + LiveOptions.daysAhead(c) * 24 * 3600_000L, max * 40);
+        Map<String, Xtream.Channel> byGuide = new HashMap<>();
+        for (Xtream.Channel ch : l.all()) {
+            if (ch.epg == null || ch.epg.isEmpty() || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
+            String key = ch.epg.toLowerCase(java.util.Locale.ROOT);
+            if (!byGuide.containsKey(key)) byGuide.put(key, ch);
+        }
+        List<XmltvStore.Found> theirs = new ArrayList<>();
+        for (XmltvStore.Found f : found) if (byGuide.containsKey(f.epg)) theirs.add(f);
+        Set<String> mine = new HashSet<>();
+        List<Xtream.Channel> own = new ArrayList<>(Xtream.favorites(c));
+        own.addAll(Xtream.recent(c));
+        for (Xtream.Channel ch : own) if (ch.epg != null && !ch.epg.isEmpty()) mine.add(ch.epg.toLowerCase(java.util.Locale.ROOT));
+        for (XmltvStore.Found f : LiveSearchRules.shows(theirs, mine, now, max)) {
+            Xtream.Program p = new Xtream.Program();
+            p.title = f.title;
+            p.about = "";
+            p.icon = f.icon;
+            p.start = f.start;
+            p.end = f.end;
+            Xtream.mark(p);
+            out.add(airing(c, byGuide.get(f.epg), p));
+        }
+        return out;
+    }
+
+    /** Finished recordings with these words in their title, the newest first (Home's search). */
+    public static List<Airing> findRecordings(Context c, String words, int max) {
+        List<Airing> out = new ArrayList<>();
+        if (LiveProfiles.kids(c)) return out;
+        List<LiveRecordings.Rec> all = LiveRecordings.all(c);
+        for (int i = all.size() - 1; i >= 0 && out.size() < max; i--) {
+            LiveRecordings.Rec r = all.get(i);
+            if (LiveRecordings.RECORDING.equals(r.state) || r.file.isEmpty() || !LiveSearchRules.matches(r.title, words)) continue;
+            Airing a = new Airing();
+            a.title = r.title;
+            a.channelName = r.ch == null || r.ch.name == null ? "" : r.ch.name;
+            a.start = r.start;
+            a.end = r.end;
+            a.recording = r.id;
+            out.add(a);
+        }
+        return out;
+    }
+
+    /** When a show found by search is: "On now", or when it starts. */
+    public static String whenLine(Airing a) {
+        long now = System.currentTimeMillis();
+        return a.onNow(now) ? Ui.tr("Agora", "On now") : LiveOverlay.startsIn(a.start, now);
+    }
+
     public static List<Airing> findChannels(Context c, String words, int max) {
         List<Airing> out = new ArrayList<>();
         if (!Xtream.ready(c)) return out;
