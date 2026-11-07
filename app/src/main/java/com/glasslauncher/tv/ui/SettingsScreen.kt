@@ -255,6 +255,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Library on Home", "Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here", {
                     when (st.homeSource) { "nuvio" -> "Nuvio"; "stremio" -> "Stremio"; else -> "Nuvio and Stremio" }
                 }, { st.homeSource = cycle(listOf("both", "nuvio", "stremio"), st.homeSource, it); app.shelf.rebuild() }),
+                Toggle("Today page", "Your matches, new episodes, recordings and what's set for today, with the weather: in the menu, and at the front of At a glance in the morning", { st.todayPage }, { st.todayPage = it }),
+                Toggle("Open Today in the morning", "The first time Home shows after 5 a.m., Today opens by itself", { st.todayMorning }, { st.todayMorning = it }),
                 Toggle("Airing this week", "New episodes of the series in your library: out now, or when they come out", { st.homeAiring }, { st.homeAiring = it }),
                 Toggle("Movies in your library", "", { st.homeMovies }, { st.homeMovies = it }),
                 Toggle("Series in your library", "", { st.homeSeries }, { st.homeSeries = it }),

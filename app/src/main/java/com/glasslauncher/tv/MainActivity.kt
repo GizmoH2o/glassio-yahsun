@@ -27,7 +27,7 @@ import kotlinx.coroutines.withContext
 class MainActivity : ComponentActivity() {
     private companion object {
         /** The extras that ask for a page or a window. */
-        val REQUESTS = listOf("open_settings", "open_menu", "open_library", "open_live", "open_following", "open_folder", "mini_live")
+        val REQUESTS = listOf("open_settings", "open_menu", "open_library", "open_live", "open_following", "open_today", "open_folder", "mini_live")
         /** How long a page asked for holds against Home from the launcher fallback. */
         const val REQUEST_HOLD_MS = 3_000L
     }
@@ -112,11 +112,26 @@ class MainActivity : ComponentActivity() {
         (application as GlassApp).cw.pollNow()
         (application as GlassApp).ensureHomeService()     // the Home-button service, if an update switched it off
         com.glasslauncher.tv.data.HaEvents.home(this)     // back from watching: Home Assistant hears it
+        openTodayInTheMorning()
         // Live TV's "open when the TV starts" (its settings): the first time the home screen shows after a boot.
         Thread {
             runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) }
             runCatching { com.glasslauncher.tv.live.LiveHome.guideLook(this) }
         }.start()
+    }
+
+    /** Settings › Home › Open Today in the morning: the first time Home shows after 5 a.m. (not over a page an intent asked for). */
+    private fun openTodayInTheMorning() {
+        val app = application as GlassApp
+        val st = app.settings
+        if (!st.todayMorning || !st.todayPage || st.kidsMode) return
+        if (android.os.SystemClock.uptimeMillis() - requestedAt < REQUEST_HOLD_MS && requestedAt != 0L) return
+        val now = System.currentTimeMillis()
+        val tz = java.util.TimeZone.getDefault()
+        if (!com.glasslauncher.tv.live.LiveToday.opensItself(now, tz, st.todayShownDay)) return
+        st.todayShownDay = com.glasslauncher.tv.live.LiveToday.dayKey(now, tz)
+        app.requestSettings.intValue = 104
+        app.requestSettingsRev.intValue++
     }
 
     /** Terminal helper: am start -n com.glassioyahsun.tv/com.glasslauncher.tv.MainActivity --es icon_pack <package> ("none" clears it). */
@@ -149,6 +164,7 @@ class MainActivity : ComponentActivity() {
         // Live TV's menu → Home, or am start ... --ez open_live true / --ez open_following true.
         if (i?.getBooleanExtra("open_live", false) == true) { app.requestSettings.intValue = 102; app.requestSettingsRev.intValue++ }
         if (i?.getBooleanExtra("open_following", false) == true) { app.requestSettings.intValue = 103; app.requestSettingsRev.intValue++ }
+        if (i?.getBooleanExtra("open_today", false) == true) { app.requestSettings.intValue = 104; app.requestSettingsRev.intValue++ }
         if (i?.hasExtra("timing") == true) com.glasslauncher.tv.data.Glog.timing = i.getBooleanExtra("timing", false)
         if (i?.hasExtra("dbg_hide") == true) com.glasslauncher.tv.ui.DebugHide.intValue = i.getIntExtra("dbg_hide", 0)
         i?.getStringExtra("dock_style")?.let { app.settings.dockStyle = it }

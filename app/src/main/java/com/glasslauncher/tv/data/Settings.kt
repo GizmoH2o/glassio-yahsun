@@ -271,6 +271,11 @@ class Settings(private val ctx: Context) {
      * Calendar's secret address and the like) and Home Assistant readings (its address, a long-lived token, the entities).
      */
     var widgetsRow: Boolean get() = b("widgetsRow", true); set(v) = putB("widgetsRow", v)
+    /** The Today page (the menu's Today, and Your day at the glance row's front in the morning). */
+    var todayPage: Boolean get() = b("todayPage", true); set(v) = putB("todayPage", v)
+    /** Today opens by itself the first time Home shows in the morning; the day it last did (yyyymmdd). */
+    var todayMorning: Boolean get() = b("todayMorning", false); set(v) = putB("todayMorning", v)
+    var todayShownDay: Int get() = sp.getInt("todayShownDay", 0); set(v) { sp.edit().putInt("todayShownDay", v).apply() }
     var widgetWeather: Boolean get() = b("widgetWeather", true); set(v) = putB("widgetWeather", v)
     var calLinks: List<String> get() = list("calLinks"); set(v) = putList("calLinks", v.map { it.trim() }.filter { it.isNotBlank() }.distinct())
     var haUrl: String get() = s("haUrl", ""); set(v) = putS("haUrl", v.trim().trimEnd('/'))

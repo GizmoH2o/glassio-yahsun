@@ -881,3 +881,29 @@ Quick watches	Da vedere al volo
 For You	Per te
 Picked on this TV from what you watch	Scelti su questa TV in base a ciò che guardi
 A row picked on this TV from what you watch and save. It sends nothing anywhere	Una fila scelta su questa TV in base a ciò che guardi e salvi. Non invia nulla
+Today page	Pagina Oggi
+Your matches, new episodes, recordings and what's set for today, with the weather: in the menu, and at the front of At a glance in the morning	Le tue partite, i nuovi episodi, le registrazioni e ciò che è previsto oggi, con il meteo: nel menu e in testa a In breve al mattino
+Open Today in the morning	Apri Oggi al mattino
+The first time Home shows after 5 a.m., Today opens by itself	La prima volta che la Home appare dopo le 5, Oggi si apre da solo
+Good morning	Buongiorno
+Good afternoon	Buon pomeriggio
+Good evening	Buonasera
+Good night	Buonanotte
+Your matches today	Le tue partite di oggi
+New episodes	Nuovi episodi
+Finished recordings	Registrazioni finite
+Set for today	Previsto per oggi
+Nothing planned for today	Niente in programma oggi
+Follow your teams and shows, set reminders or recordings in Live TV, and they show here.	Segui squadre e programmi, imposta promemoria o registrazioni nella TV in diretta e li troverai qui.
+Getting your day…	Preparo la tua giornata…
+YOUR DAY	LA TUA GIORNATA
+Nothing planned yet	Ancora niente in programma
+OK for Today	OK per Oggi
+Rain %d%	Pioggia %d%
+%d match	%d partita
+%d matches	%d partite
+%d new episode	%d nuovo episodio
+%d new episodes	%d nuovi episodi
+%d recording	%d registrazione
+%d recordings	%d registrazioni
+%d set for today	%d previsti per oggi

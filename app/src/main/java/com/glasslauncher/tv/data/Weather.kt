@@ -49,7 +49,7 @@ data class WeatherNow(
 }
 
 /** One day of the forecast (Home's widgets row): its date (yyyy-mm-dd), weather code, high and low. */
-data class WeatherDay(val date: String, val code: Int, val hiC: Double, val loC: Double) {
+data class WeatherDay(val date: String, val code: Int, val hiC: Double, val loC: Double, /** Chance of rain, %; -1 unknown. */ val rain: Int = -1) {
     val icon: String get() = WeatherNow("", 0.0, code, true).icon
     val condition: String get() = WeatherNow("", 0.0, code, true).condition
 }
@@ -110,7 +110,7 @@ class Weather(private val settings: Settings, private val http: Http, private va
             Triple(city, ll.first, ll.second).also { place = it }
         }
         val j = http.json(
-            "https://api.open-meteo.com/v1/forecast?latitude=${p.second}&longitude=${p.third}&current=temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=5&timezone=auto",
+            "https://api.open-meteo.com/v1/forecast?latitude=${p.second}&longitude=${p.third}&current=temperature_2m,weather_code,is_day,apparent_temperature,relative_humidity_2m,wind_speed_10m&daily=weather_code,precipitation_probability_max,temperature_2m_max,temperature_2m_min&forecast_days=5&timezone=auto",
             10 * 60_000L,
         )
         val c = j.optJSONObject("current") ?: return
@@ -118,7 +118,8 @@ class Weather(private val settings: Settings, private val http: Http, private va
         days.value = d?.optJSONArray("time")?.let { t ->
             (0 until t.length()).map { i ->
                 WeatherDay(t.optString(i), d.optJSONArray("weather_code")?.optInt(i) ?: 3,
-                    d.optJSONArray("temperature_2m_max")?.optDouble(i) ?: Double.NaN, d.optJSONArray("temperature_2m_min")?.optDouble(i) ?: Double.NaN)
+                    d.optJSONArray("temperature_2m_max")?.optDouble(i) ?: Double.NaN, d.optJSONArray("temperature_2m_min")?.optDouble(i) ?: Double.NaN,
+                    d.optJSONArray("precipitation_probability_max")?.optInt(i, -1) ?: -1)
             }
         }.orEmpty()
         now.value = WeatherNow(

@@ -126,7 +126,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-enum class Screen { Home, Settings, Library, LiveTv, Following, Search, Title }
+enum class Screen { Home, Settings, Library, LiveTv, Following, Search, Title, Today }
 
 /**
  * Test only (am start --ei dbg_hide <bits>): 1 backdrop, 2 carousel text, 4 top bar, 8 dock; 1048576 Continue
@@ -394,6 +394,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             c == 101 -> { menuOpen = false; onScreen(Screen.Library); app.requestSettings.intValue = -1 }
             c == 102 -> { menuOpen = false; onScreen(Screen.LiveTv); app.requestSettings.intValue = -1 }
             c == 103 -> { menuOpen = false; onScreen(Screen.Following); app.requestSettings.intValue = -1 }
+            c == 104 -> { menuOpen = false; onScreen(Screen.Today); app.requestSettings.intValue = -1 }
             c >= 0 -> { settingsCat = c; onScreen(Screen.Settings); app.requestSettings.intValue = -1 }
         }
     }
@@ -524,6 +525,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     tabFocus = tabFocus,
                     onTitle = openTitle,
                     restoreFocus = restoreFocus,
+                    onToday = { onScreen(Screen.Today) },
                 )
                 if (DebugHide.intValue and 4 == 0) Box(Modifier.fillMaxWidth().align(Alignment.TopStart).graphicsLayer { alpha = 1f - pageDown.floatValue }) {
                     // So the clock, tabs and weather read on a bright picture too.
@@ -567,8 +569,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 onLiveTv = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.LiveTv) },
                 onFollowing = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Following) },
                 onSettings = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Settings) },
+                onToday = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Today) },
             )
             if (screen == Screen.Settings) SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
+            if (screen == Screen.Today || screen == Screen.Title && titleFrom == Screen.Today) Box(
+                Modifier.fillMaxSize().focusProperties { canFocus = screen != Screen.Title },
+            ) { TodayScreen(app, active = screen == Screen.Today, onTitle = openTitle) { onScreen(Screen.Home) } }
             // The pages with tabs: the bar above them, the page below it.
             // (Library and Search stay there under a title's page opened from them, as they were.)
             val tabPage = if (screen == Screen.Title) titleFrom else screen

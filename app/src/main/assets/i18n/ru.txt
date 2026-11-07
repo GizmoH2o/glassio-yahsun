@@ -882,3 +882,29 @@ Quick watches	Короткое
 For You	Для вас
 Picked on this TV from what you watch	Подобрано на этом ТВ по тому, что вы смотрите
 A row picked on this TV from what you watch and save. It sends nothing anywhere	Ряд, подобранный на этом ТВ по тому, что вы смотрите и сохраняете. Ничего никуда не отправляет
+Today page	Страница «Сегодня»
+Your matches, new episodes, recordings and what's set for today, with the weather: in the menu, and at the front of At a glance in the morning	Ваши матчи, новые серии, записи и то, что запланировано на сегодня, с погодой: в меню и утром в начале «Коротко»
+Open Today in the morning	Открывать «Сегодня» утром
+The first time Home shows after 5 a.m., Today opens by itself	Когда главный экран впервые появляется после 5 утра, «Сегодня» открывается само
+Good morning	Доброе утро
+Good afternoon	Добрый день
+Good evening	Добрый вечер
+Good night	Доброй ночи
+Your matches today	Ваши матчи сегодня
+New episodes	Новые серии
+Finished recordings	Готовые записи
+Set for today	Запланировано на сегодня
+Nothing planned for today	На сегодня ничего не запланировано
+Follow your teams and shows, set reminders or recordings in Live TV, and they show here.	Следите за командами и передачами, ставьте напоминания или записи в эфире — и они появятся здесь.
+Getting your day…	Собираю ваш день…
+YOUR DAY	ВАШ ДЕНЬ
+Nothing planned yet	Пока ничего не запланировано
+OK for Today	OK — «Сегодня»
+Rain %d%	Дождь %d%
+%d match	%d матч
+%d matches	%d матчей
+%d new episode	%d новая серия
+%d new episodes	%d новых серий
+%d recording	%d запись
+%d recordings	%d записей
+%d set for today	%d запланировано на сегодня

@@ -536,6 +536,65 @@ public final class LiveHome {
         return out;
     }
 
+    /** The Today page's Live TV part: your matches and shows today, recordings finished since yesterday, what's set for today. */
+    public static final class Today {
+        public final List<Airing> matches = new ArrayList<>(), shows = new ArrayList<>(), recordings = new ArrayList<>(), set = new ArrayList<>();
+    }
+
+    /** What's in Today (LiveToday): blocking, it reads the guide. Empty when Live TV isn't signed in (or a Kids profile's). */
+    public static Today today(Context c) {
+        Today out = new Today();
+        if (!Xtream.ready(c)) return out;
+        long now = System.currentTimeMillis();
+        long[] day = LiveToday.day(now, java.util.TimeZone.getDefault());
+        Following f = following(c);
+        List<Airing> firsts = new ArrayList<>();
+        if (f.spot != null) firsts.add(f.spot);
+        firsts.addAll(f.next);
+        for (Airing a : firsts) {
+            if (!LiveToday.within(a.start, a.end, day)) continue;
+            (teamsKey(a.title) != null ? out.matches : out.shows).add(a);
+        }
+        for (Airing a : f.shows) if (teamsKey(a.title) == null && LiveToday.within(a.start, a.end, day)) out.shows.add(a);
+        java.util.Comparator<Airing> byStart = (x, y) -> Long.compare(x.start, y.start);
+        java.util.Collections.sort(out.matches, byStart);
+        java.util.Collections.sort(out.shows, byStart);
+        boolean kids = LiveProfiles.kids(c);
+        List<LiveRecordings.Rec> recs = new ArrayList<>();
+        for (LiveRecordings.Rec r : LiveRecordings.all(c)) {
+            if (LiveRecordings.DONE.equals(r.state) && r.ch != null && LiveToday.recent(r.end, now)) recs.add(r);
+        }
+        java.util.Collections.sort(recs, (x, y) -> Long.compare(y.end, x.end));
+        for (int i = 0; i < recs.size() && i < 6 && !kids; i++) {
+            LiveRecordings.Rec r = recs.get(i);
+            Xtream.Program p = new Xtream.Program();
+            p.title = r.title.isEmpty() ? (r.ch.name == null ? "" : r.ch.name) : r.title;
+            p.start = r.start;
+            p.end = r.end;
+            Airing a = airing(c, r.ch, p);
+            a.recording = r.id;
+            out.recordings.add(a);
+        }
+        // What's set, but not what shows above already (a followed match's reminder is on its own row there).
+        Set<String> listed = new HashSet<>();
+        for (Airing a : out.matches) listed.add(a.channel + ":" + a.start);
+        for (Airing a : out.shows) listed.add(a.channel + ":" + a.start);
+        for (LiveSchedule.Item it : LiveSchedule.all(c)) {
+            if (it.ch == null || !LiveToday.within(it.start, it.end, day)) continue;
+            if (listed.contains(it.ch.id + ":" + it.start)) continue;
+            Xtream.Program p = new Xtream.Program();
+            p.title = it.title.isEmpty() ? (it.ch.name == null ? "" : it.ch.name) : it.title;
+            p.start = it.start;
+            p.end = it.end;
+            Airing a = airing(c, it.ch, p);
+            a.remind = LiveSchedule.reminder(it);
+            a.record = !a.remind;
+            out.set.add(a);
+        }
+        java.util.Collections.sort(out.set, byStart);
+        return out;
+    }
+
     public static Team team(Context c, String name) {
         Team out = new Team();
         long now = System.currentTimeMillis();

@@ -882,3 +882,29 @@ Quick watches	Kurz & gut
 For You	Für dich
 Picked on this TV from what you watch	Auf diesem Fernseher ausgewählt, nach dem, was du schaust
 A row picked on this TV from what you watch and save. It sends nothing anywhere	Eine Reihe, auf diesem Fernseher ausgewählt nach dem, was du schaust und speicherst. Sie sendet nichts nach außen
+Today page	Heute-Seite
+Your matches, new episodes, recordings and what's set for today, with the weather: in the menu, and at the front of At a glance in the morning	Deine Spiele, neue Folgen, Aufnahmen und was für heute geplant ist, mit dem Wetter: im Menü und morgens vorne in Auf einen Blick
+Open Today in the morning	Heute morgens öffnen
+The first time Home shows after 5 a.m., Today opens by itself	Wenn die Startseite nach 5 Uhr zum ersten Mal erscheint, öffnet sich Heute von selbst
+Good morning	Guten Morgen
+Good afternoon	Guten Tag
+Good evening	Guten Abend
+Good night	Gute Nacht
+Your matches today	Deine Spiele heute
+New episodes	Neue Folgen
+Finished recordings	Fertige Aufnahmen
+Set for today	Für heute geplant
+Nothing planned for today	Für heute nichts geplant
+Follow your teams and shows, set reminders or recordings in Live TV, and they show here.	Folge deinen Teams und Sendungen, stelle in Live-TV Erinnerungen oder Aufnahmen ein, dann erscheinen sie hier.
+Getting your day…	Dein Tag wird geladen…
+YOUR DAY	DEIN TAG
+Nothing planned yet	Noch nichts geplant
+OK for Today	OK für Heute
+Rain %d%	Regen %d%
+%d match	%d Spiel
+%d matches	%d Spiele
+%d new episode	%d neue Folge
+%d new episodes	%d neue Folgen
+%d recording	%d Aufnahme
+%d recordings	%d Aufnahmen
+%d set for today	%d für heute geplant

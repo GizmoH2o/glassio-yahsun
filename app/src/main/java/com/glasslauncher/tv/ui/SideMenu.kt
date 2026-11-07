@@ -67,7 +67,7 @@ private val THEMES = listOf(
  */
 @Composable
 fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit, onLiveTv: () -> Unit, onFollowing: () -> Unit,
-             onSettings: () -> Unit, modifier: Modifier = Modifier) {
+             onSettings: () -> Unit, onToday: () -> Unit = {}, modifier: Modifier = Modifier) {
     val st = app.settings
     val ctx = LocalContext.current
     val style = st.menuStyle
@@ -164,6 +164,7 @@ fun SideMenu(app: GlassApp, s: Float, onClose: () -> Unit, onLibrary: () -> Unit
                 } else if (!themes) {
                     val rows = buildList<Triple<String, String, () -> Unit>> {
                         // Live TV, Following and the Library are tabs; here, what the tabs don't cover.
+                        if (st.todayPage && !st.kidsMode) add(Triple("today", "Today") { onToday() })
                         if (st.menuLive && !st.menuFollowing) add(Triple("following", "Following") { onFollowing() })
                         add(Triple("sliders", "Glassio settings") { onSettings() })
                         if (st.menuAndroid) add(Triple("gear", "Android settings") { open(ctx, android.provider.Settings.ACTION_SETTINGS) })
@@ -304,6 +305,13 @@ private fun DrawScope.glyph(kind: String, c: Color) {
             }
             p.close()
             drawPath(p, c, style = Stroke(w * 0.08f, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+        }
+        "today" -> {        // a day on the calendar
+            drawRoundRect(c, Offset(w * 0.10f, w * 0.18f), Size(w * 0.80f, w * 0.72f), CornerRadius(w * 0.12f), style = st)
+            drawLine(c, Offset(w * 0.10f, w * 0.40f), Offset(w * 0.90f, w * 0.40f), w * 0.08f, StrokeCap.Round)
+            drawLine(c, Offset(w * 0.32f, w * 0.08f), Offset(w * 0.32f, w * 0.26f), w * 0.08f, StrokeCap.Round)
+            drawLine(c, Offset(w * 0.68f, w * 0.08f), Offset(w * 0.68f, w * 0.26f), w * 0.08f, StrokeCap.Round)
+            drawCircle(c, w * 0.09f, Offset(w * 0.5f, w * 0.64f))
         }
         "sliders" -> for ((i, x) in listOf(0.3f, 0.7f, 0.45f).withIndex()) {
             val y = w * (0.22f + i * 0.28f)

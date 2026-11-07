@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -78,6 +79,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 /*
  * Live TV and Following, the home screen's pages for Live TV (the IPTV player, in its own process): what Zero's home
@@ -982,3 +984,129 @@ private object RowPivot : androidx.compose.foundation.gestures.BringIntoViewSpec
     }
 }
 
+
+// MARK: - Today (Home › Today: the day on one page)
+
+/**
+ * Today: the weather, your matches today, new episodes (Up Next's and the shows you follow), recordings finished since
+ * yesterday and what's set for today. Read again every minute while it shows; a section with nothing goes.
+ */
+@Composable
+fun TodayScreen(app: GlassApp, active: Boolean, onTitle: (com.glasslauncher.tv.data.HeroItem) -> Unit, onClose: () -> Unit) {
+    val s = LocalScale.current
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var data by remember { mutableStateOf<LiveHome.Today?>(null) }
+    var rev by remember { mutableIntStateOf(0) }
+    var reload by remember { mutableIntStateOf(0) }
+    val weather by app.weather.now.collectAsState()
+    val days by app.weather.days.collectAsState()
+    val cw by app.cw.items.collectAsState()
+    val episodes = cw.filter { it.upNext }.take(6)
+    BackHandler(enabled = active) { onClose() }
+    LaunchedEffect(reload) {
+        while (true) {
+            data = withContext(Dispatchers.IO) { timed("Today page") { runCatching { LiveHome.today(app) }.getOrDefault(LiveHome.Today()) } }
+            rev++
+            delay(60_000)
+        }
+    }
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        val watching = LiveHome.watchScores(app) { reload++ }
+        onDispose { LiveHome.stopScores(app, watching) }
+    }
+    val first = remember { FocusRequester() }
+    LaunchedEffect(data != null, active) { if (active) focusFirst(first) }
+    val toggle: (LiveHome.Airing, Boolean) -> Unit = { a, remind ->
+        scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(app, a, remind) }); reload++ }
+    }
+    val watch: (LiveHome.Airing) -> Unit = { open(ctx, LiveHome.open(ctx, it.channel, false)) }
+    val shown = rev
+    val now = System.currentTimeMillis()
+    val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+    val greeting = when { hour < 5 -> "Good night"; hour < 12 -> "Good morning"; hour < 18 -> "Good afternoon"; else -> "Good evening" }
+    val date = java.text.SimpleDateFormat("EEEE d MMMM", Lang.locale()).format(java.util.Date(now))
+    val f = app.settings.weatherF
+    fun deg(c: Double) = if (c.isNaN()) "–" else ((if (f) c * 9 / 5 + 32 else c).roundToInt().toString() + "°")
+    val w = weather
+    val today = days.firstOrNull()
+    val weatherLine = if (w == null) "" else buildString {
+        append(w.temp(f))
+        if (today != null) {
+            append("  ·  ").append(Lang.weather(today.condition)).append("  ·  ").append(deg(today.hiC)).append(" / ").append(deg(today.loC))
+            if (today.rain >= 0) append("  ·  ").append(Lang.tr("Rain ${today.rain}%"))
+        }
+        if (w.city.isNotBlank()) append("  ·  ").append(w.city)
+    }
+    var firstGiven = false
+    fun firstMod(): Modifier = if (firstGiven) Modifier else { firstGiven = true; Modifier.focusRequester(first) }
+    LivePage(s) {
+        item(key = "header") {
+            Column(Modifier.padding(bottom = (6 * s).dp)) {
+                Text(greeting, color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                Spacer(Modifier.height((4 * s).dp))
+                RawText(date + if (weatherLine.isEmpty()) "" else "  ·  $weatherLine", color = Color.White.copy(alpha = 0.6f), fontSize = (11 * s).sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        val d = data
+        if (d == null) { hint("Getting your day…", s); return@LivePage }
+        if (d.matches.isNotEmpty()) {
+            section("Your matches today", s)
+            d.matches.forEach { a -> item(key = "m:" + a.key()) { EventRowView(a, s, shown, true, toggle, firstMod()) { watch(a) } } }
+        }
+        if (episodes.isNotEmpty() || d.shows.isNotEmpty()) {
+            section("New episodes", s)
+            episodes.forEach { e ->
+                item(key = "e:" + e.key) {
+                    TodayRow(s, "UP NEXT", e.sub, e.name, e.platform, firstMod()) { onTitle(e) }
+                }
+            }
+            d.shows.forEach { a -> item(key = "sh:" + a.key()) { EventRowView(a, s, shown, true, toggle, firstMod()) { watch(a) } } }
+        }
+        if (d.recordings.isNotEmpty()) {
+            section("Finished recordings", s)
+            d.recordings.forEach { a ->
+                item(key = "r:" + a.recording) {
+                    TodayRow(s, LiveHome.day(a.end, now).uppercase(), LiveHome.time(a.start), a.title, channelLine(a), firstMod(), a.country) {
+                        open(ctx, LiveHome.openRecording(ctx, a.recording))
+                    }
+                }
+            }
+        }
+        if (d.set.isNotEmpty()) {
+            section("Set for today", s)
+            d.set.forEach { a -> item(key = "set:" + a.key() + a.record) { EventRowView(a, s, shown, true, toggle, firstMod()) { watch(a) } } }
+        }
+        if (d.matches.isEmpty() && d.shows.isEmpty() && episodes.isEmpty() && d.recordings.isEmpty() && d.set.isEmpty()) {
+            item(key = "empty") {
+                EmptyCardView("Nothing planned for today",
+                    "Follow your teams and shows, set reminders or recordings in Live TV, and they show here.", s,
+                    Modifier.fillMaxWidth().height((120 * s).dp).then(firstMod())) { onClose() }
+            }
+        }
+    }
+}
+
+/** A plain row of Today's: a small label over a line at the left, the title, and where at the right. */
+@Composable
+private fun TodayRow(s: Float, label: String, line: String, title: String, where: String, modifier: Modifier, country: String = "", onClick: () -> Unit) {
+    Focusable(Modifier.fillMaxWidth().height((50 * s).dp).then(modifier), (14 * s).dp, onClick = onClick, look = Look.ROW) { _ ->
+        Row(Modifier.fillMaxSize().padding(horizontal = (18 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.width((96 * s).dp)) {
+                Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = (8 * s).sp, fontWeight = FontWeight.SemiBold,
+                    letterSpacing = (0.8f * s).sp, maxLines = 1)
+                RawText(line, color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+            Box(Modifier.padding(vertical = (12 * s).dp).width(0.6.dp).fillMaxHeight().background(Color.White.copy(alpha = 0.16f)))
+            Spacer(Modifier.width((16 * s).dp))
+            RawText(title, color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.Medium, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            Row(Modifier.width((170 * s).dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.End) {
+                RawText(where, color = Color.White.copy(alpha = 0.8f), fontSize = (10 * s).sp, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(country, s) }
+            }
+        }
+    }
+}

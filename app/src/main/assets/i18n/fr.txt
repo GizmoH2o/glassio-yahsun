@@ -881,3 +881,29 @@ Quick watches	À voir vite
 For You	Pour vous
 Picked on this TV from what you watch	Choisi sur cette TV selon ce que vous regardez
 A row picked on this TV from what you watch and save. It sends nothing anywhere	Une rangée choisie sur cette TV selon ce que vous regardez et enregistrez. Elle n'envoie rien nulle part
+Today page	Page Aujourd'hui
+Your matches, new episodes, recordings and what's set for today, with the weather: in the menu, and at the front of At a glance in the morning	Vos matchs, les nouveaux épisodes, les enregistrements et ce qui est prévu aujourd'hui, avec la météo : dans le menu, et en tête de En un coup d'œil le matin
+Open Today in the morning	Ouvrir Aujourd'hui le matin
+The first time Home shows after 5 a.m., Today opens by itself	La première fois que l'Accueil s'affiche après 5 h, Aujourd'hui s'ouvre tout seul
+Good morning	Bonjour
+Good afternoon	Bon après-midi
+Good evening	Bonsoir
+Good night	Bonne nuit
+Your matches today	Vos matchs aujourd'hui
+New episodes	Nouveaux épisodes
+Finished recordings	Enregistrements terminés
+Set for today	Prévu aujourd'hui
+Nothing planned for today	Rien de prévu aujourd'hui
+Follow your teams and shows, set reminders or recordings in Live TV, and they show here.	Suivez vos équipes et émissions, créez des rappels ou des enregistrements dans le direct, et ils s'affichent ici.
+Getting your day…	Préparation de votre journée…
+YOUR DAY	VOTRE JOURNÉE
+Nothing planned yet	Rien de prévu pour l'instant
+OK for Today	OK pour Aujourd'hui
+Rain %d%	Pluie %d%
+%d match	%d match
+%d matches	%d matchs
+%d new episode	%d nouvel épisode
+%d new episodes	%d nouveaux épisodes
+%d recording	%d enregistrement
+%d recordings	%d enregistrements
+%d set for today	%d prévus aujourd'hui

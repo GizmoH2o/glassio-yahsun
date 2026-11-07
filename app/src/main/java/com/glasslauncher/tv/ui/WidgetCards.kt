@@ -82,6 +82,27 @@ internal fun WeatherWidget(city: String, nowTemp: String, days: List<WeatherDay>
     }
 }
 
+/** Your day: TODAY, the date and the weather, and what Today has ("2 matches · 1 recording"); OK opens it. */
+@Composable
+internal fun TodayWidget(counts: List<String>?, temp: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
+    val accent = LocalAccent.current
+    WidgetCard(s, WIDE, modifier, onClick, null) {
+        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy((2.5f * s).dp)) {
+            Text("YOUR DAY", color = accent, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Bold, letterSpacing = (1 * s).sp)
+            val date = java.text.SimpleDateFormat("EEEE d MMMM", Lang.locale()).format(java.util.Date())
+            RawText(if (temp.isEmpty()) date else "$date  ·  $temp", color = Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            when {
+                counts == null -> Text("Getting your day…", color = Color.White.copy(alpha = 0.6f), fontSize = (7 * s).sp)
+                counts.isEmpty() -> Text("Nothing planned yet", color = Color.White.copy(alpha = 0.7f), fontSize = (7 * s).sp)
+                else -> RawText(counts.joinToString("  ·  ") { Lang.tr(it) }, color = Color.White.copy(alpha = 0.8f), fontSize = (7 * s).sp,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Text("OK for Today", color = Color.White.copy(alpha = 0.45f), fontSize = (5.5f * s).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp)
+        }
+    }
+}
+
 /** The calendars' next three events: when (in the accent colour) and what. */
 @Composable
 internal fun CalendarWidget(agenda: HomeWidgets.Agenda?, now: Instant, s: Float, modifier: Modifier, onClick: () -> Unit) {

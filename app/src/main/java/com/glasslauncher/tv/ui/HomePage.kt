@@ -142,6 +142,8 @@ internal fun HomePage(
     onTitle: (HeroItem) -> Unit,
     /** Goes up by one when Home's in front again after a title's page: the focus back where it was. */
     restoreFocus: Int,
+    /** The Today page (Your day's card). */
+    onToday: () -> Unit = {},
 ) {
     val settings = app.settings
     val ctx = LocalContext.current
@@ -220,7 +222,19 @@ internal fun HomePage(
         }
     }
     val widgetNow by produceState(java.time.Instant.now()) { while (true) { delay(30_000L); value = java.time.Instant.now() } }
+    // Your day (Settings › Home › Today page): at the glance row's front in the morning, what Today has.
+    val todayCard = settings.todayPage && !settings.kidsMode && visible &&
+        com.glasslauncher.tv.live.LiveToday.morning(widgetNow.toEpochMilli(), java.util.TimeZone.getDefault())
+    val todayCounts by produceState<List<String>?>(null, todayCard, widgetBump) {
+        while (todayCard) {
+            val t = withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveHome.today(app) }.getOrNull() }
+            val eps = app.cw.items.value.count { it.upNext }
+            value = com.glasslauncher.tv.live.LiveToday.counts(t?.matches?.size ?: 0, (t?.shows?.size ?: 0) + eps, t?.recordings?.size ?: 0, t?.set?.size ?: 0)
+            delay(5 * 60_000L)
+        }
+    }
     val widgetKeys = buildList {
+        if (todayCard) add("today")
         if (settings.widgetWeather && weatherNow != null && weatherDays.isNotEmpty()) add("weather")
         if (calLinks.isNotEmpty()) add("calendar")
         readings.forEach { add("ha:" + it.id) }
@@ -569,6 +583,7 @@ internal fun HomePage(
                         // A quarter larger than the other rows' cards: read from the sofa, beside the apps' big tiles.
                         val s = s * 1.25f
                         when {
+                            k == "today" -> TodayWidget(todayCounts, w?.temp(settings.weatherF).orEmpty(), s, mod) { onToday() }
                             k == "weather" && w != null -> WeatherWidget(w.city, w.temp(settings.weatherF), weatherDays, settings.weatherF, s, mod) { app.weather.reload() }
                             k == "calendar" -> CalendarWidget(agenda, widgetNow, s, mod) { widgetBump++ }
                             else -> readings.firstOrNull { "ha:" + it.id == k }?.let { r ->
