@@ -731,6 +731,15 @@ final class LiveOptions {
     }
 
     /** "Play TLC on Glassio Yahsun" and Google TV's search open Live TV on a channel (LiveVoice): on unless off. */
+    /** Voice commands (LiveVoiceCommand): a game by its team, what's on tonight, recording. A flag: the voice entry reads it. */
+    static boolean voiceCommands(Context c) {
+        return !flag(c, "live-no-voice-commands").exists();
+    }
+
+    static void setVoiceCommands(Context c, boolean on) {
+        setFlag(c, "live-no-voice-commands", !on);
+    }
+
     static boolean voiceChannels(Context c) {
         return !flag(c, "live-no-voice").exists();
     }
@@ -1043,6 +1052,15 @@ final class LiveOptions {
 
     static void setAgeLock(Context c, int age) {
         sp(c).edit().putInt("ageLock", age).apply();
+    }
+
+    /** Whether a show nobody rated (not the guide, not TMDB) asks for the PIN under the age lock. */
+    static boolean unratedNeedsPin(Context c) {
+        return sp(c).getBoolean("unratedPin", false);
+    }
+
+    static void setUnratedNeedsPin(Context c, boolean on) {
+        sp(c).edit().putBoolean("unratedPin", on).apply();
     }
 
     static boolean hasPin(Context c) {

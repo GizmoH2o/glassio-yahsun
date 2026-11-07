@@ -64,6 +64,10 @@ public final class LiveVoiceActivity extends Activity {
             return HomeApps.liveIntent(c, id, false);
         }
         if (said == null || said.trim().isEmpty()) return HomeApps.liveIntent(c, -1, false);
+        // "Play the Arsenal game on Glassio Yahsun": Live TV finds the game (LiveVoiceCommand), not a channel.
+        if (LiveOptions.voiceCommands(c) && LiveVoiceCommand.parse(said) != null) {
+            return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_SEARCH, said.trim());
+        }
         LiveVoice.Query q = LiveVoice.parse(said);
         LiveVoice.Catalog cat = Xtream.ready(c) ? LiveVoice.catalog(c) : null;
         if (cat == null) return HomeApps.liveIntent(c, -1, false);

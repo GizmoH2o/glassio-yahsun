@@ -151,6 +151,7 @@ final class XmltvStore {
             case "TV-MA": case "R": return 17;
             case "NC-17": case "R18": case "X": case "XXX": case "ADULT": case "ADULTS": return 18;
             case "12A": return 12;
+            case "M": return 15;        // Australia's (15 and over)
             default: break;
         }
         java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d{1,2})").matcher(r);

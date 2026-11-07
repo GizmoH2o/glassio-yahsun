@@ -572,9 +572,11 @@ final class LiveOverlay {
         if (shown != ratedFor || (ratedAge < 0 && up - ratedAt > 2000)) {     // its rating: the guide's, else TMDB's
             ratedFor = shown;
             ratedAt = up;
-            ratedAge = LiveTmdb.age(live, shown);
+            ratedAge = LiveTmdb.rating(live, shown, null);
         }
-        if (ratedAge > 0 && past == null) x = drawPill(c, ratedAge + "+", x, y, LiveTheme.chip(), false) + 10 * k;
+        if (past == null && (ratedAge > 0 || ratedAge == LiveRating.NONE && shown != null && live.lockAge() > 0)) {
+            x = drawPill(c, LiveRating.label(ratedAge, true), x, y, LiveTheme.chip(), false) + 10 * k;     // "12+"; "No rating" under the lock
+        }
         // Trouble first (it matters more than the quality tags), then the tags that fit.
         if (ch != healthFor || up - healthAt > 3000) {
             healthFor = ch;

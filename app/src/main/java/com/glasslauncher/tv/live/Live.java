@@ -1043,7 +1043,7 @@ public class Live extends Activity {
             askDigit = -1;
         }
         if (askSearch != null) {
-            view.searchFor(askSearch);
+            if (!view.voiceCommand(askSearch)) view.searchFor(askSearch);       // "what's on tonight?" from Google's voice
             askSearch = null;
         }
         if (askRecording != null) {      // the home screen's Continue Watching: a recording
@@ -1098,6 +1098,7 @@ public class Live extends Activity {
         }
         if (!copying) copiesTried.clear();
         if (familyBlocks(() -> play(ch))) return;
+        if (waitsForRating(ch)) return;
         if (locked(ch) || ratedLocked(onNowOf(ch))) {
             view.askPin(() -> { unlocked = true; play(ch); }, () -> { if (playing == null) view.openGuide(); });
             return;
@@ -1515,25 +1516,68 @@ public class Live extends Activity {
         return null;
     }
 
-    /**
-     * Whether `p` is rated at or over the age set (Parental controls) and the PIN wasn't typed since Live TV came on.
-     * Its rating is the guide's, else TMDB's.
-     */
-    boolean ratedLocked(Xtream.Program p) {
-        if (unlocked || p == null) return false;
+    /** The age the lock asks the PIN from (a Kids profile's own when set); 0 with no lock or no PIN. */
+    int lockAge() {
         int age = LiveOptions.ageLock(this);
         if (LiveFamily.kidsAge(this) > 0 && LiveProfiles.kids(this)) age = LiveFamily.kidsAge(this);     // a Kids profile's own
-        if (age <= 0 || !LiveOptions.hasPin(this)) return false;
-        int rated = LiveTmdb.age(this, p);
-        return rated >= age;
+        return LiveOptions.hasPin(this) ? age : 0;
     }
 
     /**
-     * Every few seconds while Live TV shows: the channel live moving on to a show rated over the age set (or its guide
-     * just arriving with one) stops for the PIN.
+     * Whether `p` is rated at or over the age set (Parental controls) and the PIN wasn't typed since Live TV came on.
+     * Its rating is the guide's, else TMDB's (LiveRating); one nobody rated asks only when the parents chose so.
      */
+    boolean ratedLocked(Xtream.Program p) {
+        if (unlocked || p == null) return false;
+        int age = lockAge();
+        if (age <= 0) return false;
+        return LiveRating.locked(age, LiveTmdb.rating(this, p, ratingFound), LiveOptions.unratedNeedsPin(this));
+    }
+
+    /** TMDB answered: what's on is checked again at once (a start waiting for it goes on), not at the next round. */
+    private final Runnable ratingFound = () -> main.post(() -> {
+        Runnable go = this.ratingGo;
+        if (go != null) go.run();
+        checkRating();
+    });
+    /** The channel whose start waits for its show's rating, and what starts it. */
+    private Xtream.Channel ratingWait;
+    private Runnable ratingGo;
+
+    /** Whether `ch`'s start waits (a few seconds) for TMDB's rating of what's on it: the lock on, the rating being asked. */
+    private boolean waitsForRating(Xtream.Channel ch) {
+        if (unlocked || ratingWait == ch) {
+            ratingWait = null;
+            ratingGo = null;
+            return false;
+        }
+        int age = lockAge();
+        if (age <= 0) return false;
+        Xtream.Program show = onNowOf(ch);
+        if (!LiveRating.waitFor(age, LiveTmdb.rating(this, show, ratingFound))) return false;
+        ratingWait = ch;
+        Runnable go = () -> {
+            if (ratingWait == ch) play(ch);
+        };
+        ratingGo = go;
+        main.postDelayed(go, LiveRating.WAIT_MS);
+        view.flash(Ui.tr("Vendo a classificação…", "Checking the rating…"));
+        return true;
+    }
+
     private final Runnable ratingWatch = new Runnable() {
         @Override public void run() {
+            checkRating();
+            main.postDelayed(this, 15_000);
+        }
+    };
+
+    /**
+     * Every few seconds while Live TV shows (and when TMDB answers): the channel live moving on to a show rated over
+     * the age set (or its guide just arriving with one) stops for the PIN.
+     */
+    private void checkRating() {
+        {
             if (playing != null && catchup == null && !shifted() && !askingRating && ratedLocked(onNowOf(playing))) {
                 final Xtream.Channel ch = playing;
                 askingRating = true;
@@ -1548,9 +1592,8 @@ public class Live extends Activity {
                     view.openGuide();
                 });
             }
-            main.postDelayed(this, 15_000);
         }
-    };
+    }
     private boolean askingRating;
 
     // MARK: - Family Mode (LiveFamily): a Kids profile's daily limit and bedtime

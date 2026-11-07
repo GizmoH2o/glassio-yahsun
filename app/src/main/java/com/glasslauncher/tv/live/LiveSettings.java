@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -95,7 +95,7 @@ final class LiveSettings {
             {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MULTI_CHIP_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
-            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
+            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
             {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
@@ -104,7 +104,7 @@ final class LiveSettings {
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
-            {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, KIDS_LIMIT_ROW, KIDS_BEDTIME_ROW, KIDS_AGE_ROW, RESET_ROW},
+            {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, UNRATED_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, KIDS_LIMIT_ROW, KIDS_BEDTIME_ROW, KIDS_AGE_ROW, RESET_ROW},
             {},
             {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW}};
 
@@ -407,6 +407,7 @@ final class LiveSettings {
             case CATEGORY_SORT_ROW: return Ui.tr("Ordenar categorias", "Sort categories");
             case COUNTRY_ROW: return Ui.tr("Etiquetas de país", "Country tags");
             case VOICE_ROW: return Ui.tr("Canais por voz e na busca da TV", "Channels by voice and TV search");
+            case VOICE_COMMANDS_ROW: return Ui.tr("Comandos de voz", "Voice commands");
             case SCHEDULE_ROW: return Ui.tr("Lembretes marcados", "Reminders set");
             case RECORD_LIST_ROW: return Ui.tr("Gravações marcadas", "Scheduled recordings");
             case RECORDINGS_ROW: return Ui.tr("Programas gravados", "Recorded shows");
@@ -478,6 +479,7 @@ final class LiveSettings {
             case PIN_ROW: return Ui.tr("PIN dos pais", "Parental PIN");
             case LOCKED_ROW: return Ui.tr("Categorias bloqueadas", "Locked categories");
             case AGE_ROW: return Ui.tr("Bloquear programas para maiores de", "Lock shows rated");
+            case UNRATED_ROW: return Ui.tr("Programas sem classificação pedem o PIN", "Shows with no rating need the PIN");
             case KIDS_LIMIT_ROW: return Ui.tr("Tempo por dia nos perfis Kids", "Kids profiles' time a day");
             case KIDS_BEDTIME_ROW: return Ui.tr("Hora de dormir nos perfis Kids", "Kids profiles' bedtime");
             case KIDS_AGE_ROW: return Ui.tr("Classificação nos perfis Kids", "Kids profiles' age rating");
@@ -560,6 +562,8 @@ final class LiveSettings {
             case MERGE_ROW: return onOff(LiveOptions.merge(c));
             case COUNTRY_ROW: return onOff(LiveOptions.countryTags(c));
             case VOICE_ROW: return onOff(LiveOptions.voiceChannels(c));
+            case VOICE_COMMANDS_ROW: return onOff(LiveOptions.voiceCommands(c));
+            case UNRATED_ROW: return onOff(LiveOptions.unratedNeedsPin(c));
             case REMIND_LEAD_ROW: {
                 int m = LiveOptions.remindLead(c);
                 return m == 0 ? Ui.tr("Na hora", "As it starts") : m + " min";
@@ -902,6 +906,8 @@ final class LiveSettings {
                             "The channel's country (US, UK, CA…) on a tag beside its name, read from its name or its category.");
                     case VOICE_ROW: return Ui.tr("\"Play TLC USA on Glassio Yahsun\" abre o canal. Os canais também podem aparecer na busca da TV.",
                             "\"Play TLC USA on Glassio Yahsun\" opens the channel. Channels can also show in the TV's search.");
+                    case VOICE_COMMANDS_ROW: return Ui.tr("\"Coloca o jogo do Arsenal\", \"O que passa hoje à noite?\", \"Gravar esta série\".",
+                            "\"Put the Arsenal game on\", \"What's on tonight?\", \"Record this series\".");
                     case GUIDE_HOURS_ROW: return Ui.tr("Quanto tempo o guia salvo de um canal vale antes de buscar de novo.",
                             "How long a channel's saved guide lasts before it's fetched again.");
                     case PAST_DAYS_ROW: return Ui.tr("Programas que já passaram ficam no guia (canais com reprise: pelo menos a reprise).",
@@ -1086,8 +1092,12 @@ final class LiveSettings {
                     case HIDDEN_ROW: return Ui.tr("Categorias do provedor que você não usa.", "Your provider's categories you don't use.");
                     case ORDER_ROW: return Ui.tr("A ordem dos favoritos, aqui e no Início.", "Your favorites' order, here and on the home screen.");
                     case PIN_ROW: return Ui.tr("Um PIN para as categorias bloqueadas.", "A PIN for the locked categories.");
-                    case AGE_ROW: return Ui.tr("Programas com essa classificação ou mais pedem o PIN (as classificações do guia completo).",
-                            "Shows rated this age or older ask for the PIN (from your full guide's ratings).");
+                    case AGE_ROW: return (Ui.tr("Programas com essa classificação ou mais pedem o PIN: a classificação do guia, senão a do TMDB.",
+                            "Shows rated this age or older ask for the PIN: the guide's rating, else TMDB's.")
+                            + (Prefs.tmdbKey(context()).isEmpty() ? " " + Ui.tr("Sem um token do TMDB (Ajustes do Início), só o guia.",
+                            "Without a TMDB token (Home's Settings), only the guide's.") : ""));
+                    case UNRATED_ROW: return Ui.tr("Os que nem o guia nem o TMDB classificam. Desligado, eles passam.",
+                            "Shows neither the guide nor TMDB rates. Off, they play.");
                     case KIDS_LIMIT_ROW: return Ui.tr("Quanto de TV ao vivo cada perfil Kids assiste por dia. Mais tempo pede o PIN.",
                             "How much Live TV each Kids profile watches a day. More time needs the PIN.");
                     case KIDS_BEDTIME_ROW: return Ui.tr("A TV ao vivo para nessa hora nos perfis Kids e volta às 7h.",
@@ -1415,6 +1425,8 @@ final class LiveSettings {
             case COUNTRY_ROW: return LiveOptions.countryTags(c);
             case HIDE_NO_GUIDE_ROW: return LiveOptions.hideNoGuide(c);
             case VOICE_ROW: return LiveOptions.voiceChannels(c);
+            case VOICE_COMMANDS_ROW: return LiveOptions.voiceCommands(c);
+            case UNRATED_ROW: return LiveOptions.unratedNeedsPin(c);
             default: return null;
         }
     }
@@ -1695,7 +1707,7 @@ final class LiveSettings {
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == UNRATED_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -2397,6 +2409,12 @@ final class LiveSettings {
             case LOGO_SOURCE_ROW: setLogoSource(c, (LiveOptions.logoSource(c) + dir + 3) % 3); announce(); return;
             case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, (LiveOptions.channelMark(c) + dir + 3) % 3); view.invalidate(); announce(); return;
             case VOICE_ROW: LiveOptions.setVoiceChannels(c, !LiveOptions.voiceChannels(c)); announce(); return;
+            case VOICE_COMMANDS_ROW: LiveOptions.setVoiceCommands(c, !LiveOptions.voiceCommands(c)); announce(); return;
+            case UNRATED_ROW: {
+                final boolean on = !LiveOptions.unratedNeedsPin(c);
+                family(() -> LiveOptions.setUnratedNeedsPin(context(), on));
+                return;
+            }
             case RECORD_EARLY_ROW:
                 LiveOptions.setRecordPadding(c, LiveOptions.step(LiveOptions.RECORD_EARLY, LiveOptions.recordEarly(c), dir), LiveOptions.recordLate(c));
                 LiveSchedule.armAll(c);
@@ -2697,6 +2715,8 @@ final class LiveSettings {
             case CLASHES_ROW:
             case RECORD_DRIVE_ROW:
             case VOICE_ROW:
+            case VOICE_COMMANDS_ROW:
+            case UNRATED_ROW:
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:
             case LOGO_SOURCE_ROW:

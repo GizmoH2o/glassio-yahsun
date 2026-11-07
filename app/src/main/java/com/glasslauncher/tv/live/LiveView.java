@@ -2584,6 +2584,7 @@ final class LiveView extends View {
      */
     boolean voiceWatch(String said) {
         if (lineup == null || said == null) return false;
+        if (voiceCommand(said)) return true;
         LiveVoice.Favorite fav = LiveVoice.parseFavorite(said);
         if (fav != null) {
             Xtream.Channel ch = voiceChannel(LiveVoice.parse(fav.channel));
@@ -2609,6 +2610,234 @@ final class LiveView extends View {
         AppLog.w("live: voice tunes " + best.name);
         watchFromSearch(best);
         return true;
+    }
+
+    // MARK: - Voice commands (LiveVoiceCommand)
+
+    /**
+     * What was said, done when it's a command: a team's game put on (or a reminder, a recording), what's on tonight,
+     * record this (series). True when it was one; a game not found becomes a search for the team.
+     */
+    boolean voiceCommand(String said) {
+        if (lineup == null || said == null || !LiveOptions.voiceCommands(getContext())) return false;
+        LiveVoiceCommand.Command cmd = LiveVoiceCommand.parse(said);
+        if (cmd == null) return false;
+        AppLog.w("live: voice command " + cmd.kind + (cmd.team.isEmpty() ? "" : " for " + cmd.team));
+        switch (cmd.kind) {
+            case LiveVoiceCommand.TONIGHT: case LiveVoiceCommand.TOMORROW: case LiveVoiceCommand.NOW:
+                whatsOn(cmd.kind);
+                return true;
+            case LiveVoiceCommand.RECORD_THIS: {
+                if (live.playing() == null) flash(Ui.tr("Nada passando para gravar", "Nothing on to record"));
+                else if (recordingNow()) flash(Ui.tr("Já está gravando", "Already recording"));
+                else toggleRecording();
+                return true;
+            }
+            case LiveVoiceCommand.RECORD_SERIES: {
+                Xtream.Program p = playingShow();
+                if (live.playing() == null || p == null) flash(Ui.tr("Sem guia para este programa", "No guide for this show"));
+                else seriesPlaying(p);
+                return true;
+            }
+            default:
+                findGame(cmd);
+                return true;
+        }
+    }
+
+    /** The guide's airings of the game asked for, then the best one done as asked (a search when there's none). */
+    private void findGame(LiveVoiceCommand.Command cmd) {
+        final android.content.Context app = getContext().getApplicationContext();
+        final Xtream.Lineup l = lineup;
+        final long now = System.currentTimeMillis();
+        final Set<Integer> favs = new HashSet<>(), lately = new HashSet<>();
+        if (!l.categories.isEmpty()) for (Xtream.Channel ch : l.categories.get(0).channels) favs.add(ch.id);
+        for (Xtream.Channel ch : history.channels) lately.add(ch.id);
+        final String usual = tagOf(live.playing());
+        final String[] words = cmd.team.split(" ");
+        final List<Object[]> loaded = loadedShows(words, 120, now);
+        flash(Ui.tr("Procurando ", "Looking for ") + cmd.team + (cmd.other.isEmpty() ? "" : " – " + cmd.other) + "…");
+        new Thread(() -> {
+            LiveNames.Names team = LiveNames.of(app, cmd.team);
+            LiveNames.Names other = cmd.other.isEmpty() ? null : LiveNames.of(app, cmd.other);
+            long to = now + Math.max(1, LiveOptions.daysAhead(app)) * 24 * 3600_000L;
+            List<Object[]> all = new ArrayList<>(loaded);
+            all.addAll(LiveSearch.savedShows(app, l, words, now));
+            if (LiveOptions.fullGuide(app)) {
+                java.util.Map<String, List<Xtream.Channel>> byEpg = new java.util.HashMap<>();
+                for (Xtream.Channel ch : l.all()) {
+                    if (ch.epg == null || ch.epg.isEmpty()) continue;
+                    String id = ch.epg.toLowerCase(java.util.Locale.ROOT);
+                    List<Xtream.Channel> list = byEpg.get(id);
+                    if (list == null) byEpg.put(id, list = new ArrayList<>());
+                    list.add(ch);
+                }
+                for (XmltvStore.Found f : LiveNames.find(app, team, now, to, 300)) {
+                    List<Xtream.Channel> chs = f.epg == null ? null : byEpg.get(f.epg.toLowerCase(java.util.Locale.ROOT));
+                    if (chs == null) continue;
+                    Xtream.Program p = new Xtream.Program();
+                    p.title = f.title;
+                    p.start = f.start;
+                    p.end = f.end;
+                    p.icon = f.icon == null ? "" : f.icon;
+                    for (Xtream.Channel ch : chs) all.add(new Object[] {ch, p});
+                }
+            }
+            List<Object[]> found = new ArrayList<>();
+            List<LiveVoiceCommand.Candidate> cands = new ArrayList<>();
+            Set<String> seen = new HashSet<>();
+            for (Object[] o : all) {
+                Xtream.Channel ch = (Xtream.Channel) o[0];
+                Xtream.Program p = (Xtream.Program) o[1];
+                String t = Xtream.fold(p.title);
+                if (!team.in(t) || other != null && !other.in(t)) continue;
+                if (!seen.add(ch.id + ":" + p.start)) continue;
+                String country = LiveCountry.of(ch, categoryCountry);
+                int score = (favs.contains(ch.id) ? 20 : 0) + (lately.contains(ch.id) ? 10 : 0)
+                        + (!usual.isEmpty() && usual.equals(country) ? 40 : 0);
+                found.add(o);
+                cands.add(new LiveVoiceCommand.Candidate(p.title, p.start, p.end, score));
+            }
+            int at = LiveVoiceCommand.pick(cands, System.currentTimeMillis());
+            post(() -> {
+                if (at < 0) {
+                    flash(Ui.tr("Nenhum jogo de ", "No game for ") + cmd.team + Ui.tr(" no guia", " in the guide"));
+                    overlay.hide();
+                    new LiveSearch(getContext(), this, live, cmd.team).show();
+                    return;
+                }
+                doGame(cmd.kind, (Xtream.Channel) found.get(at)[0], (Xtream.Program) found.get(at)[1]);
+            });
+        }, "voice-game").start();
+    }
+
+    /** The game found, done as asked: on now, it's put on (or recorded); later, a reminder (or a recording) is set. */
+    private void doGame(int kind, Xtream.Channel ch, Xtream.Program p) {
+        android.content.Context c = getContext();
+        long now = System.currentTimeMillis();
+        boolean on = p.start <= now && p.end > now;
+        String where = nameWithCountry(ch);
+        AppLog.w("live: voice game → " + ch.num + " " + ch.name + (on ? " (on now)" : " at " + p.start));
+        if (kind == LiveVoiceCommand.RECORD_GAME) {
+            if (on) {
+                if (!LiveRecordings.recording(c, ch.id, p.start)) RecordService.start(c, item(LiveSchedule.RECORD, ch, p));
+                flash(Ui.tr("Gravando ", "Recording ") + p.title + Ui.tr(" até ", " until ") + Ui.time(p.end));
+            } else {
+                if (!LiveSchedule.has(c, LiveSchedule.RECORD, ch.id, p.start)) LiveSchedule.add(c, item(LiveSchedule.RECORD, ch, p));
+                flash(Ui.tr("Grava ", "Records ") + p.title + "  ·  " + LiveCatchup.dayName(p.start, now) + " " + Ui.time(p.start) + "  ·  " + where);
+            }
+            marksAt = 0;
+            return;
+        }
+        if (on) {
+            if (kind == LiveVoiceCommand.REMIND_GAME) {      // nothing to wait for: it's on
+                card(p.title, Ui.tr("Agora", "Now") + "  ·  " + where, Ui.tr("OK para assistir", "OK to watch"), () -> watchFromSearch(ch));
+            } else {
+                watchFromSearch(ch);
+            }
+            return;
+        }
+        String when = LiveCatchup.dayName(p.start, now) + " " + Ui.time(p.start) + "  ·  " + where;
+        if (kind == LiveVoiceCommand.REMIND_GAME) {
+            if (!LiveSchedule.has(c, LiveSchedule.REMIND, ch.id, p.start)) LiveSchedule.add(c, item(LiveSchedule.REMIND, ch, p));
+            flash(Ui.tr("Lembrete: ", "Reminder: ") + p.title + "  ·  " + when);
+            marksAt = 0;
+            return;
+        }
+        card(p.title, when, Ui.tr("OK para lembrar", "OK for a reminder"), () -> {
+            if (!LiveSchedule.has(c, LiveSchedule.REMIND, ch.id, p.start)) LiveSchedule.add(c, item(LiveSchedule.REMIND, ch, p));
+            flash(Ui.tr("Lembrete às ", "Reminder at ") + Ui.time(p.start));
+            marksAt = 0;
+        });
+    }
+
+    /** What's on tonight (tomorrow night, now) on your channels: favorites, then the ones watched lately. */
+    private void whatsOn(int kind) {
+        final android.content.Context app = getContext().getApplicationContext();
+        final long now = System.currentTimeMillis();
+        final long[] w = LiveVoiceCommand.window(kind, now, java.util.TimeZone.getDefault());
+        final List<Xtream.Channel> mine = new ArrayList<>();
+        Set<Integer> ids = new HashSet<>();
+        if (!lineup.categories.isEmpty()) for (Xtream.Channel ch : lineup.categories.get(0).channels) if (ids.add(ch.id)) mine.add(ch);
+        for (Xtream.Channel ch : history.channels) if (mine.size() < 40 && ids.add(ch.id)) mine.add(ch);
+        if (mine.isEmpty()) {
+            flash(Ui.tr("Ponha canais nos favoritos para ver o que passa neles", "Add favorites to see what's on them"));
+            return;
+        }
+        final java.util.Map<Integer, List<Xtream.Program>> have = new java.util.HashMap<>();
+        for (Xtream.Channel ch : mine) {
+            List<Xtream.Program> list = programs(ch);
+            if (list != null) have.put(ch.id, new ArrayList<>(list));
+        }
+        new Thread(() -> {
+            List<String> follows = LiveFollow.all(app);
+            List<Object[]> out = new ArrayList<>();
+            for (Xtream.Channel ch : mine) {
+                List<Xtream.Program> list = have.get(ch.id);
+                if (list == null) {
+                    Xtream.SavedGuide g = Xtream.savedGuide(app, ch.id);
+                    list = g == null ? null : g.programs;
+                }
+                if (list == null) continue;
+                int per = 0;
+                for (Xtream.Program p : list) {
+                    boolean in = kind == LiveVoiceCommand.NOW ? p.start <= now && p.end > now : p.end > w[0] && p.start < w[1];
+                    if (!in || p.title == null || p.title.isEmpty()) continue;
+                    out.add(new Object[] {ch, p});
+                    if (++per >= (kind == LiveVoiceCommand.NOW ? 1 : 2)) break;
+                }
+            }
+            java.util.Collections.sort(out, (a, b) -> {
+                Xtream.Program pa = (Xtream.Program) a[1], pb = (Xtream.Program) b[1];
+                boolean fa = followed(follows, pa.title), fb = followed(follows, pb.title);
+                if (fa != fb) return fa ? -1 : 1;
+                return Long.compare(Math.max(pa.start, w[0]), Math.max(pb.start, w[0]));
+            });
+            final List<Object[]> shown = out.size() > 10 ? new ArrayList<>(out.subList(0, 10)) : out;
+            post(() -> showWhatsOn(kind, shown));
+        }, "voice-whats-on").start();
+    }
+
+    private static boolean followed(List<String> follows, String title) {
+        for (String f : follows) if (LiveFollow.matches(f, Xtream.fold(title))) return true;
+        return false;
+    }
+
+    private void showWhatsOn(int kind, List<Object[]> shows) {
+        String head = kind == LiveVoiceCommand.NOW ? Ui.tr("Agora nos seus canais", "On now on your channels")
+                : kind == LiveVoiceCommand.TOMORROW ? Ui.tr("Amanhã à noite nos seus canais", "Tomorrow night on your channels")
+                : Ui.tr("Hoje à noite nos seus canais", "Tonight on your channels");
+        if (shows.isEmpty()) {
+            flash(Ui.tr("Nada no guia dos seus canais", "Nothing in your channels' guide"));
+            return;
+        }
+        long now = System.currentTimeMillis();
+        String[] items = new String[shows.size()];
+        for (int i = 0; i < shows.size(); i++) {
+            Xtream.Channel ch = (Xtream.Channel) shows.get(i)[0];
+            Xtream.Program p = (Xtream.Program) shows.get(i)[1];
+            boolean on = p.start <= now && p.end > now;
+            items[i] = (on ? Ui.tr("Agora", "Now") : Ui.time(p.start)) + "   " + p.title + "  ·  " + nameWithCountry(ch);
+        }
+        overlay.hide();
+        LiveSheet.menu(getContext())
+                .setTitle(head)
+                .setMessage(Ui.tr("OK assiste o que está passando ou lembra do que vem depois.", "OK watches what's on, or sets a reminder for what's later."))
+                .asList()
+                .setItems(items, (d, which) -> {
+                    Xtream.Channel ch = (Xtream.Channel) shows.get(which)[0];
+                    Xtream.Program p = (Xtream.Program) shows.get(which)[1];
+                    long at = System.currentTimeMillis();
+                    if (p.start <= at && p.end > at) {
+                        watchFromSearch(ch);
+                        return;
+                    }
+                    android.content.Context c = getContext();
+                    if (!LiveSchedule.has(c, LiveSchedule.REMIND, ch.id, p.start)) LiveSchedule.add(c, item(LiveSchedule.REMIND, ch, p));
+                    flash(Ui.tr("Lembrete às ", "Reminder at ") + Ui.time(p.start));
+                    marksAt = 0;
+                })
+                .show();
     }
 
     /** The channel `q` names (its country's first when one was said; a favorite, then one watched lately), or null. */

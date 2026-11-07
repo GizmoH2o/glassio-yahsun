@@ -190,7 +190,7 @@ final class LiveSearch extends Dialog {
      * The guides saved on the TV (every channel browsed, kept between visits): shows ending after `from` with every
      * word, a few per channel, by start. Background thread.
      */
-    private static List<Object[]> savedShows(Context c, Xtream.Lineup lineup, String[] words, long from) {
+    static List<Object[]> savedShows(Context c, Xtream.Lineup lineup, String[] words, long from) {
         List<Object[]> out = new ArrayList<>();
         java.io.File[] files = new java.io.File(c.getCacheDir(), "live-epg").listFiles();
         for (int i = 0; files != null && i < files.length && out.size() < 120; i++) {

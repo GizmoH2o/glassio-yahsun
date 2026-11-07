@@ -47,12 +47,29 @@ final class LiveTmdb {
     private static final String BLIND = "\u0000blind";
     /** Bumped each time TMDB answers with a show: what wasn't known may be now. */
     private static volatile int changes;
+    /** The ratings' version: 2 asks IE, CA and AU too. */
+    private static final int RATINGS = 2;
 
     static int changes() {
         return changes;
     }
 
     /** The age `p` is rated: the guide's, else TMDB's (asked in the background; -1 until then, or none). */
+    /**
+     * As age, for the lock: LiveRating.ASKING while TMDB is being asked (`found` runs when it answers with the show),
+     * LiveRating.NONE when nobody rated it (or there's no TMDB token).
+     */
+    static int rating(Context c, Xtream.Program p, Runnable found) {
+        if (p == null) return LiveRating.NONE;
+        if (p.age >= 0) return p.age;
+        Info i = of(c, p, found);
+        if (i != null) return i.age < 0 ? LiveRating.NONE : i.age;
+        String name = LiveArt.name(p.title);
+        synchronized (FOUND) {
+            return ASKING.contains(name) ? LiveRating.ASKING : LiveRating.NONE;
+        }
+    }
+
     static int age(Context c, Xtream.Program p) {
         if (p == null) return -1;
         if (p.age >= 0) return p.age;
@@ -174,10 +191,9 @@ final class LiveTmdb {
         return i;
     }
 
-    /** The countries asked for a rating: the person's (tmdb_region), then the US and the UK. */
+    /** The countries asked for a rating: the person's (tmdb_region, else the TV's), then the English-speaking ones. */
     private static String[] regions() {
-        String mine = Config.TMDB_REGION.trim().toUpperCase(Locale.ROOT);
-        return new String[] {mine.isEmpty() ? "US" : mine, "US", "GB"};
+        return LiveRating.regions(Config.TMDB_REGION, Locale.getDefault().getCountry());
     }
 
     private static int tvAge(JSONObject ratings) {
@@ -232,6 +248,8 @@ final class LiveTmdb {
                     NONE.put(name, at);
                     continue;
                 }
+                // Found with no rating before more countries were asked (RATINGS): asked again.
+                if (o.optInt("age", -1) < 0 && o.optInt("r") < RATINGS) continue;
                 Info i = new Info();
                 i.id = o.optInt("id");
                 i.tv = o.optBoolean("tv");
@@ -261,7 +279,8 @@ final class LiveTmdb {
                 Long at = AT.get(e.getKey());
                 all.put(e.getKey(), new JSONObject().put("id", i.id).put("tv", i.tv).put("age", i.age).put("score", i.score)
                         .put("votes", i.votes).put("year", i.year).put("genres", i.genres).put("overview", i.overview)
-                        .put("cast", i.cast).put("backdrop", i.backdrop).put("poster", i.poster).put("at", at == null ? 0 : at));
+                        .put("cast", i.cast).put("backdrop", i.backdrop).put("poster", i.poster).put("at", at == null ? 0 : at)
+                        .put("r", RATINGS));
             }
             for (Map.Entry<String, Long> e : NONE.entrySet()) {
                 if (n++ >= MAX) break;
