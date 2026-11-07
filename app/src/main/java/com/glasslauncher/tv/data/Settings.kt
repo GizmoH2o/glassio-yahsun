@@ -308,6 +308,8 @@ class Settings(private val ctx: Context) {
     var askProfile: Boolean get() = b("askProfile", false); set(v) = putB("askProfile", v)
     /** Phone remote: the phone page kept running at a fixed address (net.PhoneRemote), and that address's token. */
     var phoneRemote: Boolean get() = b("phoneRemote", false); set(v) = putB("phoneRemote", v)
+    /** The phone page's Live TV section: what's on, the guide, reminders and recordings (LivePhone). */
+    var phoneLive: Boolean get() = b("phoneLive", true); set(v) = putB("phoneLive", v)
     var phoneToken: String get() = s("phoneToken", ""); set(v) = putS("phoneToken", v)
     var textSize: String get() = s("textSize", "normal"); set(v) = putS("textSize", v)
     /** Continue Watching: series with a new episode out since you watched go first (after Live TV's cards). */

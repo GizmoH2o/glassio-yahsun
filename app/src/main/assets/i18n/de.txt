@@ -908,3 +908,5 @@ Rain %d%	Regen %d%
 %d recording	%d Aufnahme
 %d recordings	%d Aufnahmen
 %d set for today	%d für heute geplant
+Live TV on the phone page	Live-TV auf der Handy-Seite
+What's on your channels, the guide, reminders, recordings and your schedule, from the phone; Watch on TV tunes it	Was auf deinen Sendern läuft, das Programm, Erinnerungen, Aufnahmen und dein Plan, vom Handy aus; Auf dem TV ansehen schaltet um

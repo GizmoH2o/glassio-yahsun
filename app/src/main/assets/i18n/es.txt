@@ -907,3 +907,5 @@ Rain %d%	Lluvia %d%
 %d recording	%d grabación
 %d recordings	%d grabaciones
 %d set for today	%d programados para hoy
+Live TV on the phone page	TV en vivo en la página del móvil
+What's on your channels, the guide, reminders, recordings and your schedule, from the phone; Watch on TV tunes it	Lo que hay en tus canales, la guía, recordatorios, grabaciones y tu agenda, desde el móvil; Ver en la TV cambia de canal

@@ -752,6 +752,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 },
                 Toggle("Phone remote", "The phone page stays on, at an address that doesn't change: keep it on your phone's home screen and use it as a remote any time (Manage from phone shows its code)",
                     { st.phoneRemote }, { st.phoneRemote = it; com.glasslauncher.tv.net.PhoneRemote.apply(app) }),
+                Toggle("Live TV on the phone page", "What's on your channels, the guide, reminders, recordings and your schedule, from the phone; Watch on TV tunes it",
+                    { st.phoneLive }, { st.phoneLive = it }),
                 Toggle("Beta updates", "Also offer test builds: newer, and more likely to have problems", { st.betaUpdates }, { st.betaUpdates = it; scope.launch(Dispatchers.IO) { app.updater.check() } }),
                 Act("Weekly backup", "Saves a backup in Downloads once a week, locked with your code", if (st.backupAutoCode.isEmpty()) Lang.tr("Off") else Lang.tr("On")) {
                     if (st.backupAutoCode.isNotEmpty()) {

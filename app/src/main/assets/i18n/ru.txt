@@ -908,3 +908,5 @@ Rain %d%	Дождь %d%
 %d recording	%d запись
 %d recordings	%d записей
 %d set for today	%d запланировано на сегодня
+Live TV on the phone page	Эфир на странице телефона
+What's on your channels, the guide, reminders, recordings and your schedule, from the phone; Watch on TV tunes it	Что идёт на ваших каналах, программа, напоминания, записи и ваш план — с телефона; «Смотреть на ТВ» переключает канал

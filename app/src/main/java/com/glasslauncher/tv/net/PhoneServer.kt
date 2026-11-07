@@ -72,6 +72,21 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         if (!MessageDigest.isEqual(query(q, "t").toByteArray(), token.toByteArray())) { respond(c, 403, "text/plain", "Forbidden"); return }
         if (method == "GET" && path == "/") { respond(c, 200, "text/html", PAGE); return }
         if (method == "GET" && path == "/api/state") { respond(c, 200, "application/json", state().toString()); return }
+        // Live TV (Settings › System › Live TV on the phone page): reading it, blocking (the guide).
+        if (method == "GET" && path.startsWith("/api/live/")) {
+            val body = runCatching {
+                check(app.settings.phoneLive) { "Live TV on the phone page is off: Settings › System" }
+                when (path) {
+                    "/api/live/channels" -> com.glasslauncher.tv.live.LivePhone.channels(app, query(q, "q")).toString()
+                    "/api/live/find" -> JSONObject().put("airings", com.glasslauncher.tv.live.LivePhone.find(app, query(q, "q"))).toString()
+                    "/api/live/schedule" -> JSONObject().put("items", com.glasslauncher.tv.live.LivePhone.schedule(app)).toString()
+                    "/api/live/recordings" -> JSONObject().put("items", com.glasslauncher.tv.live.LivePhone.recordings(app)).toString()
+                    else -> error("Not found")
+                }
+            }
+            respond(c, 200, "application/json", body.getOrElse { err(it.message ?: "Failed") })
+            return
+        }
         if (method != "POST") { respond(c, 404, "text/plain", "Not found"); return }
         if (path == "/api/bg/upload") {
             // Straight to the backgrounds folder, never held in memory (videos can be hundreds of MB).
@@ -227,6 +242,18 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             shell("input text '" + t.replace("'", "'\\''").replace(" ", "%s") + "'")
             "Typed"
         }
+        // Live TV: watch a channel on the TV, set or cancel a reminder or a recording, play or delete a recording.
+        "/api/live/watch", "/api/live/set", "/api/live/cancel", "/api/live/play", "/api/live/delete" -> {
+            check(app.settings.phoneLive) { "Live TV on the phone page is off: Settings › System" }
+            when (path) {
+                "/api/live/watch" -> com.glasslauncher.tv.live.LivePhone.watch(app, j.optInt("id", -1))
+                "/api/live/set" -> com.glasslauncher.tv.live.LivePhone.set(app, j.optBoolean("record"), j.optInt("id", -1),
+                    j.optLong("start"), j.optLong("end"), j.optString("title").take(200))
+                "/api/live/cancel" -> com.glasslauncher.tv.live.LivePhone.cancel(app, j.optString("key"))
+                "/api/live/play" -> com.glasslauncher.tv.live.LivePhone.play(app, j.optString("id"))
+                else -> com.glasslauncher.tv.live.LivePhone.delete(app, j.optString("id"))
+            }
+        }
         "/api/search" -> {
             val words = j.optString("q").trim().take(100)
             require(words.isNotEmpty()) { "Type what to look for" }
@@ -333,6 +360,7 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         return JSONObject().put("addons", addons).put("bg", back).put("apps", apps).put("aerial", aerial)
             .put("tmdb", app.settings.tmdbToken.isNotBlank()).put("ha", app.settings.haWebhook.isNotBlank())
             .put("cals", cals).put("haBase", app.settings.haBase).put("haToken", app.settings.haToken.isNotBlank())
+            .put("live", app.settings.phoneLive)
     }
 
     private fun err(m: String) = JSONObject().put("ok", false).put("error", m).toString()
@@ -372,6 +400,10 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <div class="row"><button class="s" onclick="k('voldown')">Vol &minus;</button><button class="s" onclick="k('mute')">Mute</button><button class="s" onclick="k('volup')">Vol +</button></div>
 <input type="text" id="tx" placeholder="Type into the TV (the box that's open there)" style="margin-top:12px"><button onclick="send('/api/text',{text:document.getElementById('tx').value},'tx')">Type on the TV</button>
 <input type="text" id="sq" placeholder="Channel or show" style="margin-top:12px"><button onclick="send('/api/search',{q:v('sq')},'sq')">Search Live TV</button>
+<div id="livebox" style="display:none"><h2>Live TV</h2><div class="row" id="ltabs"></div>
+<div id="lchq" style="margin-top:10px"><input type="text" id="lc" placeholder="Any channel: its name or number"><button class="s" style="margin-top:8px" onclick="lCh()">Find channel</button></div>
+<div id="lfind" style="display:none;margin-top:10px"><input type="text" id="lq" placeholder="A show or a team"><button onclick="lFind()">Find in the guide</button></div>
+<div id="llist" style="margin-top:10px"></div></div>
 <h2>Add-ons</h2><div id="addons"></div>
 <input type="text" id="au" placeholder="https://.../manifest.json  or  stremio://..."><button onclick="addAddon()">Add add-on</button>
 <div style="display:none"><h2>Background</h2><p>What's behind the home screen. Your pictures and videos live in Glassio's backgrounds folder on the TV.</p>
@@ -406,6 +438,43 @@ function rs(){var f=document.getElementById('bkf').files[0],c=v('rc');if(!f){say
 if(!confirm('Replace Glassio’s settings on the TV with this backup?'))return;say('Restoring...',true);var fr=new FileReader();
 fr.onload=function(){api('/api/backup/restore',{code:c,file:fr.result}).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok)document.getElementById('rc').value=''}).catch(function(){say('Cannot reach the TV',false)})};fr.readAsText(f)}
 function rep(){say('...',true);api('/api/report',{}).then(function(r){if(!r.ok){say(r.error,false);return}var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([r.message],{type:'text/plain'}));a.download='glassio-report.txt';document.body.appendChild(a);a.click();a.remove();say('Report downloaded',true)}).catch(function(){say('Cannot reach the TV',false)})}
+var LT='now',LTS=[['now','On now'],['find','Find'],['schedule','Your schedule'],['rec','Recordings']],liveOn=false;
+function hm(t){return new Date(t).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'})}
+function dy(t){var d=new Date(t),n=new Date();if(d.toDateString()==n.toDateString())return 'Today';if(d.toDateString()==new Date(n.getTime()+864e5).toDateString())return 'Tomorrow';return d.toLocaleDateString([],{weekday:'short',day:'numeric',month:'short'})}
+function chName(x){return (x.num>0?x.num+'  ':'')+x.name+(x.country?'  '+x.country:'')}
+function get(p){return fetch(p+(p.indexOf('?')<0?'?':'&')+'t='+encodeURIComponent(T)).then(function(r){return r.json()})}
+function lAct(p,b){say('...',true);api(p,b).then(function(r){say(r.ok?r.message:r.error,r.ok);if(r.ok&&LT!='now')lShow()}).catch(function(){say('Cannot reach the TV',false)})}
+function btn(t,cls,f){var b=el('button',cls,t);b.onclick=f;return b}
+function lTabs(){var r=document.getElementById('ltabs');r.textContent='';LTS.forEach(function(o){r.appendChild(btn(o[1],LT==o[0]?'':'s',function(){LT=o[0];lShow()}))});
+document.getElementById('lfind').style.display=LT=='find'?'':'none';document.getElementById('lchq').style.display=LT=='now'?'':'none'}
+function lShow(){lTabs();var L=document.getElementById('llist');L.textContent='';if(LT=='now')lCh();else if(LT=='find'){if(v('lq'))lFind()}
+else if(LT=='schedule'){L.textContent='Reading...';get('/api/live/schedule').then(lSched)}else{L.textContent='Reading...';get('/api/live/recordings').then(lRecs)}}
+function setB(x,p,rec){return btn(rec?(p.record?'Recording':'Record'):(p.remind?'Reminder set':'Remind'),'s',function(){lAct('/api/live/set',{record:rec,id:x.id,start:p.start,end:p.end,title:p.title})})}
+function lCh(){var L=document.getElementById('llist');L.textContent='Reading...';get('/api/live/channels?q='+encodeURIComponent(v('lc'))).then(function(d){L.textContent='';
+if(d.error){L.textContent=d.error;return}if(!d.ready){L.textContent='Live TV is not signed in on the TV.';return}
+if(!d.channels.length)L.textContent=v('lc')?'No channel like that.':'No favourite or recent channels yet: find one above.';
+d.channels.forEach(function(x){var c=el('div','card');c.appendChild(el('b','',chName(x)));
+if(x.now)c.appendChild(el('small','','Now: '+x.now.title+'  (until '+hm(x.now.end)+')'));
+if(x.next){c.appendChild(el('br'));c.appendChild(el('small','',hm(x.next.start)+': '+x.next.title))}
+var r=el('div','row');r.appendChild(btn('Watch on TV','s',function(){lAct('/api/live/watch',{id:x.id})}));
+if(x.now)r.appendChild(btn('Record now','s',function(){lAct('/api/live/set',{record:true,id:x.id,start:x.now.start,end:x.now.end,title:x.now.title})}));
+if(x.next){r.appendChild(btn('Remind me of next','s',function(){lAct('/api/live/set',{record:false,id:x.id,start:x.next.start,end:x.next.end,title:x.next.title})}));
+r.appendChild(btn('Record next','s',function(){lAct('/api/live/set',{record:true,id:x.id,start:x.next.start,end:x.next.end,title:x.next.title})}))}
+c.appendChild(r);L.appendChild(c)})}).catch(function(){L.textContent='Cannot reach the TV'})}
+function lFind(){var L=document.getElementById('llist'),q=v('lq');if(!q)return;L.textContent='Looking in the guide...';get('/api/live/find?q='+encodeURIComponent(q)).then(function(d){L.textContent='';
+if(d.error){L.textContent=d.error;return}if(!d.airings.length){L.textContent='Nothing in the next 7 days.';return}var now=Date.now();
+d.airings.forEach(function(x){var c=el('div','card');c.appendChild(el('b','',x.title));c.appendChild(el('small','',dy(x.start)+' '+hm(x.start)+'  ·  '+chName(x)));
+var r=el('div','row');if(x.start<=now)r.appendChild(btn('Watch on TV','s',function(){lAct('/api/live/watch',{id:x.id})}));
+if(x.start>now)r.appendChild(setB(x,x,false));r.appendChild(setB(x,x,true));c.appendChild(r);L.appendChild(c)})}).catch(function(){L.textContent='Cannot reach the TV'})}
+function lSched(d){var L=document.getElementById('llist');L.textContent='';if(d.error){L.textContent=d.error;return}if(!d.items.length){L.textContent='Nothing set.';return}
+d.items.forEach(function(x){var c=el('div','card');var t=el('b','',x.title);t.appendChild(el('span','tag',x.kind=='record'?'recording':'reminder'));c.appendChild(t);
+c.appendChild(el('small','',dy(x.start)+' '+hm(x.start)+'  ·  '+chName(x)));var r=el('div','row');
+r.appendChild(btn('Cancel','s d',function(){lAct('/api/live/cancel',{key:x.key})}));c.appendChild(r);L.appendChild(c)})}
+function lRecs(d){var L=document.getElementById('llist');L.textContent='';if(d.error){L.textContent=d.error;return}if(!d.items.length){L.textContent='No recordings yet.';return}
+d.items.forEach(function(x){var c=el('div','card');c.appendChild(el('b','',x.title));
+c.appendChild(el('small','',dy(x.start)+' '+hm(x.start)+'  ·  '+chName(x)+'  ·  '+Math.round(x.size/1048576)+' MB'));var r=el('div','row');
+r.appendChild(btn('Play on TV','s',function(){lAct('/api/live/play',{id:x.id})}));
+r.appendChild(btn('Delete','s d',function(){if(confirm('Delete the recording of '+x.title+'? It can\'t be undone.'))lAct('/api/live/delete',{id:x.id})}));c.appendChild(r);L.appendChild(c)})}
 function k(key){api('/api/key',{key:key}).then(function(r){if(!r.ok)say(r.error,false)}).catch(function(){say('Cannot reach the TV',false)})}
 function addAddon(){var u=v('au');if(u)send('/api/addon/add',{url:u},'au')}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
@@ -419,6 +488,7 @@ x.onload=function(){p.textContent='';try{var r=JSON.parse(x.responseText);say(r.
 x.onerror=function(){p.textContent='';say('Upload failed',false)};say('Uploading...',true);x.send(f)}
 var BGM=[['carousel','Title backdrops'],['image','My picture'],['video','My video'],['aerial','Screensaver']],poll=0;
 function load(){api('/api/state').then(function(d){
+document.getElementById('livebox').style.display=d.live?'':'none';if(d.live&&!liveOn){liveOn=true;lShow()}
 var a=document.getElementById('addons');a.textContent='';d.addons.forEach(function(x){var c=el('div','card');var t=el('b','',x.name);if(x.account)t.appendChild(el('span','tag',(x.from||'Nuvio')+' account'));c.appendChild(t);c.appendChild(el('small','',x.host));if(!x.account){var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/addon/remove',{url:x.url})};r.appendChild(b);c.appendChild(r)}a.appendChild(c)});
 var g=d.bg,m=document.getElementById('bgm');m.textContent='';BGM.forEach(function(o){var b=el('button',g.mode==o[0]?'':'s',o[1]);b.onclick=function(){send('/api/bg/mode',{mode:o[0]})};m.appendChild(b)});
 document.getElementById('bgnow').textContent=(g.image?'Picture: '+g.image+'  ':'')+(g.video?'Video: '+g.video:'');

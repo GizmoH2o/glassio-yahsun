@@ -907,3 +907,5 @@ Rain %d%	Pioggia %d%
 %d recording	%d registrazione
 %d recordings	%d registrazioni
 %d set for today	%d previsti per oggi
+Live TV on the phone page	TV in diretta nella pagina del telefono
+What's on your channels, the guide, reminders, recordings and your schedule, from the phone; Watch on TV tunes it	Cosa c'è sui tuoi canali, la guida, promemoria, registrazioni e la tua agenda, dal telefono; Guarda sulla TV cambia canale
