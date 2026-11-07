@@ -173,8 +173,23 @@ final class LiveRecordings {
         return n;
     }
 
+    /** Where recordings go, of the TV's own storage (first) and any drive after it: a missing drive is null. Pure. */
+    static File pick(List<File> places, boolean drive) {
+        File own = places.isEmpty() ? null : places.get(0);
+        if (!drive) return own;
+        for (int i = 1; i < places.size(); i++) if (places.get(i) != null) return places.get(i);
+        return own;
+    }
+
+    /** Whether a USB drive is plugged in that recordings could go to. */
+    static boolean hasDrive(Context c) {
+        File[] places = c.getExternalFilesDirs("Recordings");
+        for (int i = 1; i < places.length; i++) if (places[i] != null) return true;
+        return false;
+    }
+
     static File folder(Context c) {
-        File dir = c.getExternalFilesDir("Recordings");
+        File dir = pick(java.util.Arrays.asList(c.getExternalFilesDirs("Recordings")), LiveOptions.recordToDrive(c));
         if (dir == null) dir = new File(c.getFilesDir(), "recordings");
         //noinspection ResultOfMethodCallIgnored
         dir.mkdirs();

@@ -333,6 +333,17 @@ final class Russian {
             case "Catch-up channels ask your provider for older shows.": return "Каналы с архивом запрашивают старые передачи у провайдера.";
             case "A channel with no guide takes the one with its exact name, when only one has it.": return "Канал без гида берёт гид с точно таким же названием, если он один.";
             case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "SD-канал показывает HD-копию из другой категории, если гид подтверждает, что это тот же канал.";
+            case "Avoid sources that keep failing": return "Избегать сбойных источников";
+            case "A source that fails a few times in a few hours is skipped when another is there. One you picked yourself stays.": return "Источник, который несколько раз сбоит за несколько часов, пропускается, если есть другой. Выбранный вами остаётся.";
+            case "Warn about recording clashes": return "Предупреждать о конфликтах записи";
+            case "Record to a USB drive": return "Записывать на USB-накопитель";
+            case "No drive": return "Нет накопителя";
+            case "Marks recordings that go past the screens your account allows.": return "Отмечает записи сверх числа экранов вашей учётной записи.";
+            case "New recordings go to a USB drive. With no drive plugged in, they stay on the TV.": return "Новые записи идут на USB-накопитель. Без него остаются на телевизоре.";
+            case "No USB drive plugged in": return "USB-накопитель не подключён";
+            case "CLASH": return "КОНФЛИКТ";
+            case " free": return " свободно";
+            case " won't fit": return " не поместятся";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

@@ -30,6 +30,8 @@ import android.content.IntentFilter;
  *                                                                    layout; off: ESPN's)
  *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez standin true       Live TV (open):
  *                                                                    a plain picture behind everything, for captures
+ *   adb shell am broadcast -a com.glasslauncher.tv.live.TEST -p com.glassioyahsun.tv --ez badsource true     Live TV (open):
+ *                                                                    the source playing as if it kept failing (false: all forgotten)
  */
 final class TestHook {
     private TestHook() {}

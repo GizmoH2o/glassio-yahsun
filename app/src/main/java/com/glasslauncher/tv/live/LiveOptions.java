@@ -194,6 +194,33 @@ final class LiveOptions {
         sp(c).edit().putBoolean("matchNames", on).apply();
     }
 
+    /** Whether the Recordings page marks recordings that won't all fit the account's streams. */
+    static boolean recordClashes(Context c) {
+        return sp(c).getBoolean("recordClashes", true);
+    }
+
+    static void setRecordClashes(Context c, boolean on) {
+        sp(c).edit().putBoolean("recordClashes", on).apply();
+    }
+
+    /** Whether recordings go to a USB drive when one is plugged in. RecordService's process reads it too. */
+    static boolean recordToDrive(Context c) {
+        return c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getBoolean("recordToDrive", false);
+    }
+
+    static void setRecordToDrive(Context c, boolean on) {
+        sp(c).edit().putBoolean("recordToDrive", on).commit();     // now: the recorder reads it from another process
+    }
+
+    /** Whether a merged channel passes over a source that kept failing in the last hours. */
+    static boolean avoidBadSources(Context c) {
+        return sp(c).getBoolean("avoidBadSources", true);
+    }
+
+    static void setAvoidBadSources(Context c, boolean on) {
+        sp(c).edit().putBoolean("avoidBadSources", on).apply();
+    }
+
     /** Whether an SD channel takes the HD copy of itself from another category as a source. */
     static boolean hdTwins(Context c) {
         return sp(c).getBoolean("hdTwins", true);

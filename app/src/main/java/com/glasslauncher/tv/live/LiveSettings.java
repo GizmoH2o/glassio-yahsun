@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -92,7 +92,7 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, HD_TWINS_ROW, SEPARATE_ROW, HEALTH_ROW,
+            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
@@ -103,7 +103,7 @@ final class LiveSettings {
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, RESET_ROW},
             {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, SPOILER_GUARD_ROW, GOALS_ROW, MATCH_NEWS_ROW, RED_CARD_ROW,
                     RESET_ROW},
-            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
+            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
             {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, RESET_ROW},
             {},
             {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW}};
@@ -382,6 +382,9 @@ final class LiveSettings {
             case CATCHUP_TABLE_ROW: return Ui.tr("Mais passado nos canais com reprise", "Older shows on catch-up channels");
             case MATCH_NAMES_ROW: return Ui.tr("Achar o guia pelo nome", "Find guides by channel name");
             case HD_TWINS_ROW: return Ui.tr("Versão HD dos canais SD", "HD versions of SD channels");
+            case AVOID_BAD_ROW: return Ui.tr("Evitar fontes com problemas", "Avoid sources that keep failing");
+            case CLASHES_ROW: return Ui.tr("Avisar sobre conflitos de gravação", "Warn about recording clashes");
+            case RECORD_DRIVE_ROW: return Ui.tr("Gravar no drive USB", "Record to a USB drive");
             case DAYS_AHEAD_ROW: return Ui.tr("Dias à frente no guia", "Days ahead in the guide");
             case GUIDE_SHIFT_ROW: return Ui.tr("Ajustar o horário do guia", "Guide time offset");
             case GUIDE_SIZE_ROW: return Ui.tr("Tamanho do guia", "Guide size");
@@ -565,6 +568,9 @@ final class LiveSettings {
             case CATCHUP_TABLE_ROW: return onOff(LiveOptions.catchupTable(c));
             case MATCH_NAMES_ROW: return onOff(LiveOptions.matchNames(c));
             case HD_TWINS_ROW: return onOff(LiveOptions.hdTwins(c));
+            case AVOID_BAD_ROW: return onOff(LiveOptions.avoidBadSources(c));
+            case CLASHES_ROW: return onOff(LiveOptions.recordClashes(c));
+            case RECORD_DRIVE_ROW: return !LiveRecordings.hasDrive(c) ? Ui.tr("Nenhum drive", "No drive") : onOff(LiveOptions.recordToDrive(c));
             case DAYS_AHEAD_ROW: {
                 int d = LiveOptions.daysAhead(c);
                 return d + " " + (d == 1 ? Ui.tr("dia", "day") : Ui.tr("dias", "days"));
@@ -859,6 +865,12 @@ final class LiveSettings {
                             "Catch-up channels ask your provider for older shows.");
                     case MATCH_NAMES_ROW: return Ui.tr("Um canal sem guia usa o de nome igual, se só um tiver esse nome.",
                             "A channel with no guide takes the one with its exact name, when only one has it.");
+                    case CLASHES_ROW: return Ui.tr("Marca as gravações que passam do número de telas da sua conta.",
+                            "Marks recordings that go past the screens your account allows.");
+                    case RECORD_DRIVE_ROW: return Ui.tr("Novas gravações vão para o drive USB. Sem o drive, ficam na TV.",
+                            "New recordings go to a USB drive. With no drive plugged in, they stay on the TV.");
+                    case AVOID_BAD_ROW: return Ui.tr("Se uma fonte falhar várias vezes em poucas horas, o canal começa por outra. A fonte que você escolher não muda.",
+                            "A source that fails a few times in a few hours is skipped when another is there. One you picked yourself stays.");
                     case HD_TWINS_ROW: return Ui.tr("Um canal SD toca a cópia HD de outra categoria quando o guia confirma que é o mesmo.",
                             "An SD channel plays the HD copy from another category when the guide shows it's the same channel.");
                     case FULL_GUIDE_ROW: return Ui.tr("O guia inteiro do provedor de uma vez: o guia abre na hora e a busca acha programas.",
@@ -1296,6 +1308,9 @@ final class LiveSettings {
             case CATCHUP_TABLE_ROW: return LiveOptions.catchupTable(c);
             case MATCH_NAMES_ROW: return LiveOptions.matchNames(c);
             case HD_TWINS_ROW: return LiveOptions.hdTwins(c);
+            case AVOID_BAD_ROW: return LiveOptions.avoidBadSources(c);
+            case CLASHES_ROW: return LiveOptions.recordClashes(c);
+            case RECORD_DRIVE_ROW: return LiveOptions.recordToDrive(c);
             case BOOT_ROW: return LiveOptions.startOnBoot(c);
             case WAKE_ROW: return LiveOptions.startOnWake(c);
             case PREVIEW_ROW: return LiveOptions.homePreviews(c);
@@ -1588,7 +1603,7 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
-                || id == KEEP_PAST_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW
+                || id == KEEP_PAST_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
@@ -2249,6 +2264,16 @@ final class LiveSettings {
             case CATCHUP_TABLE_ROW: LiveOptions.setCatchupTable(c, !LiveOptions.catchupTable(c)); announce(); return;
             case MATCH_NAMES_ROW: LiveOptions.setMatchNames(c, !LiveOptions.matchNames(c)); live.relist(); announce(); return;
             case HD_TWINS_ROW: LiveOptions.setHdTwins(c, !LiveOptions.hdTwins(c)); live.relist(); announce(); return;
+            case AVOID_BAD_ROW: LiveOptions.setAvoidBadSources(c, !LiveOptions.avoidBadSources(c)); announce(); return;
+            case CLASHES_ROW: LiveOptions.setRecordClashes(c, !LiveOptions.recordClashes(c)); announce(); return;
+            case RECORD_DRIVE_ROW:
+                if (!LiveRecordings.hasDrive(c)) {
+                    view.flash(Ui.tr("Nenhum drive USB conectado", "No USB drive plugged in"));
+                    return;
+                }
+                LiveOptions.setRecordToDrive(c, !LiveOptions.recordToDrive(c));
+                announce();
+                return;
             case KEEP_DAYS_ROW: LiveOptions.setKeepDays(c, LiveOptions.step(LiveOptions.KEEP_DAYS, LiveOptions.keepDays(c), dir)); announce(); return;
             case KEEP_SHOW_ROW: LiveOptions.setKeepPerShow(c, LiveOptions.step(LiveOptions.KEEP_SHOW, LiveOptions.keepPerShow(c), dir)); announce(); return;
             case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, !LiveOptions.guideLogosLeft(c)); view.invalidate(); announce(); return;
@@ -2538,6 +2563,9 @@ final class LiveSettings {
             case CATCHUP_TABLE_ROW:
             case MATCH_NAMES_ROW:
             case HD_TWINS_ROW:
+            case AVOID_BAD_ROW:
+            case CLASHES_ROW:
+            case RECORD_DRIVE_ROW:
             case VOICE_ROW:
             case GUIDE_ALIGN_ROW:
             case PLAYER_LOGO_ROW:

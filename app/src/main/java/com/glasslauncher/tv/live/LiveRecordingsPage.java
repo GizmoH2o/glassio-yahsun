@@ -37,8 +37,24 @@ final class LiveRecordingsPage extends Dialog {
     private static final int NOW = 0, DONE = 1, LATER = 2;
     private int row, at;
     private final int[] atOf = new int[3];
-    private long size;
+    private long size, free;
     private boolean okDown, okHeld;
+
+    /** Later recordings that won't fit the account's streams, by key; the streams once the account has said. */
+    private final java.util.Set<String> clashing = new java.util.HashSet<>();
+    private volatile int streams = 1;
+
+    /** Marks what won't fit: the ones recording now take their streams first. */
+    private void findClashes() {
+        clashing.clear();
+        if (!LiveOptions.recordClashes(getContext())) return;
+        List<long[]> times = new ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (LiveRecordings.Rec r : this.now) times.add(new long[] {now, now + 3600_000L});
+        int first = times.size();
+        for (LiveSchedule.Item it : later) times.add(new long[] {it.start, it.end});
+        for (int i : LiveSchedule.clashes(times, streams)) if (i >= first) clashing.add(later.get(i - first).key());
+    }
 
     LiveRecordingsPage(Context c, LiveView view, Live live) {
         super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
@@ -46,6 +62,14 @@ final class LiveRecordingsPage extends Dialog {
         this.live = live;
         page = new Page(c);
         reload();
+        new Thread(() -> {        // the account's streams: it may ask the server
+            int max = Xtream.maxConnections(getContext());
+            page.post(() -> {
+                streams = Math.max(1, max);
+                findClashes();
+                page.invalidate();
+            });
+        }, "recordings-streams").start();
     }
 
     @Override protected void onCreate(Bundle state) {
@@ -70,6 +94,7 @@ final class LiveRecordingsPage extends Dialog {
         done.clear();
         later.clear();
         size = 0;
+        free = LiveRecordings.folder(c).getUsableSpace();
         List<LiveRecordings.Rec> all = LiveRecordings.all(c);
         for (int i = all.size() - 1; i >= 0; i--) {     // the newest first
             LiveRecordings.Rec r = all.get(i);
@@ -84,6 +109,7 @@ final class LiveRecordingsPage extends Dialog {
         row = Math.max(0, Math.min(row, rows.size() - 1));
         for (int r = 0; r < 3; r++) atOf[r] = Math.max(0, Math.min(atOf[r], count(r) - 1));
         at = rows.isEmpty() ? 0 : atOf[rows.get(row)];
+        findClashes();
         page.invalidate();
     }
 
@@ -299,7 +325,9 @@ final class LiveRecordingsPage extends Dialog {
             c.drawText(Ui.tr("Gravações", "Recordings"), X * k, TITLE_Y * k, title);
             int total = now.size() + done.size();
             String info = total + " " + (total == 1 ? Ui.tr("gravação", "recording") : Ui.tr("gravações", "recordings"))
-                    + (size > 0 ? "  ·  " + sizeOf(size) : "") + (later.isEmpty() ? "" : "  ·  " + later.size() + Ui.tr(" marcadas", " set for later"));
+                    + (size > 0 ? "  ·  " + sizeOf(size) : "") + (later.isEmpty() ? "" : "  ·  " + later.size() + Ui.tr(" marcadas", " set for later"))
+                    + "  ·  " + sizeOf(free) + Ui.tr(" livres", " free")
+                    + (clashing.isEmpty() ? "" : "  ·  " + clashing.size() + Ui.tr(" com conflito", " won't fit"));
             c.drawText(info, X * k + title.measureText(Ui.tr("Gravações", "Recordings")) + 28 * k, TITLE_Y * k, meta);
             if (rows.isEmpty()) {
                 // In the middle of the page: what's missing and how to get it.
@@ -397,6 +425,7 @@ final class LiveRecordingsPage extends Dialog {
                     drawPill(c, missed ? Ui.tr("PERDIDA", "MISSED") : Ui.tr("INCOMPLETA", "INCOMPLETE"), r.left + 16 * k, r.top + 16 * k,
                             missed ? 0xCCC0392B : 0xCC3A3A3C);
                 } else if (kind == LATER) {
+                    if (clashing.contains(later.get(i).key())) drawPill(c, Ui.tr("CONFLITO", "CLASH"), r.left + 16 * k, r.top + 56 * k, 0xFFD92D20);
                     drawPill(c, start - nowMs < 24 * 3600_000L ? Ui.time(start) : Ui.tr("MARCADA", "SET"), r.left + 16 * k, r.top + 16 * k, 0xCC3A3A3C);
                 }
                 Paint np = on ? nameOn : name;

@@ -17,6 +17,7 @@ public final class LiveReport {
                 .append(c.getDatabasePath("live-guide.db").length() / 1_000_000).append(" MB, ")
                 .append(at <= 0 ? "never updated" : (System.currentTimeMillis() - at) / 60_000 + " min since it updated").append('\n');
         b.append("Connection: ").append(LiveMerge.speed(c)).append(" kbit/s as last measured\n");
+        b.append("Passing over failing sources: ").append(LiveOptions.avoidBadSources(c)).append('\n');
         List<LiveHealth.Entry> week = LiveHealth.week(c);
         b.append("Channels with trouble this week: ").append(week.size()).append('\n');
         for (int i = 0; i < Math.min(TROUBLE_SHOWN, week.size()); i++) {

@@ -322,6 +322,17 @@ final class Italian {
             case "Catch-up channels ask your provider for older shows.": return "I canali con catch-up chiedono al provider i programmi più vecchi.";
             case "A channel with no guide takes the one with its exact name, when only one has it.": return "Un canale senza guida usa quella con il suo nome esatto, se ce n'è una sola.";
             case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "Un canale SD riproduce la copia HD di un'altra categoria quando la guida mostra che è lo stesso canale.";
+            case "Avoid sources that keep failing": return "Evita le fonti che si bloccano";
+            case "A source that fails a few times in a few hours is skipped when another is there. One you picked yourself stays.": return "Una fonte che si blocca più volte in poche ore viene saltata se ce n'è un'altra. Quella scelta da te resta.";
+            case "Warn about recording clashes": return "Avvisa dei conflitti di registrazione";
+            case "Record to a USB drive": return "Registra su unità USB";
+            case "No drive": return "Nessuna unità";
+            case "Marks recordings that go past the screens your account allows.": return "Segna le registrazioni oltre gli schermi consentiti dal tuo account.";
+            case "New recordings go to a USB drive. With no drive plugged in, they stay on the TV.": return "Le nuove registrazioni vanno su un'unità USB. Senza unità restano sulla TV.";
+            case "No USB drive plugged in": return "Nessuna unità USB collegata";
+            case "CLASH": return "CONFLITTO";
+            case " free": return " liberi";
+            case " won't fit": return " non ci stanno";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";

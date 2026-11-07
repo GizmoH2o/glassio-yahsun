@@ -322,6 +322,17 @@ final class French {
             case "Catch-up channels ask your provider for older shows.": return "Les chaînes en replay demandent les programmes plus anciens à votre fournisseur.";
             case "A channel with no guide takes the one with its exact name, when only one has it.": return "Une chaîne sans guide prend celui de son nom exact, quand un seul le porte.";
             case "An SD channel plays the HD copy from another category when the guide shows it's the same channel.": return "Une chaîne SD lit la copie HD d'une autre catégorie quand le guide montre que c'est la même chaîne.";
+            case "Avoid sources that keep failing": return "Éviter les sources qui échouent";
+            case "A source that fails a few times in a few hours is skipped when another is there. One you picked yourself stays.": return "Une source qui échoue plusieurs fois en quelques heures est ignorée s'il y en a une autre. Celle que vous avez choisie reste.";
+            case "Warn about recording clashes": return "Signaler les conflits d'enregistrement";
+            case "Record to a USB drive": return "Enregistrer sur un disque USB";
+            case "No drive": return "Aucun disque";
+            case "Marks recordings that go past the screens your account allows.": return "Marque les enregistrements qui dépassent les écrans de votre compte.";
+            case "New recordings go to a USB drive. With no drive plugged in, they stay on the TV.": return "Les nouveaux enregistrements vont sur un disque USB. Sans disque, ils restent sur la TV.";
+            case "No USB drive plugged in": return "Aucun disque USB branché";
+            case "CLASH": return "CONFLIT";
+            case " free": return " libres";
+            case " won't fit": return " en trop";
             case "Couldn't play this program": return "Impossible de lire ce programme";
             case "Couldn't reach the server.": return "Impossible de joindre le serveur.";
             case "CATCH-UP": return "RATTRAPAGE";

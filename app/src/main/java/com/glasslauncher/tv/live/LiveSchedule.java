@@ -75,6 +75,25 @@ final class LiveSchedule {
     }
 
     /** What's set, soonest first, without what's over (a reminder once its show started, a recording once due). */
+    /**
+     * Which of these recordings ({start, end}) won't fit, by their place in the list: more than `limit` at one moment
+     * (the streams the account allows); the ones that started first get their stream. Pure.
+     */
+    static List<Integer> clashes(List<long[]> times, int limit) {
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < times.size(); i++) order.add(i);
+        java.util.Collections.sort(order, (a, b) -> Long.compare(times.get(a)[0], times.get(b)[0]));
+        List<Integer> out = new ArrayList<>();
+        List<Integer> running = new ArrayList<>();
+        for (int i : order) {
+            long start = times.get(i)[0];
+            for (int r = running.size() - 1; r >= 0; r--) if (times.get(running.get(r))[1] <= start) running.remove(r);
+            if (running.size() >= limit) out.add(i); else running.add(i);
+        }
+        java.util.Collections.sort(out);
+        return out;
+    }
+
     static synchronized List<Item> all(Context c) {
         List<Item> out = new ArrayList<>();
         File f = file(c);

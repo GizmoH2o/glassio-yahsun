@@ -545,6 +545,11 @@ public class Live extends Activity {
                 view.testStandIn(i.getBooleanExtra("standin", false));
                 return;
             }
+            if (i.hasExtra("badsource")) {     // the source playing as if it kept failing (false: all forgotten)
+                if (!i.getBooleanExtra("badsource", false)) LiveReliability.clear(Live.this);
+                else if (source != null) for (int n = 0; n < 3; n++) LiveReliability.note(Live.this, source.id);
+                return;
+            }
             if (i.getBooleanExtra("upnext", false)) {     // the Up next card, on whatever's on
                 view.testUpNext();
                 return;
@@ -1496,7 +1501,15 @@ public class Live extends Activity {
                 if (s.id == chosenSource && !failed.contains(s.id) && (!past || s.archive > 0)) return s;
             }
         }
-        return LiveMerge.pick(this, playing, past, failed);
+        if (!LiveOptions.avoidBadSources(this) || past) return LiveMerge.pick(this, playing, past, failed);
+        final java.util.Set<Integer> bad = LiveReliability.bad(this, playing);
+        Xtream.Channel out = LiveReliability.choose(bad, skip -> {
+            java.util.Set<Integer> all = new java.util.HashSet<>(failed);
+            all.addAll(skip);
+            return LiveMerge.pick(this, playing, false, all);
+        });
+        if (!bad.isEmpty()) AppLog.w("live: " + playing.name + ": passing over " + bad.size() + " source(s) that kept failing");
+        return out;
     }
 
     /** The source playing failed (in both formats): the next one, if the channel has another. */
@@ -1583,6 +1596,7 @@ public class Live extends Activity {
     private void recover(String why) {
         if (playing == null) return;
         AppLog.w("live: " + playing.name + ": " + why + (source == null ? "" : " on " + LiveMerge.label(source)));
+        if (source != null && catchup == null) LiveReliability.note(this, source.id);
         health(LiveHealth.FROZE);
         bufferingSince = 0;
         positionSince = android.os.SystemClock.uptimeMillis();
@@ -1689,6 +1703,7 @@ public class Live extends Activity {
         if (next == null) return;
         if (catchup == null) LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
         AppLog.w("live: " + playing.name + " stalls on " + LiveMerge.label(source) + ", now " + LiveMerge.label(next));
+        LiveReliability.note(this, source.id);
         health(LiveHealth.SWITCHED);
         view.flash(Ui.tr("Conexão lenta: ", "Slow connection: ") + LiveMerge.label(next));
         switchSource(next);
