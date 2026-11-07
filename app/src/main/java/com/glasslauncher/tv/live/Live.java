@@ -521,6 +521,10 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.hasExtra("matchevent")) {     // Match Centre on one real match
+                view.testMatchCentre(i.getStringExtra("matchevent"), i.getBooleanExtra("guarded", false));
+                return;
+            }
             if (i.hasExtra("scores")) {     // the live scores from a stand-in (off: ESPN's)
                 LiveScores.get(Live.this).test(i.getStringExtra("scores"));
                 return;

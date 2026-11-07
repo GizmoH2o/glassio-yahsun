@@ -2643,6 +2643,11 @@ final class LiveView extends View {
         return b.toString();
     }
 
+    /** Match Centre on one real match (the test broadcast's). */
+    void testMatchCentre(String event, boolean locked) {
+        overlay.testCentre(event, locked);
+    }
+
     /** Something from outside Live TV (a card, search) starts playing: full screen, whatever was left open. */
     void toVideo() {
         if (gGroups) closeGuideGroups();

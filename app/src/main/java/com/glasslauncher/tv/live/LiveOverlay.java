@@ -25,7 +25,7 @@ import java.util.List;
  * Measurements in a 1920×1080 space (k = width / 1920).
  */
 final class LiveOverlay {
-    static final int PLAY = 1, LIVE = 4, START_OVER = 5, INFO = 6, CHANNELS = 7, AUDIO = 8, MOMENTS = 9, SKIP_BACK = 11, SKIP_AHEAD = 12;
+    static final int PLAY = 1, LIVE = 4, START_OVER = 5, INFO = 6, CHANNELS = 7, AUDIO = 8, MOMENTS = 9, SKIP_BACK = 11, SKIP_AHEAD = 12, MATCH = 13;
     /** A past show's lines stand this much higher: the skip's label goes between them and the bar. */
     private static final float PAST_LIFT = 38;
     /** On a later show (◀ ▶ in the peek) it stays up longer, to read it (Back closes it). */
@@ -58,6 +58,7 @@ final class LiveOverlay {
     private boolean brief;
     private final LivePlayerPanel panel;
     private final LivePlayerMoments moments;
+    private final LivePlayerMatch centre;
     private final LivePlayerInfo info;
     private final LiveRail rail;
     /** The match the show is (LiveMoments), found by its title; which show was asked to show it. */
@@ -121,6 +122,7 @@ final class LiveOverlay {
         this.live = live;
         panel = new LivePlayerPanel(view);
         moments = new LivePlayerMoments(view);
+        centre = new LivePlayerMatch(view);
         info = new LivePlayerInfo(view);
         rail = new LiveRail(view, live);
     }
@@ -131,6 +133,7 @@ final class LiveOverlay {
         h = height;
         panel.size(scale, width, height);
         moments.size(scale);
+        centre.size(scale);
         info.size(scale, width, height);
         rail.size(scale);
         if (!checking) {
@@ -312,6 +315,7 @@ final class LiveOverlay {
         appear.target = 0;
         panel.close();
         moments.close();
+        centre.close();
         info.close();
         rail.close();
         onScore = false;
@@ -323,6 +327,7 @@ final class LiveOverlay {
         lastKey = SystemClock.uptimeMillis();
         if (panel.open()) panel.close();
         else if (moments.open()) moments.close();
+        else if (centre.open()) centre.close();
         else if (info.open()) info.close();
         else if (rail.open()) rail.close();
         else hide();
@@ -341,8 +346,8 @@ final class LiveOverlay {
     boolean step(float dt) {
         long hold = brief ? BRIEF_MS : peek != null && peekAhead > 0 ? PEEK_LATER_MS : HIDE_MS;
         boolean paused = !brief && (live.catchup() != null || live.shifted()) && live.paused();
-        if (showing && SystemClock.uptimeMillis() - lastKey > hold && !paused && !panel.open() && !moments.open() && !info.open() && !rail.open()) hide();
-        boolean moving = appear.step(dt) | focusX.step(dt) | focusW.step(dt) | panel.step(dt) | moments.step(dt) | info.step(dt) | rail.step(dt);
+        if (showing && SystemClock.uptimeMillis() - lastKey > hold && !paused && !panel.open() && !moments.open() && !centre.open() && !info.open() && !rail.open()) hide();
+        boolean moving = appear.step(dt) | focusX.step(dt) | focusW.step(dt) | panel.step(dt) | moments.step(dt) | centre.step(dt) | info.step(dt) | rail.step(dt);
         if (!showing && !moving && appear.value <= 0.004f) {     // gone (settled, not on a bounce): the peek with it
             peek = null;
             peekAhead = 0;
@@ -354,7 +359,8 @@ final class LiveOverlay {
     /** The tabs for what's playing, then at the right end Start over, or Back to live on a past program. */
     private void rebuild() {
         Xtream.Channel ch = live.playing();
-        int[] row = tabs(live.catchup() != null || live.shifted(), view.canSeek(), ch != null, match != null, ch != null && ch.archive > 0);
+        int[] row = tabs(live.catchup() != null || live.shifted(), view.canSeek(), ch != null, match != null && !match.moments.isEmpty(), ch != null && ch.archive > 0,
+                match != null && !match.event.isEmpty() && LiveOptions.matchCentre(live));
         count = row.length;
         rightFrom = count;
         for (int i = 0; i < count; i++) {
@@ -369,11 +375,17 @@ final class LiveOverlay {
 
     /** The row of tabs: a past show has its own, the skips first, Back to live at the far right. Pure. */
     static int[] tabs(boolean past, boolean canSeek, boolean channel, boolean moments, boolean archive) {
-        int[] row = new int[6];
+        return tabs(past, canSeek, channel, moments, archive, false);
+    }
+
+    /** `centre`: the show is a match Match Centre can read. */
+    static int[] tabs(boolean past, boolean canSeek, boolean channel, boolean moments, boolean archive, boolean centre) {
+        int[] row = new int[7];
         int n = 0;
         if (past) {
             row[n++] = SKIP_BACK;
             row[n++] = SKIP_AHEAD;
+            if (centre) row[n++] = MATCH;
             if (moments) row[n++] = MOMENTS;
             row[n++] = AUDIO;
             row[n++] = LIVE;
@@ -382,6 +394,7 @@ final class LiveOverlay {
             row[n++] = INFO;
             row[n++] = CHANNELS;
             row[n++] = AUDIO;
+            if (centre) row[n++] = MATCH;
             if (moments) row[n++] = MOMENTS;
             if (archive) row[n++] = START_OVER;
         }
@@ -421,6 +434,7 @@ final class LiveOverlay {
             case CHANNELS: return Ui.tr("Canais", "Channels");
             case AUDIO: return Ui.tr("Áudio e legendas", "Audio & Subtitles");
             case MOMENTS: return Ui.tr("Momentos", "Moments");
+            case MATCH: return Ui.tr("Partida", "Match");
             case SKIP_BACK: return "◀ " + (live.minuteSkips() ? "1 min" : "10 s");
             case SKIP_AHEAD: return (live.minuteSkips() ? "1 min" : "30 s") + " ▶";
             case PLAY: return live.paused() != other ? Ui.tr("Continuar", "Play") : Ui.tr("Pausar", "Pause");
@@ -478,6 +492,13 @@ final class LiveOverlay {
         }
         if (panel.open()) {        // the video stays clear beside the card
             panel.draw(c);
+            c.restoreToCount(save);
+            if (showing) view.postInvalidateDelayed(1000 - now % 1000);
+            return false;
+        }
+        if (centre.open()) {        // the top of the picture stays clear
+            shade(c, bottomShade, 0, 240 * k, w, h);
+            centre.draw(c);
             c.restoreToCount(save);
             if (showing) view.postInvalidateDelayed(1000 - now % 1000);
             return false;
@@ -1174,6 +1195,7 @@ final class LiveOverlay {
         if (!armed()) return false;     // shown by itself: the keys do what they do while watching
         if (panel.open()) return panel.key(code);
         if (moments.open()) return moments.key(code);
+        if (centre.open()) return centre.key(code);
         if (info.open()) return info.key(code);
         if (rail.open()) return rail.key(code);
         if (onScore) {      // above the bar: OK shows the score, or hides it again
@@ -1267,6 +1289,9 @@ final class LiveOverlay {
                 return;
             case AUDIO:
                 panel.show(name(AUDIO, false), this::audioRows);
+                return;
+            case MATCH:
+                openCentre();
                 return;
             case MOMENTS:
                 openMoments();
@@ -1411,6 +1436,22 @@ final class LiveOverlay {
             hide();
             view.goToMoment(p, Math.max(0, at - 60_000));
         } : null);
+    }
+
+    /** Match Centre: asked for first when it would spoil the match, as Moments is. */
+    private void openCentre() {
+        Xtream.Program p = view.playingShow();
+        if (match == null || p == null || match.event.isEmpty()) return;
+        centre.show(match.event, matchHidden(p, live.catchup() != null), () -> {
+            revealed = showKey(p);
+            centre.unlock();
+        });
+    }
+
+    /** Match Centre on one real match by ESPN's event id, for looking at it on the TV (the test broadcast's). */
+    void testCentre(String event, boolean locked) {
+        show(true);
+        centre.show(event, locked, centre::unlock);
     }
 
     /** A stand-in match, for looking at Moments on the TV without one on (the test broadcast's). */

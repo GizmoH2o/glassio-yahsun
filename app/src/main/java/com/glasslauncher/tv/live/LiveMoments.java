@@ -39,6 +39,8 @@ final class LiveMoments {
 
     static final class Match {
         String home = "", away = "";
+        /** ESPN's event id (Match Centre); "" for a stand-in. */
+        String event = "";
         int homeScore, awayScore;
         final List<Moment> moments = new ArrayList<>();
 
@@ -89,14 +91,15 @@ final class LiveMoments {
         return (past && guard || teamHidden) && !revealed;
     }
 
-    /** A scoreboard's event as a match with its moments in order; null without any. Pure. */
+    /** A scoreboard's event as a match with its moments in order; null when it names no teams. Pure. */
     static Match parse(JSONObject event, long showStart) {
         JSONArray comps = event.optJSONArray("competitions");
         JSONObject comp = comps == null ? null : comps.optJSONObject(0);
         JSONArray teams = comp == null ? null : comp.optJSONArray("competitors");
         JSONArray details = comp == null ? null : comp.optJSONArray("details");
-        if (teams == null || details == null) return null;
+        if (teams == null) return null;
         Match m = new Match();
+        m.event = event.optString("id");
         String homeId = "";
         Map<String, String> names = new HashMap<>();
         for (int i = 0; i < teams.length(); i++) {
@@ -117,7 +120,7 @@ final class LiveMoments {
         }
         long kickOff = LiveScores.when(event.optString("date"));
         int home = 0, away = 0;
-        for (int i = 0; i < details.length(); i++) {
+        for (int i = 0; details != null && i < details.length(); i++) {
             JSONObject d = details.optJSONObject(i);
             if (d == null || d.optBoolean("shootout")) continue;
             JSONObject type = d.optJSONObject("type"), clock = d.optJSONObject("clock"), team = d.optJSONObject("team");
@@ -143,7 +146,7 @@ final class LiveMoments {
             if (!who.isEmpty()) at.who += " · " + who;
             m.moments.add(at);
         }
-        return m.moments.isEmpty() ? null : m;
+        return m.home.isEmpty() && m.away.isEmpty() ? null : m;     // a 0–0 is still a match, with no moments
     }
 
     private static int parseScore(String n) {

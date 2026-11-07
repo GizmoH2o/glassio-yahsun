@@ -195,6 +195,15 @@ final class LiveOptions {
     }
 
     /** Whether the Recordings page marks recordings that won't all fit the account's streams. */
+    /** The player's Match tab (LivePlayerMatch). */
+    static boolean matchCentre(Context c) {
+        return sp(c).getBoolean("matchCentre", true);
+    }
+
+    static void setMatchCentre(Context c, boolean on) {
+        sp(c).edit().putBoolean("matchCentre", on).apply();
+    }
+
     /** Smart channels: the group in the guide, its two ready-made rows, and your own rules (LiveSmart). */
     static boolean smartChannels(Context c) {
         return sp(c).getBoolean("smartChannels", true);

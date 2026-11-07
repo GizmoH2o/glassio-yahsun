@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -101,7 +101,7 @@ final class LiveSettings {
                     SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, OPACITY_ROW, RESET_ROW},
-            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, SPOILER_GUARD_ROW, GOALS_ROW, MATCH_NEWS_ROW, RED_CARD_ROW,
+            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, GOALS_ROW, MATCH_NEWS_ROW, RED_CARD_ROW,
                     RESET_ROW},
             {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
             {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, RESET_ROW},
@@ -378,6 +378,7 @@ final class LiveSettings {
             case PAST_DAYS_ROW: return Ui.tr("Dias passados no guia", "Past days to keep in the guide");
             case GUIDE_START_ROW: return Ui.tr("Atualizar o guia ao abrir", "Update the guide on start");
             case FULL_GUIDE_ROW: return Ui.tr("Guia completo (XMLTV)", "Full guide (XMLTV)");
+            case MATCH_CENTRE_ROW: return Ui.tr("Central da partida", "Match Centre");
             case SMART_ROW: return Ui.tr("Canais inteligentes", "Smart channels");
             case SMART_FOLLOW_ROW: return Ui.tr("Ao vivo dos times que você segue", "Live from teams you follow");
             case SMART_NEW_ROW: return Ui.tr("Episódios novos hoje", "New episodes tonight");
@@ -568,6 +569,7 @@ final class LiveSettings {
             }
             case GUIDE_START_ROW: return onOff(LiveOptions.guideOnStart(c));
             case FULL_GUIDE_ROW: return onOff(LiveOptions.fullGuide(c));
+            case MATCH_CENTRE_ROW: return onOff(LiveOptions.matchCentre(c));
             case SMART_ROW: return onOff(LiveOptions.smartChannels(c));
             case SMART_FOLLOW_ROW: return onOff(LiveOptions.smartFollowing(c));
             case SMART_NEW_ROW: return onOff(LiveOptions.smartNew(c));
@@ -867,6 +869,8 @@ final class LiveSettings {
                             "How long a channel's saved guide lasts before it's fetched again.");
                     case PAST_DAYS_ROW: return Ui.tr("Programas que já passaram ficam no guia (canais com reprise: pelo menos a reprise).",
                             "Shows that are over stay in the guide (catch-up channels: at least their catch-up).");
+                    case MATCH_CENTRE_ROW: return Ui.tr("Uma aba no player com linha do tempo, estatísticas, escalações e tabela dos jogos de futebol.",
+                            "A player tab with the timeline, stats, lineups and table of football matches.");
                     case SMART_ROW: return Ui.tr("Um grupo no guia com canais feitos por regras. OK vai ao canal que está passando o programa.",
                             "A guide group of channels made from rules. OK goes to the channel showing it.");
                     case SMART_FOLLOW_ROW: return Ui.tr("Jogos dos times e programas que você segue, de todos os canais.",
@@ -1320,6 +1324,7 @@ final class LiveSettings {
             case MERGE_ROW: return LiveOptions.merge(c);
             case GUIDE_START_ROW: return LiveOptions.guideOnStart(c);
             case FULL_GUIDE_ROW: return LiveOptions.fullGuide(c);
+            case MATCH_CENTRE_ROW: return LiveOptions.matchCentre(c);
             case SMART_ROW: return LiveOptions.smartChannels(c);
             case SMART_FOLLOW_ROW: return LiveOptions.smartFollowing(c);
             case SMART_NEW_ROW: return LiveOptions.smartNew(c);
@@ -1622,7 +1627,7 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
-                || id == KEEP_PAST_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
+                || id == KEEP_PAST_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
@@ -2279,6 +2284,7 @@ final class LiveSettings {
             case MERGE_ROW: LiveOptions.setMerge(c, !LiveOptions.merge(c)); live.relist(); announce(); return;
             case COUNTRY_ROW: LiveOptions.setCountryTags(c, !LiveOptions.countryTags(c)); view.invalidate(); announce(); return;
             case HIDE_NO_GUIDE_ROW: LiveOptions.setHideNoGuide(c, !LiveOptions.hideNoGuide(c)); live.relist(); announce(); return;
+            case MATCH_CENTRE_ROW: LiveOptions.setMatchCentre(c, !LiveOptions.matchCentre(c)); announce(); return;
             case SMART_ROW: LiveOptions.setSmartChannels(c, !LiveOptions.smartChannels(c)); live.relist(); announce(); return;
             case SMART_FOLLOW_ROW: LiveOptions.setSmartFollowing(c, !LiveOptions.smartFollowing(c)); live.relist(); announce(); return;
             case SMART_NEW_ROW: LiveOptions.setSmartNew(c, !LiveOptions.smartNew(c)); live.relist(); announce(); return;
@@ -2582,6 +2588,7 @@ final class LiveSettings {
             case COUNTRY_ROW:
             case HIDE_NO_GUIDE_ROW:
             case KEEP_PAST_ROW:
+            case MATCH_CENTRE_ROW:
             case SMART_ROW:
             case SMART_FOLLOW_ROW:
             case SMART_NEW_ROW:
