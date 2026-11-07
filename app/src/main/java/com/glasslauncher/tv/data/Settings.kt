@@ -376,6 +376,10 @@ class Settings(private val ctx: Context) {
     var nuvioTarget: String get() = s("nuvioTarget", "auto"); set(v) = putS("nuvioTarget", v)
     var haWebhook: String get() = s("haWebhook", ""); set(v) = putS("haWebhook", v.trim())
     var haOnLaunch: Boolean get() = b("haOnLaunch", false); set(v) = putB("haOnLaunch", v)
+    /** Events to Home Assistant: All (HaEvents' newer ones too) or Basic. */
+    var haEventsAll: Boolean get() = b("haEventsAll", false); set(v) = putB("haEventsAll", v)
+    /** Home Assistant may tune, pause, play and show notices (the phone page's /api/ha/…). */
+    var haControl: Boolean get() = b("haControl", true); set(v) = putB("haControl", v)
 
     // ---- Screensaver
     var idleMinutes: Int get() = i("idleMinutes", 0); set(v) = putI("idleMinutes", v.coerceAtLeast(0))

@@ -644,7 +644,11 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     dialog = TextEntry("Home Assistant webhook", st.haWebhook, "http://homeassistant.local:8123/api/webhook/…") { st.haWebhook = it }
                 },
                 Toggle("Tell Home Assistant what's on", "Events to the webhook: something playing, back on Home, the screensaver", { st.haOnLaunch }, { st.haOnLaunch = it }),
+                Adjust("Events to Home Assistant", "Basic: playing, back on Home, the screensaver. All: also paused and playing again, goals, kick-off and full time of the matches you follow, recordings, and Kids bedtime",
+                    { if (st.haEventsAll) "All" else "Basic" }, { st.haEventsAll = !st.haEventsAll }),
                 Act("Send a test event", "") { io { NuvioLaunch.testWebhook(st, app.http) } },
+                Toggle("Control from Home Assistant", "Its automations can tune a channel, pause, play and show a notice: the commands to paste are on the phone page (Manage from phone), with Phone remote on",
+                    { st.haControl }, { st.haControl = it }),
                 // Reading Home Assistant (the At a glance row's readings, chosen in Settings › Home).
                 Act("Home Assistant address", st.haBase.ifBlank { "Not set: like http://homeassistant.local:8123" }, if (st.haUrl.isBlank()) "Set" else "Change") {
                     dialog = TextEntry("Home Assistant address", st.haBase, "Like http://homeassistant.local:8123 (empty: the webhook's)") { st.haUrl = it }

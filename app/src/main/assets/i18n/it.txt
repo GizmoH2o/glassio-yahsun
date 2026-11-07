@@ -909,3 +909,8 @@ Rain %d%	Pioggia %d%
 %d set for today	%d previsti per oggi
 Live TV on the phone page	TV in diretta nella pagina del telefono
 What's on your channels, the guide, reminders, recordings and your schedule, from the phone; Watch on TV tunes it	Cosa c'è sui tuoi canali, la guida, promemoria, registrazioni e la tua agenda, dal telefono; Guarda sulla TV cambia canale
+Events to Home Assistant	Eventi a Home Assistant
+Basic: playing, back on Home, the screensaver. All: also paused and playing again, goals, kick-off and full time of the matches you follow, recordings, and Kids bedtime	Base: riproduzione, ritorno alla Home, il salvaschermo. Tutti: anche pausa e ripresa, gol, calcio d'inizio e fine delle partite seguite, registrazioni e l'ora di dormire dei Kids
+Basic	Base
+Control from Home Assistant	Controllo da Home Assistant
+Its automations can tune a channel, pause, play and show a notice: the commands to paste are on the phone page (Manage from phone), with Phone remote on	Le sue automazioni possono mettere un canale, mettere in pausa, riprodurre e mostrare un avviso: i comandi da incollare sono nella pagina del telefono (Gestisci dal telefono), con il Telecomando del telefono attivo

@@ -1663,6 +1663,9 @@ public class Live extends Activity {
     /** Watching stops: why, then 30 minutes more or another profile (each with the parents' PIN), or the home screen. */
     private void timesUp(int why) {
         familyAsking = true;
+        LiveProfiles.Profile kid = LiveProfiles.active(this);
+        com.glasslauncher.tv.data.HaEvents.kids(this, "kids:" + why + ":" + kid.id + ":" + LiveFamily.day(System.currentTimeMillis(), java.util.TimeZone.getDefault()),
+                why == LiveFamily.BEDTIME, kid.name);
         if (player != null) player.stop();
         boolean bed = why == LiveFamily.BEDTIME;
         String head = bed ? Ui.tr("Hora de dormir", "It's bedtime") : Ui.tr("Acabou o tempo de hoje", "That's all for today");
@@ -2416,7 +2419,23 @@ public class Live extends Activity {
         }
         if (rolling && player.getPlayWhenReady()) atLive = false;     // paused in the buffer: behind live from now
         player.setPlayWhenReady(!player.getPlayWhenReady());
+        main.removeCallbacks(haPause);
+        main.postDelayed(haPause, 600);
     }
+
+    /** Home Assistant (Events: All): paused or playing again, once it has settled. */
+    private Boolean haPaused;
+    private final Runnable haPause = new Runnable() {
+        @Override public void run() {
+            if (playing == null) return;
+            boolean now = paused();
+            if (haPaused != null && haPaused == now) return;
+            haPaused = now;
+            String what = recordingFile != null ? "recording" : catchup != null ? "catchup" : "live";
+            Xtream.Program p = catchup != null ? catchup : onNowOf(playing);
+            com.glasslauncher.tv.data.HaEvents.paused(Live.this, now, what, p == null ? "" : p.title, view.numberAndName(playing, " "));
+        }
+    };
 
     /** A backup brought back: the reminders armed again, the look read again, and Live TV starts over with it all. */
     void restored() {

@@ -28,6 +28,14 @@ class CameraActivity : Activity() {
         private const val EXTRA_URL = "url"
         private const val EXTRA_TITLE = "title"
         private const val EXTRA_SECONDS = "seconds"
+        private const val EXTRA_MESSAGE = "message"
+
+        /** A notice over whatever is on (Home Assistant's /api/ha/notify): `title`, `message`, for `seconds`. */
+        fun notice(ctx: Context, title: String, message: String, seconds: Int) {
+            ctx.startActivity(Intent(ctx, CameraActivity::class.java)
+                .putExtra(EXTRA_URL, "").putExtra(EXTRA_TITLE, title).putExtra(EXTRA_MESSAGE, message).putExtra(EXTRA_SECONDS, seconds)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        }
 
         /** Shows `url` (a picture, read again every second) with `title`, for `seconds`. */
         fun show(ctx: Context, url: String, title: String, seconds: Int) {
@@ -74,7 +82,18 @@ class CameraActivity : Activity() {
 
     private fun take(i: Intent) {
         url = i.getStringExtra(EXTRA_URL).orEmpty()
-        caption.text = i.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "Camera" }
+        val message = i.getStringExtra(EXTRA_MESSAGE).orEmpty()
+        // No picture: a notice, its title over its message.
+        picture.visibility = if (url.isEmpty()) android.view.View.GONE else android.view.View.VISIBLE
+        val title = i.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { if (url.isEmpty()) "" else "Camera" }
+        caption.text = if (message.isEmpty()) title else android.text.SpannableStringBuilder().apply {
+            if (title.isNotEmpty()) {
+                append(title, android.text.style.StyleSpan(android.graphics.Typeface.BOLD), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                append("\n")
+            }
+            append(message)
+        }
+        caption.maxWidth = (480 * resources.displayMetrics.density).toInt()
         main.removeCallbacks(close)
         main.postDelayed(close, i.getIntExtra(EXTRA_SECONDS, 20).coerceIn(5, 120) * 1000L)
     }
@@ -83,7 +102,7 @@ class CameraActivity : Activity() {
         super.onStart()
         running = true
         Thread({
-            while (running) {
+            while (running && url.isNotEmpty()) {
                 val bmp = runCatching {
                     val c = URL(url).openConnection() as HttpURLConnection
                     c.connectTimeout = 3000; c.readTimeout = 5000

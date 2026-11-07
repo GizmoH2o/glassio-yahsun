@@ -206,6 +206,31 @@ public final class LivePhone {
         return out;
     }
 
+    /** The channel Home Assistant asks for: its number, or its name as voice finds it (`usual` country first). Pure. */
+    static Xtream.Channel tuneTarget(List<Xtream.Channel> all, String said, String usual) {
+        String t = said == null ? "" : said.trim();
+        if (t.isEmpty()) return null;
+        if (t.matches("\\d{1,5}")) {
+            int n = Integer.parseInt(t);
+            for (Xtream.Channel ch : all) if (ch.num == n) return ch;
+            return null;
+        }
+        final String u = usual == null ? "" : usual;
+        return LiveVoice.best(all, LiveVoice.parse(t), ch -> LiveCountry.of(ch, null),
+                ch -> !u.isEmpty() && u.equals(LiveCountry.of(ch, null)) ? 40 : 0);
+    }
+
+    /** Home Assistant's tune: Live TV on the channel it names (Settings › Nuvio, Stremio & Home Assistant). */
+    public static String tune(Context c, String said) {
+        Xtream.Lineup l = lineup(c);
+        if (l == null) throw new IllegalStateException("Live TV isn't signed in");
+        List<Xtream.Channel> recent = Xtream.recent(c);
+        String usual = recent.isEmpty() ? "" : LiveCountry.of(recent.get(0), LiveCountry.savedCategories(c));
+        Xtream.Channel ch = tuneTarget(l.all(), said, usual);
+        if (ch == null) throw new IllegalArgumentException("No channel like " + (said == null ? "" : said.trim()));
+        return watch(c, ch.id);
+    }
+
     // MARK: - Do
 
     private static Xtream.Channel channelOf(Context c, int id) {

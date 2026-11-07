@@ -307,6 +307,7 @@ final class LiveScores {
         String before = s.line() + s.state;
         int oldHome = s.homeScore, oldAway = s.awayScore;
         boolean wasLive = s.state.equals("in");
+        String oldState = s.state;
         for (int i = 0; i < teams.length(); i++) {
             JSONObject t = teams.optJSONObject(i);
             if (t == null) continue;
@@ -340,6 +341,19 @@ final class LiveScores {
         if (tell && wasLive && LiveOptions.goalAlerts(c)) {
             if (s.homeScore > oldHome) goal(s, true);
             else if (s.awayScore > oldAway) goal(s, false);
+        }
+        if (tell && !quiet(s.term)) {       // Home Assistant (Events: All): once each, whichever process reads it
+            String home = s.homeName.isEmpty() ? s.home : s.homeName, away = s.awayName.isEmpty() ? s.away : s.awayName;
+            if (wasLive && (s.homeScore > oldHome || s.awayScore > oldAway)) {
+                com.glasslauncher.tv.data.HaEvents.goal(c, "goal:" + s.event + ":" + s.homeScore + "-" + s.awayScore, home, away,
+                        s.homeScore, s.awayScore, s.homeScore > oldHome, s.clock);
+            }
+            if ("pre".equals(oldState) && s.state.equals("in")) {
+                com.glasslauncher.tv.data.HaEvents.match(c, "kickoff:" + s.event, true, home, away, s.homeScore, s.awayScore);
+            }
+            if (wasLive && s.state.equals("post")) {
+                com.glasslauncher.tv.data.HaEvents.match(c, "full_time:" + s.event, false, home, away, s.homeScore, s.awayScore);
+            }
         }
         boolean half = type != null && halfTime(type.optString("name"), type.optString("shortDetail"));
         if (tell && !quiet(s.term)) {

@@ -264,6 +264,23 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             val e = app.apps.ordered(includeHidden = true).firstOrNull { it.pkg == j.optString("pkg") } ?: error("No such app")
             check(app.apps.open(app, e)) { "${e.label} can't be opened" }; "Opened ${e.label}"
         }
+        // Home Assistant 2.0: tune {"channel": 622 | "Sky Sports News"}, pause, play, stop, notify {"title","message","seconds"}.
+        "/api/ha/tune", "/api/ha/pause", "/api/ha/play", "/api/ha/stop", "/api/ha/notify" -> {
+            check(app.settings.haControl) { "Control from Home Assistant is off: Settings › Nuvio, Stremio & Home Assistant" }
+            when (path) {
+                "/api/ha/tune" -> com.glasslauncher.tv.live.LivePhone.tune(app, j.optString("channel").take(80))
+                "/api/ha/pause" -> { shell("input keyevent KEYCODE_MEDIA_PAUSE"); "Paused" }
+                "/api/ha/play" -> { shell("input keyevent KEYCODE_MEDIA_PLAY"); "Playing" }
+                "/api/ha/stop" -> { shell("input keyevent KEYCODE_MEDIA_STOP"); "Stopped" }
+                else -> {
+                    val title = j.optString("title").trim().take(80)
+                    val message = j.optString("message").trim().take(300)
+                    require(title.isNotEmpty() || message.isNotEmpty()) { "Send a title or a message" }
+                    com.glasslauncher.tv.CameraActivity.notice(app, title, message, j.optInt("seconds", 8))
+                    "Shown on the TV"
+                }
+            }
+        }
         // Home Assistant: a camera over whatever is on (a doorbell). {"image": snapshot link, "title", "seconds"}.
         "/api/ha/camera" -> {
             val image = j.optString("image").trim()
@@ -415,6 +432,8 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <h2>Apps</h2><p>Open one on the TV, move it up or down on Home, or give it an icon: an image link or one from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
 <h2>Live TV sign-in</h2><p>Set up Live TV from here instead of typing with the remote. Xtream Codes: the server, your username and password. M3U: the playlist's link (and its guide's, if it has one). The details stay on your TV.</p><select id="lk" onchange="lkShow()"><option value="xtream">Xtream Codes</option><option value="m3u">M3U link</option><option value="mag">MAG portal</option></select><input type="text" id="ls" placeholder="Server (http://example.com:8080)"><input type="text" id="lu" placeholder="Username" autocomplete="off"><input type="password" id="lp" placeholder="Password" autocomplete="off"><button onclick="send('/api/live/signin',{kind:v('lk'),server:v('ls'),user:v('lu'),pass:v('lp')},'lp')">Sign in</button>
+<h2>Home Assistant control</h2><p>Paste into Home Assistant's <b>configuration.yaml</b>, restart it, then use these in automations: <b>rest_command.glassio_tune</b> (channel: a number or a name), <b>glassio_notify</b> (title, message), <b>glassio_pause</b>, <b>glassio_play</b>. Keep it private: the address has the TV's code. Needs Phone remote on (Settings &rsaquo; System).</p>
+<textarea id="hay" rows="12" readonly></textarea><button class="s" onclick="var t=document.getElementById('hay');t.select();try{document.execCommand('copy');say('Copied',true)}catch(e){}">Copy</button>
 <h2>Home Assistant webhook</h2><input type="text" id="ha" placeholder="http://homeassistant.local:8123/api/webhook/your_id"><button onclick="send('/api/ha',{url:v('ha')},'ha')">Save webhook</button>
 <h2>Calendars on Home</h2><p>An iCal link: in Google Calendar on a computer, the calendar's Settings &rarr; <b>Secret address in iCal format</b>. Its next events show in Home's "At a glance" row.</p><div id="cals"></div><input type="text" id="cl" placeholder="https://calendar.google.com/calendar/ical/.../basic.ics"><button onclick="send('/api/cal/add',{url:v('cl')},'cl')">Add calendar</button>
 <h2>Home Assistant readings on Home</h2><p>Its address and a <b>long-lived access token</b> (your Home Assistant profile &rarr; Security &rarr; Long-lived access tokens). Then choose the readings on the TV: Settings &rsaquo; Home &rsaquo; Home Assistant readings.</p><p id="hab"></p><input type="text" id="hu" placeholder="http://homeassistant.local:8123"><input type="password" id="ht" placeholder="Long-lived access token" autocomplete="off" style="margin-top:8px"><button onclick="send('/api/hastate',{url:v('hu'),token:v('ht')},'ht')">Save and check</button>
@@ -487,7 +506,12 @@ x.upload.onprogress=function(e){if(e.lengthComputable)p.textContent='Uploading '
 x.onload=function(){p.textContent='';try{var r=JSON.parse(x.responseText);say(r.ok?r.message:r.error,r.ok)}catch(e){say('Upload failed',false)}document.getElementById('bf').value='';load()};
 x.onerror=function(){p.textContent='';say('Upload failed',false)};say('Uploading...',true);x.send(f)}
 var BGM=[['carousel','Title backdrops'],['image','My picture'],['video','My video'],['aerial','Screensaver']],poll=0;
-function load(){api('/api/state').then(function(d){
+function haYaml(){var b=location.origin+'/api/ha/',q='?t='+encodeURIComponent(T),h='    method: post\n    content_type: "application/json"\n';
+return 'rest_command:\n  glassio_tune:\n    url: "'+b+'tune'+q+'"\n'+h+'    payload: \'{"channel": "{{ channel }}"}\'\n'
++'  glassio_notify:\n    url: "'+b+'notify'+q+'"\n'+h+'    payload: \'{"title": "{{ title }}", "message": "{{ message }}"}\'\n'
++'  glassio_pause:\n    url: "'+b+'pause'+q+'"\n'+h+'    payload: "{}"\n'
++'  glassio_play:\n    url: "'+b+'play'+q+'"\n'+h+'    payload: "{}"\n'}
+function load(){document.getElementById('hay').value=haYaml();api('/api/state').then(function(d){
 document.getElementById('livebox').style.display=d.live?'':'none';if(d.live&&!liveOn){liveOn=true;lShow()}
 var a=document.getElementById('addons');a.textContent='';d.addons.forEach(function(x){var c=el('div','card');var t=el('b','',x.name);if(x.account)t.appendChild(el('span','tag',(x.from||'Nuvio')+' account'));c.appendChild(t);c.appendChild(el('small','',x.host));if(!x.account){var r=el('div','row');var b=el('button','s d','Remove');b.onclick=function(){send('/api/addon/remove',{url:x.url})};r.appendChild(b);c.appendChild(r)}a.appendChild(c)});
 var g=d.bg,m=document.getElementById('bgm');m.textContent='';BGM.forEach(function(o){var b=el('button',g.mode==o[0]?'':'s',o[1]);b.onclick=function(){send('/api/bg/mode',{mode:o[0]})};m.appendChild(b)});

@@ -100,6 +100,7 @@ public class RecordService extends Service {
         r.end = it.end;
         r.file = new File(LiveRecordings.folder(this), it.ch.id + "-" + it.start + ".ts").getPath();
         LiveRecordings.put(this, r);
+        com.glasslauncher.tv.data.HaEvents.recording(this, true, r.title, LiveCountry.named(this, r.ch));
         Thread t = new Thread(() -> {
             try {
                 save(r);
@@ -180,6 +181,7 @@ public class RecordService extends Service {
         }
         r.end = Math.min(r.end, now);    // stopped early: as long as it really is
         LiveRecordings.put(this, r);
+        if (r.state.equals(LiveRecordings.DONE)) com.glasslauncher.tv.data.HaEvents.recording(this, false, r.title, LiveCountry.named(this, r.ch));
         AppLog.w("live: recording " + r.state + ", " + r.size / 1_000_000 + " MB" + (r.why.isEmpty() ? "" : " (" + r.why + ")"));
         if (r.state.equals(LiveRecordings.DONE) && LiveOptions.adBreaks(this)) {     // its ad breaks, while it's fresh
             final String file = r.file;
