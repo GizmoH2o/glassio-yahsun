@@ -493,6 +493,8 @@ final class Russian {
             case "Reading the community designs…": return "Загружаю дизайны сообщества…";
             case "Couldn't read the community designs just now": return "Сейчас не удалось загрузить дизайны сообщества";
             case "Keep in My designs": return "Сохранить в «Мои дизайны»";
+            case "Resolution badges": return "Значки разрешения";
+            case "4K, 2K, FHD, HD or SD at the logo's corner: as the channel played, else as its name says. A merged channel shows its best source.": return "4K, 2K, FHD, HD или SD в углу логотипа: как канал показывал, иначе по названию. Объединённый канал показывает лучший источник.";
             case "Couldn't play this program": return "Не удалось воспроизвести передачу";
             case "Couldn't reach the server.": return "Не удалось связаться с сервером.";
             case "CATCH-UP": return "АРХИВ";

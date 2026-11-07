@@ -29,6 +29,22 @@ object HeroPicks {
     }
 
     /**
+     * The titles the big picture picks from: with [recsOnly], the recommendations only (trending, then popular films
+     * and series; nothing until they're read); else the catalogs' titles, the trending ones when there are none, and
+     * both with [always] (Recommendations: Always). [recsOn]: the recommendations are wanted.
+     */
+    fun sources(
+        catalog: List<HeroItem>, trending: List<HeroItem>, films: List<HeroItem>, series: List<HeroItem>,
+        recsOn: Boolean, always: Boolean, recsOnly: Boolean,
+    ): List<HeroItem> = when {
+        recsOnly -> (trending + films + series).distinctBy { it.key }
+        !recsOn -> catalog
+        catalog.isEmpty() -> trending
+        always -> (catalog + trending).distinctBy { it.key }
+        else -> catalog
+    }
+
+    /**
      * @param catalog the catalogs' titles, as they come; [details] fuller ones by key (genres, overview) when known
      * @param watching Continue Watching's titles (Live TV's cards left out by the caller)
      */

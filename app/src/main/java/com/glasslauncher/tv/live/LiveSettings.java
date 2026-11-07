@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -96,7 +96,7 @@ final class LiveSettings {
             {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MULTI_CHIP_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
-            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
+            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, RES_BADGE_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
             {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
@@ -409,6 +409,7 @@ final class LiveSettings {
             case COUNTRY_ROW: return Ui.tr("Etiquetas de país", "Country tags");
             case VOICE_ROW: return Ui.tr("Canais por voz e na busca da TV", "Channels by voice and TV search");
             case VOICE_COMMANDS_ROW: return Ui.tr("Comandos de voz", "Voice commands");
+            case RES_BADGE_ROW: return Ui.tr("Selos de resolução", "Resolution badges");
             case SCHEDULE_ROW: return Ui.tr("Lembretes marcados", "Reminders set");
             case RECORD_LIST_ROW: return Ui.tr("Gravações marcadas", "Scheduled recordings");
             case RECORDINGS_ROW: return Ui.tr("Programas gravados", "Recorded shows");
@@ -570,6 +571,7 @@ final class LiveSettings {
             case COUNTRY_ROW: return onOff(LiveOptions.countryTags(c));
             case VOICE_ROW: return onOff(LiveOptions.voiceChannels(c));
             case VOICE_COMMANDS_ROW: return onOff(LiveOptions.voiceCommands(c));
+            case RES_BADGE_ROW: return onOff(LiveOptions.resolutionBadges(c));
             case UNRATED_ROW: return onOff(LiveOptions.unratedNeedsPin(c));
             case REMIND_LEAD_ROW: {
                 int m = LiveOptions.remindLead(c);
@@ -1028,6 +1030,8 @@ final class LiveSettings {
                             "The channel's country (US, UK, CA…) on a tag beside its name, read from its name or its category.");
                     case VOICE_ROW: return Ui.tr("\"Play TLC USA on Glassio Yahsun\" abre o canal. Os canais também podem aparecer na busca da TV.",
                             "\"Play TLC USA on Glassio Yahsun\" opens the channel. Channels can also show in the TV's search.");
+                    case RES_BADGE_ROW: return Ui.tr("4K, 2K, FHD, HD ou SD no canto do logo: como o canal tocou, senão pelo nome. Um canal juntado mostra a melhor das suas fontes.",
+                            "4K, 2K, FHD, HD or SD at the logo's corner: as the channel played, else as its name says. A merged channel shows its best source.");
                     case VOICE_COMMANDS_ROW: return Ui.tr("\"Coloca o jogo do Arsenal\", \"O que passa hoje à noite?\", \"Gravar esta série\".",
                             "\"Put the Arsenal game on\", \"What's on tonight?\", \"Record this series\".");
                     case GUIDE_HOURS_ROW: return Ui.tr("Quanto tempo o guia salvo de um canal vale antes de buscar de novo.",
@@ -1559,6 +1563,7 @@ final class LiveSettings {
             case HIDE_NO_GUIDE_ROW: return LiveOptions.hideNoGuide(c);
             case VOICE_ROW: return LiveOptions.voiceChannels(c);
             case VOICE_COMMANDS_ROW: return LiveOptions.voiceCommands(c);
+            case RES_BADGE_ROW: return LiveOptions.resolutionBadges(c);
             case HIGH_CONTRAST_ROW: return LiveOptions.highContrast(c);
             case COMMUNITY_ON_ROW: return LiveOptions.communityDesigns(c);
             case UNRATED_ROW: return LiveOptions.unratedNeedsPin(c);
@@ -1842,7 +1847,7 @@ final class LiveSettings {
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id == TEXT_SCALE_ROW || id == HIGH_CONTRAST_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -2419,6 +2424,7 @@ final class LiveSettings {
                 LiveOptions.forget(c, "channelSort", "categorySort");
                 LiveOptions.setCountryTags(c, true);
                 LiveOptions.setVoiceChannels(c, true);
+                LiveOptions.setResolutionBadges(c, true);
                 if (LiveOptions.logoSource(c) != LiveOptions.LOGOS_PROVIDER) setLogoSource(c, LiveOptions.LOGOS_PROVIDER);
                 view.sortChanged();
                 break;
@@ -2548,6 +2554,7 @@ final class LiveSettings {
             case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, (LiveOptions.channelMark(c) + dir + 3) % 3); view.invalidate(); announce(); return;
             case VOICE_ROW: LiveOptions.setVoiceChannels(c, !LiveOptions.voiceChannels(c)); announce(); return;
             case VOICE_COMMANDS_ROW: LiveOptions.setVoiceCommands(c, !LiveOptions.voiceCommands(c)); announce(); return;
+            case RES_BADGE_ROW: LiveOptions.setResolutionBadges(c, !LiveOptions.resolutionBadges(c)); view.invalidate(); announce(); return;
             case COMMUNITY_ON_ROW: LiveOptions.setCommunityDesigns(c, !LiveOptions.communityDesigns(c)); announce(); return;
             case UNRATED_ROW: {
                 final boolean on = !LiveOptions.unratedNeedsPin(c);
@@ -2865,6 +2872,7 @@ final class LiveSettings {
             case RECORD_DRIVE_ROW:
             case VOICE_ROW:
             case VOICE_COMMANDS_ROW:
+            case RES_BADGE_ROW:
             case HIGH_CONTRAST_ROW:
             case UNRATED_ROW:
             case COMMUNITY_ON_ROW:

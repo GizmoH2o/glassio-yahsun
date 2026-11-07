@@ -49,6 +49,8 @@ final class Xtream {
         /** Its picture's tier (LiveMerge.SD to UHD, from the name's tags) and whether it's HEVC. */
         int quality = LiveMerge.HD;
         boolean hevc;
+        /** Its resolution badge's level from its name (LiveMerge.nameBadge), -1 until read. */
+        int badge = -1;
         /** A merged channel's group (LiveMerge), or a channel's kept apart from its group; null for the others. */
         String group;
         /** A merged channel's sources (each one of the provider's channels), the best first; null for the others. */

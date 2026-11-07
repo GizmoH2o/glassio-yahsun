@@ -494,6 +494,8 @@ final class German {
             case "Reading the community designs…": return "Designs der Community werden geladen…";
             case "Couldn't read the community designs just now": return "Die Designs der Community ließen sich gerade nicht laden";
             case "Keep in My designs": return "In Meine Designs speichern";
+            case "Resolution badges": return "Auflösungs-Abzeichen";
+            case "4K, 2K, FHD, HD or SD at the logo's corner: as the channel played, else as its name says. A merged channel shows its best source.": return "4K, 2K, FHD, HD oder SD in der Ecke des Logos: wie der Sender lief, sonst laut Name. Ein zusammengeführter Sender zeigt seine beste Quelle.";
             case "Couldn't play this program": return "Diese Sendung lässt sich nicht abspielen";
             case "Couldn't reach the server.": return "Der Server ist nicht erreichbar.";
             case "CATCH-UP": return "REPLAY";

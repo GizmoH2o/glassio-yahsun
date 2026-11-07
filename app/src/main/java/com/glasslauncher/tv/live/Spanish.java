@@ -484,6 +484,8 @@ final class Spanish {
             case "Reading the community designs…": return "Leyendo los diseños de la comunidad…";
             case "Couldn't read the community designs just now": return "No se pudieron leer los diseños de la comunidad ahora";
             case "Keep in My designs": return "Guardar en Mis diseños";
+            case "Resolution badges": return "Insignias de resolución";
+            case "4K, 2K, FHD, HD or SD at the logo's corner: as the channel played, else as its name says. A merged channel shows its best source.": return "4K, 2K, FHD, HD o SD en la esquina del logo: como se vio el canal, si no según su nombre. Un canal unido muestra su mejor fuente.";
             case "Couldn't play this program": return "No se pudo reproducir este programa";
             case "Couldn't reach the server.": return "No se pudo conectar con el servidor.";
             case "CATCH-UP": return "REPETICIÓN";

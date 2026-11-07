@@ -943,3 +943,13 @@ Paired TVs	Связанные ТВ
 Sync now	Синхронизировать сейчас
 Synced	Синхронизировано
 No TVs paired yet	Пока нет связанных ТВ
+Big picture shows	Большая картинка показывает
+Everything: your catalogs' titles (and the recommendations when they're on). Recommendations only: trending and popular titles from TMDB	Всё: названия из ваших каталогов (и рекомендации, если они включены). Только рекомендации: популярные и трендовые названия из TMDB
+Recommendations only	Только рекомендации
+Changing title	Смена названия
+In steps: the words fade out, the picture changes, then the new words fade in. All at once: words and picture together	По шагам: текст гаснет, картинка меняется, затем появляется новый текст. Всё сразу: текст и картинка вместе
+In steps	По шагам
+All at once	Всё сразу
+Trailer in the open card	Трейлер в открытой карточке
+A poster opened up plays its trailer (muted) in its picture after this long on it	Открытый постер включает свой трейлер (без звука) в картинке через это время
+After %d s	Через %d с

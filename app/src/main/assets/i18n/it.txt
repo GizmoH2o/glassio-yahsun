@@ -942,3 +942,13 @@ Paired TVs	TV associate
 Sync now	Sincronizza ora
 Synced	Sincronizzato
 No TVs paired yet	Ancora nessuna TV associata
+Big picture shows	L'immagine grande mostra
+Everything: your catalogs' titles (and the recommendations when they're on). Recommendations only: trending and popular titles from TMDB	Tutto: i titoli dei tuoi cataloghi (e i consigli quando sono attivi). Solo consigli: titoli di tendenza e popolari da TMDB
+Recommendations only	Solo consigli
+Changing title	Cambio titolo
+In steps: the words fade out, the picture changes, then the new words fade in. All at once: words and picture together	A passi: il testo svanisce, l'immagine cambia, poi appare il nuovo testo. Tutto insieme: testo e immagine insieme
+In steps	A passi
+All at once	Tutto insieme
+Trailer in the open card	Trailer nella scheda aperta
+A poster opened up plays its trailer (muted) in its picture after this long on it	Un poster aperto riproduce il trailer (senza audio) nella sua immagine dopo questo tempo
+After %d s	Dopo %d s

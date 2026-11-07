@@ -195,6 +195,9 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("saver_mode")?.let { if (it in setOf("aerial", "slideshow", "system")) app.settings.saverMode = it }
         i?.getStringExtra("slide_anim")?.let { if (it in setOf("fade", "slide", "apple")) app.settings.slideAnim = it }
         i?.getStringExtra("dots_mode")?.let { if (it in setOf("window", "liquid", "progress", "hidden")) app.settings.dotsMode = it }
+        i?.getStringExtra("hero_source")?.let { if (it in setOf("all", "recs")) app.settings.heroSource = it }
+        i?.getStringExtra("hero_change")?.let { if (it in setOf("steps", "fade")) app.settings.heroChange = it }
+        if (i?.hasExtra("card_trailer") == true) app.settings.cardTrailerSec = i.getIntExtra("card_trailer", 0).coerceIn(0, 10)
         i?.getStringExtra("continue_mode")?.let { if (it in setOf("row", "off", "first", "mixed")) app.settings.continueMode = it }
         if (i?.getBooleanExtra("start_saver", false) == true)
             startActivity(android.content.Intent(this, com.glasslauncher.tv.saver.ScreensaverActivity::class.java))

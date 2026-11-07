@@ -752,6 +752,18 @@ private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusReques
     }
 }
 
+/** The channel's resolution (Live TV › Settings › Channels › Resolution badges): 4K and 2K gold, FHD white, the rest dark. */
+@Composable
+private fun ResBadge(t: String, s: Float, modifier: Modifier) {
+    val (bg, fg) = when (t) {
+        "4K", "2K" -> Color(0xFFE8B84A) to Color(0xFF1C1C1E)
+        "FHD" -> Color(0xFFF5F5F7) to Color(0xFF1C1C1E)
+        else -> Color(0xD91C1C1E) to Color(0xFFF5F5F7)
+    }
+    Text(t, color = fg, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
+        modifier = modifier.clip(RoundedCornerShape((3 * s).dp)).background(bg).padding(horizontal = (4 * s).dp, vertical = (1 * s).dp))
+}
+
 /**
  * A program card, as the home page's Continue Watching: the picture (else the channel's logo), darker at the bottom
  * with the channel's logo there, LIVE top left and the red progress along the bottom; under it, the title and the
@@ -774,6 +786,7 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
                     .padding(horizontal = (4 * s).dp, vertical = (1 * s).dp))
             if (picture && a.logo.isNotEmpty()) Logo(a.logo, Modifier.align(Alignment.BottomStart)
                 .padding(start = (8 * s).dp, bottom = (9 * s).dp).size(width = (52 * s).dp, height = (20 * s).dp), Alignment.BottomStart)
+            if (a.badge.isNotEmpty()) ResBadge(a.badge, s, Modifier.align(Alignment.TopEnd).padding((6 * s).dp))
             if (now && a.end > a.start) {
                 val k = ((System.currentTimeMillis() - a.start).toFloat() / (a.end - a.start).coerceAtLeast(1)).coerceIn(0f, 1f)
                 val accent = CW_RED

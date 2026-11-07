@@ -740,6 +740,15 @@ final class LiveOptions {
         setFlag(c, "live-no-voice-commands", !on);
     }
 
+    /** The resolution badge (4K, 2K, FHD, HD, SD) at the top right of each channel's logo: on unless off. */
+    static boolean resolutionBadges(Context c) {
+        return !flag(c, "live-no-resolution-badges").exists();
+    }
+
+    static void setResolutionBadges(Context c, boolean on) {
+        setFlag(c, "live-no-resolution-badges", !on);
+    }
+
     static boolean voiceChannels(Context c) {
         return !flag(c, "live-no-voice").exists();
     }

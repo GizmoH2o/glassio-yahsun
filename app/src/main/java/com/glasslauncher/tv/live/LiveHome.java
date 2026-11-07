@@ -207,6 +207,8 @@ public final class LiveHome {
         public String channelName = "", logo = "", title = "", teams = "", sub = "", art = "", term = "";
         /** The channel's country tag ("" with the tags off or none known); channelName is then without it. */
         public String country = "";
+        /** Its resolution badge (4K, 2K, FHD, HD, SD; LiveMerge.badge), "" when unknown or Resolution badges is off. */
+        public String badge = "";
 
         /** The channel's name with its country in words ("Sky Sports News UK"), where no tag is drawn beside it. */
         public String channelWithCountry() {
@@ -650,6 +652,7 @@ public final class LiveHome {
             if (!plain.isEmpty()) a.channelName = plain;
         }
         a.logo = logoOf(c, ch);
+        if (LiveOptions.resolutionBadges(c)) a.badge = badgeOf(c, ch);
         if (p != null) {
             a.title = LiveNames.spoiled(c, p.title) ? LiveNames.withoutResult(p.title) : p.title;
             a.teams = LiveMatchDay.teams(p.title);
@@ -1075,14 +1078,8 @@ public final class LiveHome {
     private static Xtream.Lineup miniLineup;
     private static long miniLineupAt;
 
-    /**
-     * The channel before (`dir` -1) or after (1) `channel` for the small window: in its own category (the first of the
-     * provider's that has it, else All channels), round, skipping channels locked behind the parental PIN; with a
-     * Kids profile, among the children's channels only. Its address asked for now (a MAG portal's). Null when there's
-     * none. Blocking: the first call reads the whole channel list.
-     */
-    public static Mini miniStep(Context c, int channel, int dir) {
-        Xtream.Lineup l;
+    /** The saved list (a Kids profile's own), read again only when it changed. Blocking the first time. */
+    private static Xtream.Lineup cachedLineup(Context c) {
         synchronized (LiveHome.class) {
             long at = Xtream.listFile(c).lastModified();
             if (miniLineup == null || miniLineupAt != at) {
@@ -1090,8 +1087,25 @@ public final class LiveHome {
                 if (miniLineup != null && LiveProfiles.kids(c)) miniLineup = LiveProfiles.kidsOnly(c, miniLineup);
                 miniLineupAt = at;
             }
-            l = miniLineup;
+            return miniLineup;
         }
+    }
+
+    /** `ch`'s resolution badge as Live TV shows it: the merged channel's (its best source), not one source's as it was kept. */
+    private static String badgeOf(Context c, Xtream.Channel ch) {
+        Xtream.Lineup l = ch.sources == null ? cachedLineup(c) : null;
+        Xtream.Channel m = l == null ? null : l.find(ch.id);
+        return LiveMerge.badge(c, m != null ? m : ch);
+    }
+
+    /**
+     * The channel before (`dir` -1) or after (1) `channel` for the small window: in its own category (the first of the
+     * provider's that has it, else All channels), round, skipping channels locked behind the parental PIN; with a
+     * Kids profile, among the children's channels only. Its address asked for now (a MAG portal's). Null when there's
+     * none. Blocking: the first call reads the whole channel list.
+     */
+    public static Mini miniStep(Context c, int channel, int dir) {
+        Xtream.Lineup l = cachedLineup(c);
         if (l == null) return null;
         Xtream.Channel now = l.find(channel);
         if (now == null) return null;

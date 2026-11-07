@@ -1677,6 +1677,37 @@ final class LiveView extends View {
 
     /** As above; `left`: at the box's left (the guide's column, set so), else in its middle. */
     void drawLogo(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight, boolean left) {
+        drawLogoOnly(c, channel, box, alpha, onLight, left);
+        drawBadge(c, channel, left && logo(channel.logo) == null ? tileBox : box, alpha);
+    }
+
+    private final Paint badgeText = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF badgeBox = new RectF();
+    private boolean badgesRead, badgesOn;
+    private long badgesAt;
+
+    /** Settings › Channels › Resolution badges: 4K, 2K, FHD, HD or SD at the top right of `box` (big enough logos only). */
+    private void drawBadge(Canvas c, Xtream.Channel channel, RectF box, float alpha) {
+        long now = android.os.SystemClock.uptimeMillis();
+        if (!badgesRead || now - badgesAt > 2000) { badgesOn = LiveOptions.resolutionBadges(getContext()); badgesRead = true; badgesAt = now; }
+        if (!badgesOn || box.height() < 44 * k || box.width() < 70 * k) return;
+        String t = LiveMerge.badge(getContext(), channel);
+        if (t.isEmpty()) return;
+        badgeText.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
+        badgeText.setTextSize(Math.max(13 * k, Math.min(17 * k, box.height() * 0.2f)));
+        float tw = badgeText.measureText(t), ph = badgeText.getTextSize() * 1.25f, pw = tw + ph * 0.6f;
+        float inset = 4 * k;
+        badgeBox.set(box.right - inset - pw, box.top + inset, box.right - inset, box.top + inset + ph);
+        int bg = "4K".equals(t) || "2K".equals(t) ? 0xFFE8B84A : "FHD".equals(t) ? 0xFFF5F5F7 : 0xD91C1C1E;
+        fill.setShader(null);
+        fill.setColor(Ui.alpha(bg, alpha));
+        c.drawRoundRect(badgeBox, 5 * k, 5 * k, fill);
+        badgeText.setColor(Ui.alpha(bg == 0xD91C1C1E ? 0xFFF5F5F7 : 0xFF1C1C1E, alpha));
+        c.drawText(t, badgeBox.centerX() - tw / 2, badgeBox.centerY() + Ui.halfCap(badgeText), badgeText);
+        fill.setAlpha(255);
+    }
+
+    private void drawLogoOnly(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight, boolean left) {
         Bitmap b = logo(channel.logo);
         // Another source's logo that can't be had (gone from its site): the provider's own.
         if (b == null && LiveLogos.failed(channel.logo) && channel.providerLogo != null && !channel.providerLogo.isEmpty()

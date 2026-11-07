@@ -185,6 +185,21 @@ fun TrailerPlayer(ids: String, onClose: () -> Unit) {
 }
 
 /**
+ * A trailer in an opened poster card's picture (Settings › Home › Trailer in the open card): muted, its own size, seen
+ * through the web view's hole like the big picture's; the card's picture over it fades once it plays.
+ */
+@Composable
+fun CardTrailer(ids: String, modifier: Modifier, onPlaying: () -> Unit, onEnded: () -> Unit) {
+    key(ids) {
+        AndroidView(
+            factory = { ctx -> trailerView(ctx, ids, muted = true, onPlaying, onWaiting = {}, onEnded = onEnded) },
+            onRelease = { releaseTrailer(it) },
+            modifier = modifier,
+        )
+    }
+}
+
+/**
  * The trailer behind the big picture: YouTube's player page loaded as it is, muted and without its overlays, under the
  * same shades as the backdrops so the text stays readable. Drawn under the page's picture, which fades away once it
  * plays ([shown], 0 to 1): the video is the TV's own video plane, under the app, seen through the web view's hole (made

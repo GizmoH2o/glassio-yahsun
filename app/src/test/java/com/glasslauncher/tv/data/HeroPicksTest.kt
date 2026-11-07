@@ -53,4 +53,18 @@ class HeroPicksTest {
         val watching = listOf(h("w1", "Action"))
         assertTrue(HeroPicks.pick(cat, emptyMap(), emptySet(), false, watching, false, false, 1).reasons.isEmpty())
     }
+
+    @Test fun recommendationsOnlyLeavesTheCatalogsOut() {
+        val tr = listOf(h("t1"), h("t2")); val films = listOf(h("f1"), h("t1")); val ser = listOf(h("s1"))
+        assertEquals(listOf("t1", "t2", "f1", "s1"), HeroPicks.sources(cat, tr, films, ser, false, false, true).map { it.key })
+        assertTrue(HeroPicks.sources(cat, emptyList(), emptyList(), emptyList(), true, true, true).isEmpty())
+    }
+
+    @Test fun everythingIsAsBefore() {
+        val tr = listOf(h("t1"), h("a"))
+        assertEquals(cat.map { it.key }, HeroPicks.sources(cat, tr, emptyList(), emptyList(), false, true, false).map { it.key })
+        assertEquals(cat.map { it.key }, HeroPicks.sources(cat, tr, emptyList(), emptyList(), true, false, false).map { it.key })
+        assertEquals(cat.map { it.key } + "t1", HeroPicks.sources(cat, tr, emptyList(), emptyList(), true, true, false).map { it.key })
+        assertEquals(listOf("t1", "a"), HeroPicks.sources(emptyList(), tr, emptyList(), emptyList(), true, false, false).map { it.key })
+    }
 }

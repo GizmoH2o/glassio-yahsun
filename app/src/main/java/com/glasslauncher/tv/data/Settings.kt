@@ -303,6 +303,12 @@ class Settings(private val ctx: Context) {
     var trailerMode: String get() = s("trailerMode", if (b("heroTrailers", true)) "auto" else "off"); set(v) = putS("trailerMode", v)
     /** Recommendations (trending and popular rows): auto (with no account or add-on) | always | off. */
     var recsMode: String get() = s("recsMode", "auto"); set(v) = putS("recsMode", v)
+    /** What the big picture shows: "all" (the catalogs' titles, and the recommendations when they're on) | "recs" (the recommendations only). */
+    var heroSource: String get() = s("heroSource", "all"); set(v) = putS("heroSource", v)
+    /** How the big picture changes title: "steps" (its words fade out, the picture changes, the new words fade in) | "fade" (all at once). */
+    var heroChange: String get() = s("heroChange", "steps"); set(v) = putS("heroChange", v)
+    /** An open poster card plays its trailer after this many seconds on it; 0: never. */
+    var cardTrailerSec: Int get() = i("cardTrailerSec", 0); set(v) = putI("cardTrailerSec", v)
     /** The version whose What's new has been shown, and whether the welcome is done. */
     var seenVersion: String get() = s("seenVersion", ""); set(v) = putS("seenVersion", v)
     var welcomeDone: Boolean get() = b("welcomeDone", false); set(v) = putB("welcomeDone", v)

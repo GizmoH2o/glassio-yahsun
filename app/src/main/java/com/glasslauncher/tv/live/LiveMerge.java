@@ -50,7 +50,7 @@ final class LiveMerge {
     // The tags that tell a quality or a codec, not the channel (as the key's words).
     private static final Set<String> TAGS = new HashSet<>(Arrays.asList(
             "4k", "8k", "uhd", "fhd", "hd", "sd", "hevc", "h265", "h264", "x265", "x264", "avc",
-            "2160p", "2160", "1080p", "1080i", "1080", "720p", "720", "576p", "576i", "576", "480p", "480",
+            "2160p", "2160", "qhd", "1440p", "1440", "1080p", "1080i", "1080", "720p", "720", "576p", "576i", "576", "480p", "480",
             "50fps", "60fps", "fps", "hdr", "raw", "hq", "lq", "hb", "lb", "lbw", "backup", "bk"));
 
     // A country code before the name: "UK: ", "UK | ", "|UK| ", "[UK] ", "UK - ".
@@ -58,7 +58,7 @@ final class LiveMerge {
             java.util.regex.Pattern.compile("^\\s*[|\\[(]?\\s*([A-Za-z]{2,3})\\s*[|\\]):\\-]\\s*(?=\\S)");
     // The same tags in a name as it shows ("BBC One HD (1080p)" → "BBC One").
     private static final java.util.regex.Pattern SHOWN_TAGS = java.util.regex.Pattern.compile(
-            "(?i)(?<![\\p{L}\\p{N}])(4k|8k|uhd|fhd|full ?hd|hd|sd|hevc|h\\.?26[45]|x26[45]|avc|(?:2160|1080|720|576|480)[pi]?"
+            "(?i)(?<![\\p{L}\\p{N}])(4k|8k|uhd|fhd|full ?hd|hd|sd|hevc|h\\.?26[45]|x26[45]|avc|qhd|(?:2160|1440|1080|720|576|480)[pi]?"
                     + "|[56]0 ?fps|hdr|raw|hq|lq|hb|lb|backup)(?![\\p{L}\\p{N}])");
     private static final java.util.regex.Pattern EMPTY_BRACKETS = java.util.regex.Pattern.compile("[(\\[{]\\s*[)\\]}]");
     private static final java.util.regex.Pattern LOOSE_ENDS = java.util.regex.Pattern.compile("^[\\s:\\-·]+|[\\s|:\\-·]+$");
@@ -132,7 +132,7 @@ final class LiveMerge {
     private static int tier(String w, String last) {
         switch (w) {
             case "4k": case "8k": case "uhd": case "2160p": case "2160": return UHD;
-            case "fhd": case "1080p": case "1080i": case "1080": return FHD;
+            case "fhd": case "qhd": case "1440p": case "1440": case "1080p": case "1080i": case "1080": return FHD;
             case "hd": return last.equals("full") ? FHD : HD;
             case "720p": case "720": case "hq": return HD;
             case "sd": case "576p": case "576i": case "576": case "480p": case "480": case "lq": case "lbw": return SD;
@@ -458,6 +458,64 @@ final class LiveMerge {
             } catch (IOException ignored) {
             }
         }).start();
+    }
+
+    // MARK: - The resolution badge (4K, 2K, FHD, HD, SD at a logo's corner)
+
+    static final String[] BADGES = {"", "SD", "HD", "FHD", "2K", "4K"};
+
+    /** The badge's level from a picture `lines` tall: 5 (4K) to 1 (SD); 0 unknown. Pure. */
+    static int heightBadge(int lines) {
+        return lines <= 0 ? 0 : lines >= 1800 ? 5 : lines >= 1300 ? 4 : lines >= 1000 ? 3 : lines >= 700 ? 2 : 1;
+    }
+
+    /** The badge's level from a name's tags ("UK: Sky Sports UHD" 5, "BBC One FHD" 3); 0 when it has none. Pure. */
+    static int nameBadge(String name) {
+        if (name == null || name.isEmpty()) return 0;
+        String s = name;
+        for (int i = 0; i < s.length(); i++) {
+            if (s.charAt(i) >= 128) { s = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKD); break; }
+        }
+        s = s.toLowerCase(java.util.Locale.ROOT);
+        int best = 0;
+        String last = "";
+        for (String w : s.split("[^\\p{L}\\p{N}]+")) {
+            if (w.isEmpty()) continue;
+            int q;
+            switch (w) {
+                case "4k": case "8k": case "uhd": case "2160p": case "2160": q = 5; break;
+                case "2k": case "qhd": case "1440p": case "1440": q = 4; break;
+                case "fhd": case "1080p": case "1080i": case "1080": q = 3; break;
+                case "hd": q = last.equals("full") ? 3 : 2; break;
+                case "720p": case "720": q = 2; break;
+                case "sd": case "576p": case "576i": case "576": case "480p": case "480": q = 1; break;
+                default: q = 0;
+            }
+            best = Math.max(best, q);
+            last = w;
+        }
+        return best;
+    }
+
+    /** One source's level: as it played, else as its name says (kept on the channel, read once). */
+    private static int badgeOf(Xtream.Channel s) {
+        int seen = seen(s.id);
+        if (seen > 0) return heightBadge(seen / 10);
+        if (s.badge < 0) s.badge = nameBadge(s.name);
+        return s.badge;
+    }
+
+    /**
+     * The badge on channel `ch`'s logo: its resolution as it played (else as its name says); a merged channel's, the
+     * highest of its sources. "" when it isn't known (no tag, never played) or for a rule's row.
+     */
+    static String badge(Context c, Xtream.Channel ch) {
+        if (ch == null || ch.smart) return "";
+        if (c != null) seen(c);
+        int best = 0;
+        if (ch.sources == null) best = badgeOf(ch);
+        else for (Xtream.Channel s : ch.sources) best = Math.max(best, badgeOf(s));
+        return BADGES[best];
     }
 
     // MARK: - The version picked for each channel
