@@ -238,28 +238,44 @@ final class LiveTimeshift {
             have = 0;
         }
 
+        /**
+         * Whole packets are read where they are, a packet at a time (a 4K channel is some 15,000 a second: byte by
+         * byte this thread took a fifth of a core); only one split across two reads is gathered first.
+         */
         void feed(byte[] b, int off, int len, long at) {
-            for (int i = 0; i < len; i++) {
+            int i = 0;
+            while (i < len) {
                 if (have == 0) {
-                    if (b[off + i] != 0x47) continue;       // till a packet's start
+                    if (b[off + i] != 0x47) {       // till a packet's start
+                        i++;
+                        continue;
+                    }
                     packetAt = at + i;
+                    if (len - i >= 188) {
+                        read(b, off + i);
+                        i += 188;
+                        continue;
+                    }
                 }
-                packet[have++] = b[off + i];
+                int take = Math.min(188 - have, len - i);
+                System.arraycopy(b, off + i, packet, have, take);
+                have += take;
+                i += take;
                 if (have == 188) {
                     have = 0;
-                    read();
+                    read(packet, 0);
                 }
             }
         }
 
-        private void read() {
-            int afc = (packet[3] >> 4) & 3, len = packet[4] & 0xFF;
-            if ((afc & 2) == 0 || len < 7 || (packet[5] & 0x10) == 0) return;
-            int p = ((packet[1] & 0x1F) << 8) | (packet[2] & 0xFF);
+        private void read(byte[] packet, int o) {
+            int afc = (packet[o + 3] >> 4) & 3, len = packet[o + 4] & 0xFF;
+            if ((afc & 2) == 0 || len < 7 || (packet[o + 5] & 0x10) == 0) return;
+            int p = ((packet[o + 1] & 0x1F) << 8) | (packet[o + 2] & 0xFF);
             if (pid < 0) pid = p;
             if (p != pid) return;
-            long v = ((packet[6] & 0xFFL) << 25) | ((packet[7] & 0xFFL) << 17) | ((packet[8] & 0xFFL) << 9)
-                    | ((packet[9] & 0xFFL) << 1) | ((packet[10] & 0xFFL) >> 7);
+            long v = ((packet[o + 6] & 0xFFL) << 25) | ((packet[o + 7] & 0xFFL) << 17) | ((packet[o + 8] & 0xFFL) << 9)
+                    | ((packet[o + 9] & 0xFFL) << 1) | ((packet[o + 10] & 0xFFL) >> 7);
             long ms = v / 90;
             if (base < 0) base = ms;
             long t = ms - base + shift;

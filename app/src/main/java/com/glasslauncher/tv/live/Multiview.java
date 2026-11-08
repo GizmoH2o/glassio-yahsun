@@ -758,7 +758,7 @@ public class Multiview extends Activity {
                 } else {
                     // At the bottom, shaded: what's on now (or the box's state), then the channel.
                     float lh = 165 * k;
-                    shade.setShader(new android.graphics.LinearGradient(0, r.bottom - lh, 0, r.bottom, 0x000B0B0D, 0xE00B0B0D, android.graphics.Shader.TileMode.CLAMP));
+                    shade.setShader(shadeFor(r.bottom - lh, r.bottom));
                     c.drawRect(r.left, r.bottom - lh, r.right, r.bottom, shade);
                     float x = r.left + 24 * k, room = r.width() - 48 * k;
                     String line2 = (b.channel.num > 0 ? b.channel.num + "  " : "") + LiveCountry.named(Multiview.this, b.channel);
@@ -809,5 +809,19 @@ public class Multiview extends Activity {
             android.text.TextPaint tp = new android.text.TextPaint(p);
             return TextUtils.ellipsize(s, tp, Math.max(1, w), TextUtils.TruncateAt.END).toString();
         }
+    }
+
+    /** The boxes' bottom shade, made once per place (a new gradient for every box on every frame added up). */
+    private final java.util.HashMap<Long, android.graphics.Shader> shades = new java.util.HashMap<>();
+
+    private android.graphics.Shader shadeFor(float top, float bottom) {
+        long key = ((long) Float.floatToIntBits(top) << 32) | (Float.floatToIntBits(bottom) & 0xFFFFFFFFL);
+        android.graphics.Shader sh = shades.get(key);
+        if (sh == null) {
+            if (shades.size() > 32) shades.clear();
+            sh = new android.graphics.LinearGradient(0, top, 0, bottom, 0x000B0B0D, 0xE00B0B0D, android.graphics.Shader.TileMode.CLAMP);
+            shades.put(key, sh);
+        }
+        return sh;
     }
 }

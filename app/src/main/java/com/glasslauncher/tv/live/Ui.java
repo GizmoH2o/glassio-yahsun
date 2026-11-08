@@ -14,6 +14,7 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Locale;
 import java.util.function.Supplier;
 
@@ -215,11 +216,28 @@ final class Ui {
 
     /** "5:21" (sunrise and sunset; in English, "5:21 AM"). */
     static String time(long at) {
-        return once("time", at, () -> en ? new SimpleDateFormat("h:mm a", Locale.US).format(new Date(at))
-                : new SimpleDateFormat("H:mm", locale()).format(new Date(at)));
+        return once("time", at, () -> timeFormat().format(new Date(at)));
     }
 
-    private static final HashMap<String, String> FORMATTED = new HashMap<>();
+    /** The clock's format for the language, made once (only used under FORMATTED's lock: it isn't thread-safe). */
+    private static SimpleDateFormat timeFormat;
+    private static String timeFormatFor = "";
+
+    private static SimpleDateFormat timeFormat() {
+        String want = language + (en ? "|en" : "");
+        if (timeFormat == null || !want.equals(timeFormatFor)) {
+            timeFormat = en ? new SimpleDateFormat("h:mm a", Locale.US) : new SimpleDateFormat("H:mm", locale());
+            timeFormatFor = want;
+        }
+        return timeFormat;
+    }
+
+    /** Recently used first out last: the least used goes when it's full (it used to empty all at once, mid-scroll). */
+    private static final java.util.LinkedHashMap<String, String> FORMATTED = new java.util.LinkedHashMap<String, String>(256, 0.75f, true) {
+        @Override protected boolean removeEldestEntry(Map.Entry<String, String> eldest) {
+            return size() > 2000;
+        }
+    };
 
     /**
      * A formatted value, made once per language: the bottom drawer is redrawn on every frame of its focus animation,
@@ -230,7 +248,6 @@ final class Ui {
         synchronized (FORMATTED) {
             String s = FORMATTED.get(key);
             if (s == null) {
-                if (FORMATTED.size() > 200) FORMATTED.clear();
                 s = format.get();
                 FORMATTED.put(key, s);
             }
