@@ -19,7 +19,7 @@ class ResumeLinkTest {
     }
 
     @Test fun `ids with a colon keep it, and no id has none`() {
-        assertEquals("stremio:///detail/series/kitsu:42/kitsu:42:1:7?autoPlay=true", NuvioLaunch.resumeLink("series", "kitsu:42", 1 to 7))
+        assertEquals("stremio:///detail/series/kitsu:42/kitsu:42:7?autoPlay=true", NuvioLaunch.resumeLink("series", "kitsu:42", 1 to 7))
         assertNull(NuvioLaunch.resumeLink("movie", " ", null))
     }
 }

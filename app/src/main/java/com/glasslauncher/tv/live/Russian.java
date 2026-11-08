@@ -658,6 +658,9 @@ final class Russian {
             case "No guide now": return "Сейчас без телегида";
             case "Choose one below, or search.": return "Выберите ниже или найдите.";
             case "Type an ID": return "Ввести ID";
+            case "Moments timing": return "Моменты: время";
+            case "Exact": return "Точно";
+            case "Goals and cards on the bar sit where they really happened. If your stream runs behind and they come before the action, move them later.": return "Голы и карточки на полосе стоят там, где они случились. Если ваш поток отстаёт и они появляются раньше эпизода, сдвиньте их позже.";
             case "Guide source": return "Источник гида";
             case "How many days ahead the full guide keeps.": return "Сколько дней вперёд хранит полный гид.";
             case "Indexing…": return "Индексация…";

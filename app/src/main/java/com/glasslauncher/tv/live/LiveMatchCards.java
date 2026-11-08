@@ -173,6 +173,9 @@ public final class LiveMatchCards {
      * team's (or missing), else the home team's second; a neutral grey for one that has none.
      */
     static int[] distinct(int home, int homeAlt, int away, int awayAlt) {
+        // A near-black colour (Juventus's 000000) hides a dark crest on it, and the card's dark: its second colour.
+        if (home != 0 && dark(home) && homeAlt != 0 && !dark(homeAlt)) home = homeAlt;
+        if (away != 0 && dark(away) && awayAlt != 0 && !dark(awayAlt)) away = awayAlt;
         if (home == 0) home = homeAlt != 0 ? homeAlt : 0xFF2C2C30;
         if (away == 0) away = awayAlt != 0 ? awayAlt : 0xFF3A3A40;
         if (distance(home, away) < 90) {
@@ -180,6 +183,11 @@ public final class LiveMatchCards {
             else if (homeAlt != 0 && distance(homeAlt, away) >= 90) home = homeAlt;
         }
         return new int[] {home, away};
+    }
+
+    /** Whether a colour is near black (its brightest channel under 40). */
+    static boolean dark(int c) {
+        return Math.max(c >> 16 & 0xFF, Math.max(c >> 8 & 0xFF, c & 0xFF)) < 40;
     }
 
     static int distance(int a, int b) {

@@ -55,6 +55,15 @@ final class LiveAlerts {
         return (" " + title + " ").contains(" " + word + " ");
     }
 
+    /** Whether the show on the channel playing (its title) is this match: then no card, you're watching it. */
+    static boolean watching(Context c, LiveScores.Score s, String playingTitle) {
+        if (playingTitle == null || playingTitle.isEmpty()) return false;
+        String home = Xtream.fold(s.homeName), away = Xtream.fold(s.awayName);
+        boolean homeIsMine = LiveNames.of(c, s.term).in(home);
+        String title = Xtream.fold(playingTitle);
+        return LiveNames.of(c, s.term).in(title) && sameMatch(title, homeIsMine ? home : away, homeIsMine ? away : home);
+    }
+
     /**
      * The channel showing the match right now, or null: better no offer than the wrong channel. Blocking: it reads the
      * guide.

@@ -406,7 +406,7 @@ public class Live extends Activity {
         }
 
         @Override public void news(LiveScores.Score s, String line) {
-            view.flash(line);
+            if (!LiveAlerts.watching(getApplicationContext(), s, watchingTitle())) view.flash(line);     // watching it: seen already
         }
 
         @Override public void close(LiveScores.Score s) {
@@ -416,6 +416,7 @@ public class Live extends Activity {
         /** A card, offering the match when it's on another channel (found off this thread: it reads the guide). */
         private void alert(LiveScores.Score s, String head) {
             Context app = getApplicationContext();
+            if (LiveAlerts.watching(app, s, watchingTitle())) return;      // the match is what's on: no card
             io.execute(() -> {
                 Xtream.Channel at = LiveAlerts.channelFor(app, s);
                 view.post(() -> {
@@ -425,6 +426,12 @@ public class Live extends Activity {
             });
         }
     };
+
+    /** What's on the screen: a catch-up show playing, else what's on now on the channel playing. */
+    private String watchingTitle() {
+        Xtream.Program c = catchup;
+        return c != null && c.title != null ? c.title : view.nowTitle(playing);
+    }
 
     /** Back from the choice of players without picking one (Glassio stayed underneath): the channel again. */
     private android.view.View nightDim;
@@ -641,6 +648,19 @@ public class Live extends Activity {
                 int num = i.getIntExtra("goalcard", -1);
                 if (lineup != null) for (Xtream.Channel ch : lineup.all()) if (ch.num == num) to = ch;
                 view.card("GOAL!  HAR", "HAR 1–0 NOR  ·  63'", to);
+                return;
+            }
+            if (i.hasExtra("alerthome")) {      // a goal alert for a made-up score of home v away (term: the team followed)
+                LiveScores.Score s = new LiveScores.Score();
+                s.homeName = i.getStringExtra("alerthome");
+                s.awayName = String.valueOf(i.getStringExtra("alertaway"));
+                s.home = "HOM";
+                s.away = "AWY";
+                s.homeScore = 1;
+                s.state = "in";
+                s.clock = "63'";
+                s.term = Xtream.fold(String.valueOf(i.getStringExtra("alertterm")));
+                scores.goal(s, true);
                 return;
             }
             if (i.hasExtra("matchevent")) {     // Match Centre on one real match
@@ -915,13 +935,16 @@ public class Live extends Activity {
         Context app = getApplicationContext();
         io.execute(() -> {
             Xtream.Lineup saved = Xtream.saved(app);
-            if (saved != null) main.post(() -> show(saved));
+            if (saved != null) {
+                Xtream.Lineup ready = prepare(saved);
+                main.post(() -> show(ready));
+            }
             if (saved != null && System.currentTimeMillis() - saved.at < Xtream.LIST_EVERY && saved.version >= Xtream.LIST_VERSION) {
                 loading = false;
                 return;
             }
             try {
-                Xtream.Lineup fresh = Xtream.fetch(app);
+                Xtream.Lineup fresh = prepare(Xtream.fetch(app));
                 main.post(() -> show(fresh));
             } catch (Exception e) {
                 String message = e.getMessage() == null ? e.toString() : e.getMessage();
@@ -931,6 +954,21 @@ public class Live extends Activity {
                 loading = false;
             }
         });
+    }
+
+    /**
+     * A list read from the provider or the TV made ready to show, on the background thread (tens of thousands of
+     * channels: on the screen's thread it froze Live TV): the edits and groups made by hand, the guide matched by name,
+     * the logos, a Kids profile's channels.
+     */
+    private Xtream.Lineup prepare(Xtream.Lineup l) {
+        LiveChannelEdits.apply(this, l);        // names and numbers changed by hand
+        LiveGroups.apply(this, l);              // the groups made by hand
+        XmltvStore.matchNames(this, l);         // channels with no guide, by exactly their name
+        if (LiveOptions.hideNoGuide(this)) LiveGroups.onlyGuided(l, XmltvStore.guided(this));
+        applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
+        if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(this, l);     // a Kids profile: the children's channels only
+        return l;
     }
 
     private void show(Xtream.Lineup l) {
@@ -943,12 +981,6 @@ public class Live extends Activity {
                 if (a != null) main.post(() -> view.subscriptionEnding(a));
             });
         }
-        LiveChannelEdits.apply(this, l);        // names and numbers changed by hand
-        LiveGroups.apply(this, l);              // the groups made by hand
-        XmltvStore.matchNames(this, l);         // channels with no guide, by exactly their name
-        if (LiveOptions.hideNoGuide(this)) LiveGroups.onlyGuided(l, XmltvStore.guided(this));
-        applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
-        if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(this, l);     // a Kids profile: the children's channels only
         lineup = l;
         SharedPreferences p = prefs();
         int last = p.getInt("channel", -1);
@@ -1107,8 +1139,10 @@ public class Live extends Activity {
     void relist() {
         Context app = getApplicationContext();
         io.execute(() -> {
-            Xtream.Lineup l = Xtream.saved(app);
-            if (l != null) main.post(() -> show(l));
+            Xtream.Lineup saved = Xtream.saved(app);
+            if (saved == null) return;
+            Xtream.Lineup l = prepare(saved);
+            main.post(() -> show(l));
         });
     }
 
@@ -1116,7 +1150,8 @@ public class Live extends Activity {
     void relistAndGuide(boolean guide) {
         Context app = getApplicationContext();
         io.execute(() -> {
-            Xtream.Lineup l = Xtream.saved(app);
+            Xtream.Lineup saved = Xtream.saved(app);
+            Xtream.Lineup l = saved == null ? null : prepare(saved);
             if (l != null) main.post(() -> {
                 show(l);
                 view.guideReplaced();       // the shows kept per channel were its old guide's: read again

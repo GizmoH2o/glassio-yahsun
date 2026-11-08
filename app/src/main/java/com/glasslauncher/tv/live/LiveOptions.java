@@ -709,6 +709,17 @@ final class LiveOptions {
         }
     }
 
+    /** Moments timing: how many seconds later than when they happened its markers sit (a stream that runs behind). */
+    static final int[] MOMENTS_SHIFT = {0, 15, 30, 60, 120};
+
+    static int momentsShift(Context c) {
+        return sp(c).getInt("momentsShift", 0);
+    }
+
+    static void setMomentsShift(Context c, int seconds) {
+        sp(c).edit().putInt("momentsShift", seconds).apply();
+    }
+
     static int step(int[] values, int now, int dir) {
         int at = 0;
         for (int i = 0; i < values.length; i++) if (values[i] == now) at = i;

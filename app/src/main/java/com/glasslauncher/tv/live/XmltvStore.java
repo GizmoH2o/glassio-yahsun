@@ -534,7 +534,7 @@ final class XmltvStore {
         SQLiteDatabase.deleteDatabase(building);
         SQLiteDatabase w = SQLiteDatabase.openOrCreateDatabase(building, null);
         long count = 0, pictures = 0;
-        String firstError = null;
+        String firstError = null, brokeMidway = null;
         try {
             w.execSQL("CREATE TABLE p (epg TEXT, start INTEGER, stop INTEGER, title TEXT, key TEXT, about TEXT, icon TEXT, age INTEGER, "
                     + "sub TEXT, rep INTEGER)");
@@ -745,6 +745,7 @@ final class XmltvStore {
             } catch (IOException | XmlPullParserException | RuntimeException e) {
                 String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
                 if (firstError == null) firstError = why;
+                if (count > before && brokeMidway == null) brokeMidway = why;      // it had started: a half-read guide
                 AppLog.w("guide: " + source.name + " couldn't be read: " + why);      // never the address: it may carry a login
                 LiveGuideSources.setStatus(c, source.url, Ui.tr("Falhou: ", "Failed: ") + why);
                 if (w.inTransaction()) w.endTransaction();      // what this one had read since the last save goes
@@ -758,6 +759,9 @@ final class XmltvStore {
                 conn.disconnect();
             }
             }
+            // A source that broke partway (a flaky connection): no half guide over a whole one, the guide in use stays
+            // (one that couldn't be reached at all is just left out, so a dead link never holds the others up).
+            if (brokeMidway != null) throw new IOException(brokeMidway);
             progress = Ui.tr("Indexando…", "Indexing…");
             w.execSQL("CREATE INDEX by_channel ON p (epg, start)");
             // Holds what searches compare, so they read this and not the long descriptions in the table.

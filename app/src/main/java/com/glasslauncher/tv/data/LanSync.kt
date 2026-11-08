@@ -148,6 +148,9 @@ object LanSync {
     // MARK: - What syncs, read and written where Live TV keeps it
 
     private fun files(ctx: Context) = ctx.filesDir
+    /** A profile id as Live TV makes them (letters, digits, - and _): one from another TV that isn't is ignored. */
+    fun safeId(id: String) = id.isNotEmpty() && id.length <= 64 && id.all { it.isLetterOrDigit() || it == '-' || it == '_' }
+
     private fun profileFile(ctx: Context, id: String, name: String): File =
         if (id == com.glasslauncher.tv.live.LiveSyncStores.activeProfile(ctx)) File(files(ctx), name) else File(File(File(files(ctx), "profiles"), id), name)
 
@@ -159,7 +162,7 @@ object LanSync {
         val reg = runCatching { JSONObject(File(files(ctx), "live-profiles.json").readText()) }.getOrNull()
         val list = reg?.optJSONArray("list")
         if (list != null) out["profiles"] = list.toString()
-        val ids = if (list == null || list.length() == 0) listOf("main") else (0 until list.length()).mapNotNull { list.optJSONObject(it)?.optString("id") }
+        val ids = if (list == null || list.length() == 0) listOf("main") else (0 until list.length()).mapNotNull { list.optJSONObject(it)?.optString("id")?.takeIf(::safeId) }
         for (id in ids) {
             text(profileFile(ctx, id, "live-favorites.json"))?.let { out["fav:$id"] = it }
             text(profileFile(ctx, id, "live-resume.json"))?.let { out["resume:$id"] = it }
@@ -184,14 +187,16 @@ object LanSync {
                 if (v == null) return
                 val f = File(files(ctx), "live-profiles.json")
                 val reg = runCatching { JSONObject(f.readText()) }.getOrDefault(JSONObject())
-                val list = JSONArray(v)
+                val sent = JSONArray(v)
+                val list = JSONArray()      // only profiles with ids Live TV makes (it names folders after them)
+                for (i in 0 until sent.length()) sent.optJSONObject(i)?.takeIf { safeId(it.optString("id")) }?.let { list.put(it) }
                 val ids = (0 until list.length()).mapNotNull { list.optJSONObject(it)?.optString("id") }
                 reg.put("list", list)
                 if (reg.optString("active", "main") !in ids && ids.isNotEmpty()) reg.put("active", ids[0])     // this one's profile went
                 put(f, reg.toString())
             }
-            key.startsWith("fav:") -> put(profileFile(ctx, key.removePrefix("fav:"), "live-favorites.json"), v)
-            key.startsWith("resume:") -> put(profileFile(ctx, key.removePrefix("resume:"), "live-resume.json"), v)
+            key.startsWith("fav:") -> key.removePrefix("fav:").takeIf(::safeId)?.let { put(profileFile(ctx, it, "live-favorites.json"), v) }
+            key.startsWith("resume:") -> key.removePrefix("resume:").takeIf(::safeId)?.let { put(profileFile(ctx, it, "live-resume.json"), v) }
             key == "follow" -> put(File(files(ctx), "live-follow.json"), v)
             key == "edits" -> put(File(files(ctx), "live-channel-edits.json"), v)
             key.startsWith("remind:") -> if (v == null) com.glasslauncher.tv.live.LiveSyncStores.cancelReminder(ctx, key.removePrefix("remind:"))
@@ -276,6 +281,9 @@ object LanSync {
             "/pair/start" -> {
                 val p = pairing
                 if (p == null || System.currentTimeMillis() > p.second) return answer(c, 403, "{\"error\":\"Not pairing\"}")
+                // A pairing already started by another TV keeps going: a second one (or a stray request) can't undo it.
+                val busy = pending
+                if (busy != null && busy.optString("id") != j.optString("id")) return answer(c, 403, "{\"error\":\"Pairing with another TV\"}")
                 val key = pairKey(p.first, p.third)
                 val nonceA = nonce()
                 pending = JSONObject().put("id", j.optString("id")).put("name", j.optString("name")).put("key", key).put("nonceA", nonceA)
@@ -367,8 +375,10 @@ object LanSync {
     // MARK: - Running (Home's process)
 
     @Volatile private var loop: Thread? = null
-    private var nsdReg: NsdManager.RegistrationListener? = null
-    private var nsdFind: NsdManager.DiscoveryListener? = null
+    @Volatile private var nsdReg: NsdManager.RegistrationListener? = null
+    @Volatile private var nsdFind: NsdManager.DiscoveryListener? = null
+    /** The resolver's run: it ends when sync stops (a new one each time sync starts). */
+    @Volatile private var resolving: Any? = null
 
     /** On or off as the setting is. */
     @Synchronized
@@ -408,6 +418,7 @@ object LanSync {
         val m = ctx.getSystemService(Context.NSD_SERVICE) as? NsdManager
         nsdReg?.let { runCatching { m?.unregisterService(it) } }; nsdReg = null
         nsdFind?.let { runCatching { m?.stopServiceDiscovery(it) } }; nsdFind = null
+        resolving = null
         found.clear()
     }
 
@@ -422,8 +433,10 @@ object LanSync {
         }
         runCatching { m.registerService(info, NsdManager.PROTOCOL_DNS_SD, nsdReg) }
         val queue = java.util.concurrent.LinkedBlockingQueue<NsdServiceInfo>()
+        val run = Any()
+        resolving = run     // set before the thread starts: it can't see sync as off before discovery is set up
         Thread({
-            while (nsdFind != null || queue.isNotEmpty()) {
+            while (resolving === run) {
                 val next = queue.poll(5, java.util.concurrent.TimeUnit.SECONDS) ?: continue
                 val done = java.util.concurrent.CountDownLatch(1)
                 runCatching {

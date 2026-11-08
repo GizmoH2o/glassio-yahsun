@@ -657,6 +657,9 @@ final class German {
             case "No guide now": return "Gerade kein Guide";
             case "Choose one below, or search.": return "Wähle unten einen, oder suche.";
             case "Type an ID": return "ID eingeben";
+            case "Moments timing": return "Momente: Zeitpunkt";
+            case "Exact": return "Genau";
+            case "Goals and cards on the bar sit where they really happened. If your stream runs behind and they come before the action, move them later.": return "Tore und Karten auf der Leiste stehen dort, wo sie passiert sind. Läuft dein Stream hinterher und sie kommen vor der Szene, verschiebe sie nach hinten.";
             case "Guide source": return "Guide-Quelle";
             case "How many days ahead the full guide keeps.": return "Wie viele Tage voraus der vollständige Guide speichert.";
             case "Indexing…": return "Indexieren…";

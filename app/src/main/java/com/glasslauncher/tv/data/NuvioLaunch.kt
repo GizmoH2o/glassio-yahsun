@@ -145,9 +145,13 @@ object NuvioLaunch {
         if (i.isEmpty()) return null
         val movie = type.equals("movie", true)
         if (!movie && episode == null) return null
-        val video = if (movie) i else "$i:${episode!!.first}:${episode.second}"
+        // Anime add-ons' ids (kitsu:42) number episodes alone, with no season: kitsu:42:7.
+        val oneSeason = ANIME_IDS.any { i.startsWith(it) }
+        val video = if (movie) i else if (oneSeason) "$i:${episode!!.second}" else "$i:${episode!!.first}:${episode.second}"
         return "stremio:///detail/${if (movie) "movie" else "series"}/" + enc(i) + "/" + enc(video) + "?autoPlay=true"
     }
+
+    private val ANIME_IDS = listOf("kitsu:", "mal:", "anilist:", "anidb:")
 
     /** A path part, its `:` kept (Stremio's ids are built with it). Pure. */
     private fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20").replace("%3A", ":")

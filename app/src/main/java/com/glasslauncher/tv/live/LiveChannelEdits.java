@@ -19,7 +19,7 @@ final class LiveChannelEdits {
 
     /** The edits on every channel of the list (each category's copy), in place. */
     static void apply(Context c, Xtream.Lineup l) {
-        JSONObject all = read(c);
+        JSONObject all = peek(c);
         if (all.length() == 0) return;
         for (Xtream.Category cg : l.categories) {
             for (Xtream.Channel ch : cg.channels) {
@@ -40,13 +40,13 @@ final class LiveChannelEdits {
 
     /** Whether its name or number was changed by hand. */
     static boolean edited(Context c, int id) {
-        JSONObject e = read(c).optJSONObject(String.valueOf(id));
+        JSONObject e = peek(c).optJSONObject(String.valueOf(id));
         return e != null && (e.has("name") || e.has("num"));
     }
 
     /** The guide ID chosen by hand ("" none: the playlist's, or found by name). */
     static String guide(Context c, int id) {
-        JSONObject e = read(c).optJSONObject(String.valueOf(id));
+        JSONObject e = peek(c).optJSONObject(String.valueOf(id));
         return e == null ? "" : e.optString("epg", "");
     }
 
@@ -57,7 +57,7 @@ final class LiveChannelEdits {
     /** The channels whose guide was chosen by hand (matching by name leaves them be). */
     static java.util.Set<Integer> guided(Context c) {
         java.util.Set<Integer> out = new java.util.HashSet<>();
-        JSONObject all = read(c);
+        JSONObject all = peek(c);
         for (java.util.Iterator<String> it = all.keys(); it.hasNext(); ) {
             String k = it.next();
             JSONObject e = all.optJSONObject(k);
@@ -77,7 +77,14 @@ final class LiveChannelEdits {
 
     /** Every guide chosen by hand, gone (Settings › Guides chosen by hand). */
     static synchronized void clearGuides(Context c) {
-        for (int id : guided(c)) remove(c, id, "epg");
+        JSONObject all = read(c);       // read and written once, however many there are
+        for (int id : guided(c)) {
+            JSONObject e = all.optJSONObject(String.valueOf(id));
+            if (e == null) continue;
+            e.remove("epg");
+            if (e.length() == 0) all.remove(String.valueOf(id));
+        }
+        save(c, all);
     }
 
     static synchronized void setName(Context c, int id, String name) {
@@ -115,6 +122,25 @@ final class LiveChannelEdits {
         save(c, all);
     }
 
+    private static JSONObject cached;
+    private static long cachedStamp = -1, cachedLength = -1;
+
+    /**
+     * The edits to look at (not to change): kept in memory and read again only when the file changed (its time or
+     * size: the home screen's process writes it too, syncing with other TVs). Settings' rows ask each time they draw.
+     */
+    private static synchronized JSONObject peek(Context c) {
+        File f = file(c);
+        long stamp = f.lastModified(), length = f.length();
+        if (cached == null || stamp != cachedStamp || length != cachedLength) {
+            cached = read(c);
+            cachedStamp = stamp;
+            cachedLength = length;
+        }
+        return cached;
+    }
+
+    /** A fresh copy from the file, to change and save. */
     private static JSONObject read(Context c) {
         File f = file(c);
         if (!f.exists()) return new JSONObject();
@@ -128,6 +154,9 @@ final class LiveChannelEdits {
     private static void save(Context c, JSONObject all) {
         try {
             Xtream.write(file(c), all.toString());
+            synchronized (LiveChannelEdits.class) {
+                cached = null;      // read again next time
+            }
         } catch (IOException e) {
             AppLog.w("live: couldn't save a channel's name or number");
         }

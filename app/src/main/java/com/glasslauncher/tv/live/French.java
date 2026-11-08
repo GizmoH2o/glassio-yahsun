@@ -645,6 +645,9 @@ final class French {
             case "No guide now": return "Pas de guide pour l'instant";
             case "Choose one below, or search.": return "Choisissez-en un ci-dessous, ou cherchez.";
             case "Type an ID": return "Saisir un ID";
+            case "Moments timing": return "Moments : timing";
+            case "Exact": return "Exact";
+            case "Goals and cards on the bar sit where they really happened. If your stream runs behind and they come before the action, move them later.": return "Les buts et cartons sur la barre sont placés là où ils ont eu lieu. Si votre flux est en retard et qu'ils arrivent avant l'action, décalez-les plus tard.";
             case "Guide source": return "Source du guide";
             case "How many days ahead the full guide keeps.": return "Combien de jours à venir le guide complet garde.";
             case "Indexing…": return "Indexation…";

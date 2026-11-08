@@ -1348,6 +1348,12 @@ final class LiveView extends View {
         }
     }
 
+    /** The title of what's on now on `channel` ("" unknown). */
+    String nowTitle(Xtream.Channel channel) {
+        Xtream.Program p = channel == null ? null : onNow(channel, System.currentTimeMillis());
+        return p == null || p.title == null ? "" : p.title;
+    }
+
     /** The program on now on `channel` from what's loaded (asks for its guide when it isn't), or null. */
     private Xtream.Program onNow(Xtream.Channel channel, long now) {
         if (channel.id <= 0) return null;
@@ -6204,9 +6210,12 @@ final class LiveView extends View {
     private void chooseGuide(Xtream.Channel channel, String id, String name) {
         final android.content.Context c = getContext();
         LiveChannelEdits.setGuide(c, channel.id, id);
-        boolean listed = XmltvStore.guided(c).contains(id.toLowerCase(java.util.Locale.ROOT));
         flash(Ui.tr("Guia: ", "Guide: ") + name);
-        live.relistAndGuide(!listed);
+        final android.content.Context app = c.getApplicationContext();
+        epgIo.execute(() -> {       // the guide's channels: read from the database the first time, off the screen's thread
+            boolean listed = XmltvStore.guided(app).contains(id.toLowerCase(java.util.Locale.ROOT));
+            post(() -> live.relistAndGuide(!listed));
+        });
     }
 
     /** A channel's choices: favorite, rename, renumber (the provider's again), out of History. */

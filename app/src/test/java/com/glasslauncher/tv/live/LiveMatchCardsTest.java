@@ -56,6 +56,8 @@ public class LiveMatchCardsTest {
         int[] two = LiveMatchCards.distinct(0xFFC8102E, 0xFFFFFFFF, 0xFFD00020, 0xFF0A2240);
         assertEquals(0xFFC8102E, two[0]);
         assertEquals(0xFF0A2240, two[1]);
+        // Juventus: black, so its second colour (white), where its dark crest shows.
+        assertEquals(0xFFFFFFFF, LiveMatchCards.distinct(0xFF482E92, 0xFFFFFFFF, 0xFF000000, 0xFFFFFFFF)[1]);
         // None given: greys that differ.
         int[] none = LiveMatchCards.distinct(0, 0, 0, 0);
         assertTrue(none[0] != none[1]);
