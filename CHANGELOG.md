@@ -2,6 +2,27 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.6.0 — 2026-11-08
+
+**Home**
+- **Match cards**: on the Live TV page, a channel showing a match is drawn in the two teams' colours, with their crests and the score and clock (or when it starts). Football, NFL, NBA, NHL and MLB. Settings › Home › Match cards switches back to the show's picture.
+- **OK on Continue watching resumes in its app**: Stremio plays the episode where you left off, Nuvio opens on it. Settings › Home › OK on Continue watching.
+
+**Live TV**
+- **Several guide sources**: Live TV › Settings › Guide › Guide sources has your provider's guide and XMLTV links of your own, each on or off, in order, with how its last update went. They make one guide; a channel in more than one takes the first. A link that can't be reached is left out, and one that breaks partway keeps the guide you have.
+- **Choose a channel's guide**: hold OK on a channel (or on a show in the TV guide) › Guide… opens a panel with the guide in use, suggestions with your channel's country first, and Search, Type an ID and Automatic. It shows at once, wins over the playlist's and matching by name, and syncs to your other TVs. Settings › Guide › Guides chosen by hand resets them; Guide panel and Guide search switch back to the plain list and box.
+- **Full-screen guide search** with the keyboard on the left and the guide's channels narrowing with every letter, what's on now on the one you're on.
+- **Moments where they happened**: goals and red cards sit at the moment they were scored, not minutes off. Live TV › Settings › Moments timing moves them later if your stream runs behind.
+- **No alerts for the match you're watching**: a followed team's goal and close-game cards stay away while you're on that match.
+- **The More info trailer** asks YouTube for a quality to fit, and card trailers play sharper.
+
+**Fixes**
+- Live TV no longer freezes for a moment as its channel list loads.
+- Sync with other TVs finds the TVs on your network reliably, and a pairing can't be undone by another device.
+- Stremio resume plays anime episodes.
+- A team whose colour is black shows its crest on its match card.
+- The pause buffer and the guide's times take less work, and Multiview draws more lightly.
+
 ## 3.5.0 — 2026-11-08
 
 **Home**
