@@ -191,14 +191,18 @@ final class LiveRail {
         if (!on) LiveTheme.rim(c, r, rr, 1.5f * k);
         float pad = 20 * k, inner = wd - 2 * pad;
         logo.set(left + pad, top + pad, left + pad + 112 * k, top + pad + 56 * k);
-        view.drawLogo(c, ch, logo, 1, on && LiveTheme.lightFocus(), true);
+        view.drawLogoBare(c, ch, logo, 1, on && LiveTheme.lightFocus(), true);
+        float badgeTop = top + pad;
         if (ch.num > 0) {
             note.setColor(ink);
             note.setAlpha(235);
             note.setTextAlign(Paint.Align.RIGHT);
             c.drawText(String.valueOf(ch.num), left + wd - pad, top + 52 * k, note);
             note.setTextAlign(Paint.Align.LEFT);
+            badgeTop = top + 62 * k;
         }
+        // Its resolution badge under the number, at the card's right.
+        LiveBadge.drawTopRight(c, view.badgeOf(ch), left + wd - pad, badgeTop, note, k);
         long now = System.currentTimeMillis();
         Xtream.Program p = onNow(ch, now);
         show.setColor(ink);

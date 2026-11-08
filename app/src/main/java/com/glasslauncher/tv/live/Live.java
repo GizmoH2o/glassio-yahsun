@@ -1366,32 +1366,45 @@ public class Live extends Activity {
     }
 
     /**
-     * What the stream is, as tags: its resolution, frame rate (when it tells it), codec, HDR, and the sound's
-     * channels and Dolby.
+     * What the stream is, as tags: its resolution, frame rate (when it tells it), codec, HDR, and the sound's kind and
+     * channels; each with the badge set's id for it ("" none: the frame rate) and its words (LiveBadgeArt).
      */
-    java.util.List<String> badges() {
-        java.util.List<String> out = new java.util.ArrayList<>();
+    java.util.List<LiveBadgeArt.Tag> streamTags() {
+        java.util.List<LiveBadgeArt.Tag> out = new java.util.ArrayList<>();
         if (player == null) return out;
         androidx.media3.common.Format v = player.getVideoFormat(), a = player.getAudioFormat();
         if (v != null && v.height > 0) {
             int lines = Math.min(v.height, v.width > 0 ? v.width : v.height);
-            out.add(lines >= 2000 ? "4K" : lines >= 1400 ? "1440p" : lines >= 1000 ? "1080p" : lines >= 700 ? "720p" : "SD");
+            out.add(new LiveBadgeArt.Tag(LiveBadgeArt.resolutionId(lines),
+                    lines >= 2000 ? "4K" : lines >= 1400 ? "1440p" : lines >= 1000 ? "1080p" : lines >= 700 ? "720p" : "SD"));
             // The video's frame rate: the stream's own, else counted.
             float fps = v.frameRate > 0 ? v.frameRate : measuredFps;
-            if (fps > 0) out.add((Math.abs(fps - Math.round(fps)) < 0.05f ? String.valueOf(Math.round(fps))
-                    : String.format(java.util.Locale.ROOT, "%.2f", fps)) + " FPS");
-            if (MimeTypes.VIDEO_H265.equals(v.sampleMimeType)) out.add("HEVC");
-            else if (MimeTypes.VIDEO_H264.equals(v.sampleMimeType)) out.add("H.264");
-            if (v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084) out.add("HDR10");
-            else if (v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG) out.add("HLG");
+            if (fps > 0) out.add(new LiveBadgeArt.Tag("", (Math.abs(fps - Math.round(fps)) < 0.05f ? String.valueOf(Math.round(fps))
+                    : String.format(java.util.Locale.ROOT, "%.2f", fps)) + " FPS"));
+            if (MimeTypes.VIDEO_H265.equals(v.sampleMimeType)) out.add(new LiveBadgeArt.Tag(LiveBadgeArt.videoId(v.sampleMimeType), "HEVC"));
+            else if (MimeTypes.VIDEO_H264.equals(v.sampleMimeType)) out.add(new LiveBadgeArt.Tag(LiveBadgeArt.videoId(v.sampleMimeType), "H.264"));
+            else if (MimeTypes.VIDEO_AV1.equals(v.sampleMimeType)) out.add(new LiveBadgeArt.Tag(LiveBadgeArt.videoId(v.sampleMimeType), "AV1"));
+            if (MimeTypes.VIDEO_DOLBY_VISION.equals(v.sampleMimeType)) out.add(new LiveBadgeArt.Tag("a-dv", "Dolby Vision"));
+            else if (v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_ST2084) out.add(new LiveBadgeArt.Tag("v-hdr10", "HDR10"));
+            else if (v.colorInfo != null && v.colorInfo.colorTransfer == C.COLOR_TRANSFER_HLG) out.add(new LiveBadgeArt.Tag("v-hlg", "HLG"));
         }
         if (a != null) {
-            if (MimeTypes.AUDIO_E_AC3_JOC.equals(a.sampleMimeType)) out.add("Atmos");
-            else if (MimeTypes.AUDIO_AC3.equals(a.sampleMimeType) || MimeTypes.AUDIO_E_AC3.equals(a.sampleMimeType)) out.add("Dolby");
-            if (a.channelCount >= 8) out.add("7.1");
-            else if (a.channelCount >= 6) out.add("5.1");
-            else if (a.channelCount == 2) out.add("Stereo");
+            String sound = LiveBadgeArt.audioId(a.sampleMimeType);
+            if (MimeTypes.AUDIO_E_AC3_JOC.equals(a.sampleMimeType)) out.add(new LiveBadgeArt.Tag(sound, "Atmos"));
+            else if (MimeTypes.AUDIO_AC3.equals(a.sampleMimeType) || MimeTypes.AUDIO_E_AC3.equals(a.sampleMimeType)) out.add(new LiveBadgeArt.Tag(sound, "Dolby"));
+            else if (!sound.isEmpty()) out.add(new LiveBadgeArt.Tag(sound, ""));       // AAC and the rest: a picture only (no words before)
+            String ch = LiveBadgeArt.channelsId(a.channelCount);
+            if (a.channelCount >= 8) out.add(new LiveBadgeArt.Tag(ch, "7.1"));
+            else if (a.channelCount >= 6) out.add(new LiveBadgeArt.Tag(ch, "5.1"));
+            else if (a.channelCount == 2) out.add(new LiveBadgeArt.Tag(ch, "Stereo"));
         }
+        return out;
+    }
+
+    /** The stream's tags in words (streamTags), as the player said them before its badges. */
+    java.util.List<String> badges() {
+        java.util.List<String> out = new java.util.ArrayList<>();
+        for (LiveBadgeArt.Tag t : streamTags()) if (!t.words.isEmpty()) out.add(t.words);
         return out;
     }
 

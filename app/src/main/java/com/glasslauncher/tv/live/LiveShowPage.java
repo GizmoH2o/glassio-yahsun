@@ -495,11 +495,14 @@ final class LiveShowPage extends Dialog {
                     : isToday(show.start) ? Ui.tr("ÀS ", "ON AT ") + Ui.time(show.start)
                     : day(show.start).toUpperCase(Ui.locale()) + "  ·  " + Ui.time(show.start);
             String where = (channel.num > 0 ? channel.num + " " : "") + names.name(channel);
-            String tag = names.tag(channel);
+            String tag = names.tag(channel), badge = LiveBadge.of(getContext(), channel);
             LiveCountry.label(g3Ch, tagPaint);      // its lettering grey, not the line's red
-            String kickerLine = ellipsize(when + "  ·  " + where.toUpperCase(Ui.locale()), g3Kicker, tw - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k));
+            String kickerLine = ellipsize(when + "  ·  " + where.toUpperCase(Ui.locale()), g3Kicker,
+                    tw - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k) - LiveBadge.width(badge, g3Ch, k));
             c.drawText(kickerLine, x, 72 * k, g3Kicker);
-            LiveCountry.drawTag(c, tag, x + g3Kicker.measureText(kickerLine) + 12 * k, 72 * k, g3Ch, tagPaint, k);
+            float kx = x + g3Kicker.measureText(kickerLine);
+            if (!tag.isEmpty()) kx = LiveCountry.drawTag(c, tag, kx + 12 * k, 72 * k, g3Ch, tagPaint, k);
+            LiveBadge.drawInline(c, badge, kx + 12 * k, 72 * k, g3Ch, k);
             String name = show.title.isEmpty() ? channel.name : show.title;
             c.drawText(ellipsize(name, g3Title, 1500 * k), x, 147 * k, g3Title);
             // Year, genres, the episode, how long, the age, the score.
@@ -624,7 +627,7 @@ final class LiveShowPage extends Dialog {
                 String top = running ? Ui.time(p.start) + " – " + Ui.time(p.end) : whenLine(p);
                 c.drawText(ellipsize(top, on ? g3WhenOn : g3When, room), tx, y + 36 * k, on ? g3WhenOn : g3When);
                 c.drawText(ellipsize(episodeLine(p), on ? g3EpOn : g3Ep, room), tx, y + 68 * k, on ? g3EpOn : g3Ep);
-                textAndTag(c, (ac.num > 0 ? ac.num + " " : "") + names.name(ac), names.tag(ac), tx, y + 97 * k, on ? g3ChOn : g3Ch, room);
+                textAndTag(c, (ac.num > 0 ? ac.num + " " : "") + names.name(ac), names.tag(ac), LiveBadge.of(getContext(), ac), tx, y + 97 * k, on ? g3ChOn : g3Ch, room);
             }
         }
 
@@ -676,7 +679,7 @@ final class LiveShowPage extends Dialog {
             String when = (onNow ? Ui.tr("Agora", "Now") : day(show.start)) + "  ·  " + Ui.time(show.start) + " – " + Ui.time(show.end);
             // The channel and its country tag, then when: the name cut short first, never the tag or the time.
             String rest = "  ·  " + when;
-            float lineEnd = textAndTag(c, (channel.num > 0 ? channel.num + "  " : "") + names.name(channel), names.tag(channel), x, y, kicker,
+            float lineEnd = textAndTag(c, (channel.num > 0 ? channel.num + "  " : "") + names.name(channel), names.tag(channel), LiveBadge.of(getContext(), channel), x, y, kicker,
                     TEXT_W * k - kicker.measureText(rest));
             c.drawText(ellipsize(rest, kicker, x + TEXT_W * k - lineEnd), lineEnd, y, kicker);
             y += 92 * k;
@@ -774,7 +777,7 @@ final class LiveShowPage extends Dialog {
                 float ty = ry + (rh - 6 * k) / 2 + Ui.halfCap(airTime);
                 c.drawText(when(p), x, ty, airTime);
                 Xtream.Channel ch = airChannels.get(i);
-                textAndTag(c, (ch.num > 0 ? ch.num + "  " : "") + names.name(ch), names.tag(ch), x + 360 * k, ty, airName, 560 * k);
+                textAndTag(c, (ch.num > 0 ? ch.num + "  " : "") + names.name(ch), names.tag(ch), LiveBadge.of(getContext(), ch), x + 360 * k, ty, airName, 560 * k);
             }
             c.restore();
             if (moving) postInvalidateOnAnimation(); else last = 0;
@@ -789,14 +792,18 @@ final class LiveShowPage extends Dialog {
             return x + pw;
         }
 
-        /** `text` at `x`, then its country tag; both within `room` (the text cut short, never the tag). Returns where they end. */
-        private float textAndTag(Canvas c, String text, String tag, float x, float base, Paint p, float room) {
+        /**
+         * `text` at `x`, then its country tag, then the channel's resolution badge ("" none); all within `room` (the text
+         * cut short, never the tag or the badge). Returns where they end.
+         */
+        private float textAndTag(Canvas c, String text, String tag, String badge, float x, float base, Paint p, float room) {
             LiveCountry.label(p, tagPaint);
-            float tagW = LiveCountry.tagWidth(tag, p, tagPaint, k);
+            float tagW = LiveCountry.tagWidth(tag, p, tagPaint, k) + LiveBadge.width(badge, p, k);
             String t = ellipsize(text, p, Math.max(1, room - tagW));
             c.drawText(t, x, base, p);
             float end = x + p.measureText(t);
-            return tag.isEmpty() ? end : LiveCountry.drawTag(c, tag, end + 12 * k, base, p, tagPaint, k);
+            if (!tag.isEmpty()) end = LiveCountry.drawTag(c, tag, end + 12 * k, base, p, tagPaint, k);
+            return badge.isEmpty() ? end : LiveBadge.drawInline(c, badge, end + 12 * k, base, p, k);
         }
 
         private String ellipsize(String s, Paint p, float width) {

@@ -709,12 +709,12 @@ final class LiveSearch extends Dialog {
                     tile(c, on);
                     logo.set(r);
                     logo.inset(28 * k, 22 * k);
-                    view.drawLogo(c, channels.get(i), logo, 1);
                     Xtream.Channel ch = channels.get(i);
+                    view.drawLogoBare(c, ch, logo, 1, false, false);
+                    LiveBadge.drawTopRight(c, view.badgeOf(ch), r.right - 12 * k, r.top + 12 * k, name, k);
                     Paint p = on ? nameOn : name;
-                    String label = view.numberAndName(ch, "  ");
-                    if (on) nameMarquee.draw(c, label, tx, (y + CH_H + 36) * k, CH_W * k, p, k);     // focused: a long name scrolls
-                    else c.drawText(ellipsize(label, p, CH_W * k), tx, (y + CH_H + 36) * k, p);
+                    String label = (ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch);
+                    nameAndTag(c, label, view.tagOf(ch), tx, (y + CH_H + 36) * k, CH_W * k, p, on ? nameMarquee : null);
                 }
                 c.restore();
             }
@@ -768,20 +768,39 @@ final class LiveSearch extends Dialog {
                 } else {
                     logo.set(r);
                     logo.inset(70 * k, 44 * k);
-                    view.drawLogo(c, hit.ch, logo, 1);
+                    view.drawLogoBare(c, hit.ch, logo, 1, false, false);
                 }
+                // The channel's resolution badge at the card's top right.
+                LiveBadge.drawTopRight(c, view.badgeOf(hit.ch), r.right - 12 * k, r.top + 12 * k, name, k);
                 Paint np = on ? nameOn : name;
-                String line2 = hit.when + "  ·  " + view.nameWithCountry(hit.ch);
-                if (on) {       // focused: a long name scrolls across
-                    titleMarquee.draw(c, hit.p.title, tx, (y + SH_H + 36) * k, SH_W * k, np, k);
-                    subMarquee.draw(c, line2, tx, (y + SH_H + 68) * k, SH_W * k, sub, k);
-                } else {
-                    c.drawText(ellipsize(hit.p.title, np, SH_W * k), tx, (y + SH_H + 36) * k, np);
-                    c.drawText(ellipsize(line2, sub, SH_W * k), tx, (y + SH_H + 68) * k, sub);
-                }
+                String line2 = hit.when + "  ·  " + view.nameOf(hit.ch);
+                if (on) titleMarquee.draw(c, hit.p.title, tx, (y + SH_H + 36) * k, SH_W * k, np, k);       // focused: a long name scrolls across
+                else c.drawText(ellipsize(hit.p.title, np, SH_W * k), tx, (y + SH_H + 36) * k, np);
+                nameAndTag(c, line2, view.tagOf(hit.ch), tx, (y + SH_H + 68) * k, SH_W * k, sub, on ? subMarquee : null);
             }
             c.restore();
         }
+
+        /**
+         * `text` within `room`, then the channel's country tag after it, as everywhere else (the text cut short, never
+         * the tag); with a marquee (focused), a long text scrolls in the room the tag leaves.
+         */
+        private void nameAndTag(Canvas c, String text, String tag, float x, float base, float room, Paint p, Marquee marquee) {
+            LiveCountry.label(p, tagPaint);
+            float tagW = LiveCountry.tagWidth(tag, p, tagPaint, k), textRoom = Math.max(1, room - tagW);
+            float end;
+            if (marquee != null) {
+                marquee.draw(c, text, x, base, textRoom, p, k);
+                end = x + Math.min(p.measureText(text), textRoom);
+            } else {
+                String t = ellipsize(text, p, textRoom);
+                c.drawText(t, x, base, p);
+                end = x + p.measureText(t);
+            }
+            if (!tag.isEmpty()) LiveCountry.drawTag(c, tag, end + 12 * k, base, p, tagPaint, k);
+        }
+
+        private final Paint tagPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
         /** Tile `r`: the design's focus on it (filled, or a ring: LiveView.drawFocus), else at rest with its glass edge. */
         private void tile(Canvas c, boolean on) {

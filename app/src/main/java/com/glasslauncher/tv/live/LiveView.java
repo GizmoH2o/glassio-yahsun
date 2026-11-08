@@ -1014,7 +1014,7 @@ final class LiveView extends View {
                 c.drawText(ellipsize(num, c3Num, 72 * k), r.left + 21 * k, r.centerY() + Ui.halfCap(c3Num), c3Num);
             } else {
                 markBox.set(r.left + 15 * k, r.centerY() - 32 * k, r.left + 105 * k, r.centerY() + 32 * k);
-                drawLogo(c, channel, markBox, 1, on);
+                drawLogoBare(c, channel, markBox, 1, on, false);      // its resolution badge goes after the country
                 x = markBox.right + 15 * k;
             }
             // At the right: how far the show is, then what's special about the channel.
@@ -1058,7 +1058,7 @@ final class LiveView extends View {
                 c.drawText(num, x, nameY, c3Num);
                 nameX += c3Num.measureText(num) + 12 * k;
             }
-            textAndTag(c, nameOf(channel), tagOf(channel), nameX, nameY, c3Name, mx - nameX);
+            textTagBadge(c, nameOf(channel), tagOf(channel), badgeOf(channel), nameX, nameY, c3Name, mx - nameX);
             if (two && i == ch) listMarquee.draw(c, second, x, r.centerY() + 24 * k, mx - x, c3Sub, k);
             else if (two) c.drawText(ellipsize(second, c3Sub, mx - x), x, r.centerY() + 24 * k, c3Sub);
         }
@@ -1302,7 +1302,7 @@ final class LiveView extends View {
             lShow.setColor(LiveTheme.onTile(LiveTheme.text, onTile));
             float rs = C_STEP / 126f, half = Math.min(34, 34 * rs);
             dst.set(r.left + 20 * k, r.centerY() - half * k, r.left + (20 + half * 104 / 34) * k, r.centerY() + half * k);
-            drawLogo(c, channel, dst, 1, onTile > 0.5f && LiveTheme.lightFocus());
+            drawLogoBare(c, channel, dst, 1, onTile > 0.5f && LiveTheme.lightFocus(), false);     // its badge: after the country
             float x = r.left + (42 + half * 104 / 34) * k, right = r.right - 22 * k;
             // The marks at the top right: playing, catch-up, favorite.
             float mx = right - 14 * k, my = r.top + 36 * rs * k;
@@ -1335,7 +1335,7 @@ final class LiveView extends View {
             float nameY = two ? r.top + 46 * rs * k : r.centerY() + Ui.halfCap(lName);     // alone: in the middle
             c.drawText(num, x, nameY, lNum);
             float nx = x + lNum.measureText(num);
-            textAndTag(c, nameOf(channel), tagOf(channel), nx, nameY, lName, mx + 14 * k - nx - 10 * k);
+            textTagBadge(c, nameOf(channel), tagOf(channel), badgeOf(channel), nx, nameY, lName, mx + 14 * k - nx - 10 * k);
             if (two && i == ch) listMarquee.draw(c, second, x, r.top + 86 * rs * k, right - x, lShow, k);
             else if (two) c.drawText(ellipsize(second, lShow, right - x), x, r.top + 86 * rs * k, lShow);
             if (f >= 0) {
@@ -1367,9 +1367,9 @@ final class LiveView extends View {
         fill.setColor((LiveTheme.pane & 0x00FFFFFF) | 0xEB000000);
         c.drawRect(x0, 0, x0 + sw, h, fill);
         box.set(x0 + 24 * k, 30 * k, x0 + 124 * k, 94 * k);
-        drawLogo(c, channel, box, 1);
+        drawLogoBare(c, channel, box, 1, false, false);
         float tx = box.right + 22 * k;
-        textAndTag(c, nameOf(channel), tagOf(channel), tx, 56 * k, lHead, x0 + sw - 24 * k - tx);
+        textTagBadge(c, nameOf(channel), tagOf(channel), badgeOf(channel), tx, 56 * k, lHead, x0 + sw - 24 * k - tx);
         String where = channel.category == null ? "" : nameOfCategory(categoryName(channel.category));
         c.drawText(ellipsize(where, lSmall, x0 + sw - 24 * k - tx), tx, 92 * k, lSmall);
         if (channel.id <= 0) return;
@@ -1491,6 +1491,16 @@ final class LiveView extends View {
         float end = x + p.measureText(t);
         if (tag.isEmpty()) return end;
         return LiveCountry.drawTag(c, tag, end + 12 * k, base, p, tagPaint, k);
+    }
+
+    /**
+     * As textAndTag, then the channel's resolution badge after the tag ("" none): the name cut short first, never the
+     * tag or the badge. Returns where they end.
+     */
+    private float textTagBadge(Canvas c, String text, String tag, String badge, float x, float base, Paint p, float room) {
+        float bw = LiveBadge.width(badge, p, k);
+        float end = textAndTag(c, text, tag, x, base, p, room - bw);
+        return badge.isEmpty() ? end : LiveBadge.drawInline(c, badge, end + 12 * k, base, p, k);
     }
 
     /** How wide textAndTag draws (its text cut to `room` as it would be). */
@@ -1686,72 +1696,29 @@ final class LiveView extends View {
         drawBadge(c, channel, left && logo(channel.logo) == null ? tileBox : box, alpha);
     }
 
-    private final Paint badgeText = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final RectF badgeBox = new RectF();
-    private boolean badgesRead, badgesOn;
-    private long badgesAt;
-
-    /** The logo alone, no resolution badge on it: where the badge goes on the text line instead (the player's info bar). */
+    /** The logo alone, no resolution badge on it: where the badge goes beside the name and country instead. */
     void drawLogoBare(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight, boolean left) {
         drawLogoOnly(c, channel, box, alpha, onLight, left);
     }
 
-    /** The channel's resolution badge text, "" when unknown or Resolution badges is off. */
+    /** The channel's resolution badge text, "" when unknown or Resolution badges is off (LiveBadge). */
     String badgeOf(Xtream.Channel channel) {
-        long now = android.os.SystemClock.uptimeMillis();
-        if (!badgesRead || now - badgesAt > 2000) { badgesOn = LiveOptions.resolutionBadges(getContext()); badgesRead = true; badgesAt = now; }
-        return badgesOn && channel != null ? LiveMerge.badge(getContext(), channel) : "";
+        return LiveBadge.of(getContext(), channel);
     }
 
-    /** Settings › Channels › Resolution badges: 4K, 2K, FHD, HD or SD at the top right of `box` (big enough logos only). */
+    /** Settings › Channels › Resolution badges: at the top right of the logo's `box` (screens not listed below). */
     private void drawBadge(Canvas c, Xtream.Channel channel, RectF box, float alpha) {
-        if (box.height() < 44 * k || box.width() < 70 * k) return;
-        String t = badgeOf(channel);
-        if (t.isEmpty()) return;
-        badgeText.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
-        badgeText.setTextSize(Math.max(13 * k, Math.min(17 * k, box.height() * 0.2f)));
-        float tw = badgeText.measureText(t), ph = badgeText.getTextSize() * 1.25f, pw = tw + ph * 0.6f;
-        float inset = 4 * k;
-        badgeBox.set(box.right - inset - pw, box.top + inset, box.right - inset, box.top + inset + ph);
-        paintBadge(c, t, tw, alpha);
+        LiveBadge.drawCorner(c, badgeOf(channel), box, alpha, k);
     }
 
     /** How wide the inline badge is for `t` beside a line in `text` (0: none), with the gap before it. */
     float badgeWidth(String t, Paint text) {
-        if (t == null || t.isEmpty()) return 0;
-        inlineBadgeText(text);
-        return badgeText.measureText(t) + inlineBadgeHeight(text) * 0.6f + 12 * k;
+        return LiveBadge.width(t, text, k);
     }
 
-    /** The badge as a pill on a text line (the country tag's height), at x on baseline y; returns where it ends. */
+    /** The badge on a text line (the country tag's height), at x on baseline y; returns where it ends. */
     float drawBadgeInline(Canvas c, String t, float x, float baseline, Paint text) {
-        if (t == null || t.isEmpty()) return x;
-        inlineBadgeText(text);
-        float ph = inlineBadgeHeight(text), tw = badgeText.measureText(t), pw = tw + ph * 0.6f;
-        float mid = baseline - Ui.halfCap(text);
-        badgeBox.set(x, mid - ph / 2, x + pw, mid + ph / 2);
-        paintBadge(c, t, tw, 1);
-        return badgeBox.right;
-    }
-
-    private void inlineBadgeText(Paint text) {
-        badgeText.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
-        badgeText.setTextSize(text.getTextSize() * 0.6f);
-    }
-
-    private float inlineBadgeHeight(Paint text) {
-        return Math.max(text.getTextSize() * 0.9f, 20 * k);
-    }
-
-    /** The badge's pill in `badgeBox`: 4K and 2K gold, FHD white, the rest dark. */
-    private void paintBadge(Canvas c, String t, float tw, float alpha) {
-        int bg = "4K".equals(t) || "2K".equals(t) ? 0xFFE8B84A : "FHD".equals(t) ? 0xFFF5F5F7 : 0xD91C1C1E;
-        fill.setShader(null);
-        fill.setColor(Ui.alpha(bg, alpha));
-        c.drawRoundRect(badgeBox, 5 * k, 5 * k, fill);
-        badgeText.setColor(Ui.alpha(bg == 0xD91C1C1E ? 0xFFF5F5F7 : 0xFF1C1C1E, alpha));
-        c.drawText(t, badgeBox.centerX() - tw / 2, badgeBox.centerY() + Ui.halfCap(badgeText), badgeText);
-        fill.setAlpha(255);
+        return LiveBadge.drawInline(c, t, x, baseline, text, k);
     }
 
     private void drawLogoOnly(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight, boolean left) {
@@ -4923,19 +4890,24 @@ final class LiveView extends View {
             float left = G_LOGO_X * k, right = (G_COL_R - G_MARKS_W) * k, mid = (left + right) / 2;
             boolean atLeft = LiveOptions.guideLogosLeft(getContext());
             cell.set(left + 8 * k, y + 5 * k, right - 8 * k, y + (G_ROW_H - (compact ? 23 : 28)) * k);
-            drawLogo(c, channel, cell, 1, onTile > 0.5f && LiveTheme.lightFocus(), atLeft);
+            drawLogoBare(c, channel, cell, 1, onTile > 0.5f && LiveTheme.lightFocus(), atLeft);
             Paint np = r == gRow ? gNameOn : gName;
             np.setColor(r == gRow ? LiveTheme.onTile(LiveTheme.text, onTile) : 0xB3FFFFFF);
             String nm = nameOf(channel), label = channel.num > 0 ? channel.num + "  " + nm : nm, tag = tagOf(channel);
-            // The country tag at the column's bottom right, under the marks; the name keeps clear of it.
+            String badge = badgeOf(channel);
+            boolean tail = !tag.isEmpty() || !badge.isEmpty();
+            // The country tag at the column's bottom right, then its resolution badge at the end, under the marks; the
+            // name keeps clear of them.
             float base = y + (G_ROW_H - (compact ? 7 : 9)) * k, tagTop = y + G_ROW_H * k;
-            if (!tag.isEmpty()) {
+            if (tail) {
                 LiveCountry.label(np, tagPaint);
-                float tagW = LiveCountry.tagWidth(tag, np, tagPaint, k) - 12 * k;
-                float tagX = (G_COL_R - 4) * k - tagW;
-                LiveCountry.drawTag(c, tag, tagX, base, np, tagPaint, k);
+                float end = (G_COL_R - 4) * k, start = end;
+                if (!badge.isEmpty()) start = end - (LiveBadge.width(badge, np, k) - 12 * k);
+                if (!tag.isEmpty()) start -= LiveCountry.tagWidth(tag, np, tagPaint, k) - (badge.isEmpty() ? 12 * k : 0);
+                float bx = tag.isEmpty() ? start : LiveCountry.drawTag(c, tag, start, base, np, tagPaint, k) + 12 * k;
+                if (!badge.isEmpty()) LiveBadge.drawInline(c, badge, bx, base, np, k);
                 tagTop = LiveCountry.tagTop(np, base, k);
-                right = Math.min(right, tagX - 8 * k);
+                right = Math.min(right, start - 8 * k);
                 mid = (left + right) / 2;
             }
             float room = right - left - 8 * k, tw = textAndTagWidth(label, "", np, room);
@@ -4945,7 +4917,7 @@ final class LiveView extends View {
             int marks = (playing != null && playing.id == channel.id ? 1 : 0) + (channel.archive > 0 ? 1 : 0)
                     + (Xtream.isFavorite(lineup, channel.id) ? 1 : 0);
             float mx = (G_COL_R - G_MARKS_W / 2 - 4) * k, gap = 24 * k, my = cy - (marks - 1) * 12 * k, ms = 1;
-            if (!tag.isEmpty() && marks > 0) {
+            if (tail && marks > 0) {
                 float top = y + 4 * k, bottom = tagTop - 3 * k;
                 ms = Math.min(1, (bottom - top) / (marks * gap));
                 gap *= ms;
@@ -5025,15 +4997,15 @@ final class LiveView extends View {
         }
         boolean on = onTile > 0.5f;
         int ink = on ? LiveTheme.ink : 0xFFFFFFFF, sub = on ? LiveTheme.inkSoft() : 0xFFB3B3B8;
-        String tag = tagOf(channel);
+        String tag = tagOf(channel), badge = badgeOf(channel);
         boolean isPlaying = playing != null && playing.id == channel.id, fav = Xtream.isFavorite(lineup, channel.id);
-        boolean second = !tag.isEmpty() || isPlaying || fav || channel.archive > 0;
+        boolean second = !tag.isEmpty() || !badge.isEmpty() || isPlaying || fav || channel.archive > 0;
         float x = cell.left + 18 * k, right = cell.right - 15 * k, cy = cell.centerY();
         float base = second ? cy - 3 * k : cy + Ui.halfCap(gName);
         int mark = LiveOptions.channelMark(getContext());
         if (mark != LiveOptions.MARK_NUMBER) {
             markBox.set(cell.left + 12 * k, cy - 30 * k, cell.left + 96 * k, cy + 30 * k);
-            drawLogo(c, channel, markBox, 1, on);
+            drawLogoBare(c, channel, markBox, 1, on, false);      // its badge: after the country, under the name
             x = markBox.right + 12 * k;
         }
         String num = channel.num > 0 && mark != LiveOptions.MARK_LOGO ? String.valueOf(channel.num) : "";
@@ -5049,6 +5021,7 @@ final class LiveView extends View {
             LiveCountry.label(gSub, tagPaint);
             mx = LiveCountry.drawTag(c, tag, x, my + 7 * k, gSub, tagPaint, k) + 12 * k;
         }
+        if (!badge.isEmpty()) mx = LiveBadge.drawInline(c, badge, mx, my + 7 * k, gSub, k) + 12 * k;
         if (isPlaying) {
             drawPlayMark(c, mx + 8 * k, my, 9 * k, ink);
             mx += 28 * k;

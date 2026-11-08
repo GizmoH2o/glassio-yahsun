@@ -584,9 +584,22 @@ final class LiveOverlay {
             unstable = ch.id > 0 && LiveHealth.recent(live, ch.id, 10 * 60_000L) > 0;
         }
         if (unstable && peek == null) x = drawPill(c, Ui.tr("INSTÁVEL", "UNSTABLE"), x, y, 0xCCC77800, false) + 10 * k;
-        if (peek == null && past == null) {        // what the stream is, in words
-            String tech = TextUtils.join("  ·  ", live.badges());
-            if (x + small.measureText(tech) <= R * k) c.drawText(tech, x + 2 * k, y, small);
+        if (peek == null && past == null) {        // what the stream is: the badge set's pictures (Stream badges), else in words
+            if (LiveOptions.streamBadgePictures(live)) {
+                float bx = x + 2 * k, mid = y - Ui.halfCap(small), h = 36 * k;
+                for (LiveBadgeArt.Tag t : live.streamTags()) {
+                    float w = LiveBadgeArt.width(live, t, h, k, view::postInvalidate);
+                    if (w < 0 && t.words.isEmpty()) continue;
+                    if (w < 0) w = LiveBadgeArt.wordsWidth(t.words, h);
+                    if (bx + w > R * k) break;        // the ones that fit, in order
+                    // No picture for it (the frame rate), or not here yet: its words on the same white tag.
+                    if (LiveBadgeArt.draw(live, c, t, bx, mid, h, k, view::postInvalidate) < 0) LiveBadgeArt.wordsTag(live, c, t.words, bx, mid, h, k);
+                    bx += w + 12 * k;
+                }
+            } else {
+                String tech = TextUtils.join("  ·  ", live.badges());
+                if (x + small.measureText(tech) <= R * k) c.drawText(tech, x + 2 * k, y, small);
+            }
         }
 
         // The show's title, big; a long one scrolls across.

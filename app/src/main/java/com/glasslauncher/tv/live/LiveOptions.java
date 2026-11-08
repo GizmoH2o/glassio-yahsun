@@ -741,6 +741,15 @@ final class LiveOptions {
     }
 
     /** The resolution badge (4K, 2K, FHD, HD, SD) at the top right of each channel's logo: on unless off. */
+    /** The player's stream badges as the badge set's pictures (LiveBadgeArt): on unless off; off, in words. */
+    static boolean streamBadgePictures(Context c) {
+        return !flag(c, "live-words-stream-badges").exists();
+    }
+
+    static void setStreamBadgePictures(Context c, boolean on) {
+        setFlag(c, "live-words-stream-badges", !on);
+    }
+
     static boolean resolutionBadges(Context c) {
         return !flag(c, "live-no-resolution-badges").exists();
     }

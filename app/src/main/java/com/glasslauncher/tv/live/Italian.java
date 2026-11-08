@@ -483,7 +483,9 @@ final class Italian {
             case "Couldn't read the community designs just now": return "Non è stato possibile leggere i design della community ora";
             case "Keep in My designs": return "Salva in I miei design";
             case "Resolution badges": return "Badge di risoluzione";
-            case "4K, 2K, FHD, HD or SD at the logo's corner: as the channel played, else as its name says. A merged channel shows its best source.": return "4K, 2K, FHD, HD o SD nell'angolo del logo: come il canale è stato visto, altrimenti dal nome. Un canale unito mostra la sua fonte migliore.";
+            case "4K, 2K, FHD, HD or SD beside each channel: as the channel played, else as its name says. A merged channel shows its best source.": return "4K, 2K, FHD, HD o SD accanto a ogni canale: come il canale è stato visto, altrimenti dal nome. Un canale unito mostra la sua fonte migliore.";
+            case "Stream badges as pictures": return "Badge del flusso come immagini";
+            case "In the player: the resolution, codec, HDR and sound as pictures from the badge set, else in words.": return "Nel player: risoluzione, codec, HDR e audio come immagini del set di badge, altrimenti a parole.";
             case "Couldn't play this program": return "Impossibile riprodurre questo programma";
             case "Couldn't reach the server.": return "Impossibile raggiungere il server.";
             case "CATCH-UP": return "REPLAY";
