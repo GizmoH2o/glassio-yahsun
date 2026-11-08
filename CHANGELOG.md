@@ -2,6 +2,55 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.4.0 — 2026-11-07
+
+**Home**
+- **The big picture changes title like the streaming apps**: the words fade out as the picture changes, and the new ones rise in, in about half a second. Settings › Home › Changing title also has In steps and All at once.
+- **Going down the page, the big picture scrolls away** with it, and the rows sit on a plain dark page. Settings › Home › Going down the page: Scrolls away or Stays.
+- **Poster cards open into a wide card** with the picture, rating, year and genres, quickly and all at once. Along a row with a card open, the next one opens straight away. Settings › Home has Card opens after, Card opening, Keep the row open and Card style.
+- **Slow zoom**: the still pictures slowly zoom in while you rest on them (the open card, the big picture, or both).
+- **Trailer in the open card**: an open card can play its trailer, muted, after 2 to 10 seconds. It plays smoothly on the TV's own video hardware. Off at first.
+- **Big picture shows** everything or the recommendations only.
+- **The Today page**: your day on one page, with the weather, your matches with live scores, new episodes, new recordings and what's set for today. It can open by itself in the morning.
+- **For You**: a row of titles picked on the TV from what you watch and save. Nothing is sent anywhere.
+- **Your own collections**: hold OK on a title to add it to a row of your own. Because you watched and Quick watches rows fill themselves.
+- **Continue watching** puts the next episode in place of a finished one, adds Live TV's past shows left partway, and shows a channel's resolution badge.
+- **Title pages** list where a title is on (Live TV, your recordings, its streaming apps) and the cast, with their other titles.
+- **Search** covers the TV guide, your recordings, your library, channels and apps in one box, with mood and length filters when nothing is typed.
+- **Smoother title changes**: the big picture no longer stalls the page as it changes.
+
+**Live TV**
+- **Channel preview in the guide**: resting on a row plays that channel silently in the guide's window.
+- **Smart channels**: guide rows made from rules, like your teams live, new episodes tonight, or words of your own.
+- **Match Centre**: a Match tab in the player with the timeline, stats, lineups and table.
+- **Sports alerts beyond kick-off**: a goal or a close game on another channel offers OK to watch, on Home too.
+- **Multiview 2.0**: every box on the TV's video hardware, plus picture in picture, saved views and a wall of your teams' matches.
+- **Voice commands**: "Put the Arsenal game on", "What's on tonight?", "Record this series" and more, in seven languages.
+- **Family Mode 2.0**: a daily Live TV limit, a bedtime and an age rating for Kids profiles, and channels allowed or hidden per profile.
+- **Resolution badges**: 4K, 2K, FHD, HD or SD on each channel, in the guide, the player and Home.
+- **Country codes everywhere a channel is named**, as a small tag, for nearly 800 more channels.
+- **Ad breaks in recordings** are found, and can be skipped with OK or by themselves.
+- **Recordings can go to a USB drive**, and the Recordings page shows the free space and what won't fit.
+- **Sources that keep failing** are passed over when a channel has another.
+- **Following** has its own tab in the top bar.
+- **Designs to keep and share**: save your design, share it with a QR code, and try community designs.
+- **Accessibility**: TalkBack reads Live TV, plus Larger text and High contrast in Settings › Design.
+
+**Phone page and home**
+- **Live TV on the phone page**: what's on, find a show or team in the next 7 days, your schedule and recordings. Watch on TV, Remind and Record from the phone.
+- **Calendar**: add a show to your phone's calendar, or subscribe to what's set and your teams' matches.
+- **Home Assistant 2.0**: more events (pause, goals, kick-off, recordings, bedtime), and control the TV from Home Assistant.
+- **Sync with other TVs at home**: favorites, profiles, followed teams and reminders, the same on every paired TV.
+- **Backup to WebDAV** (Nextcloud, Synology and others), with the last 4 kept.
+- **Problem reports** include Live TV, and can be saved to Downloads.
+
+**Fixes**
+- **Live TV no longer freezes** loading a very large channel list sorted by name.
+- **Recordings play past 49 seconds again.**
+- **The guide is more honest**: past shows follow each channel's own days, and a channel with no guide takes the one with exactly its name.
+- **The player's info bar** shows the resolution badge next to the channel name, not over its logo.
+- **Settings › Weather city** shows the city it found straight away.
+
 ## 3.3.0 — 2026-11-06
 
 **A redesigned Live TV player**
