@@ -2,6 +2,21 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.5.0 — 2026-11-08
+
+**Home**
+- **The big picture changes title as the streaming apps do**: a smooth crossfade of under a second, the words fading out with it and the new ones fading in as it ends.
+- **The slow zoom is steady**: the big picture and an open card slowly grow from the moment they appear, towards their subject. Slow zoom now shows on both by default.
+- **Home keeps its own animation speed**: some TVs run animations twice as fast, and Home's title change and cards now move as designed on them. Settings › Home › Follow the TV's animation speed puts them back on the TV's.
+- **An open card's trailer** fades in more quickly, and moving along a row opens the next card sooner.
+
+**Live TV**
+- **Resolution badges sit beside the channel**, after its country, in the guide and the channel list, instead of on the logo.
+- **In the player's Channels**, the badge sits under the channel number.
+- **In Live TV search**, the badge is at the card's corner, and the country shows as a tag again.
+- **About this show** shows the channel's resolution badge.
+- **Stream badges as pictures**: the player shows the picture's resolution, codec, HDR and sound as badges. Turn them off in Live TV › Settings › Channels.
+
 ## 3.4.0 — 2026-11-07
 
 **Home**
