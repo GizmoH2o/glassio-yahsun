@@ -199,9 +199,18 @@ final class LiveCountry {
 
     /** Categories A to Z by the name they show, then the same name by its country tag: Sports, Sports UK, Sports US. Pure. */
     static int compareCategories(String a, String b) {
-        Split sa = split(a, true), sb = split(b, true);
-        int c = Xtream.fold(sa.name).compareTo(Xtream.fold(sb.name));
-        return c != 0 ? c : sa.code.compareTo(sb.code);
+        return categorySortKey(a).compareTo(categorySortKey(b));
+    }
+
+    /**
+     * What a category sorts by, worked out once: its name without the country (folded), then the country. The same
+     * order as comparing the two in turn ("\u0000" sorts before every letter, so a name that's the start of another
+     * still comes first). Sorting thousands of categories with the regexes run on every comparison held Live TV's
+     * main thread past Android's 10 seconds (an ANR on a TV). Pure.
+     */
+    static String categorySortKey(String name) {
+        Split s = split(name, true);
+        return Xtream.fold(s.name) + '\u0000' + s.code;
     }
 
     /** Streaming services sold in one country only, as their categories name them (spaces gone, lower case). */

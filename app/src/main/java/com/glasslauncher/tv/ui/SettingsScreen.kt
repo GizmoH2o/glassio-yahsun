@@ -449,6 +449,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             }
         },
         Category("Clock & glass") {
+            // Collected, not read once: the city it found shows as soon as the lookup is back.
+            val weatherFound by app.weather.found.collectAsState()
             listOf(
                 Toggle("Show clock", "", { st.showClock }, { st.showClock = it }),
                 Toggle("24-hour clock", "", { st.clock24h }, { st.clock24h = it }),
@@ -458,7 +460,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Weather", "Top bar, next to the settings button", {
                     when (st.weatherMode) { "off" -> "Off"; "temp" -> "Temperature"; "condition" -> "Temperature + sky"; "city" -> "Temperature + city"; else -> "Everything" }
                 }, { st.weatherMode = cycle(listOf("all", "condition", "city", "temp", "off"), st.weatherMode, it); app.weather.reload() }),
-                Act("Weather city", st.weatherCity + app.weather.found.value.takeIf { it.isNotBlank() }?.let { "  →  $it" }.orEmpty(), "Change") {
+                Act("Weather city", st.weatherCity + weatherFound.takeIf { it.isNotBlank() }?.let { "  →  $it" }.orEmpty(), "Change") {
                     dialog = TextEntry("Weather city", st.weatherCity, "Baghdad") { st.weatherCity = it; app.weather.reload() }
                 },
                 Toggle("Fahrenheit", "", { st.weatherF }, { st.weatherF = it }),

@@ -261,7 +261,12 @@ final class LiveView extends View {
             Xtream.Category cg = providerOrder.get(i);
             if (i < 2 || cg == search || cg == recordings || cg == history || cg == smartGroup) allCategories.add(cg); else mine.add(cg);
         }
-        if (byCategory == LiveOptions.BY_NAME) Collections.sort(mine, (a, b) -> LiveCountry.compareCategories(a.name, b.name));
+        if (byCategory == LiveOptions.BY_NAME) {
+            // Each one's key once, not twice per comparison (LiveCountry.categorySortKey).
+            java.util.Map<Xtream.Category, String> key = new java.util.IdentityHashMap<>();
+            for (Xtream.Category cg : mine) key.put(cg, LiveCountry.categorySortKey(cg.name));
+            Collections.sort(mine, (a, b) -> key.get(a).compareTo(key.get(b)));
+        }
         allCategories.addAll(mine);
         java.util.Comparator<Xtream.Channel> order;
         if (byChannel == LiveOptions.BY_NAME) {

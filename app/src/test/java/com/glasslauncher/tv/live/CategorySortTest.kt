@@ -20,4 +20,15 @@ class CategorySortTest {
     @Test fun `a name with no country comes before the same name with one`() {
         assertEquals(listOf("Sports", "UK | Sports"), sorted("UK | Sports", "Sports"))
     }
+
+    @Test fun `a name that starts another comes first, whatever their countries`() {
+        assertEquals(listOf("US | News", "UK | News Extra"), sorted("UK | News Extra", "US | News"))
+    }
+
+    // LiveView sorts by the keys worked out once: the same order as comparing the names.
+    @Test fun `sorting by the keys gives the same order as comparing`() {
+        val names = listOf("US | Sports", "UK | News Extra", "Sports", "US | News", "UK | Sports", "UK | Films", "CA | News", "News")
+        assertEquals(names.sortedWith { a, b -> LiveCountry.compareCategories(a, b) }, names.sortedBy { LiveCountry.categorySortKey(it) })
+        assertEquals(listOf("News", "CA | News", "US | News", "UK | News Extra"), sorted("UK | News Extra", "US | News", "CA | News", "News"))
+    }
 }
