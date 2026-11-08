@@ -196,7 +196,13 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("slide_anim")?.let { if (it in setOf("fade", "slide", "apple")) app.settings.slideAnim = it }
         i?.getStringExtra("dots_mode")?.let { if (it in setOf("window", "liquid", "progress", "hidden")) app.settings.dotsMode = it }
         i?.getStringExtra("hero_source")?.let { if (it in setOf("all", "recs")) app.settings.heroSource = it }
-        i?.getStringExtra("hero_change")?.let { if (it in setOf("steps", "fade")) app.settings.heroChange = it }
+        i?.getStringExtra("hero_change")?.let { if (it in setOf("quick", "steps", "fade")) app.settings.heroChange = it }
+        i?.getStringExtra("slow_zoom")?.let { if (it in setOf("off", "hero", "cards", "both")) app.settings.slowZoom = it }
+        i?.getStringExtra("hero_scroll")?.let { if (it in setOf("away", "stay")) app.settings.heroScroll = it }
+        if (i?.hasExtra("card_open_ms") == true) app.settings.cardOpenMs = i.getIntExtra("card_open_ms", 300).coerceIn(100, 1000)
+        i?.getStringExtra("card_open")?.let { if (it in setOf("together", "staggered")) app.settings.cardOpen = it }
+        if (i?.hasExtra("card_keep_open") == true) app.settings.cardKeepOpen = i.getBooleanExtra("card_keep_open", true)
+        i?.getStringExtra("card_style")?.let { if (it in setOf("light", "dark")) app.settings.cardStyle = it }
         if (i?.hasExtra("card_trailer") == true) app.settings.cardTrailerSec = i.getIntExtra("card_trailer", 0).coerceIn(0, 10)
         i?.getStringExtra("continue_mode")?.let { if (it in setOf("row", "off", "first", "mixed")) app.settings.continueMode = it }
         if (i?.getBooleanExtra("start_saver", false) == true)

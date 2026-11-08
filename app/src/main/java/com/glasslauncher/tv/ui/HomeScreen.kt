@@ -266,6 +266,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     val tileFocus = remember { HashMap<String, FocusRequester>() }
     /** How far down the home page is (0..1): the clock, weather and settings button fade out under the rows. */
     val pageDown = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    /** How far the home page has moved up, in px: the big picture goes up with it (Settings › Home › Going down the page). */
+    val pageOffset = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
 
     // The current backdrop as a small bitmap: every glass surface refracts it. The page backdrop only
     // switches once the glass copy is ready, and both crossfade together, so the glass never lags behind.
@@ -341,7 +343,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             if (fullBmp == null) return@collectLatest
             val first = backImgs == null
-            fadeMs = if (app.browsing()) 260 else settings.transitionMs
+            // Changing title Quick (Settings › Home): the big picture's crossfade takes 400 ms, as on the streaming apps.
+            fadeMs = if (app.browsing()) 260 else if (settings.heroChange == "quick" && screen == Screen.Home) 400 else settings.transitionMs
             val dm = ctx.resources.displayMetrics
             val src = fullBmp
             // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
@@ -350,6 +353,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             val bk = (if (slide) "$u|slide" else u) + "|" + settings.pageScale + "|" + settings.memTier + "|" + tint
             val baked = BakeCache.get(bk, src) ?: withContext(Dispatchers.Default) { bakeBackdrop(src, (dm.widthPixels * settings.pageScale).toInt(), (dm.heightPixels * settings.pageScale).toInt(), !slide, tint) }.also { BakeCache.put(bk, src, it) }
             if (GlassHalf.peek(baked) == null) withContext(Dispatchers.Default) { GlassHalf.of(baked) }
+            // Its upload to the graphics chip, started now: on its first frame it would stall the crossfade (a TV
+            // took a quarter of a second, so the fade was over almost as soon as it was seen).
+            runCatching { baked.asAndroidBitmap().prepareToDraw() }
+            androidx.compose.runtime.withFrameNanos { }
             if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Slide ready in ${android.os.SystemClock.uptimeMillis() - t0} ms (${u.substringAfterLast('/')})")
             // Page and glass fade in the same frames with the same timing, so the bar never runs ahead.
             prevImgs = backImgs
@@ -492,7 +499,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     scope.launch { delay(700); if (trailer == id) { trailer = null; trailerOver = true } }
                 }
             }
-            if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade") {
+            val motionOff = LocalReduceMotion.current
+            val onHome = screen == Screen.Home
+            if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade",
+                settle = onHome && !motionOff && settings.heroChange == "quick",
+                slowZoom = onHome && !motionOff && settings.slowZoom in setOf("hero", "both"),
+                lift = { if (onHome && settings.heroScroll == "away") pageOffset.floatValue else 0f }) {
                 if (trailerDrawn) 1f - trailerShown.value else 1f
             }
 
@@ -522,6 +534,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     onLibrary = { onScreen(Screen.Library) },
                     onTrailer = { trailer = it; trailerPlaying = false; if (it != null) trailerOver = false }, trailerOver = trailerOver,
                     down = pageDown,
+                    pageOffset = pageOffset,
                     tabFocus = tabFocus,
                     onTitle = openTitle,
                     restoreFocus = restoreFocus,
@@ -826,11 +839,17 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
 private fun PageBackdrop(
     prev: androidx.compose.runtime.State<ImageBitmap?>, cur: androidx.compose.runtime.State<ImageBitmap?>,
     dir: androidx.compose.runtime.State<Int>, mix: androidx.compose.animation.core.Animatable<Float, *>, anim: String,
+    /** The new picture settles from a touch larger as it fades in (Changing title Quick). */
+    settle: Boolean = false,
+    /** Resting on a picture, it slowly zooms in (Settings › Home › Slow zoom). */
+    slowZoom: Boolean = false,
+    /** How far up the page has gone, px: the picture goes up with it (0: it stays). */
+    lift: () -> Float = { 0f },
     opacity: () -> Float,
 ) {
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity() }) {
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity(); translationY = -lift() }) {
         if (anim != "fade") SlideBackdrop(prev.value, cur.value, mix, dir.value, if (anim == "apple") SLIDE_APPLE else SLIDE_PUSH)
-        else FadeBackdrop(prev.value, cur.value, mix)
+        else FadeBackdrop(prev.value, cur.value, mix, settle, slowZoom)
     }
 }
 
@@ -840,17 +859,40 @@ private fun PageBackdrop(
  * old picture out, so mid-fade the page was darker than the glass and the two looked out of step.)
  */
 @Composable
-private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>) {
-    // Drawn 1:1 normally; prepared at 2/3 size (Performance) it is scaled up, so it needs filtering.
-    val fq = if ((cur ?: prev)?.width?.let { it < 1800 } == true) androidx.compose.ui.graphics.FilterQuality.Low else androidx.compose.ui.graphics.FilterQuality.None
+private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>,
+    settle: Boolean = false, slowZoom: Boolean = false) {
+    // The slow zoom: once the picture is in, it grows a little over a few seconds and stays there. The old picture
+    // keeps the size it had reached while the new one fades in over it.
+    val zoom = remember { androidx.compose.animation.core.Animatable(1f) }
+    val prevZoom = remember(cur) { zoom.value }
+    LaunchedEffect(cur, slowZoom) {
+        zoom.snapTo(1f)
+        if (!slowZoom || cur == null) return@LaunchedEffect
+        androidx.compose.runtime.snapshotFlow { mix.value }.first { it >= 1f }
+        zoom.animateTo(SLOW_ZOOM_MAX, tween(SLOW_ZOOM_MS, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+    }
+    // Drawn 1:1 normally; prepared at 2/3 size (Performance) it is scaled up, so it needs filtering (and so does a zoom).
+    val fq = if (slowZoom || settle || (cur ?: prev)?.width?.let { it < 1800 } == true) androidx.compose.ui.graphics.FilterQuality.Low else androidx.compose.ui.graphics.FilterQuality.None
     // The old picture only while the new one fades in: covered by it after that, drawn for nothing (a second full-screen
     // picture every frame, a quarter of a TV graphics chip's time).
     if (prev != null) Image(prev, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
-        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (cur != null && mix.value >= 1f) 0f else 1f })
+        modifier = Modifier.fillMaxSize().graphicsLayer {
+            alpha = if (cur != null && mix.value >= 1f) 0f else 1f
+            if (slowZoom) { scaleX = prevZoom; scaleY = prevZoom }
+        })
     if (cur != null) Image(cur, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
-        modifier = Modifier.fillMaxSize().graphicsLayer { alpha = if (prev != null) mix.value else 1f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha })
+        modifier = Modifier.fillMaxSize().graphicsLayer {
+            alpha = if (prev != null) mix.value else 1f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+            // Quick title change: the new picture comes in 4% larger and settles as it fades in.
+            val sc = (if (settle && prev != null) 1f + 0.04f * (1f - mix.value) else 1f) * zoom.value
+            scaleX = sc; scaleY = sc
+        })
     else if (prev == null) Box(Modifier.fillMaxSize().background(Ds.Bg))
 }
+
+/** Slow zoom (Settings › Home): how far, and over how long. About 2% a second at first, easing to a stop. */
+internal const val SLOW_ZOOM_MAX = 1.08f
+internal const val SLOW_ZOOM_MS = 5000
 
 
 // ───────────────────────────── hero / carousel ─────────────────────────────

@@ -60,6 +60,7 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -98,6 +99,8 @@ import com.glasslauncher.tv.data.Moods
 import com.glasslauncher.tv.data.UpNext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -115,6 +118,8 @@ internal val RED: Color @Composable @androidx.compose.runtime.ReadOnlyComposable
 private val GREEN = Color(0xFF46D369)
 private val IMDB = Color(0xFFF5C518)
 internal val CARD = Color(0xFF1C1C1F)
+/** The open poster card's lighter grey (Settings › Home › Card style), as on the streaming apps. */
+private val CARD_LIGHT = Color(0xFF2A2A2D)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
 private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Widgets }
@@ -137,6 +142,8 @@ internal fun HomePage(
     onTrailer: (String?) -> Unit, trailerOver: Boolean,
     /** How far down the page is, 0 (the top) to 1: the top bar fades as it goes. */
     down: androidx.compose.runtime.MutableFloatState,
+    /** How far up the page has moved, px (the page's picture goes up with it when it scrolls away). */
+    pageOffset: androidx.compose.runtime.MutableFloatState,
     /** The tab bar's Home tab, where Up from the big picture goes (none in Kids mode). */
     tabFocus: FocusRequester,
     /** A title's page. */
@@ -352,10 +359,33 @@ internal fun HomePage(
     // Changing title): the words fade out while the next picture comes, then the new ones fade in over it.
     var textItem by remember { mutableStateOf<HeroItem?>(null) }
     val textA = remember { Animatable(1f) }
+    /** The words' drift down (going) and up (coming), in s-dp: Changing title Quick. */
+    val textDy = remember { Animatable(0f) }
     val steps = settings.heroChange != "fade" && !LocalReduceMotion.current
+    val quick = steps && settings.heroChange == "quick"
     LaunchedEffect(hero?.key, hero?.logo, hero?.overview) {
         val h = hero
-        if (h == null || textItem == null || h.background.isBlank() || textItem?.key == h.key) { textItem = h; textA.snapTo(1f); return@LaunchedEffect }
+        if (h == null || textItem == null || h.background.isBlank() || textItem?.key == h.key) { textItem = h; textA.snapTo(1f); textDy.snapTo(0f); return@LaunchedEffect }
+        if (quick) {
+            // As on the streaming apps (measured from a recording): as the picture starts its crossfade (400 ms,
+            // HomeScreen), the words fade out and drift down (200 ms); 280 ms into it the new words fade in, rising
+            // into place. The old words stay while the new picture is still on its way (never an empty picture).
+            kotlinx.coroutines.withTimeoutOrNull(1500) { androidx.compose.runtime.snapshotFlow { shownUrl.value }.first { it == h.background } }
+            val shownAt = android.os.SystemClock.uptimeMillis()
+            kotlinx.coroutines.coroutineScope {
+                launch { textA.animateTo(0f, tween(200, easing = CubicBezierEasing(0.4f, 0f, 1f, 1f))) }
+                textDy.animateTo(5f, tween(200, easing = CubicBezierEasing(0.4f, 0f, 1f, 1f)))
+            }
+            textItem = h
+            textDy.snapTo(8f)
+            delay((280 - (android.os.SystemClock.uptimeMillis() - shownAt)).coerceAtLeast(0))
+            kotlinx.coroutines.coroutineScope {
+                launch { textA.animateTo(1f, tween(200, easing = CubicBezierEasing(0f, 0f, 0.2f, 1f))) }
+                textDy.animateTo(0f, tween(260, easing = CubicBezierEasing(0f, 0f, 0.2f, 1f)))
+            }
+            return@LaunchedEffect
+        }
+        textDy.snapTo(0f)
         if (!steps) {
             textA.snapTo(1f)
             kotlinx.coroutines.withTimeoutOrNull(1200) { androidx.compose.runtime.snapshotFlow { shownUrl.value }.first { it == h.background } }
@@ -383,19 +413,23 @@ internal fun HomePage(
     }
     // Its trailer (Settings › Home › Trailers): after a few seconds on the big picture with a title, behind it; any
     // move (another title, a row, another screen) stops it.
-    val restingOn = textItem?.takeIf { TrailerGuard.allowed(ctx, settings.trailerMode) && inPart == Part.Hero && visible && !paused && resumed }
+    // (The words' title is followed off the page's composition: read here, every change of title recomposed the page.)
+    val trailerReady = TrailerGuard.allowed(ctx, settings.trailerMode) && inPart == Part.Hero && visible && !paused && resumed
     var trailerOn by remember { mutableStateOf(false) }
     // An opened poster card's trailer (Settings › Home › Trailer in the open card), while Home is in front: its own
     // choice, not the big picture's Trailers; still never on a TV where trailers keep failing (unless Trailers is On).
+    val cardLook = CardLook(settings.cardOpenMs, settings.cardOpen != "staggered", settings.slowZoom in setOf("cards", "both"), settings.cardStyle != "dark")
     val cardTrailer = if (settings.cardTrailerSec > 0 && TrailerGuard.allowed(ctx, if (settings.trailerMode == "on") "on" else "auto") && visible && !paused && resumed) settings.cardTrailerSec else 0
-    LaunchedEffect(restingOn?.key) {
-        onTrailer(null); trailerOn = false
-        val t = restingOn ?: return@LaunchedEffect
-        delay(4_000)
-        val id = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { trailerOf(app, t) }
-        if (id == null) return@LaunchedEffect
-        trailerOn = true
-        onTrailer(id)
+    LaunchedEffect(trailerReady) {
+        androidx.compose.runtime.snapshotFlow { textItem?.takeIf { trailerReady } }.distinctUntilChangedBy { it?.key }.collectLatest { restingOn ->
+            onTrailer(null); trailerOn = false
+            val t = restingOn ?: return@collectLatest
+            delay(4_000)
+            val id = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { trailerOf(app, t) }
+            if (id == null) return@collectLatest
+            trailerOn = true
+            onTrailer(id)
+        }
     }
     // On its own: the next title every few seconds while the big picture is selected (or nothing is); not while its
     // trailer plays (after it, on).
@@ -424,21 +458,26 @@ internal fun HomePage(
     var appRow by remember { mutableIntStateOf(0) }
     val offset = remember { Animatable(0f) }
     val reduceMotion = LocalReduceMotion.current
+    val scrollAway = settings.heroScroll == "away"
     val screenPx = screenH * density
     val spot = if (inPart == Part.Apps && appRow > 0) appRows[appRow] else tops[inPart]?.let { t ->
         // The apps' first row: from the "Apps" title to that row's bottom.
         if (inPart == Part.Apps) appRows[0]?.let { r -> t.first to r.second } ?: t else t
     }
-    LaunchedEffect(inPart, spot, screenPx) {
+    LaunchedEffect(inPart, spot, screenPx, scrollAway) {
         val (top, bottom) = spot ?: return@LaunchedEffect
         // The row as low on the screen as it fits, so what's above it shows (the big picture, back at the first row);
         // a row taller than the screen from its top.
         val margin = 26 * s * density
-        val target = if (inPart == Part.Hero) 0f else minOf(bottom - screenPx + margin, top - 70 * s * density).coerceAtLeast(0f)
+        // Scrolls away (Settings › Home › Going down the page): past the first row, the row comes to the top and the
+        // big picture goes up and off with the page, as on the streaming apps.
+        val toTop = scrollAway && inPart != Part.Hero && inPart != parts.getOrNull(1)
+        val target = if (inPart == Part.Hero) 0f else if (toTop) (top - 70 * s * density).coerceAtLeast(0f)
+            else minOf(bottom - screenPx + margin, top - 70 * s * density).coerceAtLeast(0f)
         if (reduceMotion) offset.snapTo(target) else offset.animateTo(target, tween(420, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)))
     }
     val heroH = screenH * 0.66f
-    LaunchedEffect(Unit) { androidx.compose.runtime.snapshotFlow { offset.value }.collect { down.floatValue = (it / (40 * s * density)).coerceIn(0f, 1f) } }
+    LaunchedEffect(Unit) { androidx.compose.runtime.snapshotFlow { offset.value }.collect { down.floatValue = (it / (40 * s * density)).coerceIn(0f, 1f); pageOffset.floatValue = it } }
 
     // Back: from a row to the first row, from there to the big picture (then, as before, the screensaver if set).
     val firstRow = parts.getOrNull(1)
@@ -448,10 +487,32 @@ internal fun HomePage(
     val defaultSpec = LocalBringIntoViewSpec.current
     Box(Modifier.fillMaxSize().clipToBounds()) {
         // Further down the page the picture darkens, so the rows read over it.
-        // In the title's colour, when it has one (read while drawing: a change of colour doesn't recompose the page).
-        val pageColor = androidx.compose.animation.animateColorAsState(tint.value?.let { Color(it) } ?: Color(0xFF0B0B0D),
-            if (reduceMotion) androidx.compose.animation.core.snap() else tween(600), label = "pageTint")
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = (offset.value / (heroH * density * 0.6f)).coerceIn(0f, 0.72f) }.drawBehind { drawRect(pageColor.value) })
+        // In the title's colour, when it has one. Followed off the page's composition and read only while drawing: the
+        // colour changes as each new picture comes in, and read here it recomposed the whole page at that moment
+        // (a TV stalled up to a quarter of a second, mid-crossfade).
+        val pageColor = remember { androidx.compose.animation.Animatable(tint.value?.let { Color(it) } ?: Color(0xFF0B0B0D)) }
+        LaunchedEffect(reduceMotion) {
+            androidx.compose.runtime.snapshotFlow { tint.value }.collectLatest { t ->
+                val c = t?.let { Color(it) } ?: Color(0xFF0B0B0D)
+                if (reduceMotion) pageColor.snapTo(c) else pageColor.animateTo(c, tween(600))
+            }
+        }
+        if (scrollAway) {
+            // The picture goes up with the page (HomeScreen moves it): under it, the page's own dark colour.
+            // Going down, the picture's lower part (never quite dark) gives way to the page's colour, so the rows
+            // read on a plain dark page, as on the streaming apps.
+            Box(Modifier.fillMaxSize().drawBehind {
+                val f = (offset.value / (0.3f * size.height)).coerceIn(0f, 1f)
+                if (f <= 0f) return@drawBehind
+                val edge = size.height * (1f - 0.25f * f) - offset.value
+                val fadeH = size.height * 0.3f * f
+                val c = pageColor.value
+                if (edge > 0f) drawRect(Brush.verticalGradient(0f to c.copy(alpha = 0f), 1f to c, startY = edge - fadeH, endY = edge),
+                    topLeft = Offset(0f, (edge - fadeH).coerceAtLeast(0f)), size = Size(size.width, edge - (edge - fadeH).coerceAtLeast(0f)))
+                val y = edge.coerceAtLeast(0f)
+                if (y < size.height) drawRect(c, topLeft = Offset(0f, y), size = Size(size.width, size.height - y))
+            })
+        } else Box(Modifier.fillMaxSize().graphicsLayer { alpha = (offset.value / (heroH * density * 0.6f)).coerceIn(0f, 0.72f) }.drawBehind { drawRect(pageColor.value) })
         // Nothing scrolls by itself: the page moves (above) and each row scrolls along (its own default).
         CompositionLocalProvider(LocalBringIntoViewSpec provides NoPageScroll) {
             Column(
@@ -461,9 +522,11 @@ internal fun HomePage(
                 },
             ) {
                 // ── the big picture
-                Box(Modifier.fillMaxWidth().height(heroH.dp).onGloballyPositioned { tops[Part.Hero] = it.positionInParent().y to it.positionInParent().y + it.size.height }) {
+                Box(Modifier.fillMaxWidth().height(heroH.dp).onGloballyPositioned { tops[Part.Hero] = it.positionInParent().y to it.positionInParent().y + it.size.height }) { Isolated {
+                    // Its own scope: a new title's words recompose this, not the whole page under it.
                     val shown = textItem
-                    val fade = { (1f - offset.value / (heroH * density * 0.55f)).coerceIn(0f, 1f) }
+                    // Scrolling away, the words go up with the picture as they are; staying, they fade over it.
+                    val fade = { if (scrollAway) 1f else (1f - offset.value / (heroH * density * 0.55f)).coerceIn(0f, 1f) }
                     if (shown != null && !app.showSetup.value) {
                         HeroText(app, shown, s, savedList.any { it.key == shown.key }, heroFocus,
                             down = parts.getOrNull(1)?.let { req(it) } ?: FocusRequester.Cancel,
@@ -502,7 +565,7 @@ internal fun HomePage(
                             },
                             reason = if (shown.key == slide?.key) picks.reasons[shown.key] else null,
                             steps = steps,
-                            modifier = Modifier.align(Alignment.BottomStart).graphicsLayer { alpha = fade() * textA.value })
+                            modifier = Modifier.align(Alignment.BottomStart).graphicsLayer { alpha = fade() * textA.value; translationY = textDy.value * s * density })
                         if (slides.size > 1 && hero == slide) Dashes(slides.size, index.mod(slides.size), s,
                             Modifier.align(Alignment.BottomEnd).padding(end = (EDGE * s).dp, bottom = (12 * s).dp).graphicsLayer { alpha = fade() })
                     } else if (kids) {
@@ -518,7 +581,7 @@ internal fun HomePage(
                             app.requestSettings.intValue = cat; app.requestSettingsRev.intValue++
                         }
                     }
-                }
+                } }
                 @Composable fun section(part: Part, title: String, note: String = "", content: @Composable () -> Unit) {
                     Column(
                         Modifier.fillMaxWidth().padding(top = (ROW_GAP * s).dp)
@@ -558,11 +621,12 @@ internal fun HomePage(
                 }
                 // ── your library
                 @Composable fun posters(part: Part, title: String, list: List<HeroItem>) = section(part, title) {
+                    val row = remember { RowOpen() }.takeIf { settings.cardKeepOpen }
                     CardRow(s, req(part), above(part), below(part), list.map { it.key } + "__all__") { i, mod ->
                         if (i == list.size) SeeAllCard(s, mod, onLibrary)
                         else {
                             val item = list[i]
-                            PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, onFocused = { selected = item },
+                            PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row, onFocused = { selected = item },
                                 onOpen = { openCard(item) },
                                 onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog)) })
                         }
@@ -571,17 +635,19 @@ internal fun HomePage(
                 // ── your own rows
                 @Composable fun mine(part: Part, c: com.glasslauncher.tv.data.MyCollection) = section(part, c.name) {
                     val list = forKids(c.titles)
+                    val row = remember { RowOpen() }.takeIf { settings.cardKeepOpen }
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
-                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, onFocused = { selected = item }, onOpen = { openCard(item) },
+                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row, onFocused = { selected = item }, onOpen = { openCard(item) },
                             onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog, c)) })
                     }
                 }
                 // ── recommendations
                 @Composable fun recs(part: Part, title: String, list: List<HeroItem>, note: String = "") = section(part, title, note) {
+                    val row = remember { RowOpen() }.takeIf { settings.cardKeepOpen }
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
-                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, onFocused = { selected = item }, onOpen = { openCard(item) },
+                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row, onFocused = { selected = item }, onOpen = { openCard(item) },
                             onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog)) })
                     }
                 }
@@ -1068,6 +1134,24 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
     }
 }
 
+/** A recomposition scope of its own: state read inside [content] recomposes only it, not the composable around it. */
+@Composable
+private fun androidx.compose.foundation.layout.BoxScope.Isolated(content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit) = content()
+
+/** How the poster cards open (Settings › Home): after how long, all at once or staggered, slow zoom, lighter card. */
+private data class CardLook(val openMs: Int = 650, val together: Boolean = false, val zoom: Boolean = false, val light: Boolean = false)
+
+/**
+ * A row's open card (Settings › Home › Keep the row open): which one is open, and when the last one closed, so the
+ * next card along opens straight away instead of waiting.
+ */
+private class RowOpen {
+    var openKey: String? = null
+    var closedAt = 0L
+    /** A card in this row is open, or closed just now (the focus moving on from it). */
+    fun warm() = openKey != null || android.os.SystemClock.uptimeMillis() - closedAt < 400
+}
+
 /**
  * A poster with its IMDb rating. Rested on, it opens up into a wide card: the picture with the logo on top, then
  * Play / + / more, the rating, year and runtime, and the genres (the posters beside it make room).
@@ -1075,20 +1159,30 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
 @Composable
 private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modifier, onFocused: () -> Unit, onOpen: () -> Unit, onHold: () -> Unit,
     /** Seconds open before its trailer plays in its picture (Settings › Home › Trailer in the open card); 0: none. */
-    trailerSec: Int = 0, app: GlassApp? = null) {
+    trailerSec: Int = 0, app: GlassApp? = null, look: CardLook = CardLook(), row: RowOpen? = null) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     var open by remember { mutableStateOf(false) }
     LaunchedEffect(focused, expand) {
-        if (!focused || !expand) { open = false; return@LaunchedEffect }
-        delay(650)
+        if (!focused || !expand) {
+            if (open && row != null) { if (row.openKey == item.key) row.openKey = null; row.closedAt = android.os.SystemClock.uptimeMillis() }
+            open = false; return@LaunchedEffect
+        }
+        // Along a row with a card open, this one opens straight away (the last one closing as it does).
+        if (row == null || !row.warm()) delay(look.openMs.toLong())
         open = true
+        row?.openKey = item.key
     }
-    // Opening, as on the big streaming apps: the card widens (the posters beside it make room) while the poster, kept
-    // its own size at the left, fades into the wide picture; then the buttons and details rise in under it. Closing,
-    // the same backwards.
+    // Opening, as on the big streaming apps. Together (measured from a recording): in 200 ms it widens (the posters
+    // beside it make room), the poster crossfades into the wide picture and the details rise in, all at once.
+    // Staggered: the picture first, then the buttons and details under it. Closing, the same backwards.
     val still = LocalReduceMotion.current
-    val w by animateDpAsState(((if (open) POSTER_W * OPEN_W else POSTER_W) * s).dp, tween(if (still) 0 else 380, easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)), label = "posterW")
+    val together = look.together
+    val ease = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+    // Together, it widens only once its wide picture is here (never a wide empty card), in the same frames as the rest.
+    var picReady by remember(item.key) { mutableStateOf(false) }
+    val wide = if (together) open && picReady else open
+    val w by animateDpAsState(((if (wide) POSTER_W * OPEN_W else POSTER_W) * s).dp, tween(if (still) 0 else if (together) 200 else 380, easing = ease), label = "posterW")
     val h = (POSTER_W * 1.5f * s).dp
     // Its trailer, after a while open: found, then played in the picture; any move away stops it.
     var trailerIds by remember { mutableStateOf<String?>(null) }
@@ -1099,28 +1193,41 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         delay(trailerSec * 1000L)
         trailerIds = withContext(Dispatchers.IO) { trailerOf(app, item) }
     }
+    // Card style (Settings › Home): the lighter grey of the streaming apps, or as dark as the page.
+    val cardBg = if (look.light) CARD_LIGHT else CARD
     Box(
         modifier.width(w).height(h)
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .tvPress(onLong = onHold, onKey = backKey(), onClick = onOpen)
             .cardFocus(s, focused, 5f, if (trailerIds != null) 1f else if (open) 1.03f else 1.06f)
-            .background(CARD),
+            .background(cardBg),
     ) {
         // Its wide picture loads (unseen) as soon as it's selected: the poster fades into it once it's there, never into an empty card.
-        var picReady by remember(item.key) { mutableStateOf(false) }
         val shownOpen = open && picReady
-        val picA by animateFloatAsState(if (shownOpen) 1f else 0f, tween(if (still) 0 else 320, delayMillis = if (shownOpen && !still) 60 else 0), label = "posterPic")
-        val infoA by animateFloatAsState(if (shownOpen) 1f else 0f, tween(if (still) 0 else if (shownOpen) 260 else 140, delayMillis = if (shownOpen && !still) 220 else 0), label = "posterInfo")
-        val posterA by animateFloatAsState(if (shownOpen) 0f else 1f, tween(if (still) 0 else if (shownOpen) 340 else 220, delayMillis = if (shownOpen && !still) 80 else 0), label = "posterFade")
-        if (focused || picA > 0.01f) Box(Modifier.fillMaxWidth().height((POSTER_W * OPEN_W * 9 / 16 * s).dp).graphicsLayer { alpha = picA }) {
+        val picA by animateFloatAsState(if (shownOpen) 1f else 0f,
+            if (together) tween(if (still) 0 else 180, easing = ease) else tween(if (still) 0 else 320, delayMillis = if (shownOpen && !still) 60 else 0), label = "posterPic")
+        val infoA by animateFloatAsState(if (shownOpen) 1f else 0f,
+            if (together) tween(if (still) 0 else if (shownOpen) 200 else 120, easing = ease)
+            else tween(if (still) 0 else if (shownOpen) 260 else 140, delayMillis = if (shownOpen && !still) 220 else 0), label = "posterInfo")
+        val posterA by animateFloatAsState(if (shownOpen) 0f else 1f,
+            if (together) tween(if (still) 0 else 180, easing = ease)
+            else tween(if (still) 0 else if (shownOpen) 340 else 220, delayMillis = if (shownOpen && !still) 80 else 0), label = "posterFade")
+        // Slow zoom (Settings › Home): once open, its picture slowly grows, as on the streaming apps.
+        val zoom = remember { Animatable(1f) }
+        LaunchedEffect(shownOpen, look.zoom, still) {
+            if (!shownOpen || !look.zoom || still) { zoom.snapTo(1f); return@LaunchedEffect }
+            delay(200)
+            zoom.animateTo(SLOW_ZOOM_MAX, tween(SLOW_ZOOM_MS, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+        }
+        if (focused || picA > 0.01f) Box(Modifier.fillMaxWidth().height((POSTER_W * OPEN_W * 9 / 16 * s).dp).clipToBounds().graphicsLayer { alpha = picA }) {
             val pic = item.background.ifBlank { item.poster }
             trailerIds?.let { ids ->
                 CardTrailer(ids, Modifier.fillMaxSize(), onPlaying = { trailerPlaying = true }, onEnded = { trailerIds = null; trailerPlaying = false })
             }
             val trailerShown by animateFloatAsState(if (trailerPlaying) 1f else 0f, tween(500), label = "cardTrailer")
             AsyncImage(remember(pic) { req(ctx, pic, 480, 270) }, null, contentScale = ContentScale.Crop, onSuccess = { picReady = true }, onError = { picReady = true },
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 1f - trailerShown })
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to CARD)))
+                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 1f - trailerShown; scaleX = zoom.value; scaleY = zoom.value })
+            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to cardBg)))
             if (item.logo.isNotBlank()) AsyncImage(remember(item.logo) { req(ctx, item.logo, 300, 100) }, item.name, contentScale = ContentScale.Fit, alignment = Alignment.BottomStart,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = (6 * s).dp, bottom = (3 * s).dp).size(width = (80 * s).dp, height = (22 * s).dp).graphicsLayer { alpha = 1f - trailerShown * 0.6f })
             else RawText(item.name, color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
@@ -1134,7 +1241,7 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         if (item.rating.isNotBlank() && !open && posterA > 0.5f) Box(Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = (2 * s).dp, vertical = (1 * s).dp)) {
             ImdbBadge(item.rating, s, small = true)
         }
-        if (infoA > 0.01f) Column(Modifier.fillMaxSize().graphicsLayer { alpha = infoA; translationY = (1f - infoA) * 6 * s * density }) {
+        if (infoA > 0.01f) Column(Modifier.fillMaxSize().graphicsLayer { alpha = infoA; translationY = (1f - infoA) * (if (together) 12 else 6) * s * density }) {
             Spacer(Modifier.height((POSTER_W * OPEN_W * 9 / 16 * s).dp))
             Column(Modifier.padding(horizontal = (6 * s).dp, vertical = (4 * s).dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
