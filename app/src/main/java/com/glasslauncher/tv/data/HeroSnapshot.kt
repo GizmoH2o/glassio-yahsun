@@ -21,7 +21,7 @@ object HeroSnapshot {
                 .put("poster", h.poster).put("background", h.background).put("logo", h.logo)
                 .put("overview", h.overview).put("rating", h.rating).put("year", h.year)
                 .put("genres", JSONArray(h.genres)).put("platform", h.platform).put("progress", h.progress.toDouble())
-                .put("sub", h.sub).put("addonArt", h.addonArt).put("bestArt", h.bestArt).put("country", h.country)
+                .put("sub", h.sub).put("addonArt", h.addonArt).put("bestArt", h.bestArt).put("country", h.country).put("badge", h.badge)
                 .put("runtime", h.runtime).put("source", h.source).put("episodeTitle", h.episodeTitle)
                 .put("watchedAt", h.watchedAt).put("upNext", h.upNext))
             val f = file(ctx, name)
@@ -45,7 +45,7 @@ object HeroSnapshot {
                 overview = o.optString("overview"), rating = o.optString("rating"), year = o.optString("year"),
                 genres = g?.let { (0 until it.length()).map { j -> it.optString(j) } }.orEmpty(), platform = o.optString("platform"),
                 progress = o.optDouble("progress", -1.0).toFloat(), sub = o.optString("sub"), addonArt = o.optString("addonArt"),
-                bestArt = o.optString("bestArt"), country = o.optString("country"), runtime = o.optString("runtime"),
+                bestArt = o.optString("bestArt"), country = o.optString("country"), badge = o.optString("badge"), runtime = o.optString("runtime"),
                 source = o.optString("source"), episodeTitle = o.optString("episodeTitle"),
                 watchedAt = o.optLong("watchedAt"), upNext = o.optBoolean("upNext"),
             )

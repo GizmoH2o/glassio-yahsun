@@ -210,10 +210,6 @@ public final class LiveHome {
         /** Its resolution badge (4K, 2K, FHD, HD, SD; LiveMerge.badge), "" when unknown or Resolution badges is off. */
         public String badge = "";
 
-        /** The channel's name with its country in words ("Sky Sports News UK"), where no tag is drawn beside it. */
-        public String channelWithCountry() {
-            return LiveCountry.withCode(channelName, country);
-        }
         public long start, end;
         /** A live broadcast (the guide's mark); a reminder or a recording set for it. */
         public boolean live, remind, record;
@@ -380,8 +376,10 @@ public final class LiveHome {
     public static final class MatchDay {
         /** "FOLLOWING" or the competition ("PREMIER LEAGUE"); the score once it's on (MUN 1–0 BOU · 63'), else the match. */
         public String label = "", headline = "";
-        /** LIVE (or the kick-off time) and the channel. */
+        /** LIVE (or the kick-off time) and the channel, without its country (that's [country], drawn as a tag). */
         public String where = "";
+        /** The channel's country tag ("" with the tags off or none known). */
+        public String country = "";
         public boolean live;
         public int channel;
         /** When it starts (wall clock), and the same key while it's the same match (the home screen's kick-off alert). */
@@ -422,7 +420,8 @@ public final class LiveHome {
                     out.label = label;
                     out.tag = tag;
                     out.headline = s.line();
-                    out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + (ch.num > 0 ? ch.num + "  " : "") + LiveCountry.named(app, ch);
+                    out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + (ch.num > 0 ? ch.num + "  " : "") + shownName(app, ch);
+                    out.country = countryOf(app, ch);
                     out.live = true;
                     out.channel = ch.id;
                     out.key = s.event + ":" + s.homeScore + ":" + s.awayScore;
@@ -444,7 +443,8 @@ public final class LiveHome {
             out.label = "HAR";
             out.tag = "GOAL";
             out.headline = "HAR 1–0 NOR  ·  63'";
-            out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + ch.num + "  " + LiveCountry.named(c, ch);
+            out.where = Ui.tr("AO VIVO", "LIVE") + "  ·  " + ch.num + "  " + shownName(c, ch);
+            out.country = countryOf(c, ch);
             out.live = true;
             out.channel = ch.id;
             out.key = "test";
@@ -466,7 +466,8 @@ public final class LiveHome {
         String comp = competition(m.title);
         out.label = (comp.isEmpty() ? "Following" : comp).toUpperCase(Locale.US);
         out.headline = LiveMatchDay.headline(m, LiveMatchDay.score(c, m));
-        out.where = LiveMatchDay.where(c, m, now);
+        out.where = (now >= m.start ? Ui.tr("AO VIVO", "LIVE") : Ui.time(m.start)) + "  ·  " + (m.ch.num > 0 ? m.ch.num + "  " : "") + shownName(c, m.ch);
+        out.country = countryOf(c, m.ch);
         out.live = now >= m.start;
         out.channel = m.ch.id;
         out.start = m.start;
@@ -847,6 +848,8 @@ public final class LiveHome {
         public String key = "", title = "", sub = "", art = "", logo = "", recording = "";
         /** The channel's country tag ("" with the tags off or none known). */
         public String country = "";
+        /** The channel's resolution badge (4K, 2K, FHD, HD, SD), "" when unknown or Resolution badges is off. */
+        public String badge = "";
         /** How far into the show (0 to 1), -1: none. */
         public float progress = -1;
     }
@@ -875,6 +878,7 @@ public final class LiveHome {
             k.title = LiveMatchDay.headline(m, LiveMatchDay.score(c, m));
             k.sub = "Following  ·  " + channelLine(c, m.ch);
             k.country = countryOf(c, m.ch);
+            k.badge = cardBadge(c, m.ch);
             k.logo = logoOf(c, m.ch);
             k.art = LiveArt.of(c, onNow(c, m.ch, now), null);
             k.progress = progress(m.start, m.end, now);
@@ -891,6 +895,7 @@ public final class LiveHome {
             k.title = p != null && !p.title.isEmpty() ? p.title : shownName(c, ch);
             k.sub = channelLine(c, ch);
             k.country = countryOf(c, ch);
+            k.badge = cardBadge(c, ch);
             k.logo = logoOf(c, ch);
             k.art = LiveArt.of(c, p, null);
             if (p != null) k.progress = progress(p.start, p.end, now);
@@ -910,6 +915,7 @@ public final class LiveHome {
             k.title = e.program.title.isEmpty() ? shownName(c, ch) : e.program.title;
             k.sub = "Catch-up  ·  " + shownName(c, ch) + "  ·  " + day(e.program.start, now);
             k.country = countryOf(c, ch);
+            k.badge = cardBadge(c, ch);
             k.logo = logoOf(c, ch);
             k.art = LiveArt.of(c, e.program, null);
             if (e.length > 0) k.progress = Math.min(1f, (float) e.position / e.length);
@@ -939,6 +945,7 @@ public final class LiveHome {
             k.title = p.title.isEmpty() ? shownName(c, r.ch) : p.title;
             k.sub = "Recorded  ·  " + shownName(c, r.ch) + "  ·  " + day(r.start, now);
             k.country = countryOf(c, r.ch);
+            k.badge = cardBadge(c, r.ch);
             k.logo = logoOf(c, r.ch);
             k.art = LiveArt.of(c, p, null);
             out.add(k);
@@ -1089,6 +1096,11 @@ public final class LiveHome {
             }
             return miniLineup;
         }
+    }
+
+    /** A home card's badge: `ch`'s resolution, "" with Resolution badges off. */
+    private static String cardBadge(Context c, Xtream.Channel ch) {
+        return LiveOptions.resolutionBadges(c) ? badgeOf(c, ch) : "";
     }
 
     /** `ch`'s resolution badge as Live TV shows it: the merged channel's (its best source), not one source's as it was kept. */

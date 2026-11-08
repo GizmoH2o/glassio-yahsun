@@ -1686,18 +1686,60 @@ final class LiveView extends View {
     private boolean badgesRead, badgesOn;
     private long badgesAt;
 
-    /** Settings › Channels › Resolution badges: 4K, 2K, FHD, HD or SD at the top right of `box` (big enough logos only). */
-    private void drawBadge(Canvas c, Xtream.Channel channel, RectF box, float alpha) {
+    /** The logo alone, no resolution badge on it: where the badge goes on the text line instead (the player's info bar). */
+    void drawLogoBare(Canvas c, Xtream.Channel channel, RectF box, float alpha, boolean onLight, boolean left) {
+        drawLogoOnly(c, channel, box, alpha, onLight, left);
+    }
+
+    /** The channel's resolution badge text, "" when unknown or Resolution badges is off. */
+    String badgeOf(Xtream.Channel channel) {
         long now = android.os.SystemClock.uptimeMillis();
         if (!badgesRead || now - badgesAt > 2000) { badgesOn = LiveOptions.resolutionBadges(getContext()); badgesRead = true; badgesAt = now; }
-        if (!badgesOn || box.height() < 44 * k || box.width() < 70 * k) return;
-        String t = LiveMerge.badge(getContext(), channel);
+        return badgesOn && channel != null ? LiveMerge.badge(getContext(), channel) : "";
+    }
+
+    /** Settings › Channels › Resolution badges: 4K, 2K, FHD, HD or SD at the top right of `box` (big enough logos only). */
+    private void drawBadge(Canvas c, Xtream.Channel channel, RectF box, float alpha) {
+        if (box.height() < 44 * k || box.width() < 70 * k) return;
+        String t = badgeOf(channel);
         if (t.isEmpty()) return;
         badgeText.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
         badgeText.setTextSize(Math.max(13 * k, Math.min(17 * k, box.height() * 0.2f)));
         float tw = badgeText.measureText(t), ph = badgeText.getTextSize() * 1.25f, pw = tw + ph * 0.6f;
         float inset = 4 * k;
         badgeBox.set(box.right - inset - pw, box.top + inset, box.right - inset, box.top + inset + ph);
+        paintBadge(c, t, tw, alpha);
+    }
+
+    /** How wide the inline badge is for `t` beside a line in `text` (0: none), with the gap before it. */
+    float badgeWidth(String t, Paint text) {
+        if (t == null || t.isEmpty()) return 0;
+        inlineBadgeText(text);
+        return badgeText.measureText(t) + inlineBadgeHeight(text) * 0.6f + 12 * k;
+    }
+
+    /** The badge as a pill on a text line (the country tag's height), at x on baseline y; returns where it ends. */
+    float drawBadgeInline(Canvas c, String t, float x, float baseline, Paint text) {
+        if (t == null || t.isEmpty()) return x;
+        inlineBadgeText(text);
+        float ph = inlineBadgeHeight(text), tw = badgeText.measureText(t), pw = tw + ph * 0.6f;
+        float mid = baseline - Ui.halfCap(text);
+        badgeBox.set(x, mid - ph / 2, x + pw, mid + ph / 2);
+        paintBadge(c, t, tw, 1);
+        return badgeBox.right;
+    }
+
+    private void inlineBadgeText(Paint text) {
+        badgeText.setTypeface(android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD));
+        badgeText.setTextSize(text.getTextSize() * 0.6f);
+    }
+
+    private float inlineBadgeHeight(Paint text) {
+        return Math.max(text.getTextSize() * 0.9f, 20 * k);
+    }
+
+    /** The badge's pill in `badgeBox`: 4K and 2K gold, FHD white, the rest dark. */
+    private void paintBadge(Canvas c, String t, float tw, float alpha) {
         int bg = "4K".equals(t) || "2K".equals(t) ? 0xFFE8B84A : "FHD".equals(t) ? 0xFFF5F5F7 : 0xD91C1C1E;
         fill.setShader(null);
         fill.setColor(Ui.alpha(bg, alpha));

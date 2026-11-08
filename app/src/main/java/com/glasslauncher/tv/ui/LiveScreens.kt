@@ -754,7 +754,7 @@ private fun LiveHero(a: LiveHome.Airing?, s: Float, rev: Int, first: FocusReques
 
 /** The channel's resolution (Live TV › Settings › Channels › Resolution badges): 4K and 2K gold, FHD white, the rest dark. */
 @Composable
-private fun ResBadge(t: String, s: Float, modifier: Modifier) {
+internal fun ResBadge(t: String, s: Float, modifier: Modifier) {
     val (bg, fg) = when (t) {
         "4K", "2K" -> Color(0xFFE8B84A) to Color(0xFF1C1C1E)
         "FHD" -> Color(0xFFF5F5F7) to Color(0xFF1C1C1E)

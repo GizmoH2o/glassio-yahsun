@@ -231,7 +231,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     DsHeading("On TV", s)
                     LazyRow(state = showRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                         itemsIndexed(shows, key = { _, a -> a.key() }) { i, a ->
-                            TextCard(a.title, LiveHome.whenLine(a) + "  ·  " + a.channelWithCountry(), s, showRow.of(i).nav(up = above(showRow), down = below(showRow), left = if (i == 0) keyFocus else null, right = edge(i == shows.lastIndex))) {
+                            TextCard(a.title, LiveHome.whenLine(a) + "  ·  " + a.channelName, s, showRow.of(i).nav(up = above(showRow), down = below(showRow), left = if (i == 0) keyFocus else null, right = edge(i == shows.lastIndex)), subTag = a.country) {
                                 if (a.onNow(System.currentTimeMillis())) ctx.startActivity(LiveHome.open(ctx, a.channel, false))
                                 else scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(ctx, a, true) }) }
                             }
@@ -243,7 +243,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     DsHeading("Your recordings", s)
                     LazyRow(state = recordRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                         itemsIndexed(recordings, key = { _, a -> a.recording }) { i, a ->
-                            TextCard(a.title, a.channelWithCountry(), s, recordRow.of(i).nav(up = above(recordRow), down = below(recordRow), left = if (i == 0) keyFocus else null, right = edge(i == recordings.lastIndex))) {
+                            TextCard(a.title, a.channelName, s, recordRow.of(i).nav(up = above(recordRow), down = below(recordRow), left = if (i == 0) keyFocus else null, right = edge(i == recordings.lastIndex)), subTag = a.country) {
                                 ctx.startActivity(LiveHome.openRecording(ctx, a.recording))
                             }
                         }
@@ -308,12 +308,14 @@ private fun Key(label: String, s: Float, lastKey: MutableState<String>, keyFocus
 
 @Composable
 private fun ChannelCard(a: LiveHome.Airing, s: Float, modifier: Modifier, onClick: () -> Unit) {
-    TextCard((if (a.number > 0) "${a.number}  " else "") + a.channelWithCountry(), a.title, s, modifier, onClick)
+    TextCard((if (a.number > 0) "${a.number}  " else "") + a.channelName, a.title, s, modifier, titleTag = a.country, onClick = onClick)
 }
 
 /** A plain card of text (a channel, an app). */
 @Composable
-internal fun TextCard(title: String, sub: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
+internal fun TextCard(title: String, sub: String, s: Float, modifier: Modifier,
+    /** A Live TV channel's country, as its tag after the title's line or the sub line ("" none), as everywhere else. */
+    titleTag: String = "", subTag: String = "", onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Column(
         modifier.width((150 * s).dp)
@@ -323,7 +325,15 @@ internal fun TextCard(title: String, sub: String, s: Float, modifier: Modifier, 
             .background(if (focused) Color.White else Ds.Surface)
             .padding(horizontal = (9 * s).dp, vertical = (7 * s).dp),
     ) {
-        Text(title, color = if (focused) Ds.Ink else Color.White, fontSize = (9.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(sub.ifBlank { " " }, color = if (focused) Ds.InkSoft else Text2, fontSize = (8 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = if (focused) Ds.Ink else Color.White, fontSize = (9.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false))
+            if (titleTag.isNotEmpty()) { Spacer(Modifier.width((4 * s).dp)); CountryTag(titleTag, s * 0.85f, onLight = focused) }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(sub.ifBlank { " " }, color = if (focused) Ds.InkSoft else Text2, fontSize = (8 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false))
+            if (subTag.isNotEmpty()) { Spacer(Modifier.width((4 * s).dp)); CountryTag(subTag, s * 0.85f, onLight = focused) }
+        }
     }
 }

@@ -47,7 +47,7 @@ object LiveCards {
                     else -> TYPE_CHANNEL
                 },
                 name = k.title, poster = "", background = k.art, logo = k.logo, overview = "", rating = "", year = "",
-                genres = emptyList(), platform = PLATFORM, progress = k.progress, sub = k.sub, country = k.country, watchedAt = k.at,
+                genres = emptyList(), platform = PLATFORM, progress = k.progress, sub = k.sub, country = k.country, badge = k.badge, watchedAt = k.at,
             )
         }
         if (list != _items.value) _items.value = list

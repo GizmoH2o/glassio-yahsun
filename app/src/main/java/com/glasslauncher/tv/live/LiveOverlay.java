@@ -696,9 +696,10 @@ final class LiveOverlay {
     /** The channel at the top left, the clock and what's going on (recording, the sleep timer) at the top right. */
     private void drawTop(Canvas c, Xtream.Channel ch, long now) {
         box.set(X * k, 44 * k, (X + 124) * k, 106 * k);
-        view.drawLogo(c, ch, box, 1, false, true);
+        // The resolution badge goes after the name and country, not on the logo (it covered part of it).
+        view.drawLogoBare(c, ch, box, 1, false, true);
         String line = (ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch);
-        drawNameAndTag(c, line, view.tagOf(ch), (X + 144) * k, 86 * k, 900 * k);
+        drawNameAndTag(c, line, view.tagOf(ch), view.badgeOf(ch), (X + 144) * k, 86 * k, 900 * k);
         c.drawText(Ui.time(now), (1920 - X) * k, 92 * k, clockPaint);
         float end = (1920 - X) * k - clockPaint.measureText(Ui.time(now)) - 26 * k;
         if (view.recordingNow()) {
@@ -779,9 +780,9 @@ final class LiveOverlay {
         String show = shown == null ? "" : shown.title;
         String note = shown == null ? "" : past ? Ui.tr("REPRISE", "CATCH-UP")
                 : LiveView.minutesLeft((int) Math.max(1, Math.round((shown.end - now) / 60_000.0)));
-        String briefTag = view.tagOf(ch);
+        String briefTag = view.tagOf(ch), briefBadge = view.badgeOf(ch);
         LiveCountry.label(meta, tagLabel);
-        float nameW = meta.measureText(name) + LiveCountry.tagWidth(briefTag, meta, tagLabel, k);
+        float nameW = meta.measureText(name) + LiveCountry.tagWidth(briefTag, meta, tagLabel, k) + view.badgeWidth(briefBadge, meta);
         float textW = Math.min(760 * k, Math.max(Math.max(nameW, meta.measureText(show)), small.measureText(note)));
         r.set(left, top, textX + textW + 36 * k, top + ht);
         float rr = LiveTheme.panelRound(24 * k);
@@ -795,12 +796,12 @@ final class LiveOverlay {
             c.drawRoundRect(r, rr, rr, stroke);
         }
         box.set(left + 22 * k, top + 26 * k, left + 182 * k, top + 102 * k);
-        view.drawLogo(c, ch, box, 1);
+        view.drawLogoBare(c, ch, box, 1, false, false);
         if (show.isEmpty()) {       // no guide: the channel alone, in the middle
-            drawNameAndTag(c, name, briefTag, textX, top + ht / 2 + Ui.halfCap(meta), textW);
+            drawNameAndTag(c, name, briefTag, briefBadge, textX, top + ht / 2 + Ui.halfCap(meta), textW);
             return;
         }
-        drawNameAndTag(c, name, briefTag, textX, top + 42 * k, textW);
+        drawNameAndTag(c, name, briefTag, briefBadge, textX, top + 42 * k, textW);
         c.drawText(ellipsize(show, meta, textW), textX, top + 80 * k, meta);
         c.drawText(ellipsize(note, small, textW), textX, top + 112 * k, small);
     }
@@ -1078,12 +1079,18 @@ final class LiveOverlay {
 
     /** The channel's line, then its country tag (LiveCountry); returns where it ends. */
     private float drawNameAndTag(Canvas c, String line, String tag, float x, float y, float room) {
+        return drawNameAndTag(c, line, tag, "", x, y, room);
+    }
+
+    /** As above, then its resolution badge (`badge`, "" none) after the tag. */
+    private float drawNameAndTag(Canvas c, String line, String tag, String badge, float x, float y, float room) {
         LiveCountry.label(meta, tagLabel);
-        float tagW = LiveCountry.tagWidth(tag, meta, tagLabel, k);
+        float tagW = LiveCountry.tagWidth(tag, meta, tagLabel, k) + view.badgeWidth(badge, meta);
         String t = ellipsize(line, meta, Math.max(1, room - tagW));
         c.drawText(t, x, y, meta);
         float end = x + meta.measureText(t);
-        return tag.isEmpty() ? end : LiveCountry.drawTag(c, tag, end + 12 * k, y, meta, tagLabel, k);
+        if (!tag.isEmpty()) end = LiveCountry.drawTag(c, tag, end + 12 * k, y, meta, tagLabel, k);
+        return badge == null || badge.isEmpty() ? end : view.drawBadgeInline(c, badge, end + 12 * k, y, meta);
     }
 
     private float drawPill(Canvas c, String text, float x, float baseline, int color, boolean big) {

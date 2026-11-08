@@ -60,6 +60,7 @@ fun MatchTicker(app: GlassApp, s: Float, modifier: Modifier) {
     val label = test?.get(0) ?: real?.label
     val line = test?.get(1) ?: real?.headline
     val where = test?.get(2) ?: real?.where?.substringAfter("·")?.trim()
+    val country = if (test != null) "" else real?.country.orEmpty()
     val still = LocalReduceMotion.current
     AnimatedVisibility(line != null, modifier, enter = if (still) fadeIn() else fadeIn() + slideInVertically { it }, exit = if (still) fadeOut() else fadeOut() + slideOutVertically { it }) {
         Row(
@@ -84,6 +85,7 @@ fun MatchTicker(app: GlassApp, s: Float, modifier: Modifier) {
                 Spacer(Modifier.width((6 * s).dp))
                 Text(where, color = Color.White.copy(alpha = 0.7f), fontSize = (7.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = (64 * s).dp))
+                if (country.isNotEmpty()) { Spacer(Modifier.width((4 * s).dp)); CountryTag(country, s * 0.85f) }
             }
         }
     }

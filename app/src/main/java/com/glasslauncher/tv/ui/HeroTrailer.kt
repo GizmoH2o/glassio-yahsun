@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
@@ -185,17 +187,72 @@ fun TrailerPlayer(ids: String, onClose: () -> Unit) {
 }
 
 /**
- * A trailer in an opened poster card's picture (Settings › Home › Trailer in the open card): muted, its own size, seen
- * through the web view's hole like the big picture's; the card's picture over it fades once it plays.
+ * A trailer in an opened poster card's picture (Settings › Home › Trailer in the open card): muted, in a small window of
+ * its own laid over the picture ([modifier]'s place), [insetPx] inside it (the card's focus outline stays seen), its fade
+ * into [fadeColor] at the bottom; it fades in once it plays.
+ *
+ * Its own plain window, not part of the page: there, through the card's rounded clip and layers, the web view drew every
+ * video frame itself and the whole home screen with it (a TV managed 9 to 17 frames a second of a 24 one, and dropped a
+ * fifth). In a rectangle of its own, unclipped, the TV's video hardware shows it (the web view's overlay): every frame,
+ * nothing redrawn. Its corners are square for that: a rounded clip puts it back on the slow path.
  */
 @Composable
-fun CardTrailer(ids: String, modifier: Modifier, onPlaying: () -> Unit, onEnded: () -> Unit) {
+fun CardTrailer(ids: String, modifier: Modifier, insetPx: Int, fadeColor: Int, onPlaying: () -> Unit, onEnded: () -> Unit) {
+    val host = androidx.compose.ui.platform.LocalView.current
+    val playing = androidx.compose.runtime.rememberUpdatedState(onPlaying)
+    val ended = androidx.compose.runtime.rememberUpdatedState(onEnded)
     key(ids) {
-        AndroidView(
-            factory = { ctx -> trailerView(ctx, ids, muted = true, onPlaying, onWaiting = {}, onEnded = onEnded) },
-            onRelease = { releaseTrailer(it) },
-            modifier = modifier,
-        )
+        val w = androidx.compose.runtime.remember { CardTrailerWindow(host, ids, insetPx, fadeColor, { playing.value() }, { ended.value() }) }
+        androidx.compose.runtime.DisposableEffect(Unit) { onDispose { w.close() } }
+        Box(modifier.onGloballyPositioned { w.place(it.boundsInRoot()) })
+    }
+}
+
+/** The card trailer's window: the web view, the fade at its bottom, at the card picture's place. */
+private class CardTrailerWindow(private val host: android.view.View, ids: String, private val inset: Int, fadeColor: Int,
+    onPlaying: () -> Unit, onEnded: () -> Unit) {
+    private val ctx = host.context
+    // Unseen until it plays (the web view is black while it loads), then faded in.
+    private val frame = android.widget.FrameLayout(ctx).apply { alpha = 0f }
+    private val web = trailerView(ctx, ids, muted = true, onPlaying = {
+        frame.animate().alpha(1f).setDuration(500).start()
+        onPlaying()
+    }, onWaiting = {}, onEnded = onEnded)
+    private val popup: android.widget.PopupWindow
+    private var closed = false
+
+    init {
+        val match = android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+        frame.addView(web, android.widget.FrameLayout.LayoutParams(match, match))
+        // The picture's own fade into the card below it, over the video as over the picture.
+        frame.addView(android.view.View(ctx).apply {
+            background = android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0, 0, fadeColor))
+        }, android.widget.FrameLayout.LayoutParams(match, match))
+        popup = android.widget.PopupWindow(frame, 1, 1, false).apply {
+            isTouchable = false; isFocusable = false; isOutsideTouchable = false
+            isClippingEnabled = false; animationStyle = 0
+            setBackgroundDrawable(null)
+        }
+    }
+
+    fun place(r: androidx.compose.ui.geometry.Rect) {
+        if (closed || r.width < 2 || r.height < 2 || !host.isAttachedToWindow) return
+        val loc = IntArray(2).also { host.getLocationOnScreen(it) }
+        // Inside the card's outline at the top and sides; its bottom meets the details.
+        val x = loc[0] + r.left.toInt() + inset; val y = loc[1] + r.top.toInt() + inset
+        val w = r.width.toInt() - 2 * inset; val h = r.height.toInt() - inset
+        if (!popup.isShowing) {
+            popup.width = w; popup.height = h
+            popup.showAtLocation(host, android.view.Gravity.TOP or android.view.Gravity.START, x, y)
+        } else popup.update(x, y, w, h)
+    }
+
+    fun close() {
+        if (closed) return
+        closed = true
+        runCatching { popup.dismiss() }
+        releaseTrailer(web)
     }
 }
 

@@ -91,7 +91,8 @@ class GlassDreamService : DreamService() {
                 if (m == null) { box.visibility = android.view.View.GONE; return@post }
                 matchLines[0]?.text = m.label
                 matchLines[1]?.text = m.headline
-                matchLines[2]?.text = m.where
+                // Plain text here (no tags in this view): the country after the channel, in words.
+                matchLines[2]?.text = if (m.country.isEmpty()) m.where else m.where + "  " + m.country
                 box.visibility = android.view.View.VISIBLE
             }
         }

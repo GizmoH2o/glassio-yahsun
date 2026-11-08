@@ -41,6 +41,8 @@ data class HeroItem(
     val bestArt: String = "",
     /** A Live TV card's channel country (US, UK…): its tag beside the line under the card; "" for the others. */
     val country: String = "",
+    /** A Live TV card's channel resolution (4K, 2K, FHD, HD, SD): its badge at the picture's top right; "" for the others. */
+    val badge: String = "",
     /** How long it runs ("2h 6m", "52 min"); "" when not known. */
     val runtime: String = "",
     /**

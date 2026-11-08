@@ -209,6 +209,7 @@ private fun MatchCard(m: com.glasslauncher.tv.live.LiveHome.MatchDay) {
             }
             // "LIVE  ·  574 MUTV": the pill says LIVE already.
             Text(if (m.live) m.where.substringAfter("·").trim() else m.where, color = Color(0xFFB3B3B8), fontSize = 12.sp, maxLines = 1)
+            if (m.country.isNotEmpty()) { androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp)); com.glasslauncher.tv.ui.CountryTag(m.country, 1.7f) }
         }
     }
 }

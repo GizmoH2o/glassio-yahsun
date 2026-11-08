@@ -77,6 +77,7 @@ import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -778,14 +779,9 @@ private fun HeroText(
     // High contrast: a solid panel behind the words, whatever the picture is.
     val backing = if (LocalHighContrast.current) Modifier.clip(RoundedCornerShape((Ds.R_PANEL * s).dp)).background(Color.Black.copy(alpha = 0.78f)).padding((8 * s).dp) else Modifier
     Column(modifier.padding(start = (EDGE * s).dp, bottom = (6 * s).dp).width(((if (LocalHighContrast.current) 380 else 330) * s).dp).then(backing)) {
-        AnimatedContent(
-            targetState = item, contentKey = { it.key },
-            transitionSpec = {
-                if (steps) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
-                else fadeIn(tween(settings.transitionMs)) togetherWith fadeOut(tween((settings.transitionMs * 0.4f).toInt()))
-            },
-            label = "heroText",
-        ) { it ->
+        // In steps or Quick the page fades the words itself: only the current title's are drawn (an AnimatedContent with
+        // no transition kept the old ones a frame longer, and a busy start-up left both on screen). All at once: they fade.
+        val words: @Composable (HeroItem) -> Unit = { it ->
             Column {
                 // A small kind line over the logo ("SERIES", "FILM"), why it's here beside it, then the logo.
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -820,6 +816,12 @@ private fun HeroText(
                 }
             }
         }
+        if (steps) androidx.compose.runtime.key(item.key) { words(item) }
+        else AnimatedContent(
+            targetState = item, contentKey = { it.key },
+            transitionSpec = { fadeIn(tween(settings.transitionMs)) togetherWith fadeOut(tween((settings.transitionMs * 0.4f).toInt())) },
+            label = "heroText",
+        ) { words(it) }
         Spacer(Modifier.height((12 * s).dp))
         // Where else it's on: its page in Netflix, Prime Video, Disney+ or Apple TV, when this TV has the app.
         val ctx = LocalContext.current
@@ -1112,6 +1114,8 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
         }
         if (newer > 0) Text("+$newer", color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.align(Alignment.TopEnd).padding((6 * s).dp).clip(RoundedCornerShape((3 * s).dp)).background(RED).padding(horizontal = (4 * s).dp, vertical = (0.5f * s).dp))
+        // A Live TV channel's resolution (Live TV › Settings › Channels › Resolution badges), as on Live TV's own cards.
+        else if (live && item.badge.isNotEmpty()) ResBadge(item.badge, s, Modifier.align(Alignment.TopEnd).padding((6 * s).dp))
         // The title: its logo, else its name.
         if (!logoOnly) {
             if (item.logo.isNotBlank()) AsyncImage(remember(item.logo) { req(ctx, item.logo, 300, 100) }, item.name, contentScale = ContentScale.Fit, alignment = Alignment.BottomStart,
@@ -1199,7 +1203,7 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         modifier.width(w).height(h)
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .tvPress(onLong = onHold, onKey = backKey(), onClick = onOpen)
-            .cardFocus(s, focused, 5f, if (trailerIds != null) 1f else if (open) 1.03f else 1.06f)
+            .cardFocus(s, focused, 5f, if (open) 1.03f else 1.06f)
             .background(cardBg),
     ) {
         // Its wide picture loads (unseen) as soon as it's selected: the poster fades into it once it's there, never into an empty card.
@@ -1222,7 +1226,8 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         if (focused || picA > 0.01f) Box(Modifier.fillMaxWidth().height((POSTER_W * OPEN_W * 9 / 16 * s).dp).clipToBounds().graphicsLayer { alpha = picA }) {
             val pic = item.background.ifBlank { item.poster }
             trailerIds?.let { ids ->
-                CardTrailer(ids, Modifier.fillMaxSize(), onPlaying = { trailerPlaying = true }, onEnded = { trailerIds = null; trailerPlaying = false })
+                CardTrailer(ids, Modifier.fillMaxSize(), insetPx = kotlin.math.ceil(1.8f * s * LocalDensity.current.density).toInt(), fadeColor = cardBg.toArgb(),
+                    onPlaying = { trailerPlaying = true }, onEnded = { trailerIds = null; trailerPlaying = false })
             }
             val trailerShown by animateFloatAsState(if (trailerPlaying) 1f else 0f, tween(500), label = "cardTrailer")
             AsyncImage(remember(pic) { req(ctx, pic, 480, 270) }, null, contentScale = ContentScale.Crop, onSuccess = { picReady = true }, onError = { picReady = true },

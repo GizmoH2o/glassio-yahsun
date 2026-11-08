@@ -90,8 +90,11 @@ fun KickOffCard() {
             Spacer(Modifier.height((6 * s).dp))
             Text(m.headline, color = Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 2,
                 overflow = TextOverflow.Ellipsis)
-            if (m.where.isNotBlank()) Text(m.where, color = AppleSecondary, fontSize = (9 * s).sp, maxLines = 1,
-                overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = (2 * s).dp))
+            if (m.where.isNotBlank()) Row(Modifier.padding(top = (2 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(m.where, color = AppleSecondary, fontSize = (9 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false))
+                if (m.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(m.country, s) }
+            }
             Spacer(Modifier.height((9 * s).dp))
             Row(horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                 KickButton("Watch", s, Modifier.focusRequester(watch)) {
