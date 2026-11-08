@@ -293,6 +293,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     // The slide's picture, its glass copies and the switch to them. The picture's address is collected here instead
     // of being a key of this effect: read as a key, every slide recomposed this whole screen. A new address still
     // cancels the work for the old one (collectLatest), as restarting the effect did.
+    // The screen now, for the picture's long-running effect below: its keys don't include the screen, so read directly
+    // there it kept the value from when the effect started.
+    val screenNow = androidx.compose.runtime.rememberUpdatedState(screen)
     LaunchedEffect(settings.backdropTint, settings.highContrast, settings.blurRadius, settings.glassRes, settings.slideAnim, settings.pageScale, settings.memTier, settings.bgMode, settings.bgImage, settings.bgVideo, CustomBackground.aerial.value, CustomBackground.frameRev.intValue) {
         androidx.compose.runtime.snapshotFlow { backdropS.value }.collectLatest { backdrop ->
             GlassCache.res = settings.glassRes
@@ -343,8 +346,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             if (fullBmp == null) return@collectLatest
             val first = backImgs == null
-            // Changing title Quick (Settings › Home): the big picture's crossfade takes 400 ms, as on the streaming apps.
-            fadeMs = if (app.browsing()) 260 else if (settings.heroChange == "quick" && screen == Screen.Home) 400 else settings.transitionMs
+            // Changing title Quick (Settings › Home): the big picture's crossfade as on the streaming apps (measured from a
+            // recording): 850 ms, a quick start that settles slowly.
+            val quickChange = !app.browsing() && settings.heroChange == "quick" && screenNow.value == Screen.Home
+            fadeMs = if (app.browsing()) 260 else if (quickChange) QUICK_CROSSFADE_MS else settings.transitionMs
             val dm = ctx.resources.displayMetrics
             val src = fullBmp
             // Slide: the side shade must stay put while pictures move, so it is drawn on top instead of baked in.
@@ -367,14 +372,17 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             shownBackdrop = baked
             pageTint.value = tint
             shownUrl.value = u
+            val fadeFrom = android.os.SystemClock.uptimeMillis()
             try {
                 if (first || next == null) mix.snapTo(1f)
-                else mix.animateTo(1f, tween(fadeMs, easing = when {
-                    slideDir == 0 -> androidx.compose.animation.core.LinearEasing
+                // Quick: at its own speed (HomeMotion), whatever the TV's animation speed, unless Follow the TV's is on.
+                else atOwnSpeed(!quickChange || settings.homeTvSpeed) { mix.animateTo(1f, tween(fadeMs, easing = when {
+                    slideDir == 0 -> if (quickChange) FastOutSlowInEasing else androidx.compose.animation.core.LinearEasing
                     // Apple TV: a quick start that settles slowly.
                     settings.slideAnim == "apple" -> androidx.compose.animation.core.CubicBezierEasing(0.22f, 0.0f, 0.0f, 1.0f)
                     else -> FastOutSlowInEasing
-                }))
+                })) }
+                if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Crossfade ${if (quickChange) "quick" else "plain"} $fadeMs ms, took ${android.os.SystemClock.uptimeMillis() - fadeFrom} ms")
             } finally {
                 // Also when this fade is cut short by the next slide: never leave the glass half faded with the
                 // old layer underneath (every glass surface would then be drawn twice, translucent, on every frame).
@@ -502,8 +510,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             val motionOff = LocalReduceMotion.current
             val onHome = screen == Screen.Home
             if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade",
-                settle = onHome && !motionOff && settings.heroChange == "quick",
-                slowZoom = onHome && !motionOff && settings.slowZoom in setOf("hero", "both"),
+                slowZoom = !motionOff && settings.slowZoom in setOf("hero", "both"),
                 lift = { if (onHome && settings.heroScroll == "away") pageOffset.floatValue else 0f }) {
                 if (trailerDrawn) 1f - trailerShown.value else 1f
             }
@@ -839,9 +846,7 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
 private fun PageBackdrop(
     prev: androidx.compose.runtime.State<ImageBitmap?>, cur: androidx.compose.runtime.State<ImageBitmap?>,
     dir: androidx.compose.runtime.State<Int>, mix: androidx.compose.animation.core.Animatable<Float, *>, anim: String,
-    /** The new picture settles from a touch larger as it fades in (Changing title Quick). */
-    settle: Boolean = false,
-    /** Resting on a picture, it slowly zooms in (Settings › Home › Slow zoom). */
+    /** Each picture slowly zooms in from the moment it comes in (Settings › Home › Slow zoom). */
     slowZoom: Boolean = false,
     /** How far up the page has gone, px: the picture goes up with it (0: it stays). */
     lift: () -> Float = { 0f },
@@ -849,7 +854,7 @@ private fun PageBackdrop(
 ) {
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity(); translationY = -lift() }) {
         if (anim != "fade") SlideBackdrop(prev.value, cur.value, mix, dir.value, if (anim == "apple") SLIDE_APPLE else SLIDE_PUSH)
-        else FadeBackdrop(prev.value, cur.value, mix, settle, slowZoom)
+        else FadeBackdrop(prev.value, cur.value, mix, slowZoom)
     }
 }
 
@@ -860,39 +865,54 @@ private fun PageBackdrop(
  */
 @Composable
 private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>,
-    settle: Boolean = false, slowZoom: Boolean = false) {
-    // The slow zoom: once the picture is in, it grows a little over a few seconds and stays there. The old picture
-    // keeps the size it had reached while the new one fades in over it.
-    val zoom = remember { androidx.compose.animation.core.Animatable(1f) }
-    val prevZoom = remember(cur) { zoom.value }
+    slowZoom: Boolean = false) {
+    // The slow zoom, as on the streaming apps (measured from a recording): each picture grows at a steady pace from the
+    // moment it comes in, towards a point right of its middle, and the old one keeps growing while the new one fades in
+    // over it. When each came in (uptime ms): [0] the shown one, [1] the one before it.
+    val since = remember { LongArray(2) }
+    remember(cur, slowZoom) { since[1] = since[0]; since[0] = android.os.SystemClock.uptimeMillis(); 0 }
+    // The frame's time, ticking only while a picture is still growing (read while drawing: a redraw, never a recompose).
+    val now = remember { androidx.compose.runtime.mutableLongStateOf(android.os.SystemClock.uptimeMillis()) }
     LaunchedEffect(cur, slowZoom) {
-        zoom.snapTo(1f)
         if (!slowZoom || cur == null) return@LaunchedEffect
-        androidx.compose.runtime.snapshotFlow { mix.value }.first { it >= 1f }
-        zoom.animateTo(SLOW_ZOOM_MAX, tween(SLOW_ZOOM_MS, easing = androidx.compose.animation.core.LinearOutSlowInEasing))
+        while (slowZoomOf(since[0], now.longValue, HERO_ZOOM_PER_S) < SLOW_ZOOM_MAX || mix.value < 1f) {
+            androidx.compose.runtime.withFrameMillis { now.longValue = android.os.SystemClock.uptimeMillis() }
+        }
     }
+    val origin = androidx.compose.ui.graphics.TransformOrigin(HERO_ZOOM_X, HERO_ZOOM_Y)
     // Drawn 1:1 normally; prepared at 2/3 size (Performance) it is scaled up, so it needs filtering (and so does a zoom).
-    val fq = if (slowZoom || settle || (cur ?: prev)?.width?.let { it < 1800 } == true) androidx.compose.ui.graphics.FilterQuality.Low else androidx.compose.ui.graphics.FilterQuality.None
+    val fq = if (slowZoom || (cur ?: prev)?.width?.let { it < 1800 } == true) androidx.compose.ui.graphics.FilterQuality.Low else androidx.compose.ui.graphics.FilterQuality.None
     // The old picture only while the new one fades in: covered by it after that, drawn for nothing (a second full-screen
     // picture every frame, a quarter of a TV graphics chip's time).
     if (prev != null) Image(prev, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
         modifier = Modifier.fillMaxSize().graphicsLayer {
             alpha = if (cur != null && mix.value >= 1f) 0f else 1f
-            if (slowZoom) { scaleX = prevZoom; scaleY = prevZoom }
+            if (slowZoom) { val z = slowZoomOf(since[1], now.longValue, HERO_ZOOM_PER_S); scaleX = z; scaleY = z; transformOrigin = origin }
         })
     if (cur != null) Image(cur, null, contentScale = ContentScale.FillBounds, filterQuality = fq,
         modifier = Modifier.fillMaxSize().graphicsLayer {
             alpha = if (prev != null) mix.value else 1f; compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
-            // Quick title change: the new picture comes in 4% larger and settles as it fades in.
-            val sc = (if (settle && prev != null) 1f + 0.04f * (1f - mix.value) else 1f) * zoom.value
-            scaleX = sc; scaleY = sc
+            if (slowZoom) { val z = slowZoomOf(since[0], now.longValue, HERO_ZOOM_PER_S); scaleX = z; scaleY = z; transformOrigin = origin }
         })
     else if (prev == null) Box(Modifier.fillMaxSize().background(Ds.Bg))
 }
 
-/** Slow zoom (Settings › Home): how far, and over how long. About 2% a second at first, easing to a stop. */
-internal const val SLOW_ZOOM_MAX = 1.08f
-internal const val SLOW_ZOOM_MS = 5000
+/**
+ * Slow zoom (Settings › Home), measured from a streaming app's recording: a steady pace from the moment a picture
+ * comes in, up to [SLOW_ZOOM_MAX]. The big picture 0.47% a second towards 87% across, 46% down; an open card's
+ * picture 1.8% a second towards 60% across, 45% down. Pure.
+ */
+internal fun slowZoomOf(since: Long, now: Long, perSecond: Float): Float =
+    (1f + perSecond * ((now - since).coerceAtLeast(0L) / 1000f)).coerceAtMost(SLOW_ZOOM_MAX)
+internal const val SLOW_ZOOM_MAX = 1.12f
+internal const val HERO_ZOOM_PER_S = 0.0047f
+internal const val HERO_ZOOM_X = 0.87f
+internal const val HERO_ZOOM_Y = 0.46f
+internal const val CARD_ZOOM_PER_S = 0.018f
+internal const val CARD_ZOOM_X = 0.6f
+internal const val CARD_ZOOM_Y = 0.45f
+/** Changing title Quick: the big picture's crossfade (FastOutSlowIn). */
+internal const val QUICK_CROSSFADE_MS = 850
 
 
 // ───────────────────────────── hero / carousel ─────────────────────────────

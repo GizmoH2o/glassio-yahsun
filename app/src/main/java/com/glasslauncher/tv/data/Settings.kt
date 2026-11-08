@@ -305,13 +305,13 @@ class Settings(private val ctx: Context) {
     var recsMode: String get() = s("recsMode", "auto"); set(v) = putS("recsMode", v)
     /** What the big picture shows: "all" (the catalogs' titles, and the recommendations when they're on) | "recs" (the recommendations only). */
     var heroSource: String get() = s("heroSource", "all"); set(v) = putS("heroSource", v)
-    /** How the big picture changes title: "quick" (words out while the picture changes, new words in as it settles:
-     *  half a second, like the streaming apps) | "steps" (words out, the picture changes, then the new words) | "fade" (all at once). */
+    /** How the big picture changes title: "quick" (the words fade out as the picture crossfades, the new ones fade in as
+     *  it ends: under a second, like the streaming apps) | "steps" (words out, the picture changes, then the new words) | "fade" (all at once). */
     var heroChange: String get() = s("heroChange", "quick"); set(v) = putS("heroChange", v)
     /** An open poster card plays its trailer after this many seconds on it; 0: never. */
     var cardTrailerSec: Int get() = i("cardTrailerSec", 0); set(v) = putI("cardTrailerSec", v)
     /** A slow zoom on the still pictures: "off" | "hero" (the big picture) | "cards" (an open poster card) | "both". */
-    var slowZoom: String get() = s("slowZoom", "cards"); set(v) = putS("slowZoom", v)
+    var slowZoom: String get() = s("slowZoom", "both"); set(v) = putS("slowZoom", v)
     /** Going down the page, the big picture: "away" (scrolls up and off with the page) | "stay" (stays and darkens). */
     var heroScroll: String get() = s("heroScroll", "away"); set(v) = putS("heroScroll", v)
     /** How long on a poster before it opens up, in ms. */
@@ -320,6 +320,8 @@ class Settings(private val ctx: Context) {
     var cardOpen: String get() = s("cardOpen", "together"); set(v) = putS("cardOpen", v)
     /** Along a row with a card open, the next one opens straight away (the row stays open). */
     var cardKeepOpen: Boolean get() = b("cardKeepOpen", true); set(v) = putB("cardKeepOpen", v)
+    /** Home's motion measured from a streaming app follows the TV's animation speed (HomeMotion); off: its own timings. */
+    var homeTvSpeed: Boolean get() = b("homeTvSpeed", false); set(v) = putB("homeTvSpeed", v)
     /** The open card's look: "light" (lighter grey, a thin border) | "dark". */
     var cardStyle: String get() = s("cardStyle", "light"); set(v) = putS("cardStyle", v)
     /** The version whose What's new has been shown, and whether the welcome is done. */

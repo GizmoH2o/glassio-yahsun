@@ -197,12 +197,14 @@ fun TrailerPlayer(ids: String, onClose: () -> Unit) {
  * nothing redrawn. Its corners are square for that: a rounded clip puts it back on the slow path.
  */
 @Composable
-fun CardTrailer(ids: String, modifier: Modifier, insetPx: Int, fadeColor: Int, onPlaying: () -> Unit, onEnded: () -> Unit) {
+fun CardTrailer(ids: String, modifier: Modifier, insetPx: Int, fadeColor: Int, onPlaying: () -> Unit, onEnded: () -> Unit,
+    /** Follow the TV's animation speed for its fade (HomeMotion), not its own 300 ms. */
+    followTv: Boolean = false) {
     val host = androidx.compose.ui.platform.LocalView.current
     val playing = androidx.compose.runtime.rememberUpdatedState(onPlaying)
     val ended = androidx.compose.runtime.rememberUpdatedState(onEnded)
     key(ids) {
-        val w = androidx.compose.runtime.remember { CardTrailerWindow(host, ids, insetPx, fadeColor, { playing.value() }, { ended.value() }) }
+        val w = androidx.compose.runtime.remember { CardTrailerWindow(host, ids, insetPx, fadeColor, { playing.value() }, { ended.value() }, followTv) }
         androidx.compose.runtime.DisposableEffect(Unit) { onDispose { w.close() } }
         Box(modifier.onGloballyPositioned { w.place(it.boundsInRoot()) })
     }
@@ -210,12 +212,13 @@ fun CardTrailer(ids: String, modifier: Modifier, insetPx: Int, fadeColor: Int, o
 
 /** The card trailer's window: the web view, the fade at its bottom, at the card picture's place. */
 private class CardTrailerWindow(private val host: android.view.View, ids: String, private val inset: Int, fadeColor: Int,
-    onPlaying: () -> Unit, onEnded: () -> Unit) {
+    onPlaying: () -> Unit, onEnded: () -> Unit, followTv: Boolean) {
     private val ctx = host.context
     // Unseen until it plays (the web view is black while it loads), then faded in.
     private val frame = android.widget.FrameLayout(ctx).apply { alpha = 0f }
     private val web = trailerView(ctx, ids, muted = true, onPlaying = {
-        frame.animate().alpha(1f).setDuration(500).start()
+        // The picture (its title logo with it) gives way to the video in 300 ms, as on the streaming apps.
+        frame.animate().alpha(1f).setDuration(if (followTv) 300 else ownViewDuration(300, tvAnimationScale(ctx))).start()
         onPlaying()
     }, onWaiting = {}, onEnded = onEnded)
     private val popup: android.widget.PopupWindow
