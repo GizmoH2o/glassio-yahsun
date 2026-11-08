@@ -219,6 +219,8 @@ public final class LiveHome {
         public String day = "";
         /** A finished recording's id, for Home's search; "" for anything else. */
         public String recording = "";
+        /** The match it is, on the boards (LiveMatchCards), for a card in its teams' colours; null for none. */
+        public LiveMatchCards.Match match;
         Xtream.Channel ch;
         Xtream.Program p;
 
@@ -1390,6 +1392,33 @@ public final class LiveHome {
             if (!art.isEmpty()) {
                 a.art = art;
                 changed = true;
+            }
+        }
+        return changed;
+    }
+
+    /**
+     * The matches the page's shows are (LiveMatchCards), the boards read when it's time (background thread): true when
+     * a card's match came in or changed.
+     */
+    public static boolean fillMatches(Context c, Page page, List<Airing> sports) {
+        boolean read = LiveMatchCards.refresh(c);
+        boolean changed = false;
+        List<List<Airing>> rows = new ArrayList<>();
+        if (page != null) {
+            rows.add(page.onNow);
+            rows.add(page.recent);
+            rows.add(page.soon);
+        }
+        if (sports != null) rows.add(sports);
+        for (List<Airing> row : rows) {
+            for (Airing a : row) {
+                if (a.match != null && !read) continue;
+                LiveMatchCards.Match m = LiveMatchCards.find(a.title);
+                if (m != a.match) {
+                    a.match = m;
+                    changed = true;
+                }
             }
         }
         return changed;

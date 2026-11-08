@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -153,6 +154,8 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
                     delay(2_500)
                     val sp = sports
                     if (withContext(Dispatchers.IO) { LiveHome.fillArt(app, p) or LiveHome.fillArt(app, sp) }) rev++
+                    // Matches in their teams' colours (Settings › Home › Match cards): the boards, now and then.
+                    if (app.settings.matchCards && withContext(Dispatchers.IO) { runCatching { LiveHome.fillMatches(app, p, sp) }.getOrDefault(false) }) rev++
                 }
             }
             delay(45_000)
@@ -775,8 +778,10 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
     var focused by remember { mutableStateOf(false) }
     Column(Modifier.width((168 * s).dp).onFocusChanged { focused = it.hasFocus }) {
         Focusable(modifier.fillMaxWidth().height((94.5f * s).dp), (6 * s).dp, onClick = onClick) { _ ->
-            val picture = a.art.isNotEmpty()
-            if (picture) Picture(a.art, Modifier.fillMaxSize())
+            val m = a.match?.takeIf { it.drawable() && (LocalContext.current.applicationContext as GlassApp).settings.matchCards }
+            val picture = m == null && a.art.isNotEmpty()
+            if (m != null) MatchArt(m, s, Modifier.fillMaxSize())
+            else if (picture) Picture(a.art, Modifier.fillMaxSize())
             else if (a.logo.isNotEmpty()) Logo(a.logo, Modifier.fillMaxSize().padding(horizontal = (34 * s).dp, vertical = (20 * s).dp))
             else RawText(a.channelName, color = Color.White.copy(alpha = 0.75f), fontSize = (12 * s).sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 2, modifier = Modifier.align(Alignment.Center).padding((10 * s).dp))
@@ -787,6 +792,10 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
             if (picture && a.logo.isNotEmpty()) Logo(a.logo, Modifier.align(Alignment.BottomStart)
                 .padding(start = (8 * s).dp, bottom = (9 * s).dp).size(width = (52 * s).dp, height = (20 * s).dp), Alignment.BottomStart)
             if (a.badge.isNotEmpty()) ResBadge(a.badge, s, Modifier.align(Alignment.TopEnd).padding((6 * s).dp))
+            val pill = m?.pill().orEmpty()
+            if (pill.isNotEmpty()) Text(pill, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (8 * s).dp).clip(RoundedCornerShape(50))
+                    .background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = (7 * s).dp, vertical = (2 * s).dp))
             if (now && a.end > a.start) {
                 val k = ((System.currentTimeMillis() - a.start).toFloat() / (a.end - a.start).coerceAtLeast(1)).coerceIn(0f, 1f)
                 val accent = CW_RED
@@ -806,6 +815,30 @@ private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, mo
             if (a.country.isNotEmpty()) { Spacer(Modifier.width((5 * s).dp)); CountryTag(a.country, s) }
         }
     }
+}
+
+/** A match's card: split on a slant in its teams' colours (home at the left), each crest on its half. */
+@Composable
+private fun MatchArt(m: com.glasslauncher.tv.live.LiveMatchCards.Match, s: Float, modifier: Modifier) {
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = size.width
+            val h = size.height
+            drawRect(Color(m.homeColor))
+            val away = Path().apply { moveTo(w * 0.57f, 0f); lineTo(w, 0f); lineTo(w, h); lineTo(w * 0.43f, h); close() }
+            drawPath(away, Color(m.awayColor))
+            drawRect(Color.Black.copy(alpha = 0.15f))      // a touch darker, so the badges and the pill stay clear
+        }
+        Crest(m.homeLogo, Modifier.align(BiasAlignment(-0.5f, -0.12f)).size((42 * s).dp))
+        Crest(m.awayLogo, Modifier.align(BiasAlignment(0.5f, -0.12f)).size((42 * s).dp))
+    }
+}
+
+@Composable
+private fun Crest(url: String, modifier: Modifier) {
+    val ctx = LocalContext.current
+    val req = remember(url) { ImageRequest.Builder(ctx).data(url).size(200, 200).build() }
+    AsyncImage(req, null, contentScale = ContentScale.Fit, modifier = modifier)
 }
 
 /** The next match: the competition, the teams large, LIVE and the score (or when it starts), the channel. */

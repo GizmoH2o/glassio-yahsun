@@ -1119,6 +1119,7 @@ public class Live extends Activity {
             Xtream.Lineup l = Xtream.saved(app);
             if (l != null) main.post(() -> {
                 show(l);
+                view.guideReplaced();       // the shows kept per channel were its old guide's: read again
                 if (guide && !XmltvStore.running()) updateGuide(true);
             });
         });

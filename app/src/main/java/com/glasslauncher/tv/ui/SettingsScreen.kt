@@ -351,6 +351,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Recommendations", "Trending and popular titles from TMDB. Auto: with no Nuvio or Stremio account signed in",
                     { when (st.recsMode) { "always" -> "Always"; "off" -> "Off"; else -> "Auto" } },
                     { st.recsMode = cycle(listOf("auto", "always", "off"), st.recsMode, it); scope.launch(Dispatchers.IO) { runCatching { app.recs.refresh() } } }),
+                Adjust("Match cards", "Live TV's cards for a match: in its teams' colours with their crests and the score, or the show's picture",
+                    { if (st.matchCards) "Team colours" else "Show picture" },
+                    { st.matchCards = !st.matchCards }),
                 Toggle("Live match ticker", "A team you follow playing now: its score under the tabs", { st.homeTicker }, { st.homeTicker = it }),
                 Act("Titles you're not interested in", if (st.heroHidden.isEmpty()) "None" else "${st.heroHidden.size} kept off the big picture", if (st.heroHidden.isEmpty()) "" else "Show them again") {
                     if (st.heroHidden.isNotEmpty()) { st.heroHidden = emptyList(); toast(ctx, "They're back on the big picture") }

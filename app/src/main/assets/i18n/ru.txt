@@ -953,3 +953,11 @@ All at once	Всё сразу
 Trailer in the open card	Трейлер в открытой карточке
 A poster opened up plays its trailer (muted) in its picture after this long on it	Открытый постер включает свой трейлер (без звука) в картинке через это время
 After %d s	Через %d с
+Match cards	Карточки матчей
+Live TV's cards for a match: in its teams' colours with their crests and the score, or the show's picture	Карточки Live TV для матча: в цветах команд с их эмблемами и счётом, или картинка передачи
+Team colours	Цвета команд
+Show picture	Картинка передачи
+OK on Continue watching	OK на «Продолжить просмотр»
+Resume in its app: Stremio plays it where you left off; Nuvio opens on it (its links can't start a stream). As other cards: as OK on a card	Продолжить в приложении: Stremio включит с того места, где вы остановились; Nuvio откроет его (его ссылки не запускают поток). Как другие карточки: как OK на карточке
+Resume in its app	Продолжить в приложении
+As other cards	Как другие карточки

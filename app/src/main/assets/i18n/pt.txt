@@ -952,3 +952,11 @@ All at once	Tudo de uma vez
 Trailer in the open card	Trailer no cartão aberto
 A poster opened up plays its trailer (muted) in its picture after this long on it	Um pôster aberto toca seu trailer (sem som) na imagem depois desse tempo
 After %d s	Depois de %d s
+Match cards	Cartões de jogo
+Live TV's cards for a match: in its teams' colours with their crests and the score, or the show's picture	Os cartões da Live TV para um jogo: nas cores dos times, com os escudos e o placar, ou a imagem do programa
+Team colours	Cores dos times
+Show picture	Imagem do programa
+OK on Continue watching	OK em Continuar assistindo
+Resume in its app: Stremio plays it where you left off; Nuvio opens on it (its links can't start a stream). As other cards: as OK on a card	Retomar no app: o Stremio toca de onde você parou; o Nuvio abre nele (os links dele não iniciam um stream). Como os outros cartões: como OK num cartão
+Resume in its app	Retomar no app
+As other cards	Como os outros cartões
