@@ -46,6 +46,18 @@ private class TrailerBridge(val onPlaying: () -> Unit, val onEnded: () -> Unit, 
     @JavascriptInterface fun playing() { main.post(onPlaying) }
     @JavascriptInterface fun ended() { main.post(onEnded) }
     @JavascriptInterface fun failed() { main.post(onFailed) }
+    /** What it plays (its size and quality), in the timing log (--ez timing true). */
+    @JavascriptInterface fun quality(t: String) { if (com.glasslauncher.tv.data.Glog.timing) com.glasslauncher.tv.data.Glog.i("Trailer playing $t") }
+}
+
+/**
+ * The quality to ask YouTube for, for a player [heightPx] tall on the screen (its real pixels): the smallest at least
+ * half as tall again (a step up from just filling it), at most 1080p. YouTube would pick from the page's size in CSS
+ * pixels, half the real ones on a TV, so a full-screen trailer came in well below the screen. Pure.
+ */
+internal fun youTubeQuality(heightPx: Int): String {
+    val need = heightPx * 1.5f
+    return listOf(240 to "small", 360 to "medium", 480 to "large", 720 to "hd720").firstOrNull { it.first >= need }?.second ?: "hd1080"
 }
 
 /** Everything of YouTube's over its video: hidden from the page's start, and again once it has loaded (it builds its head afresh). */
@@ -57,6 +69,8 @@ private const val HIDE_CSS = "*{visibility:hidden!important}video{visibility:vis
  * away a moment, say) it's over too: never left on screen still, with YouTube's pause screen.
  */
 private const val WATCH = """(function(){
+var Q='%QUALITY%';
+function ask(){var p=document.querySelector('#movie_player');if(p&&p.setPlaybackQualityRange){try{p.setPlaybackQualityRange(Q,Q)}catch(e){}}}
 var s=document.createElement('style');s.textContent='$HIDE_CSS';document.head.appendChild(s);
 var seen=false,done=false,n=0;
 function over(){if(!done){done=true;clearInterval(t);Glassio.ended()}}
@@ -65,7 +79,9 @@ var t=setInterval(function(){n++;
  if(document.querySelector('.ytp-error')){clearInterval(t);Glassio.failed();return}
  var v=document.querySelector('video');
  if(v&&!seen){seen=true;v.muted=true;
-  v.addEventListener('playing',function(){Glassio.playing()});
+  v.addEventListener('playing',function(){Glassio.playing();ask()});
+  ask();
+  setTimeout(function(){var p=document.querySelector('#movie_player');Glassio.quality(v.videoWidth+'x'+v.videoHeight+' ('+(p&&p.getPlaybackQuality?p.getPlaybackQuality():'?')+', asked '+Q+')')},6000);
   v.addEventListener('ended',over);
   v.addEventListener('pause',function(){setTimeout(function(){if(v.paused&&!v.ended)over()},1500)});
   if(!v.paused&&v.currentTime>0)Glassio.playing();
@@ -138,7 +154,9 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
     webChromeClient = WebChromeClient()
     webViewClient = object : WebViewClient() {
         override fun onPageFinished(view: WebView, url: String) {
-            if (url.contains("youtube.com/embed/")) view.evaluateJavascript(if (muted) WATCH else WATCH.replace("v.muted=true;", "v.muted=false;"), null)
+            // Its quality asked for by the player's size on the screen (youTubeQuality), not the page's CSS one.
+            val watch = WATCH.replace("%QUALITY%", youTubeQuality(view.height.takeIf { it > 0 } ?: view.resources.displayMetrics.heightPixels))
+            if (url.contains("youtube.com/embed/")) view.evaluateJavascript(if (muted) watch else watch.replace("v.muted=true;", "v.muted=false;"), null)
         }
         // Its renderer gone (out of memory, a driver): this trailer is over, Glassio stays up. Unhandled, it takes the app down.
         override fun onRenderProcessGone(view: WebView, detail: android.webkit.RenderProcessGoneDetail): Boolean {

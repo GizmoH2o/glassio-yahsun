@@ -685,6 +685,28 @@ public class Live extends Activity {
                 view.testMoments(sample, i.getBooleanExtra("guarded", false));
                 return;
             }
+            if (i.getBooleanExtra("guidesources", false)) {     // Settings › Guide sources
+                view.testGuideSources();
+                return;
+            }
+            int find = i.getIntExtra("guidesearch", -1);
+            if (find >= 0 && lineup != null) {     // Guide… › Search for channel number `find`
+                for (Xtream.Channel ch : lineup.all()) {
+                    if (ch.num != find) continue;
+                    view.testGuideSearch(ch);
+                    break;
+                }
+                return;
+            }
+            int pick = i.getIntExtra("guidepick", -1);
+            if (pick >= 0 && lineup != null) {      // Guide… for channel number `pick`, as its menu opens it
+                for (Xtream.Channel ch : lineup.all()) {
+                    if (ch.num != pick) continue;
+                    view.testGuidePick(ch);
+                    break;
+                }
+                return;
+            }
             if (i.getBooleanExtra("streaminfo", false)) {     // Stream info, as About's button opens it
                 view.streamInfo();
                 return;
@@ -1087,6 +1109,18 @@ public class Live extends Activity {
         io.execute(() -> {
             Xtream.Lineup l = Xtream.saved(app);
             if (l != null) main.post(() -> show(l));
+        });
+    }
+
+    /** The list again with the edits made by hand; `guide`: and the full guide fetched again (a guide ID it has no listings for). */
+    void relistAndGuide(boolean guide) {
+        Context app = getApplicationContext();
+        io.execute(() -> {
+            Xtream.Lineup l = Xtream.saved(app);
+            if (l != null) main.post(() -> {
+                show(l);
+                if (guide && !XmltvStore.running()) updateGuide(true);
+            });
         });
     }
 

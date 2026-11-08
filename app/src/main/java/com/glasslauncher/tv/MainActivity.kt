@@ -202,6 +202,7 @@ class MainActivity : ComponentActivity() {
         if (i?.hasExtra("card_open_ms") == true) app.settings.cardOpenMs = i.getIntExtra("card_open_ms", 300).coerceIn(100, 1000)
         i?.getStringExtra("card_open")?.let { if (it in setOf("together", "staggered")) app.settings.cardOpen = it }
         if (i?.hasExtra("card_keep_open") == true) app.settings.cardKeepOpen = i.getBooleanExtra("card_keep_open", true)
+        i?.getStringExtra("cw_ok")?.let { if (it in setOf("resume", "card")) app.settings.cwOk = it }
         if (i?.hasExtra("tv_speed") == true) app.settings.homeTvSpeed = i.getBooleanExtra("tv_speed", false)
         i?.getStringExtra("card_style")?.let { if (it in setOf("light", "dark")) app.settings.cardStyle = it }
         if (i?.hasExtra("card_trailer") == true) app.settings.cardTrailerSec = i.getIntExtra("card_trailer", 0).coerceIn(0, 10)

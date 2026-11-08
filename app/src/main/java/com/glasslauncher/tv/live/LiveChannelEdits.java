@@ -32,12 +32,52 @@ final class LiveChannelEdits {
                 }
                 int num = e.optInt("num", 0);
                 if (num > 0) ch.num = num;
+                String epg = e.optString("epg", "");
+                if (!epg.isEmpty()) ch.epg = epg;      // the guide chosen by hand: before (and over) matching by name
             }
         }
     }
 
+    /** Whether its name or number was changed by hand. */
     static boolean edited(Context c, int id) {
-        return read(c).has(String.valueOf(id));
+        JSONObject e = read(c).optJSONObject(String.valueOf(id));
+        return e != null && (e.has("name") || e.has("num"));
+    }
+
+    /** The guide ID chosen by hand ("" none: the playlist's, or found by name). */
+    static String guide(Context c, int id) {
+        JSONObject e = read(c).optJSONObject(String.valueOf(id));
+        return e == null ? "" : e.optString("epg", "");
+    }
+
+    static synchronized void setGuide(Context c, int id, String epg) {
+        edit(c, id, "epg", epg.trim().toLowerCase(java.util.Locale.ROOT));
+    }
+
+    /** The channels whose guide was chosen by hand (matching by name leaves them be). */
+    static java.util.Set<Integer> guided(Context c) {
+        java.util.Set<Integer> out = new java.util.HashSet<>();
+        JSONObject all = read(c);
+        for (java.util.Iterator<String> it = all.keys(); it.hasNext(); ) {
+            String k = it.next();
+            JSONObject e = all.optJSONObject(k);
+            if (e == null || e.optString("epg", "").isEmpty()) continue;
+            try {
+                out.add(Integer.parseInt(k));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return out;
+    }
+
+    /** The guide found again on its own (the playlist's, or by name). */
+    static synchronized void clearGuide(Context c, int id) {
+        remove(c, id, "epg");
+    }
+
+    /** Every guide chosen by hand, gone (Settings › Guides chosen by hand). */
+    static synchronized void clearGuides(Context c) {
+        for (int id : guided(c)) remove(c, id, "epg");
     }
 
     static synchronized void setName(Context c, int id, String name) {
@@ -48,10 +88,18 @@ final class LiveChannelEdits {
         edit(c, id, "num", num);
     }
 
-    /** The provider's name and number again. */
+    /** The provider's name and number again (a guide chosen by hand stays). */
     static synchronized void clear(Context c, int id) {
+        remove(c, id, "name");
+        remove(c, id, "num");
+    }
+
+    private static void remove(Context c, int id, String field) {
         JSONObject all = read(c);
-        all.remove(String.valueOf(id));
+        JSONObject e = all.optJSONObject(String.valueOf(id));
+        if (e == null) return;
+        e.remove(field);
+        if (e.length() == 0) all.remove(String.valueOf(id));
         save(c, all);
     }
 

@@ -22,7 +22,7 @@ class HomeProfiles(ctx: Context, private val settings: Settings) {
             "heroHidden", "heroBecause", "heroSeasonal", "homeTicker", "kidsMode", "kidsApps",
             "homeOrder", "homeHidden", "homeNames", "homeCollections", "homeMine", "homeAuto", "homeForYou",
             "widgetsRow", "widgetWeather", "calLinks", "haEntities", "trailerMode", "recsMode", "heroSource", "heroChange", "cardTrailerSec", "cardOk",
-            "slowZoom", "heroScroll", "cardOpenMs", "cardOpen", "cardKeepOpen", "cardStyle", "homeTvSpeed",
+            "slowZoom", "heroScroll", "cardOpenMs", "cardOpen", "cardKeepOpen", "cardStyle", "homeTvSpeed", "cwOk",
         )
     }
 

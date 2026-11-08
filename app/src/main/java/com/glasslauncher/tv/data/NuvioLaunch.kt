@@ -117,6 +117,41 @@ object NuvioLaunch {
         if (ep != null) openEpisode(ctx, s, http, item, ep.first, ep.second) else open(ctx, s, http, item)
     }
 
+    /**
+     * Continue Watching's OK (Settings › Home › OK on Continue watching: Resume in its app): Stremio's resumes at once,
+     * its link asking it to play the movie or episode with the stream used last (autoPlay; Stremio's TV app). Nuvio's
+     * links only open a title's page (no link of theirs starts a stream), so a Nuvio one opens as [play] does.
+     */
+    fun resume(ctx: Context, s: Settings, http: Http, item: HeroItem) {
+        val target = resolve(ctx, s, item)
+        if (target != "stremio") { play(ctx, s, http, item); return }
+        val uri = Uri.parse(resumeLink(item.type, item.id, HomeShelf.episodeOf(item.sub)) ?: run { play(ctx, s, http, item); return })
+        try {
+            ctx.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(STREMIO_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+        } catch (e: Exception) {
+            Glog.w("Resume in Stremio", e)
+            play(ctx, s, http, item)
+            return
+        }
+        HaEvents.playing(ctx, "title", item.name, STREMIO_PKG, JSONObject().put("type", item.type).put("id", item.id))
+    }
+
+    /**
+     * Stremio's link that plays a movie, or a series' episode (`episode`: season to episode), with the stream used last:
+     * stremio:///detail/series/tt…/tt…:1:3?autoPlay=true. Null for a series with no episode known. Pure.
+     */
+    fun resumeLink(type: String, id: String, episode: Pair<Int, Int>?): String? {
+        val i = id.trim()
+        if (i.isEmpty()) return null
+        val movie = type.equals("movie", true)
+        if (!movie && episode == null) return null
+        val video = if (movie) i else "$i:${episode!!.first}:${episode.second}"
+        return "stremio:///detail/${if (movie) "movie" else "series"}/" + enc(i) + "/" + enc(video) + "?autoPlay=true"
+    }
+
+    /** A path part, its `:` kept (Stremio's ids are built with it). Pure. */
+    private fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20").replace("%3A", ":")
+
     /** Opens [item] in the app it came from, else where "Open titles in" says; or in [target] when given. */
     fun open(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) {
         val pkg = TARGETS.getValue(target)

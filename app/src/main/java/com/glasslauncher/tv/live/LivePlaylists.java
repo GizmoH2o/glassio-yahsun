@@ -181,6 +181,9 @@ final class LivePlaylists {
             for (String k : OPTION_SETS) s.put(k, new JSONArray(opt.getStringSet(k, new HashSet<>())));
             s.put("guideUrl", opt.getString("guideUrl", ""));
             s.put("fullGuide", opt.getBoolean("fullGuide", false));
+            s.put("guideLinks", opt.getString("guideLinks", "[]"));
+            s.put("guideProvider", opt.getBoolean("guideProvider", true));
+            s.put("guideMigrated", opt.getBoolean("guideMigrated", false));
             s.put("channel", ui.getInt("channel", -1));
             s.put("category", ui.getString("category", ""));
             Xtream.write(new File(dir, "settings.json"), s.toString());
@@ -189,7 +192,9 @@ final class LivePlaylists {
         }
         SharedPreferences.Editor e = opt.edit();
         for (String k : OPTION_SETS) e.remove(k);
-        e.remove("guideUrl").remove("fullGuide").commit();
+        e.remove("guideUrl").remove("fullGuide").remove("guideLinks").remove("guideProvider").remove("guideMigrated");
+        for (String k : opt.getAll().keySet()) if (k.startsWith("guideStatus:")) e.remove(k);
+        e.commit();
         ui.edit().clear().commit();
         LiveMerge.forget();
     }
@@ -210,7 +215,9 @@ final class LivePlaylists {
                     for (int i = 0; a != null && i < a.length(); i++) set.add(a.optString(i));
                     e.putStringSet(k, set);
                 }
-                e.putString("guideUrl", s.optString("guideUrl")).putBoolean("fullGuide", s.optBoolean("fullGuide")).commit();
+                e.putString("guideUrl", s.optString("guideUrl")).putBoolean("fullGuide", s.optBoolean("fullGuide"))
+                        .putString("guideLinks", s.optString("guideLinks", "[]")).putBoolean("guideProvider", s.optBoolean("guideProvider", true))
+                        .putBoolean("guideMigrated", s.optBoolean("guideMigrated", false)).commit();
                 SharedPreferences.Editor u = ui(c).edit();
                 if (s.optInt("channel", -1) >= 0) u.putInt("channel", s.optInt("channel"));
                 u.putString("category", s.optString("category")).commit();

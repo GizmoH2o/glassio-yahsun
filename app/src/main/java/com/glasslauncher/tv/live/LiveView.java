@@ -3672,6 +3672,26 @@ final class LiveView extends View {
         return round;
     }
 
+    /** Test hooks: Settings › Guide sources, and a channel's Guide…. */
+    void testGuideSources() {
+        openSettings();
+        settings.testGuideSources();
+    }
+
+    void testGuidePick(Xtream.Channel channel) {
+        guideMenu(channel);
+    }
+
+    void testGuideSearch(final Xtream.Channel channel) {
+        final android.content.Context app = getContext().getApplicationContext();
+        final String named = LiveCountry.withCode(channel.name, LiveCountry.of(channel, categoryCountry));
+        epgIo.execute(() -> {
+            final List<String[]> all = XmltvStore.allChannels(app);
+            final List<String[]> like = LiveGuideMatch.suggest(named, all, 7);
+            post(() -> searchGuide(channel, all, like, channel.epg == null ? "" : channel.epg.toLowerCase(java.util.Locale.ROOT)));
+        });
+    }
+
     /** Live TV's settings, over the video; closing them goes back to where they were opened from. */
     private void openSettings() {
         if (mode == SETTINGS) return;
@@ -6012,6 +6032,160 @@ final class LiveView extends View {
                 .show();
     }
 
+    /** Guide…: the guide channel this channel takes its listings from, chosen by hand (the guide's channels, read first). */
+    private void guideMenu(final Xtream.Channel channel) {
+        final android.content.Context c = getContext();
+        if (!LiveOptions.fullGuide(c)) {
+            flash(Ui.tr("Primeiro ligue o guia completo.", "Turn on the full guide first."));
+            return;
+        }
+        final android.content.Context app = c.getApplicationContext();
+        final String named = LiveCountry.withCode(channel.name, LiveCountry.of(channel, categoryCountry));
+        epgIo.execute(() -> {      // tens of thousands of guide channels: read and ranked off the screen's thread
+            final List<String[]> all = XmltvStore.allChannels(app);
+            final List<String[]> like = LiveGuideMatch.suggest(named, all, 7);
+            post(() -> guideChoices(channel, all, like));
+        });
+    }
+
+    private void guideChoices(final Xtream.Channel channel, final List<String[]> all, final List<String[]> like) {
+        final android.content.Context c = getContext();
+        final String hand = LiveChannelEdits.guide(c, channel.id);
+        final String now = channel.epg == null ? "" : channel.epg.toLowerCase(java.util.Locale.ROOT);
+        String nowName = null;
+        for (String[] g : all) {
+            if (g[0].equals(now)) {
+                nowName = g[1];
+                break;
+            }
+        }
+        String message = now.isEmpty() ? Ui.tr("Sem guia agora.", "No guide now.")
+                : Ui.tr("Agora: ", "Now: ") + (nowName != null ? nowName + " · " : "") + now
+                        + (hand.isEmpty() ? "" : " · " + Ui.tr("escolhido à mão", "chosen by hand"));
+        if (all.isEmpty()) flash(Ui.tr("Atualize o guia para ver os canais dele.", "Update the guide to see its channels."));
+        final List<String> labels = new ArrayList<>(), icons = new ArrayList<>();
+        final List<Runnable> acts = new ArrayList<>();
+        labels.add(message);        // the list has no room for a message: what it is now, first (OK just closes)
+        icons.add("info");
+        acts.add(() -> { });
+        int shown = 0;
+        for (final String[] g : like) {
+            if (g[0].equals(now) || shown == 6) continue;
+            shown++;
+            labels.add(guideLabel(g));
+            icons.add("guide");
+            acts.add(() -> chooseGuide(channel, g[0], g[1]));
+        }
+        if (!all.isEmpty()) {
+            labels.add(Ui.tr("Buscar nos canais do guia…", "Search the guide's channels…"));
+            icons.add("search");
+            acts.add(() -> searchGuide(channel, all, like, now));
+        }
+        labels.add(Ui.tr("Digitar um ID…", "Type an ID…"));
+        icons.add("edit");
+        acts.add(() -> typeGuide(channel, now));
+        if (!hand.isEmpty()) {
+            labels.add(Ui.tr("Automático de novo", "Automatic again"));
+            icons.add("history");
+            acts.add(() -> {
+                LiveChannelEdits.clearGuide(c, channel.id);
+                flash(Ui.tr("O guia volta a ser automático", "The guide is automatic again"));
+                live.relistAndGuide(false);
+            });
+        }
+        LiveSheet.menu(c).asList()
+                .setTitle(Ui.tr("Guia · ", "Guide · ") + numberAndName(channel, "  "))
+                .setIcons(icons.toArray(new String[0]))
+                .setItems(labels.toArray(new String[0]), (d, which) -> {
+                    acts.get(which).run();
+                    invalidate();
+                })
+                .show();
+    }
+
+    /** "BBC One · bbc1.uk", and where from when there's more than one source. */
+    private static String guideLabel(String[] g) {
+        return g[1] + " · " + g[0] + (LiveGuideSources.isProvider(g[2]) ? "" : " · " + g[2]);
+    }
+
+    /** The guide's channels with what's typed in their name or ID. */
+    private void searchGuide(final Xtream.Channel channel, final List<String[]> all, List<String[]> like, String now) {
+        final android.content.Context c = getContext();
+        if (LiveOptions.guideSearchFull(c)) {       // full screen (Settings › Guide search), else the box below
+            new LiveGuideSearch(c, numberAndName(channel, "  "), "", now, all, like, live::voiceSearch,
+                    g -> chooseGuide(channel, g[0], g[1])).show();
+            return;
+        }
+        android.widget.EditText input = new android.widget.EditText(c);
+        input.setSingleLine(true);
+        input.setText(channel.name);
+        input.selectAll();
+        LiveTextEntry.show(c, Ui.tr("Buscar no guia", "Search the guide"), Ui.tr("Parte do nome ou do ID.", "Part of the name or the ID."), input, typed -> {
+            epgIo.execute(() -> {
+                final List<String[]> found = guideSearch(typed, all, 80);
+                post(() -> guideFound(channel, typed, found));
+            });
+        });
+    }
+
+    /** What the search found, to choose from. */
+    private void guideFound(final Xtream.Channel channel, String typed, final List<String[]> found) {
+        if (found.isEmpty()) {
+            flash(Ui.tr("Nada encontrado", "Nothing found"));
+            return;
+        }
+        String[] labels = new String[found.size()], icons = new String[found.size()];
+        for (int i = 0; i < found.size(); i++) {
+            labels[i] = guideLabel(found.get(i));
+            icons[i] = "guide";
+        }
+        LiveSheet.menu(getContext()).asList()
+                .setTitle(Ui.tr("Guia · ", "Guide · ") + typed.trim())
+                .setIcons(icons)
+                .setItems(labels, (d, which) -> {
+                    chooseGuide(channel, found.get(which)[0], found.get(which)[1]);
+                    invalidate();
+                })
+                .show();
+    }
+
+    /** Matches for `typed` among the guide's channels ({id, name, source}), at most `max`. Pure. */
+    static List<String[]> guideSearch(String typed, List<String[]> all, int max) {
+        List<String[]> out = new ArrayList<>();
+        String q = Xtream.fold(typed == null ? "" : typed).trim();
+        if (q.isEmpty()) return out;
+        for (String[] g : all) {
+            if (Xtream.fold(g[1]).contains(q) || g[0].contains(q.replace(' ', '.')) || g[0].contains(q)) {
+                out.add(g);
+                if (out.size() >= max) break;
+            }
+        }
+        return out;
+    }
+
+    /** A guide ID typed as it is in the guide (bbc1.uk). */
+    private void typeGuide(final Xtream.Channel channel, String now) {
+        final android.content.Context c = getContext();
+        android.widget.EditText input = new android.widget.EditText(c);
+        input.setSingleLine(true);
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setText(now);
+        input.selectAll();
+        LiveTextEntry.show(c, Ui.tr("ID do guia", "Guide ID"), Ui.tr("Como no guia, por exemplo bbc1.uk", "As in the guide, for example bbc1.uk"), input, typed -> {
+            String id = typed.trim();
+            if (!id.isEmpty()) chooseGuide(channel, id, id);
+        });
+    }
+
+    /** Kept (it wins over the playlist's and matching by name), and the guide fetched again when it has no listings for it yet. */
+    private void chooseGuide(Xtream.Channel channel, String id, String name) {
+        final android.content.Context c = getContext();
+        LiveChannelEdits.setGuide(c, channel.id, id);
+        boolean listed = XmltvStore.guided(c).contains(id.toLowerCase(java.util.Locale.ROOT));
+        flash(Ui.tr("Guia: ", "Guide: ") + name);
+        live.relistAndGuide(!listed);
+    }
+
     /** A channel's choices: favorite, rename, renumber (the provider's again), out of History. */
     private void channelMenu(final Xtream.Channel channel, final boolean inHistory) {
         if (channel.smart) {
@@ -6064,6 +6238,9 @@ final class LiveView extends View {
         labels.add(Ui.tr("Logo", "Logo"));
         icons.add("tv");
         acts.add(() -> logoMenu(channel));
+        labels.add(Ui.tr("Guia…", "Guide…"));
+        icons.add("guide");
+        acts.add(() -> guideMenu(channel));
         if (!LiveProfiles.kids(c) && LiveProfiles.anyKids(c)) {        // Family Mode: the parents' say on Kids profiles
             final boolean hidden = LiveFamily.hidden(c).contains(channel.id), allowed = LiveFamily.allowed(c).contains(channel.id);
             final boolean byWords = lineup != null && LiveProfiles.kidsByWords(lineup, channel);

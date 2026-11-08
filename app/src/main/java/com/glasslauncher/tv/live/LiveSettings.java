@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220, STREAM_BADGES_ROW = 221,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220, STREAM_BADGES_ROW = 221, HAND_GUIDES_ROW = 222, GUIDE_SEARCH_ROW = 223,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -98,7 +98,7 @@ final class LiveSettings {
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, RES_BADGE_ROW, STREAM_BADGES_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
-            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
+            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, HAND_GUIDES_ROW, GUIDE_SEARCH_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW, COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW},
@@ -398,7 +398,7 @@ final class LiveSettings {
             case PLAYER_LOGO_ROW: return Ui.tr("Logo no player", "Logo in the player");
             case LOGO_SOURCE_ROW: return Ui.tr("Logos dos canais", "Channel logos");
             case CHANNEL_MARK_ROW: return Ui.tr("Ao lado do nome do canal", "Beside the channel's name");
-            case GUIDE_SOURCE_ROW: return Ui.tr("Fonte do guia", "Guide source");
+            case GUIDE_SOURCE_ROW: return Ui.tr("Fontes do guia", "Guide sources");
             case GUIDE_NOW_ROW: return Ui.tr("Atualizar o guia completo agora", "Update the full guide now");
             case BOOT_ROW: return Ui.tr("Abrir quando a TV liga", "Open when the TV starts");
             case WAKE_ROW: return Ui.tr("Abrir quando a TV acorda", "Open when the TV wakes up");
@@ -411,6 +411,8 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: return Ui.tr("Comandos de voz", "Voice commands");
             case RES_BADGE_ROW: return Ui.tr("Selos de resolução", "Resolution badges");
             case STREAM_BADGES_ROW: return Ui.tr("Selos do sinal em figuras", "Stream badges as pictures");
+            case HAND_GUIDES_ROW: return Ui.tr("Guias escolhidos à mão", "Guides chosen by hand");
+            case GUIDE_SEARCH_ROW: return Ui.tr("Busca do guia", "Guide search");
             case SCHEDULE_ROW: return Ui.tr("Lembretes marcados", "Reminders set");
             case RECORD_LIST_ROW: return Ui.tr("Gravações marcadas", "Scheduled recordings");
             case RECORDINGS_ROW: return Ui.tr("Programas gravados", "Recorded shows");
@@ -574,6 +576,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: return onOff(LiveOptions.voiceCommands(c));
             case RES_BADGE_ROW: return onOff(LiveOptions.resolutionBadges(c));
             case STREAM_BADGES_ROW: return onOff(LiveOptions.streamBadgePictures(c));
+            case GUIDE_SEARCH_ROW: return LiveOptions.guideSearchFull(c) ? Ui.tr("Tela cheia", "Full screen") : Ui.tr("Caixa simples", "Simple box");
             case UNRATED_ROW: return onOff(LiveOptions.unratedNeedsPin(c));
             case REMIND_LEAD_ROW: {
                 int m = LiveOptions.remindLead(c);
@@ -618,7 +621,7 @@ final class LiveSettings {
             case LOGO_SOURCE_ROW: return logoSourceName(LiveOptions.logoSource(c));
             case CHANNEL_MARK_ROW: return channelMarkName(LiveOptions.channelMark(c));
             case GUIDE_SOURCE_ROW:
-                return LiveOptions.guideUrl(c).isEmpty() ? Ui.tr("Provedor", "Provider") : Ui.tr("Link próprio", "Custom link");
+                return guideSourcesValue(c);
             case GUIDE_NOW_ROW: {
                 if (!LiveOptions.fullGuide(c)) return "—";
                 if (XmltvStore.running()) {
@@ -741,6 +744,10 @@ final class LiveSettings {
             }
             case ADD_PLAYLIST_ROW: return "";
             case HISTORY_ROW: return String.valueOf(LiveOptions.historyMax(c));
+            case HAND_GUIDES_ROW: {
+                int n = LiveChannelEdits.guided(c).size();
+                return n == 0 ? Ui.tr("Nenhum", "None") : n + Ui.tr(" canais", " channels");
+            }
             case CLEAR_HISTORY_ROW: {
                 int n = Xtream.recent(c).size();
                 return n == 0 ? Ui.tr("Vazio", "Empty") : n + Ui.tr(" canais", " channels");
@@ -1087,8 +1094,8 @@ final class LiveSettings {
                             "Where logos come from; the others fill in the missing ones. Public database: iptv-org, sharp logos for over 30,000 channels.");
                     case GUIDE_SHIFT_ROW: return Ui.tr("Os programas começam antes ou depois do que o guia diz? Move o guia todo (só desta lista).",
                             "Shows start earlier or later than the guide says? Moves the whole guide (this playlist only).");
-                    case GUIDE_SOURCE_ROW: return Ui.tr("O guia do seu provedor, ou um link XMLTV (.xml ou .xml.gz).",
-                            "Your provider's guide, or an XMLTV link (.xml or .xml.gz).");
+                    case GUIDE_SOURCE_ROW: return Ui.tr("O guia do seu provedor e links XMLTV seus, juntos num guia. Um canal em mais de um usa o primeiro.",
+                            "Your provider's guide and XMLTV links of your own, together in one guide. A channel in more than one uses the first.");
                     case GUIDE_NOW_ROW: {
                         long n = XmltvStore.count(context());
                         return n > 0 ? String.format(Locale.ROOT, "%,d", n) + Ui.tr(" programas no guia.", " programs in the guide.")
@@ -1113,6 +1120,10 @@ final class LiveSettings {
                     case RECORDINGS_ROW: return Ui.tr("O que já foi gravado e o espaço que ocupa. OK abre.", "What's been recorded and the room it takes. OK opens them.");
                     case SERIES_RECORD_ROW: return Ui.tr("Programas gravados sempre que passam (OK num programa futuro no guia → Todos os episódios…).",
                             "Shows recorded every time they air (OK on a later show in the guide → Every episode…).");
+                    case GUIDE_SEARCH_ROW: return Ui.tr("Guia… › Buscar: em tela cheia, com o teclado e os canais do guia filtrados a cada letra, ou numa caixa simples.",
+                            "Guide… › Search: full screen, with the keyboard and the guide's channels narrowed with every letter, or in a simple box.");
+                    case HAND_GUIDES_ROW: return Ui.tr("Canais cujo guia você escolheu (segure OK num canal › Guia…). OK os deixa todos automáticos de novo.",
+                            "Channels whose guide you chose (hold OK on a channel › Guide…). OK makes them all automatic again.");
                     case CLEAR_HISTORY_ROW: return Ui.tr("Tira todos os canais do Histórico (um só: segure OK nele no Histórico).",
                             "Takes every channel out of History (just one: hold OK on it in History).");
                     case EXPORT_ROW: return Ui.tr("Favoritos, perfis, lembretes, séries e ajustes num arquivo em Downloads (sem o login nem o PIN).",
@@ -1852,7 +1863,7 @@ final class LiveSettings {
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id == TEXT_SCALE_ROW || id == HIGH_CONTRAST_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == STREAM_BADGES_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == STREAM_BADGES_ROW || id == GUIDE_SEARCH_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -2561,6 +2572,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: LiveOptions.setVoiceCommands(c, !LiveOptions.voiceCommands(c)); announce(); return;
             case RES_BADGE_ROW: LiveOptions.setResolutionBadges(c, !LiveOptions.resolutionBadges(c)); view.invalidate(); announce(); return;
             case STREAM_BADGES_ROW: LiveOptions.setStreamBadgePictures(c, !LiveOptions.streamBadgePictures(c)); view.invalidate(); announce(); return;
+            case GUIDE_SEARCH_ROW: LiveOptions.setGuideSearchFull(c, !LiveOptions.guideSearchFull(c)); announce(); return;
             case COMMUNITY_ON_ROW: LiveOptions.setCommunityDesigns(c, !LiveOptions.communityDesigns(c)); announce(); return;
             case UNRATED_ROW: {
                 final boolean on = !LiveOptions.unratedNeedsPin(c);
@@ -2880,6 +2892,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW:
             case RES_BADGE_ROW:
             case STREAM_BADGES_ROW:
+            case GUIDE_SEARCH_ROW:
             case HIGH_CONTRAST_ROW:
             case UNRATED_ROW:
             case COMMUNITY_ON_ROW:
@@ -2941,8 +2954,8 @@ final class LiveSettings {
                 askSmart();
                 return;
             case GUIDE_SOURCE_ROW:
-                askGuideUrl();
-                break;
+                guideSources(false);
+                return;
             case GUIDE_NOW_ROW:
                 if (!LiveOptions.fullGuide(c)) view.flash(Ui.tr("Primeiro ligue o guia completo.", "Turn on the full guide first."));
                 else if (!XmltvStore.running()) live.updateGuide(true);
@@ -2982,6 +2995,23 @@ final class LiveSettings {
                 break;
             case HIDDEN_ROW:
                 show(HIDDEN, 0);
+                break;
+            case HAND_GUIDES_ROW:
+                if (LiveChannelEdits.guided(c).isEmpty()) {
+                    view.flash(Ui.tr("Nenhum guia escolhido à mão", "No guides chosen by hand"));
+                    break;
+                }
+                LiveSheet.menu(c)
+                        .setTitle(Ui.tr("Todos automáticos de novo?", "All automatic again?"))
+                        .setIcons("history", "close")
+                        .setItems(new String[] {Ui.tr("Sim, automáticos", "Yes, automatic"), Ui.tr("Cancelar", "Cancel")}, (d, which) -> {
+                            if (which != 0) return;
+                            LiveChannelEdits.clearGuides(c);
+                            live.relistAndGuide(false);
+                            view.flash(Ui.tr("Guias automáticos de novo", "Guides automatic again"));
+                            view.invalidate();
+                        })
+                        .show();
                 break;
             case CLEAR_HISTORY_ROW:
                 if (Xtream.recent(c).isEmpty()) {
@@ -3161,24 +3191,144 @@ final class LiveSettings {
         });
     }
 
-    /** The guide's link, typed with the TV's keyboard: empty for the provider's own. The full guide is fetched again. */
-    private void askGuideUrl() {
-        android.widget.EditText input = new android.widget.EditText(context());
+    /** Test hook: the Guide sources menu. */
+    void testGuideSources() {
+        guideSources(false);
+    }
+
+    /** The row's value: what's on ("Provider + 2 links"). */
+    private static String guideSourcesValue(Context c) {
+        boolean provider = LiveGuideSources.provider(c);
+        int on = 0;
+        for (LiveGuideSources.Link l : LiveGuideSources.links(c)) if (l.on) on++;
+        String links = on == 0 ? "" : on + " " + (on == 1 ? Ui.tr("link", "link") : Ui.tr("links", "links"));
+        if (provider && on > 0) return Ui.tr("Provedor", "Provider") + " + " + links;
+        if (provider) return Ui.tr("Provedor", "Provider");
+        return on > 0 ? links : Ui.tr("Nenhuma", "None");
+    }
+
+    /**
+     * Guide sources: the provider's guide on or off, your links (each with how its last update went), and Add a link….
+     * Leaving it with something changed fetches the full guide again.
+     */
+    private void guideSources(boolean changed) {
+        final Context c = context();
+        final List<LiveGuideSources.Link> links = LiveGuideSources.links(c);
+        final int n = links.size();
+        CharSequence[] items = new CharSequence[n + 2];
+        String[] icons = new String[n + 2];
+        String provider = Xtream.xmltvUrl(c), providerStatus = provider == null || provider.isEmpty() ? "" : LiveGuideSources.status(c, provider);
+        items[0] = Ui.tr("Guia do provedor", "Provider's guide") + " · "
+                + (LiveGuideSources.provider(c) ? Ui.tr("Ligado", "On") : Ui.tr("Desligado", "Off"))
+                + (providerStatus.isEmpty() ? "" : " · " + providerStatus);
+        icons[0] = "toggle";
+        for (int i = 0; i < n; i++) {
+            LiveGuideSources.Link l = links.get(i);
+            String status = LiveGuideSources.status(c, l.url);
+            items[i + 1] = (i + 1) + ". " + LiveGuideSources.site(l.url) + " · " + (l.on ? Ui.tr("Ligado", "On") : Ui.tr("Desligado", "Off"))
+                    + (status.isEmpty() ? "" : " · " + status);
+            icons[i + 1] = "guide";
+        }
+        items[n + 1] = Ui.tr("Adicionar um link…", "Add a link…");
+        icons[n + 1] = "add";
+        LiveSheet.menu(c).asList()
+                .setTitle(Ui.tr("Fontes do guia", "Guide sources"))
+                .setIcons(icons)
+                .setItems(items, (d, which) -> {
+                    if (which == 0) {
+                        LiveGuideSources.setProvider(c, !LiveGuideSources.provider(c));
+                        guideSources(true);
+                    } else if (which == n + 1) {
+                        askGuideLink(changed);
+                    } else {
+                        guideLink(links, which - 1, changed);
+                    }
+                    view.invalidate();
+                })
+                .setOnCancelListener(d -> {
+                    if (changed) refetchGuide();
+                    view.invalidate();
+                })
+                .show();
+    }
+
+    /** One link: on or off, up, down, or remove. */
+    private void guideLink(List<LiveGuideSources.Link> links, int i, boolean changed) {
+        final Context c = context();
+        final LiveGuideSources.Link l = links.get(i);
+        List<CharSequence> items = new ArrayList<>();
+        List<String> icons = new ArrayList<>();
+        final List<Integer> acts = new ArrayList<>();
+        items.add(l.on ? Ui.tr("Desligar", "Turn off") : Ui.tr("Ligar", "Turn on"));
+        icons.add("toggle");
+        acts.add(0);
+        if (i > 0) {
+            items.add(Ui.tr("Subir", "Move up"));
+            icons.add("swap");
+            acts.add(1);
+        }
+        if (i < links.size() - 1) {
+            items.add(Ui.tr("Descer", "Move down"));
+            icons.add("chevron_down");
+            acts.add(2);
+        }
+        items.add(Ui.tr("Remover", "Remove"));
+        icons.add("delete");
+        acts.add(3);
+        LiveSheet.menu(c)
+                .setTitle(LiveGuideSources.site(l.url))
+                .setIcons(icons.toArray(new String[0]))
+                .setItems(items.toArray(new CharSequence[0]), (d, which) -> {
+                    List<LiveGuideSources.Link> next = new ArrayList<>(links);
+                    switch (acts.get(which)) {
+                        case 0: next.set(i, new LiveGuideSources.Link(l.url, !l.on)); break;
+                        case 1: next = LiveGuideSources.moved(links, i, -1); break;
+                        case 2: next = LiveGuideSources.moved(links, i, 1); break;
+                        default: next.remove(i); break;
+                    }
+                    LiveGuideSources.setLinks(c, next);
+                    guideSources(true);
+                })
+                .setOnCancelListener(d -> guideSources(changed))
+                .show();
+    }
+
+    /** A link to add, typed with the TV's keyboard (http or https; .xml or .xml.gz). */
+    private void askGuideLink(boolean changed) {
+        final Context c = context();
+        android.widget.EditText input = new android.widget.EditText(c);
         input.setSingleLine(true);
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         input.setHint("https://…/guide.xml.gz");
-        input.setText(LiveOptions.guideUrl(context()));
-        LiveTextEntry.show(context(), Ui.tr("Fonte do guia", "Guide source"),
-                Ui.tr("Um link XMLTV, ou vazio para o guia do provedor.", "An XMLTV link, or empty for your provider's guide."), input, typed -> {
+        LiveTextEntry.show(c, Ui.tr("Adicionar um link", "Add a link"),
+                Ui.tr("Um link XMLTV (.xml ou .xml.gz).", "An XMLTV link (.xml or .xml.gz)."), input, typed -> {
                     String url = typed.trim();
-                    if (!url.isEmpty() && !url.matches("(?i)^https?://.+")) {
-                        view.flash(Ui.tr("O link precisa começar com http:// ou https://", "The link needs to start with http:// or https://"));
+                    if (url.isEmpty()) {
+                        guideSources(changed);
                         return;
                     }
-                    LiveOptions.setGuideUrl(context(), url);
-                    live.updateGuide(true);
-                    view.invalidate();
+                    if (!LiveGuideSources.valid(url)) {
+                        view.flash(Ui.tr("O link precisa começar com http:// ou https://", "The link needs to start with http:// or https://"));
+                        guideSources(changed);
+                        return;
+                    }
+                    List<LiveGuideSources.Link> next = new ArrayList<>(LiveGuideSources.links(c));
+                    for (LiveGuideSources.Link l : next) {
+                        if (l.url.equals(url)) {
+                            view.flash(Ui.tr("Esse link já está na lista", "That link is already in the list"));
+                            guideSources(changed);
+                            return;
+                        }
+                    }
+                    next.add(new LiveGuideSources.Link(url, true));
+                    LiveGuideSources.setLinks(c, next);
+                    guideSources(true);
                 });
+    }
+
+    /** The sources changed: the full guide again (when it's on). */
+    private void refetchGuide() {
+        if (LiveOptions.fullGuide(context()) && !XmltvStore.running()) live.updateGuide(true);
     }
 
     /** The PIN typed: change it, or turn the lock off. */

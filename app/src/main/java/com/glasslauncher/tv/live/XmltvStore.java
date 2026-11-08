@@ -53,7 +53,7 @@ final class XmltvStore {
     private static final long SPARE_BYTES = 500_000_000L;
     /** The database's layout: 2 added the shows' pictures (an older one is fetched again). */
     /** The guide's layout: 3 added each programme's rating, 4 the channels' logos (an older guide is fetched again). */
-    private static final int VERSION = 6;      // 5: sub-title and repeat kept apart; 6: NEW and LIVE carried between channels
+    private static final int VERSION = 7;      // 5: sub-title and repeat kept apart; 6: NEW and LIVE carried between channels; 7: allnames
 
     private static SQLiteDatabase db;
     /** The guide in use has the sub and rep columns (one from before VERSION 5 doesn't, until it's fetched again). */
@@ -393,6 +393,29 @@ final class XmltvStore {
         return out;
     }
 
+    /**
+     * Every channel of every guide source ({id, name, source}), for choosing a channel's guide by hand; empty without a
+     * full guide (or with one from before this list was kept).
+     */
+    private static List<String[]> allChannels;
+    private static long allChannelsStamp = -1;
+
+    static List<String[]> allChannels(Context c) {
+        List<String[]> out = new ArrayList<>();
+        synchronized (XmltvStore.class) {
+            SQLiteDatabase d = read(c);
+            if (d == null) return out;
+            if (allChannels != null && allChannelsStamp == dbStamp) return allChannels;      // read once per guide
+            allChannels = out;
+            allChannelsStamp = dbStamp;
+            try (Cursor q = d.rawQuery("SELECT epg, name, src FROM allnames ORDER BY name COLLATE NOCASE", null)) {
+                while (q.moveToNext()) out.add(new String[] {q.getString(0), q.getString(1), q.getString(2)});
+            } catch (RuntimeException ignored) {     // a guide from before
+            }
+        }
+        return out;
+    }
+
     /** Channels with no guide take the one with exactly their name (LiveGuideMatch). */
     static void matchNames(Context c, Xtream.Lineup l) {
         if (!LiveOptions.fullGuide(c) || !LiveOptions.matchNames(c)) return;
@@ -400,7 +423,9 @@ final class XmltvStore {
         Map<String, String> names = LiveGuideMatch.unique(fileNames(c), guided);
         if (names.isEmpty()) return;
         int matched = 0;
+        Set<Integer> byHand = LiveChannelEdits.guided(c);
         for (Xtream.Channel ch : l.all()) {
+            if (byHand.contains(ch.id)) continue;       // chosen by hand (Guide…): kept, listings or not
             if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) continue;
             String id = LiveGuideMatch.find(ch.name, names);
             if (id == null) continue;
@@ -489,24 +514,46 @@ final class XmltvStore {
     private static long build(Context c, Set<String> wanted, int pastDays, Map<String, Integer> days) throws IOException, XmlPullParserException {
         long now = System.currentTimeMillis();
         long from = now - pastDays * DAY, to = now + LiveOptions.daysAhead(c) * DAY;
-        String custom = LiveOptions.guideUrl(c);
-        String url = custom.isEmpty() ? Xtream.xmltvUrl(c) : custom;
-        if (url == null || url.isEmpty()) throw new IOException(Ui.tr("Esta lista não tem guia completo; ponha um em Fonte do guia.",
-                "This playlist has no full guide; set one in Guide source."));
+        // Every source in turn (LiveGuideSources): the provider's, then your links. A channel in two takes the first's.
+        List<LiveGuideSources.Source> sources = LiveGuideSources.active(c);
+        if (sources.isEmpty()) throw new IOException(Ui.tr("Nenhuma fonte de guia: ligue o guia do provedor ou ponha um link em Fontes do guia.",
+                "No guide source: turn on your provider's guide, or add a link in Guide sources."));
         File building = c.getDatabasePath(BUILDING);
         //noinspection ResultOfMethodCallIgnored
         building.getParentFile().mkdirs();
         SQLiteDatabase.deleteDatabase(building);
         SQLiteDatabase w = SQLiteDatabase.openOrCreateDatabase(building, null);
         long count = 0, pictures = 0;
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        InputStream opened = null;      // closed at the end: a GZIPInputStream left open leaks its Inflater
+        String firstError = null;
         try {
             w.execSQL("CREATE TABLE p (epg TEXT, start INTEGER, stop INTEGER, title TEXT, key TEXT, about TEXT, icon TEXT, age INTEGER, "
                     + "sub TEXT, rep INTEGER)");
             w.execSQL("CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT)");
             w.execSQL("CREATE TABLE ch (epg TEXT PRIMARY KEY, icon TEXT)");
             w.execSQL("CREATE TABLE names (epg TEXT PRIMARY KEY, name TEXT)");
+            // Every guide channel of every source (not only the ones the playlist names): what a channel's guide is
+            // chosen from by hand (Guide…).
+            w.execSQL("CREATE TABLE allnames (epg TEXT, name TEXT, src TEXT, PRIMARY KEY (epg, src))");
+            SQLiteStatement insert = w.compileStatement("INSERT INTO p VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            SQLiteStatement logo = w.compileStatement("INSERT OR IGNORE INTO ch VALUES (?, ?)");
+            SQLiteStatement nameRow = w.compileStatement("INSERT OR IGNORE INTO names VALUES (?, ?)");
+            SQLiteStatement allName = w.compileStatement("INSERT OR IGNORE INTO allnames VALUES (?, ?, ?)");
+            Set<String> seen = new HashSet<>();
+            Map<String, Long> starts = new HashMap<>();
+            // Which source each guide channel's listings come from: the first that has any.
+            Map<String, Integer> owner = new HashMap<>();
+            Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
+            TimeZone zone = TimeZone.getDefault();
+            // By title, its listings marked NEW or LIVE ({start, live ? 1 : 0, episode}), to carry to its other listings.
+            Map<String, List<long[]>> marked = new HashMap<>();
+            for (int si = 0; si < sources.size(); si++) {
+            final LiveGuideSources.Source source = sources.get(si);
+            final String step = sources.size() > 1 ? (si + 1) + "/" + sources.size() + " · " : "";
+            long before = count;
+            int listed = 0;      // its channels (all of them, used or not)
+            HttpURLConnection conn = (HttpURLConnection) new URL(source.url).openConnection();
+            InputStream opened = null;      // closed after it: a GZIPInputStream left open leaks its Inflater
+            try {
             conn.setConnectTimeout(15_000);
             conn.setReadTimeout(60_000);
             conn.setRequestProperty("User-Agent", Live.USER_AGENT);
@@ -537,15 +584,6 @@ final class XmltvStore {
             XmlPullParser p = Xml.newPullParser();
             p.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false);
             p.setInput(xml, null);
-            SQLiteStatement insert = w.compileStatement("INSERT INTO p VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-            SQLiteStatement logo = w.compileStatement("INSERT OR IGNORE INTO ch VALUES (?, ?)");
-            SQLiteStatement nameRow = w.compileStatement("INSERT OR IGNORE INTO names VALUES (?, ?)");
-            Set<String> seen = new HashSet<>();
-            Map<String, Long> starts = new HashMap<>();
-            Calendar utc = Calendar.getInstance(TimeZone.getTimeZone("UTC"), Locale.ROOT);
-            TimeZone zone = TimeZone.getDefault();
-            // By title, its listings marked NEW or LIVE ({start, live ? 1 : 0, episode}), to carry to its other listings.
-            Map<String, List<long[]>> marked = new HashMap<>();
             w.beginTransaction();
             for (int e = p.getEventType(); e != XmlPullParser.END_DOCUMENT; e = p.next()) {
                 if (e == XmlPullParser.START_TAG && "channel".equals(p.getName())) {     // its logo (<icon src=…>)
@@ -581,16 +619,25 @@ final class XmltvStore {
                         nameRow.bindString(2, shownName);
                         nameRow.executeInsert();
                     }
+                    if (!key.isEmpty()) {
+                        allName.bindString(1, key);
+                        allName.bindString(2, shownName.isEmpty() ? id.trim() : shownName);
+                        allName.bindString(3, source.name);
+                        allName.executeInsert();
+                        listed++;
+                    }
                     continue;
                 }
                 if (e != XmlPullParser.START_TAG || !"programme".equals(p.getName())) continue;
                 String channel = p.getAttributeValue(null, "channel");
                 String key = channel == null ? "" : channel.toLowerCase(Locale.ROOT);
                 long start = time(p.getAttributeValue(null, "start"), utc), stop = time(p.getAttributeValue(null, "stop"), utc);
-                if (!wanted.contains(key) || start <= 0 || stop <= start || stop <= from || start >= to) {
+                Integer owned = owner.get(key);
+                if (!wanted.contains(key) || start <= 0 || stop <= start || stop <= from || start >= to || (owned != null && owned != si)) {
                     skip(p);
                     continue;
                 }
+                if (owned == null) owner.put(key, si);
                 String title = "", sub = "", about = "", icon = "";
                 boolean fresh = false, live = false, inRating = false, repeat = false;
                 String shownDay = "", airDay = "";
@@ -677,12 +724,30 @@ final class XmltvStore {
                     w.setTransactionSuccessful();
                     w.endTransaction();
                     w.beginTransaction();
-                    progress = length > 0 ? Math.min(99, read[0] * 100 / length) + "%"
-                            : String.format(Locale.ROOT, "%,d", count);
+                    progress = step + (length > 0 ? Math.min(99, read[0] * 100 / length) + "%"
+                            : String.format(Locale.ROOT, "%,d", count));
                 }
             }
             w.setTransactionSuccessful();
             w.endTransaction();
+            LiveGuideSources.setStatus(c, source.url, String.format(Locale.ROOT, Ui.tr("%,d canais, %,d programas · %s", "%,d channels, %,d programs · %s"),
+                    listed, count - before, Ui.time(System.currentTimeMillis())));
+            } catch (IOException | XmlPullParserException | RuntimeException e) {
+                String why = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                if (firstError == null) firstError = why;
+                AppLog.w("guide: " + source.name + " couldn't be read: " + why);      // never the address: it may carry a login
+                LiveGuideSources.setStatus(c, source.url, Ui.tr("Falhou: ", "Failed: ") + why);
+                if (w.inTransaction()) w.endTransaction();      // what this one had read since the last save goes
+            } finally {
+                if (opened != null) {
+                    try {
+                        opened.close();
+                    } catch (IOException ignored) {
+                    }
+                }
+                conn.disconnect();
+            }
+            }
             progress = Ui.tr("Indexando…", "Indexing…");
             w.execSQL("CREATE INDEX by_channel ON p (epg, start)");
             // Holds what searches compare, so they read this and not the long descriptions in the table.
@@ -692,19 +757,13 @@ final class XmltvStore {
             w.execSQL("INSERT INTO meta VALUES ('at', '" + now + "'), ('count', '" + count + "'), ('channels', '" + seen.size()
                     + "'), ('v', '" + VERSION + "')");
         } finally {
-            if (opened != null) {
-                try {
-                    opened.close();
-                } catch (IOException ignored) {
-                }
-            }
-            conn.disconnect();
             if (w.inTransaction()) w.endTransaction();
             w.close();
         }
         if (count == 0) {
             SQLiteDatabase.deleteDatabase(building);
-            throw new IOException(Ui.tr("o guia não tem programas destes canais", "the guide has no programs for these channels"));
+            throw new IOException(firstError != null ? firstError
+                    : Ui.tr("o guia não tem programas destes canais", "the guide has no programs for these channels"));
         }
         // In place of the one in use.
         synchronized (XmltvStore.class) {

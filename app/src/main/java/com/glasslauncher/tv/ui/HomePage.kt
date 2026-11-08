@@ -607,7 +607,12 @@ internal fun HomePage(
                     CardRow(s, req(Part.Watch), above(Part.Watch), below(Part.Watch), watchItems.map { it.key }) { i, mod ->
                         val item = watchItems[i]
                         WatchCard(item, newEps[item.key] ?: 0, s, mod, onFocused = { selected = if (LiveCards.isLive(item)) null else item },
-                            onOpen = { if (LiveCards.isLive(item)) LiveCards.open(ctx, item) else openCard(item) },
+                            // Settings › Home › OK on Continue watching: resume in its app, else as the other cards.
+                            onOpen = {
+                                if (LiveCards.isLive(item)) LiveCards.open(ctx, item)
+                                else if (settings.cwOk == "resume" && NuvioLaunch.playable(ctx, settings)) NuvioLaunch.resume(ctx, settings, app.http, item)
+                                else openCard(item)
+                            },
                             onHold = { watchMenu(app, ctx, scope, item, onDialog) })
                     }
                 }

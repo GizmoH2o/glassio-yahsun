@@ -299,6 +299,8 @@ class Settings(private val ctx: Context) {
     var backdropTint: Boolean get() = b("backdropTint", true); set(v) = putB("backdropTint", v)
     /** OK on a card: "title" opens its title page, "play" plays straight away. */
     var cardOk: String get() = s("cardOk", "title"); set(v) = putS("cardOk", v)
+    /** OK on a Continue Watching card: "resume" (in its app: Stremio plays where you left off) | "card" (as OK on a card). */
+    var cwOk: String get() = s("cwOk", "resume"); set(v) = putS("cwOk", v)
     /** Trailers behind the big picture: auto (off by itself if they keep failing on this TV) | on | off. */
     var trailerMode: String get() = s("trailerMode", if (b("heroTrailers", true)) "auto" else "off"); set(v) = putS("trailerMode", v)
     /** Recommendations (trending and popular rows): auto (with no account or add-on) | always | off. */

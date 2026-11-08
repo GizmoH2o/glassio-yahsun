@@ -742,6 +742,15 @@ final class LiveOptions {
 
     /** The resolution badge (4K, 2K, FHD, HD, SD) at the top right of each channel's logo: on unless off. */
     /** The player's stream badges as the badge set's pictures (LiveBadgeArt): on unless off; off, in words. */
+    /** Guide… › Search full screen (keyboard and results), or the simple text box. */
+    static boolean guideSearchFull(Context c) {
+        return !flag(c, "live-guide-search-box").exists();
+    }
+
+    static void setGuideSearchFull(Context c, boolean on) {
+        setFlag(c, "live-guide-search-box", !on);
+    }
+
     static boolean streamBadgePictures(Context c) {
         return !flag(c, "live-words-stream-badges").exists();
     }
@@ -1155,6 +1164,9 @@ final class LiveOptions {
 
     /** The account's own settings (its categories, its guide's link), signing out of it; the rest stays. */
     static void clearAccount(Context c) {
-        sp(c).edit().remove("hidden").remove("locked").remove("separate").remove("guideUrl").remove("fullGuide").apply();
+        SharedPreferences.Editor e = sp(c).edit().remove("hidden").remove("locked").remove("separate").remove("guideUrl").remove("fullGuide")
+                .remove("guideLinks").remove("guideProvider").remove("guideMigrated");
+        for (String k : sp(c).getAll().keySet()) if (k.startsWith("guideStatus:")) e.remove(k);
+        e.apply();
     }
 }
