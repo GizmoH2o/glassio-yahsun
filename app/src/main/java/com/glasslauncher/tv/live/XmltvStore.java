@@ -416,6 +416,13 @@ final class XmltvStore {
         return out;
     }
 
+    /** The channels (provider ids) that found their guide by name, the last time the list loaded. */
+    private static volatile Set<Integer> byName = new HashSet<>();
+
+    static boolean matchedByName(int channelId) {
+        return byName.contains(channelId);
+    }
+
     /** Channels with no guide take the one with exactly their name (LiveGuideMatch). */
     static void matchNames(Context c, Xtream.Lineup l) {
         if (!LiveOptions.fullGuide(c) || !LiveOptions.matchNames(c)) return;
@@ -424,14 +431,17 @@ final class XmltvStore {
         if (names.isEmpty()) return;
         int matched = 0;
         Set<Integer> byHand = LiveChannelEdits.guided(c);
+        Set<Integer> found = new HashSet<>();
         for (Xtream.Channel ch : l.all()) {
             if (byHand.contains(ch.id)) continue;       // chosen by hand (Guide…): kept, listings or not
             if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) continue;
             String id = LiveGuideMatch.find(ch.name, names);
             if (id == null) continue;
             ch.epg = id;
+            found.add(ch.id);
             matched++;
         }
+        byName = found;
         AppLog.w("guide: " + matched + " channels found their guide by name");
     }
 

@@ -5831,10 +5831,6 @@ final class LiveView extends View {
                 openShowPage(channel, p, pl, pi, pa);
             });
         }
-        if (labels.isEmpty() && !grouped) {     // nothing for this show: the favorite, straight away (as on the logos)
-            favoriteRow();
-            return;
-        }
         labels.add(Xtream.isFavorite(lineup, channel.id) ? Ui.tr("Tirar dos favoritos", "Remove from favorites")
                 : Ui.tr("Pôr nos favoritos", "Add to favorites"));
         icons.add(Xtream.isFavorite(lineup, channel.id) ? "heart_off" : "heart");
@@ -5842,6 +5838,9 @@ final class LiveView extends View {
         labels.add(Ui.tr("Logo", "Logo"));
         icons.add("tv");
         actions.add(() -> logoMenu(channel));
+        labels.add(Ui.tr("Guia…", "Guide…"));
+        icons.add("guide");
+        actions.add(() -> guideMenu(channel));
         if (channel.id > 0) {      // for a channel Glassio's player can't play
             labels.add(Ui.tr("Abrir em outro player", "Open in another player"));
             icons.add("exit");
@@ -6063,6 +6062,30 @@ final class LiveView extends View {
                 : Ui.tr("Agora: ", "Now: ") + (nowName != null ? nowName + " · " : "") + now
                         + (hand.isEmpty() ? "" : " · " + Ui.tr("escolhido à mão", "chosen by hand"));
         if (all.isEmpty()) flash(Ui.tr("Atualize o guia para ver os canais dele.", "Update the guide to see its channels."));
+        if (LiveOptions.guidePanel(c)) {        // the panel at the right (Settings › Guide panel), else the list below
+            LiveGuidePanel.Spec s = new LiveGuidePanel.Spec();
+            s.number = channel.num > 0 ? String.valueOf(channel.num) : "";
+            s.name = nameOf(channel);
+            s.country = tagOf(channel);
+            s.logoUrl = channel.logo == null ? "" : channel.logo;
+            s.nowId = now;
+            s.nowName = nowName;
+            s.byHand = !hand.isEmpty();
+            s.how = !hand.isEmpty() ? Ui.tr("escolhido à mão", "chosen by hand")
+                    : XmltvStore.matchedByName(channel.id) ? Ui.tr("achado pelo nome", "matched by name")
+                    : now.isEmpty() ? "" : Ui.tr("da sua lista", "from your playlist");
+            s.suggestions = like;
+            s.onPick = g -> chooseGuide(channel, g[0], g[1]);
+            s.onSearch = all.isEmpty() ? null : () -> searchGuide(channel, all, like, now);
+            s.onType = () -> typeGuide(channel, now);
+            s.onAuto = () -> {
+                LiveChannelEdits.clearGuide(c, channel.id);
+                flash(Ui.tr("O guia volta a ser automático", "The guide is automatic again"));
+                live.relistAndGuide(false);
+            };
+            new LiveGuidePanel(c, s).show();
+            return;
+        }
         final List<String> labels = new ArrayList<>(), icons = new ArrayList<>();
         final List<Runnable> acts = new ArrayList<>();
         labels.add(message);        // the list has no room for a message: what it is now, first (OK just closes)

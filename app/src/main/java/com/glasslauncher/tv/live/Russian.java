@@ -646,6 +646,18 @@ final class Russian {
             case ": type more": return ": введите ещё";
             case " guide channel": return " канал телегида";
             case " guide channels": return " каналов телегида";
+            case "Guide panel": return "Панель телегида";
+            case "Panel": return "Панель";
+            case "List": return "Список";
+            case "Guide… on a channel: a panel at the right with the guide in use, what's on now and the suggestions, or a plain list.": return "Телегид… на канале: панель справа с текущим телегидом, тем, что идёт сейчас, и подсказками, или простой список.";
+            case "matched by name": return "найден по названию";
+            case "from your playlist": return "из вашего списка";
+            case "Nothing in the guide now": return "Сейчас в телегиде ничего";
+            case " · until ": return " · до ";
+            case " · then ": return " · затем ";
+            case "No guide now": return "Сейчас без телегида";
+            case "Choose one below, or search.": return "Выберите ниже или найдите.";
+            case "Type an ID": return "Ввести ID";
             case "Guide source": return "Источник гида";
             case "How many days ahead the full guide keeps.": return "Сколько дней вперёд хранит полный гид.";
             case "Indexing…": return "Индексация…";

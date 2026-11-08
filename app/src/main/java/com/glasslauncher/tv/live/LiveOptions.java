@@ -742,6 +742,15 @@ final class LiveOptions {
 
     /** The resolution badge (4K, 2K, FHD, HD, SD) at the top right of each channel's logo: on unless off. */
     /** The player's stream badges as the badge set's pictures (LiveBadgeArt): on unless off; off, in words. */
+    /** Guide… on a channel as the panel at the right, or the plain list. */
+    static boolean guidePanel(Context c) {
+        return !flag(c, "live-guide-list").exists();
+    }
+
+    static void setGuidePanel(Context c, boolean on) {
+        setFlag(c, "live-guide-list", !on);
+    }
+
     /** Guide… › Search full screen (keyboard and results), or the simple text box. */
     static boolean guideSearchFull(Context c) {
         return !flag(c, "live-guide-search-box").exists();

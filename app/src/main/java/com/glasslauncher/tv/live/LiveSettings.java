@@ -40,7 +40,7 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220, STREAM_BADGES_ROW = 221, HAND_GUIDES_ROW = 222, GUIDE_SEARCH_ROW = 223,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220, STREAM_BADGES_ROW = 221, HAND_GUIDES_ROW = 222, GUIDE_SEARCH_ROW = 223, GUIDE_PANEL_ROW = 224,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -98,7 +98,7 @@ final class LiveSettings {
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
             {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, RES_BADGE_ROW, STREAM_BADGES_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
                     RESET_ROW},
-            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, HAND_GUIDES_ROW, GUIDE_SEARCH_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
+            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, HAND_GUIDES_ROW, GUIDE_PANEL_ROW, GUIDE_SEARCH_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
                     CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW, COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW},
@@ -413,6 +413,7 @@ final class LiveSettings {
             case STREAM_BADGES_ROW: return Ui.tr("Selos do sinal em figuras", "Stream badges as pictures");
             case HAND_GUIDES_ROW: return Ui.tr("Guias escolhidos à mão", "Guides chosen by hand");
             case GUIDE_SEARCH_ROW: return Ui.tr("Busca do guia", "Guide search");
+            case GUIDE_PANEL_ROW: return Ui.tr("Painel do guia", "Guide panel");
             case SCHEDULE_ROW: return Ui.tr("Lembretes marcados", "Reminders set");
             case RECORD_LIST_ROW: return Ui.tr("Gravações marcadas", "Scheduled recordings");
             case RECORDINGS_ROW: return Ui.tr("Programas gravados", "Recorded shows");
@@ -576,6 +577,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: return onOff(LiveOptions.voiceCommands(c));
             case RES_BADGE_ROW: return onOff(LiveOptions.resolutionBadges(c));
             case STREAM_BADGES_ROW: return onOff(LiveOptions.streamBadgePictures(c));
+            case GUIDE_PANEL_ROW: return LiveOptions.guidePanel(c) ? Ui.tr("Painel", "Panel") : Ui.tr("Lista", "List");
             case GUIDE_SEARCH_ROW: return LiveOptions.guideSearchFull(c) ? Ui.tr("Tela cheia", "Full screen") : Ui.tr("Caixa simples", "Simple box");
             case UNRATED_ROW: return onOff(LiveOptions.unratedNeedsPin(c));
             case REMIND_LEAD_ROW: {
@@ -1120,6 +1122,8 @@ final class LiveSettings {
                     case RECORDINGS_ROW: return Ui.tr("O que já foi gravado e o espaço que ocupa. OK abre.", "What's been recorded and the room it takes. OK opens them.");
                     case SERIES_RECORD_ROW: return Ui.tr("Programas gravados sempre que passam (OK num programa futuro no guia → Todos os episódios…).",
                             "Shows recorded every time they air (OK on a later show in the guide → Every episode…).");
+                    case GUIDE_PANEL_ROW: return Ui.tr("Guia… num canal: um painel à direita, com o guia em uso, o que passa agora e as sugestões, ou uma lista simples.",
+                            "Guide… on a channel: a panel at the right with the guide in use, what's on now and the suggestions, or a plain list.");
                     case GUIDE_SEARCH_ROW: return Ui.tr("Guia… › Buscar: em tela cheia, com o teclado e os canais do guia filtrados a cada letra, ou numa caixa simples.",
                             "Guide… › Search: full screen, with the keyboard and the guide's channels narrowed with every letter, or in a simple box.");
                     case HAND_GUIDES_ROW: return Ui.tr("Canais cujo guia você escolheu (segure OK num canal › Guia…). OK os deixa todos automáticos de novo.",
@@ -1863,7 +1867,7 @@ final class LiveSettings {
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id == TEXT_SCALE_ROW || id == HIGH_CONTRAST_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
                 || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == STREAM_BADGES_ROW || id == GUIDE_SEARCH_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == STREAM_BADGES_ROW || id == GUIDE_SEARCH_ROW || id == GUIDE_PANEL_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -2572,6 +2576,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: LiveOptions.setVoiceCommands(c, !LiveOptions.voiceCommands(c)); announce(); return;
             case RES_BADGE_ROW: LiveOptions.setResolutionBadges(c, !LiveOptions.resolutionBadges(c)); view.invalidate(); announce(); return;
             case STREAM_BADGES_ROW: LiveOptions.setStreamBadgePictures(c, !LiveOptions.streamBadgePictures(c)); view.invalidate(); announce(); return;
+            case GUIDE_PANEL_ROW: LiveOptions.setGuidePanel(c, !LiveOptions.guidePanel(c)); announce(); return;
             case GUIDE_SEARCH_ROW: LiveOptions.setGuideSearchFull(c, !LiveOptions.guideSearchFull(c)); announce(); return;
             case COMMUNITY_ON_ROW: LiveOptions.setCommunityDesigns(c, !LiveOptions.communityDesigns(c)); announce(); return;
             case UNRATED_ROW: {
@@ -2893,6 +2898,7 @@ final class LiveSettings {
             case RES_BADGE_ROW:
             case STREAM_BADGES_ROW:
             case GUIDE_SEARCH_ROW:
+            case GUIDE_PANEL_ROW:
             case HIGH_CONTRAST_ROW:
             case UNRATED_ROW:
             case COMMUNITY_ON_ROW:

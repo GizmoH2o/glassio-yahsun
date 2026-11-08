@@ -633,6 +633,18 @@ final class Italian {
             case ": type more": return ": scrivi altro";
             case " guide channel": return " canale della guida";
             case " guide channels": return " canali della guida";
+            case "Guide panel": return "Pannello della guida";
+            case "Panel": return "Pannello";
+            case "List": return "Elenco";
+            case "Guide… on a channel: a panel at the right with the guide in use, what's on now and the suggestions, or a plain list.": return "Guida… su un canale: un pannello a destra con la guida in uso, cosa c'è ora e i suggerimenti, o un elenco semplice.";
+            case "matched by name": return "trovata dal nome";
+            case "from your playlist": return "dalla tua lista";
+            case "Nothing in the guide now": return "Niente nella guida ora";
+            case " · until ": return " · fino alle ";
+            case " · then ": return " · poi ";
+            case "No guide now": return "Nessuna guida ora";
+            case "Choose one below, or search.": return "Scegline una qui sotto, o cerca.";
+            case "Type an ID": return "Scrivi un ID";
             case "Guide source": return "Fonte della guida";
             case "How many days ahead the full guide keeps.": return "Quanti giorni futuri tiene la guida completa.";
             case "Indexing…": return "Indicizzazione…";

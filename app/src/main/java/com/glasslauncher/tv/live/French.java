@@ -633,6 +633,18 @@ final class French {
             case ": type more": return " premières : tapez plus";
             case " guide channel": return " chaîne du guide";
             case " guide channels": return " chaînes du guide";
+            case "Guide panel": return "Panneau du guide";
+            case "Panel": return "Panneau";
+            case "List": return "Liste";
+            case "Guide… on a channel: a panel at the right with the guide in use, what's on now and the suggestions, or a plain list.": return "Guide… sur une chaîne : un panneau à droite avec le guide utilisé, ce qui passe et les suggestions, ou une simple liste.";
+            case "matched by name": return "trouvé par le nom";
+            case "from your playlist": return "de votre liste";
+            case "Nothing in the guide now": return "Rien dans le guide en ce moment";
+            case " · until ": return " · jusqu'à ";
+            case " · then ": return " · puis ";
+            case "No guide now": return "Pas de guide pour l'instant";
+            case "Choose one below, or search.": return "Choisissez-en un ci-dessous, ou cherchez.";
+            case "Type an ID": return "Saisir un ID";
             case "Guide source": return "Source du guide";
             case "How many days ahead the full guide keeps.": return "Combien de jours à venir le guide complet garde.";
             case "Indexing…": return "Indexation…";
