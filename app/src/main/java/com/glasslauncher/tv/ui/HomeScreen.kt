@@ -86,6 +86,7 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -208,6 +209,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     var trailerOver by remember { mutableStateOf(false) }
     /** It playing (not just loading), and how far the page's picture over it has faded away (0 to 1). */
     var trailerPlaying by remember { mutableStateOf(false) }
+    // Cinematic: the page faded away over the trailer, and the press that brings it back (its key up swallowed too).
+    var cineHidden by remember { mutableStateOf(false) }
+    var cineSwallowUp by remember { mutableStateOf(false) }
+    val cineAlpha = animateFloatAsState(if (cineHidden) 0f else 1f, tween(if (cineHidden) 900 else 250), label = "cinematic")
     val trailerShown = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(trailer, trailerPlaying) {
         if (trailer == null) trailerShown.snapTo(0f) else trailerShown.animateTo(if (trailerPlaying) 1f else 0f, tween(700))
@@ -506,8 +511,19 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             // The big picture's trailer (Settings › Home › Trailers): under the picture, which fades away once it plays.
             // Over: the picture back, then the trailer gone.
             val trailerDrawn = trailer != null && !folderOpen && screen == Screen.Home
+            // Trailer mode Cinematic (Settings › Home): with sound, and once it has played a few seconds untouched, the page
+            // fades away and the trailer has the screen; the next button brings the page back (and does nothing else).
+            val cinematic = settings.trailerLook == "cinematic"
+            LaunchedEffect(cinematic, trailer, trailerPlaying, onHero, screen, menuOpen, dialog, folderOpen, app.interaction.longValue) {
+                cineHidden = false
+                if (cinematic && trailer != null && trailerPlaying && onHero && screen == Screen.Home && !menuOpen && dialog == null && !folderOpen) {
+                    delay(CINEMATIC_AFTER_MS)
+                    cineHidden = true
+                }
+            }
             trailer?.let { id ->
-                if (trailerDrawn) HeroTrailer(id, { trailerShown.value }, onPlaying = { trailerPlaying = true }, onWaiting = { trailerPlaying = false }) {
+                if (trailerDrawn) HeroTrailer(id, { trailerShown.value }, onPlaying = { trailerPlaying = true }, onWaiting = { trailerPlaying = false },
+                    muted = !cinematic, shade = { cineAlpha.value }) {
                     trailerPlaying = false
                     scope.launch { delay(700); if (trailer == id) { trailer = null; trailerOver = true } }
                 }
@@ -525,8 +541,15 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             val homeVisible by remember { androidx.compose.runtime.derivedStateOf { homeAlphaState.value > 0.001f } }
             // Kept under a title's page opened from Home (its row, its scroll stay as they were).
             if (homeVisible || (screen == Screen.Home && !folderOpen) || (screen == Screen.Title && titleFrom == Screen.Home)) Box(
-                Modifier.fillMaxSize().graphicsLayer { alpha = homeAlphaState.value }
+                Modifier.fillMaxSize().graphicsLayer { alpha = homeAlphaState.value * cineAlpha.value }
                     .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn }
+                    .onPreviewKeyEvent { ev ->
+                        when {
+                            cineHidden && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown -> { cineHidden = false; cineSwallowUp = true; true }
+                            cineSwallowUp && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyUp -> { cineSwallowUp = false; true }
+                            else -> false
+                        }
+                    }
             ) {
                 HomePage(
                     app, s, screenHdp, visible = screen == Screen.Home && !folderOpen, paused = screen != Screen.Home,
@@ -916,6 +939,8 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
  */
 internal fun slowZoomOf(since: Long, now: Long, perSecond: Float): Float =
     (1f + perSecond * ((now - since).coerceAtLeast(0L) / 1000f)).coerceAtMost(SLOW_ZOOM_MAX)
+/** Cinematic: how long a trailer plays untouched before the page fades away from over it. */
+internal const val CINEMATIC_AFTER_MS = 4000L
 internal const val SLOW_ZOOM_MAX = 1.12f
 internal const val HERO_ZOOM_PER_S = 0.0047f
 internal const val HERO_ZOOM_X = 0.87f

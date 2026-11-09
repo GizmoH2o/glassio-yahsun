@@ -287,16 +287,18 @@ private class CardTrailerWindow(private val host: android.view.View, ids: String
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaiting: () -> Unit, onEnded: () -> Unit) {
-    key(ids) {
+fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaiting: () -> Unit,
+                muted: Boolean = true, shade: () -> Float = { 1f }, onEnded: () -> Unit) {
+    key(ids, muted) {
         Box(Modifier.fillMaxSize()) {
             AndroidView(
-                factory = { ctx -> trailerView(ctx, ids, muted = true, onPlaying, onWaiting, onEnded) },
+                factory = { ctx -> trailerView(ctx, ids, muted, onPlaying, onWaiting, onEnded) },
                 onRelease = { releaseTrailer(it) },
                 modifier = Modifier.fillMaxSize(),
             )
             // The backdrops' own shades (baked into them, so gone as they fade): dark at the left (the text) and the bottom.
-            Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown() }
+            // (Cinematic: they go with the page, so the trailer has the screen to itself.)
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown() * shade() }
                 .background(Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.78f), 0.45f to Color.Black.copy(alpha = 0.25f), 0.7f to Color.Transparent))
                 .background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
         }

@@ -327,6 +327,8 @@ class Settings(private val ctx: Context) {
     var trailerQuality: String get() = s("trailerQuality", "auto"); set(v) = putS("trailerQuality", v)
     var trailerSubLang: String get() = s("trailerSubLang", "ar"); set(v) = putS("trailerSubLang", v)
     /** Seconds on a title before its trailer starts by itself (0 = only when asked). */
+    /** The big picture's trailer: "normal" (muted, behind the title and rows) | "cinematic" (with sound, then the screen is its own). */
+    var trailerLook: String get() = s("trailerLook", "normal"); set(v) = putS("trailerLook", v)
     var trailerAutoSec: Int get() = i("trailerAutoSec", 5); set(v) = putI("trailerAutoSec", v.coerceIn(0, 60))
     var trailerPopupScale: Float get() = f("trailerPopupScale", 1.4f); set(v) = putF("trailerPopupScale", v.coerceIn(0.6f, 2f))
     /** Size of the carousel's dots bar (1 = as designed). */
