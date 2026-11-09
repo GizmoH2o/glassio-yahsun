@@ -90,6 +90,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clipToBounds
@@ -1142,8 +1143,12 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
     val date by produceState(dateText(), Unit) { while (true) { value = dateText(); delay(60_000) } }
     val wx by app.weather.now.collectAsState()
     val shade = TextStyle(shadow = Shadow(Color.Black.copy(alpha = 0.5f), blurRadius = 8f))
+    // Where the weather may end (px): before the buttons beside it, or at the bar's right edge when it sits under the clock.
+    var weatherEnd by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
     Row(
-        modifier.padding(top = (18 * s).dp, start = (56 * s).dp, end = (34 * s).dp).graphicsLayer { alpha = a },
+        modifier.padding(top = (18 * s).dp, start = (56 * s).dp, end = (34 * s).dp).graphicsLayer { alpha = a }
+            .onGloballyPositioned { if (settings.clockPos == "right") weatherEnd = it.boundsInWindow().right },
         verticalAlignment = Alignment.Top,
     ) {
         val right = settings.clockPos == "right"
@@ -1164,9 +1169,12 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                     if (settings.weatherMode == "condition" || settings.weatherMode == "all") w.condition.takeIf { it.isNotBlank() }?.let { add(Lang.weather(it)) }
                     if (settings.weatherMode == "city" || settings.weatherMode == "all") add(w.city)
                 }
-                // At most what leaves the tabs clear.
+                // At most what leaves the tabs clear: from where they end to where the weather must stop, less its icon.
+                val tabsEnd = tabsRight.floatValue
+                val room = if (tabsEnd <= 0f || weatherEnd <= 0f) (170 * s).dp
+                    else with(density) { (weatherEnd - tabsEnd).toDp() } - (34 * s).dp
                 Text(parts.joinToString("  ·  "), color = Color.White.copy(alpha = 0.9f), fontSize = (10 * s).sp, fontWeight = FontWeight.Medium, style = shade,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = (170 * s).dp))
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = room.coerceIn(0.dp, (170 * s).dp)))
             }
         }
         if (right) Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
@@ -1185,10 +1193,13 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
             weatherRow()
         } else Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             weatherRow()
-            UpdateDot(app, s) { barFocused = it }
-            QuickButton(s, onQuick) { barFocused = it }
-            ProfileButton(app, s, onProfile) { barFocused = it }
-            GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
+            Row(Modifier.onGloballyPositioned { weatherEnd = it.boundsInWindow().left - with(density) { (10 * s).dp.toPx() } },
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
+                UpdateDot(app, s) { barFocused = it }
+                QuickButton(s, onQuick) { barFocused = it }
+                ProfileButton(app, s, onProfile) { barFocused = it }
+                GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
+            }
         }
     }
 }

@@ -21,10 +21,15 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.glasslauncher.tv.GlassApp
+
+/** Where the tabs end on screen (px; 0: none shown): the home screen's weather stops short of them. */
+val tabsRight = androidx.compose.runtime.mutableFloatStateOf(0f)
 
 /**
  * The tabs in the top bar, Apple TV style: Home, Live TV, Following, Library, Search. Lit when it's the page on, white when
@@ -34,7 +39,7 @@ import com.glasslauncher.tv.GlassApp
 @Composable
 fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modifier: Modifier = Modifier, onFocus: (Boolean) -> Unit = {}, onDown: (() -> Unit)? = null, onTab: (Screen) -> Unit) {
     val st = app.settings
-    if (st.kidsMode) return
+    if (st.kidsMode) { tabsRight.floatValue = 0f; return }
     val tabs = buildList {
         add("Home" to Screen.Home)
         if (st.menuLive) add("Live TV" to Screen.LiveTv)
@@ -43,7 +48,8 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
         add("Search" to Screen.Search)
     }
     Row(
-        modifier.clip(RoundedCornerShape(50)).background(Color(0xFF1E1E22).copy(alpha = 0.72f)).padding((2.5f * s).dp),
+        modifier.onGloballyPositioned { tabsRight.floatValue = it.boundsInWindow().right }
+            .clip(RoundedCornerShape(50)).background(Color(0xFF1E1E22).copy(alpha = 0.72f)).padding((2.5f * s).dp),
         horizontalArrangement = Arrangement.spacedBy((2 * s).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
