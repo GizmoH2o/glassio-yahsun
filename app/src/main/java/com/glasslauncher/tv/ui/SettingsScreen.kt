@@ -169,10 +169,64 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     val firstCat = remember { FocusRequester() }
     // One requester per category: leaving the right pane goes back to the category it belongs to,
     // instead of whichever category happens to sit next to the row (that switched the page).
-    val catFocus = remember { List(16) { FocusRequester() } }
+    val catFocus = remember { List(24) { FocusRequester() } }
 
     fun io(block: suspend () -> String) = scope.launch(Dispatchers.IO) {
         toast(ctx, runCatching { block() }.getOrElse { it.message ?: "Failed" })
+    }
+    /** A video link's picture if it's made already (no waiting). */
+    fun thumbOf(id: String): java.io.File? = if (!id.startsWith("http")) null
+        else com.glasslauncher.tv.saver.VideoThumbs.file(ctx, id).takeIf { it.isFile && it.length() > 0 }
+    /** Makes the pictures still missing, then shows the same list again with them (if it's still open). */
+    fun fillThumbs(ids: List<String>, title: String, items: () -> List<ThumbItem>) = scope.launch(Dispatchers.IO) {
+        val missing = ids.filter { it.startsWith("http") && thumbOf(it) == null }
+        if (missing.isEmpty()) return@launch
+        missing.forEach { com.glasslauncher.tv.saver.VideoThumbs.get(ctx, it) }
+        if ((dialog as? ThumbDialog)?.title == title) dialog = ThumbDialog(title, items())
+    }
+    // Simkl (from upstream Glassio): its app id comes from the phone page, then a sign-in code on the TV.
+    fun connectSimkl() {
+        val sk = app.cw.simkl
+        scope.launch(Dispatchers.IO) {
+            if (!sk.available) {
+                val u = com.glasslauncher.tv.net.PhoneHost.start(app) ?: run { toast(ctx, "The TV is not on a network"); return@launch }
+                val code = kotlinx.coroutines.flow.MutableStateFlow<String?>("Simkl Client ID")
+                dialog = QrCodeDialog("Simkl: add its app id", u, code, "Scan, then paste the Client ID from simkl.com/settings/developer. Sign-in follows here.")
+                var n = 0
+                while (!sk.available && dialog != null && n++ < 600) kotlinx.coroutines.delay(1000)
+                code.value = null
+                if (!sk.available) return@launch
+                kotlinx.coroutines.delay(400)
+            }
+            val pin = runCatching { sk.startPin() }.getOrElse { toast(ctx, "Simkl: ${it.message}"); return@launch }
+            val code = kotlinx.coroutines.flow.MutableStateFlow<String?>(pin.code)
+            dialog = QrCodeDialog("Connect Simkl", pin.qr, code, "Scan and approve on simkl.com (the code is filled in). This closes by itself.")
+            val ok = sk.waitPin(pin) { dialog == null }
+            code.value = null
+            toast(ctx, if (ok) "Simkl connected" else "Simkl: ${sk.lastError}")
+            if (ok) { st.cwSimkl = true; app.cw.pollNow(); tvRev.intValue++ }
+        }
+    }
+    fun simklRows(): List<SRow> = buildList {
+        tvRev.intValue
+        val sk = app.cw.simkl
+        if (!sk.connected) add(Act("Connect Simkl", "Scan a QR code with your phone and approve" + (if (!sk.available) " (first its app id, from the phone)" else ""), "") { connectSimkl() })
+        else {
+            add(Act("Simkl account", "Signed in" + sk.user.takeIf { it.isNotBlank() }?.let { " as $it" }.orEmpty(), "Sign out", ok = true) {
+                dialog = MenuDialog("Sign out of Simkl?", listOf("Sign out" to { sk.signOut(); tvRev.intValue++; toast(ctx, "Signed out of Simkl") }, "Cancel" to { }))
+            })
+            add(Toggle("Continue Watching from Simkl", "What you paused in any app that uses Simkl", { st.cwSimkl }, { st.cwSimkl = it; app.cw.pollNow() }))
+            add(Toggle("Simkl \"Plan to watch\" in the Library", "Its own tab", { st.librarySimkl }, { st.librarySimkl = it; scope.launch(Dispatchers.IO) { app.library.refreshSimkl() } }))
+            add(Toggle("Saving to the Library saves to Simkl too", "", { st.libraryToSimkl }, { st.libraryToSimkl = it }))
+        }
+        add(Toggle("Sync Library and Continue Watching", "Keeps them the same on every connected account: Nuvio, Trakt and Simkl (Stremio is read). Removing a title removes it everywhere",
+            { st.syncAll }, { on -> st.syncAll = on; if (on) app.sync.runSoon { m -> toast(ctx, m) } }))
+    }
+    // A row that opens another section (things that belong together are reachable from both).
+    val catTitles = remember { arrayOf<List<String>>(emptyList()) }
+    fun link(title: String, desc: String): SRow = Act("→ " + com.glasslauncher.tv.data.I18n.tr(title), desc, "") {
+        val i = catTitles[0].indexOf(title)
+        if (i >= 0) { cat = i; shownCat = i; scope.launch { delay150(); runCatching { catFocus[i].requestFocus() } } }
     }
     // TMDB: the token is checked with TMDB itself whenever it changes, so "Set" means it really works.
     fun tmdbRow(): SRow {
@@ -239,6 +293,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 }, { st.glassRes = cycle(listOf(480, 720), st.glassRes, it); custom() }),
                 Adjust("Picture quality", "The home screen's big picture", { if (st.imageQuality == "high") "High (1280 px)" else "Maximum (original)" },
                     { st.imageQuality = cycle(listOf("high", "max"), st.imageQuality, it); custom() }),
+                Adjust("Picture cache", "Posters and backdrops kept on the TV's storage (fewer downloads; less free space). From the next start of Glassio",
+                    { if (st.cacheMb >= 1024) "%.1f GB".format(st.cacheMb / 1024f) else "${st.cacheMb} MB" }, { st.cacheMb += it * 256 }),
                 // Also on Home and Clock & glass: the same rows (a change there makes the mode Custom too).
                 transitionRow(st),
                 refractionRow(st),
@@ -495,6 +551,10 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { st.iconPack = cycle(packList, st.iconPack, it) }))
                 add(Adjust("Apps per row", "The apps on the home screen, in a grid", { "${st.appsPerRow}" }, { st.appsPerRow += it }))
                 add(Toggle("Show Apps folder", "All apps (hidden ones too), as a tile among your apps. Hidden apps stay listed below", { st.showFolder }, { st.showFolder = it }))
+                // App lock (from upstream Glassio): hold OK on an app, then Lock; it asks for this code to open it.
+                add(Act("App lock code", "Locked apps ask for it before they open. Lock one: hold OK on the app, then Lock" +
+                    (if (st.lockedApps.isNotEmpty()) " · ${st.lockedApps.size} locked" else ""),
+                    if (st.lockCode == "0000") "0000 · change it" else "Set", ok = st.lockCode != "0000") { AppLock.change(app, ctx) })
                 add(Adjust("Apps folder background", "Behind the apps in the Apps folder", { styleName(st.dockStyle) },
                     { st.dockStyle = cycle(listOf("liquid", "water", "water_still", "clear", "amoled", "bow"), st.dockStyle, it); st.theme = "" }))
                 add(Adjust("Settings background", "Behind the icon picker", { styleName(st.panelStyle) },
@@ -662,6 +722,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             listOf(
                 nuvioAccountRow(),
                 stremioAccountRow(),
+                *simklRows().toTypedArray(),
                 Adjust("Open titles in", "Auto uses the first installed: Nuvio Legacy, Nuvio (official), Nuvio Arc, Nuvio Re-Shaped, Stremio", {
                     val n = NuvioLaunch.NAMES[st.nuvioTarget] ?: "Auto"
                     val r = NuvioLaunch.resolve(ctx, st)
@@ -977,6 +1038,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     }
                 }),
                 Toggle("Home button opens Glassio", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
+                Toggle("Back from standby: Glassio", "After a long standby Google TV shows its own home screen: Glassio replaces it. Needs \"Home button opens Glassio\"",
+                    { st.bootStart }, { st.bootStart = it }),
                 Toggle("Guide button opens Live TV's guide", "Instead of the TV maker's own TV app, on TVs that pass the remote's buttons to apps (some TCL TVs don't). Needs the accessibility service below", { st.interceptGuide }, { st.interceptGuide = it }),
                 Act("Turn on the accessibility service", "Find Glassio Yahsun and switch it on", "") { openSystem(ctx, AndroidSettings.ACTION_ACCESSIBILITY_SETTINGS) },
                 Act("Turn it on with ADB", if (homeKeyOn) "The accessibility service is on" else "When the TV doesn't let you (restricted setting / greyed out). Needs TV access (ADB), below", "") {
@@ -1008,6 +1071,407 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     }
                 },
             )
+        },
+        Category("Cameras") {
+            buildList {
+                add(Note("Your cameras"))
+                add(Act("Find cameras", "Searches your network (ONVIF: Hikvision, Dahua, Reolink, Tapo, Amcrest, Axis…)", "") {
+                    io {
+                        val found = com.glasslauncher.tv.data.Onvif.discover()
+                        if (found.isEmpty()) return@io "No cameras answered. Add one with its RTSP link below"
+                        dialog = MenuDialog("Cameras found", found.map { f -> "${f.name} · ${f.ip}" to {
+                            dialog = TextEntry("Login for ${f.name}", "admin:", "user:password (the camera's own login)") { login ->
+                                io {
+                                    val chans = com.glasslauncher.tv.data.Onvif.streamUris(f, login.substringBefore(':'), login.substringAfter(':', ""))
+                                    st.cameras = (st.cameras + chans.map { (n, uri) -> Cam(n, uri).line() }).distinct(); tvRev.intValue++
+                                    if (chans.size > 1) "Added ${chans.size} cameras from ${f.name}" else "Added ${f.name}"
+                                }
+                            }
+                        } })
+                        "${found.size} found"
+                    }
+                })
+                add(Act("Cameras from Home Assistant", "Aqara (through HomeKit), Frigate, Ring, Tapo… any camera Home Assistant shows. Uses the Home Assistant link and token (Doorbell, below)", "") {
+                    io {
+                        check(st.haUrl.startsWith("http") && st.haToken.isNotBlank()) { "Add the Home Assistant link and token first (Doorbell from Home Assistant, below)" }
+                        val list = com.glasslauncher.tv.net.HaWatch.cameras(st.haUrl, st.haToken)
+                        if (list.isEmpty()) return@io "Home Assistant has no cameras"
+                        dialog = MenuDialog("Home Assistant cameras", list.map { (id, n) ->
+                            (if (st.cameras.any { Cam.parse(it)?.url == "ha://$id" }) "✓ $n" else n) to {
+                                st.cameras = (st.cameras + Cam(n, "ha://$id").line()).distinctBy { Cam.parse(it)?.url ?: it }; tvRev.intValue++
+                                toast(ctx, "Added $n")
+                            }
+                        })
+                        "${list.size} cameras"
+                    }
+                })
+                add(Act("Add camera link", "rtsp://user:password@ip:554/… , an HLS (.m3u8) or video link", "") {
+                    dialog = TextEntry("Camera link", "rtsp://", "rtsp://user:password@camera-ip:554/stream1") { u ->
+                        if (!u.contains("://")) { toast(ctx, "That isn't a link"); return@TextEntry }
+                        dialog = TextEntry("Camera name", "", "Door, Garden…") { n -> st.cameras = (st.cameras + Cam(n.ifBlank { "Camera" }, u.trim()).line()).distinct(); tvRev.intValue++ }
+                    }
+                })
+                st.cameras.mapNotNull { Cam.parse(it) }.forEach { c ->
+                    add(Act(c.name, runCatching { java.net.URI(c.url).host }.getOrNull() ?: "", "Remove") { st.cameras = st.cameras.filterNot { it == c.line() || Cam.parse(it)?.url == c.url } })
+                }
+                if (st.cameras.isEmpty()) add(Note("No cameras yet: find them on your network or add a link above. From the phone page you can also add, rename and remove them."))
+                add(Note("Where they show"))
+                add(Toggle("Camera in the menu", "Live view in the menu, like Apple TV (◀ ▶ switches camera)", { st.menuCamera }, { st.menuCamera = it }))
+                add(Toggle("Hold Home shows a camera", "In the corner, over any app (needs the Home button service: System)", { st.homeLong == "camera" },
+                    { st.homeLong = if (it) "camera" else "off" }))
+                val camList = st.cameras.mapNotNull { Cam.parse(it) }
+                if (camList.size > 1) add(Adjust("  · Camera", "Which camera opens when you hold Home",
+                    { (camList.firstOrNull { it.url == st.cornerCamera } ?: camList.first()).name },
+                    { d ->
+                        val i = camList.indexOfFirst { it.url == st.cornerCamera }.coerceAtLeast(0)
+                        st.cornerCamera = camList[(i + d).mod(camList.size)].url
+                    }))
+                add(Adjust("  · Size", "", { pct(st.cameraScale) }, { st.cameraScale = ((st.cameraScale * 10).roundToInt() + it) / 10f }))
+                if (camList.size > 1) add(Adjust("  · Switch cameras every", "Goes round your cameras on its own",
+                    { if (st.cameraCycleSec == 0) "Off" else if (st.cameraCycleSec < 60) "${st.cameraCycleSec} s" else "${st.cameraCycleSec / 60} min" },
+                    { st.cameraCycleSec = cycle(listOf(0, 5, 10, 15, 20, 30, 60), st.cameraCycleSec, it) }))
+                add(Adjust("  · Corner camera closes after", "It goes away on its own after this (Back or holding Home again closes it sooner)",
+                    { if (st.cameraCornerSec == 0) "Never" else if (st.cameraCornerSec < 60) "${st.cameraCornerSec} s" else "${st.cameraCornerSec / 60} min" },
+                    { st.cameraCornerSec = cycle(listOf(10, 20, 30, 60, 120, 300, 0), st.cameraCornerSec, it) }))
+                add(Note("Multi-view: up to four cameras in a row"))
+                add(Toggle("On the screensaver", "▼ on the screensaver brings them up from the bottom (Back or ▼ again closes them)", { st.saverMultiCam }, { st.saverMultiCam = it }))
+                if (camList.isNotEmpty()) add(Act("  · Cameras", "Which ones, in this order (up to four). None chosen = the first four",
+                    com.glasslauncher.tv.MultiCamOverlay.cams(app).joinToString(" · ") { it.name }) {
+                    fun chooser() {
+                        val cur = st.multiCams
+                        dialog = MenuDialog("Multi-view cameras", camList.map { c ->
+                            (if (c.url in cur) "✓ ${c.name}" else c.name) to {
+                                st.multiCams = if (c.url in cur) cur - c.url else (cur + c.url).take(4)
+                                scope.launch { kotlinx.coroutines.delay(150); chooser() }
+                                Unit
+                            }
+                        } + listOf("Done" to {}))
+                    }
+                    chooser()
+                })
+                add(Adjust("  · Size", "", { pct(st.multiScale) }, { st.multiScale = ((st.multiScale * 10).roundToInt() + it) / 10f }))
+                    add(Adjust("  · Picture", "Sharp: each camera's full stream. Light: its small stream (for small or older TVs). Automatic picks for this TV",
+                        { when (st.multiQuality) { "high" -> "Sharp"; "light" -> "Light"; else -> "Automatic" } }, { st.multiQuality = cycle(listOf("auto", "high", "light"), st.multiQuality, it) }))
+                add(Adjust("  · Shows for", "Then it goes away by itself", { if (st.multiSec == 0) "Until closed" else if (st.multiSec < 60) "${st.multiSec} s" else "${st.multiSec / 60} min" },
+                    { st.multiSec = cycle(listOf(10, 20, 30, 60, 120, 300, 0), st.multiSec, it) }))
+                add(Act("  · Show it now", "In the middle of the screen (also: menu → Camera, then OK)", "") {
+                    val svc = com.glasslauncher.tv.HomeKeyService.instance
+                    if (svc == null) toast(ctx, "Needs the Home button service: System → Turn it on") else svc.toggleMulti(bottom = false)
+                })
+                add(Note("Remote buttons (in any app)"))
+                add(link("Remote mapping", "The multi-view and corner camera buttons"))
+                add(Adjust("Camera video", "Software keeps the TV's own video playing while a camera shows (some TVs stopped it)", {
+                    when (st.cameraDecoder) { "software" -> "Software"; "hardware" -> "Hardware"; else -> "Auto (" + (if (com.glasslauncher.tv.CamPlayer.software(ctx)) "software" else "hardware") + ")" }
+                }, { st.cameraDecoder = cycle(listOf("auto", "software", "hardware"), st.cameraDecoder, it) }))
+                add(Note("Doorbell from Home Assistant"))
+                add(Toggle("Doorbell pop-up", "Home Assistant sends to http://<this TV>:7979/notify (the same as PiPup): the camera shows in the corner over any app",
+                    { st.doorbellOn }, { st.doorbellOn = it }))
+                if (st.doorbellOn) {
+                    add(Adjust("  · Size", "", { pct(st.doorbellScale) }, { st.doorbellScale = ((st.doorbellScale * 10).roundToInt() + it) / 10f }))
+                    add(Adjust("  · Camera", "From Home Assistant: the one its automation sends; or one of your cameras here",
+                        { camList.firstOrNull { it.url == st.doorbellCamera }?.name ?: "From Home Assistant" },
+                        { d ->
+                            val opts = listOf("") + camList.map { it.url }
+                            val i = opts.indexOf(st.doorbellCamera).coerceAtLeast(0)
+                            st.doorbellCamera = opts[(i + d).mod(opts.size)]
+                        }))
+                    if (camList.isNotEmpty()) add(Adjust("  · Switch cameras every", "Goes round your cameras on its own, starting with the doorbell's",
+                        { if (st.doorbellCycleSec == 0) "Off" else if (st.doorbellCycleSec < 60) "${st.doorbellCycleSec} s" else "${st.doorbellCycleSec / 60} min" },
+                        { st.doorbellCycleSec = cycle(listOf(0, 5, 10, 15, 20, 30), st.doorbellCycleSec, it) }))
+                    add(Adjust("  · Shows for", "Then it goes away on its own (Back closes it sooner)",
+                        { if (st.doorbellSec < 60) "${st.doorbellSec} s" else "${st.doorbellSec / 60} min" + (if (st.doorbellSec % 60 != 0) " ${st.doorbellSec % 60} s" else "") },
+                        { st.doorbellSec = cycle(listOf(5, 10, 15, 20, 30, 45, 60, 90, 120), st.doorbellSec, it) }))
+                    add(Toggle("  · Words", "Where and what, at the bottom of the camera", { st.doorbellText }, { st.doorbellText = it }))
+                    if (st.doorbellText) {
+                        // Ready-made words, or your own.
+                        val presets = listOf(
+                            "العربية" to ("الباب الأمامي" to "يوجد شخص عند الباب"),
+                            "English" to ("Front Door" to "Someone is at the door"),
+                        )
+                        val cur = presets.firstOrNull { it.second.first == st.doorbellTitle && it.second.second == st.doorbellMessage }?.first ?: "Custom"
+                        add(Adjust("  · Language", "Ready-made words, or write your own below", { cur }, { d ->
+                            val names = presets.map { it.first }
+                            val i = names.indexOf(cur)
+                            val next = presets[((if (i < 0) -1 else i) + d).mod(presets.size)].second
+                            st.doorbellTitle = next.first; st.doorbellMessage = next.second
+                        }))
+                        add(Act("  · Title", "", st.doorbellTitle) {
+                            dialog = TextEntry("Doorbell title", st.doorbellTitle, "Front Door") { t -> st.doorbellTitle = t.trim() }
+                        })
+                        add(Act("  · Message", "", st.doorbellMessage) {
+                            dialog = TextEntry("Doorbell message", st.doorbellMessage, "Someone is at the door") { t -> st.doorbellMessage = t.trim() }
+                        })
+                    }
+                    add(Toggle("  · Chime", "A soft ding-dong when it shows", { st.doorbellChime }, { st.doorbellChime = it }))
+                    add(Act("  · Try it", "Shows the pop-up now with your camera", "") {
+                        io { runCatching { com.glasslauncher.tv.net.NotifyServer.show(app, org.json.JSONObject()); "Shown" }.getOrElse { it.message ?: "Couldn't show it" } }
+                    })
+                    // Glassio watches the doorbell sensor itself: works with no automation in Home Assistant.
+                    val ha = com.glasslauncher.tv.net.HaWatch
+                    add(Note("Straight from Home Assistant (no automation needed)"))
+                    add(Act("  · Home Assistant link", "Now: ${ha.status}", st.haUrl.ifBlank { "Not set" }) {
+                        dialog = TextEntry("Home Assistant link", st.haUrl.ifBlank { "http://" }, "http://homeassistant.local:8123") { u ->
+                            st.haUrl = u; ha.restart(); tvRev.intValue++
+                        }
+                    })
+                    add(Act("  · Token", "Home Assistant → your profile → Security → Long-lived access tokens. Easier to paste from your phone (Manage from phone)",
+                        if (st.haToken.isBlank()) "Not set" else "Saved") {
+                        dialog = TextEntry("Home Assistant token", "", "Long-lived access token") { t ->
+                            if (t.isNotBlank()) { st.haToken = t; ha.restart(); tvRev.intValue++ }
+                        }
+                    })
+                    add(Act("  · Doorbell sensor", "The one that turns on when the doorbell rings", st.haDoorbellEntity.ifBlank { "Pick" }) {
+                        io {
+                            check(st.haUrl.startsWith("http") && st.haToken.isNotBlank()) { "Add the Home Assistant link and token first" }
+                            val list = ha.sensors(st.haUrl, st.haToken)
+                            if (list.isEmpty()) return@io "No sensors found"
+                            dialog = MenuDialog("Doorbell sensor", list.map { (id, n) -> "$n · $id" to { st.haDoorbellEntity = id; ha.restart(); tvRev.intValue++ } })
+                            "${list.size} sensors"
+                        }
+                    })
+                }
+                add(link("Manage from phone", "Add, rename and remove cameras from your phone"))
+            }
+        },
+        Category("Music") {
+            buildList {
+                tvRev.intValue
+                val access = com.glasslauncher.tv.data.NowPlaying.hasAccess(ctx)
+                add(Toggle("Music", if (!st.musicOn) "Glassio follows what any music app plays (Spotify, YouTube Music, Apple Music, Anghami…)"
+                    else if (access) "On: following your music apps" else "Needs TV access (ADB, System) to read the music apps: press to try again",
+                    { st.musicOn }, { on ->
+                        st.musicOn = on
+                        if (on) io {
+                            val ok = com.glasslauncher.tv.data.NowPlaying.grant(ctx)
+                            com.glasslauncher.tv.data.NowPlaying.start(ctx); app.apps.reload(); tvRev.intValue++
+                            if (ok) "Music on" else "Allow TV access (ADB) first: Glassio settings → System"
+                        } else app.apps.reload()
+                    }))
+                if (st.musicOn) {
+                    add(Note("Where it shows"))
+                    add(Toggle("Player in the menu", "▶ in the menu turns it into a small player", { st.musicMenu }, { st.musicMenu = it }))
+                    add(Toggle("Music in the dock", "A Music icon (move, hide and change it like an app): opens the player", { st.musicDock }, { st.musicDock = it; app.apps.reload() }))
+                    add(Toggle("Music mode", "While a song plays, the carousel's place becomes the player (artwork, song, buttons). ■ stops the music. With your own picture, photos, video or the screensaver's videos as the background, the island shows instead",
+                        { st.musicMode }, { st.musicMode = it }))
+                    add(Adjust("  · Player size", "", { pct(st.musicStageScale) }, { st.musicStageScale = ((st.musicStageScale * 10).roundToInt() + it) / 10f }))
+                    add(Adjust("  · Buttons", "White or black turn the other way round when selected", {
+                        when (st.musicButtons) { "white" -> "White"; "black" -> "Black"; else -> "With the theme" }
+                    }, { st.musicButtons = cycle(listOf("theme", "white", "black"), st.musicButtons, it) }))
+                    add(Note("Island on the screensaver"))
+                    add(Toggle("Island", "While music plays, a small island at the top of the screensaver (like the iPhone's). ▲ opens it with its buttons, ▼ closes it", { st.musicIsland }, { st.musicIsland = it }))
+                    add(Toggle("  · Island on the home screen too", "When Music mode is off", { st.islandHome }, { st.islandHome = it }))
+                    if (st.musicIsland) {
+                        add(Adjust("  · Look", "", { when (st.islandStyle) { "glass" -> "Glass"; "black" -> "Black"; "none" -> "No background"; else -> "With the theme" } }, { st.islandStyle = cycle(listOf("none", "theme", "glass", "black"), st.islandStyle, it) }))
+                        add(Toggle("  · Joined to the top", "Like a MacBook's notch, instead of floating below the top", { st.islandAttached }, { st.islandAttached = it }))
+                        add(Adjust("  · Size", "", { pct(st.islandScale) }, { st.islandScale = ((st.islandScale * 10).roundToInt() + it) / 10f }))
+                        add(Adjust("  · Lower", "", { "${st.islandOffset.roundToInt()}" }, { st.islandOffset = st.islandOffset + it * 4f }))
+                        add(Toggle("  · Artwork", "", { st.islandArt }, { st.islandArt = it }))
+                        add(Toggle("  · Song and artist", "", { st.islandTitle }, { st.islandTitle = it }))
+                        add(Toggle("  · Progress bar", "", { st.islandProgress }, { st.islandProgress = it }))
+                        add(Adjust("  · Bars colour", "", { if (st.islandBars == "white") "White" else "From the artwork" }, { st.islandBars = cycle(listOf("art", "white"), st.islandBars, it) }))
+                    }
+                    add(Note("Music apps on this TV: " + installedMusicApps(ctx).joinToString { it.second }.ifBlank { "none yet" } +
+                        ". The player follows and controls whatever those apps play. Signing in to Spotify, YouTube Music or Apple Music for their playlists isn't here yet."))
+                }
+            }
+        },
+        Category("Remote mapping") {
+            tvRev.intValue
+            val svcOn = com.glasslauncher.tv.HomeKeyService.instance != null
+            // One button does one thing: taking it for something new frees it from what it did before.
+            fun free(code: Int) {
+                if (st.multiKey == code) st.multiKey = 0
+                if (st.cornerKey == code) st.cornerKey = 0
+                if (st.shuffleKey == code) st.shuffleKey = 0
+                com.glasslauncher.tv.data.RemoteMap.remove(st, code)
+            }
+            fun mapTo(code: Int, action: String, label: String) {
+                free(code); com.glasslauncher.tv.data.RemoteMap.set(st, code, action, label); tvRev.intValue++
+                toast(ctx, "${keyName(code)}: " + com.glasslauncher.tv.data.RemoteMap.describe(com.glasslauncher.tv.data.RemoteMap.Map(code, action, label)).lowercase())
+            }
+            // What a button should open: an app (with its picture), the Apps folder, the recent apps or a TV input.
+            fun choose(code: Int) {
+                val opts = mutableListOf<ThumbItem>()
+                opts += ThumbItem("The Apps folder", "Every app · press again to close it", HueArt.folder()) { mapTo(code, "folder", "Apps folder") }
+                opts += ThumbItem("Recent apps", "The open apps, like holding Home", HueArt.recents()) { mapTo(code, "recents", "Recent apps") }
+                com.glasslauncher.tv.data.Inputs.list.value.forEach { inp ->
+                    val pic = app.apps.ordered(includeHidden = true).firstOrNull { it.pkg == com.glasslauncher.tv.data.Inputs.PREFIX + inp.id }?.let { app.apps.cachedArtwork(it)?.bmp }
+                        ?: HueArt.input(inp.label)
+                    opts += ThumbItem(inp.label, "TV input", pic) { mapTo(code, com.glasslauncher.tv.data.Inputs.PREFIX + inp.id, inp.label) }
+                }
+                app.apps.ordered(includeHidden = true).filter { !com.glasslauncher.tv.data.Inputs.isInput(it.pkg) && it.pkg != MusicUi.DOCK_PKG }.forEach { e ->
+                    opts += ThumbItem(e.label, "App", app.apps.cachedArtwork(e)?.bmp) { mapTo(code, "app:" + e.pkg, e.label) }
+                }
+                dialog = ThumbDialog("${keyName(code)} opens…", opts)
+            }
+            // A set button asks first (a "Clear" row of its own was one OK away from losing it).
+            fun keyRow(title: String, desc: String, get: () -> Int, set: (Int) -> Unit): List<SRow> = listOf(
+                Act(title, desc, if (get() == 0) "Set" else keyName(get()), ok = if (get() != 0) true else null) {
+                    val capture = { dialog = KeyCaptureDialog(title) { code -> free(code); set(code); tvRev.intValue++; toast(ctx, "$title: ${keyName(code)}") } }
+                    if (get() == 0) capture()
+                    else dialog = MenuDialog("$title · ${keyName(get())}", listOf("Choose another button" to { capture() }, "Clear this button" to { set(0); tvRev.intValue++ }))
+                },
+            )
+            buildList {
+                if (!svcOn) add(Note("Buttons in other apps need the Home button service: System → Home button service."))
+                add(Note("Buttons that open something"))
+                com.glasslauncher.tv.data.RemoteMap.all(st).forEach { m ->
+                    add(Act(keyName(m.code), com.glasslauncher.tv.data.RemoteMap.describe(m), "Change") {
+                        dialog = MenuDialog(keyName(m.code), listOf(
+                            "Open something else" to { choose(m.code) },
+                            "Remove this button" to { com.glasslauncher.tv.data.RemoteMap.remove(st, m.code); tvRev.intValue++ },
+                        ))
+                    })
+                }
+                add(Act("Add a button", "Press a remote button (Netflix, YouTube, a colour button…), then choose an app, the Apps folder, the recent apps or an input", "Add") {
+                    dialog = KeyCaptureDialog("Press the button you want") { code -> choose(code) }
+                })
+                add(Note("Glassio's buttons"))
+                addAll(keyRow("Shuffle button", "On the home screen: the catalog titles in a new random order", { st.shuffleKey }, { st.shuffleKey = it }))
+                addAll(keyRow("Multi-view button", "Anywhere: the cameras in the middle (again closes them)", { st.multiKey }, { st.multiKey = it }))
+                addAll(keyRow("Corner camera button", "Anywhere: the camera in the corner (again closes it)", { st.cornerKey }, { st.cornerKey = it }))
+                add(Note("Home and Back"))
+                add(Act("Hold Home", "What holding the Home button does, in any app", when (st.homeLong) {
+                    "recents" -> "Recent apps"; "camera" -> "Corner camera"; "library" -> "The Library"; "menu" -> "The menu"; else -> "Nothing" }) {
+                    dialog = ThumbDialog("Hold Home", listOf("recents" to ("Recent apps" to "The open apps, like the Apple TV app switcher"),
+                        "camera" to ("Corner camera" to "A live camera in the corner, over any app"), "library" to ("The Library" to ""),
+                        "menu" to ("The menu" to ""), "off" to ("Nothing" to "")).map { (k, v) -> ThumbItem(v.first, v.second, null, checked = st.homeLong == k) { st.homeLong = k; tvRev.intValue++ } })
+                })
+                add(Toggle("Recent apps use TV access (ADB)", "On: the exact open apps, while USB debugging is on. Off, or with USB debugging off: the apps used lately, no ADB needed",
+                    { st.recentsAdb }, { st.recentsAdb = it }))
+                add(Act("Usage access for Recent apps", "Optional: also lists apps opened before Glassio started",
+                    if (com.glasslauncher.tv.data.AppHistory.usageAccess(ctx)) "On" else "Off", ok = if (com.glasslauncher.tv.data.AppHistory.usageAccess(ctx)) true else null) {
+                    val i = android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    if (runCatching { ctx.startActivity(i) }.isFailure)
+                        android.widget.Toast.makeText(ctx, "This TV has no Usage access screen: Recent apps still works without it", android.widget.Toast.LENGTH_LONG).show()
+                })
+                add(Toggle("Back on the home screen starts the screensaver", "Like Apple TV", { st.backSaver }, { st.backSaver = it }))
+            }
+        },
+        Category("Hue lights") {
+            val hue = com.glasslauncher.tv.data.Hue
+            val sync = com.glasslauncher.tv.data.HueSync
+            val hueRev = remember { androidx.compose.runtime.mutableIntStateOf(0) }
+            // The bridge's rooms, zones and lights (read when this page opens, and after connecting).
+            val found by androidx.compose.runtime.produceState<Pair<List<com.glasslauncher.tv.data.Hue.Group>, List<com.glasslauncher.tv.data.Hue.Light>>?>(null, st.hueUser, st.hueIp, hueRev.intValue) {
+                value = if (st.hueUser.isBlank() || st.hueIp.isBlank()) null
+                    else kotlinx.coroutines.withContext(Dispatchers.IO) { hue.groups(st.hueIp, st.hueUser) to hue.lights(st.hueIp, st.hueUser) }
+            }
+            buildList {
+                add(Toggle("Hue Sync", "Philips Hue lights in the colours of what's on screen: the backdrop, the poster or the logo, videos and trailers, the music's artwork",
+                    { st.hueOn }, { on -> st.hueOn = on; if (!on) sync.leave(st, "restore") }))
+                if (st.hueOn) {
+                    val paired = st.hueUser.isNotBlank()
+                    add(Note("Bridge"))
+                    if (!paired) {
+                        add(Act("Find the bridge", if (st.hueIp.isBlank()) "Looks for the Hue bridge on this network" else "Found: ${st.hueIp}", "Find") {
+                            io { val f = hue.discover(ctx); if (f.isEmpty()) "No bridge found: enter its address below" else { st.hueIp = f[0]; "Found ${f[0]}: press the round button on the bridge, then Connect" } }
+                        })
+                        add(Act("Bridge address", st.hueIp.ifBlank { "Not set (the Hue app shows it: Settings → Bridges)" }, "Change") {
+                            dialog = TextEntry("Hue bridge address", st.hueIp, "The address the Hue app shows") { v -> st.hueIp = v.trim() }
+                        })
+                        if (st.hueIp.isNotBlank()) add(Act("Connect", "Press the round button on top of the bridge, then this (within 30 seconds)", "Connect") {
+                            io {
+                                repeat(30) {
+                                    val r = hue.pair(st.hueIp)
+                                    if (r.user != null) { st.hueUser = r.user; sync.refreshGroups(); hueRev.intValue++; return@io "Connected to the Hue bridge: now choose the lights" }
+                                    if (!r.waiting) return@io "Hue: ${r.error}"
+                                    kotlinx.coroutines.delay(1000)
+                                }
+                                "The bridge's button wasn't pressed: press it, then Connect again"
+                            }
+                        })
+                    } else {
+                        add(Act("Bridge", "Connected · ${st.hueIp}", "", ok = true) { hueRev.intValue++ })
+                        val f = found
+                        add(Note("Lights that follow the screen"))
+                        if (f == null) add(Note("Reading the bridge…"))
+                        else {
+                            fun plural(n: Int) = "$n light${if (n == 1) "" else "s"}"
+                            val areas = f.first.filter { it.type == "Entertainment" }
+                            // Entertainment areas first: the Hue app knows where each of their lights stands, and
+                            // each light then takes the colour of the part of the screen in front of it.
+                            if (areas.isEmpty()) add(Note("No entertainment area on the bridge. Make one in the Hue app (Settings → Entertainment areas) and place the lights around the TV: each then takes the colour of its side of the screen by itself"))
+                            areas.forEach { g ->
+                                add(Toggle("Entertainment area · ${g.name}", plural(g.lights.size) + if (g.places.isNotEmpty()) " · placed around the TV" else "",
+                                    { g.id in st.hueGroups }, { on -> st.hueGroups = if (on) st.hueGroups + g.id else st.hueGroups - g.id; sync.refreshGroups() }))
+                            }
+                            f.first.filter { it.type != "Entertainment" }.forEach { g ->
+                                add(Toggle("${if (g.type == "Zone") "Zone" else "Room"} · ${g.name}", plural(g.lights.size),
+                                    { g.id in st.hueGroups }, { on -> st.hueGroups = if (on) st.hueGroups + g.id else st.hueGroups - g.id; sync.refreshGroups() }))
+                            }
+                            f.second.forEach { l ->
+                                add(Toggle("  · ${l.name}", if (l.color) "" else "White only (it follows the brightness)",
+                                    { l.id in st.hueLights }, { on -> st.hueLights = if (on) st.hueLights + l.id else st.hueLights - l.id }))
+                            }
+                            // Each chosen light: which part of the screen it follows (a list to choose from), and
+                            // (other makes) how it takes its colour.
+                            val chosen = sync.targets(st, f.first)
+                            val details = remember(st.hueIp, st.hueUser, hueRev.intValue, f) { f.second.associateBy { it.id } }
+                            val placed = f.first.filter { it.id in st.hueGroups }.flatMap { it.places.keys }.toSet()
+                            if (chosen.isNotEmpty()) add(Note("Each light · the part of the screen it follows"))
+                            chosen.forEach { id ->
+                                val l = details[id] ?: return@forEach
+                                val zone = sync.zones(st)[id] ?: "auto"
+                                val zones = if (l.gradient) hue.ZONES else hue.ZONES - "gradient"
+                                val shown = if (zone == "auto" && id in placed) "Its place in the area" else hue.zoneName(zone)
+                                add(Act(l.name, (if (l.kind == "ct") "White shades only: the nearest warm or cold white · " else if (l.kind == "dim") "Brightness only · " else "") +
+                                    (l.maker.takeIf { !l.philips && it.isNotBlank() }?.let { "$it · " } ?: "") + "OK: choose", shown) {
+                                    dialog = ThumbDialog(l.name, listOf(ThumbItem("Blink it", "To see which light this is", HueArt.blink()) { io { hue.identify(st.hueIp, st.hueUser, id); "${l.name} blinks" } }) +
+                                        zones.map { z -> ThumbItem(hue.zoneName(z), hue.zoneHint(z), HueArt.zone(z), checked = z == zone) { sync.setZone(st, id, z) } })
+                                })
+                                if (l.kind == "color" && !l.philips) {
+                                    val m = sync.methods(st)[id] ?: "auto"
+                                    add(Act("  · Colour method", "Hue and saturation usually match other makes better than xy", if (m == "xy") "xy" else "Hue and saturation") {
+                                        dialog = ThumbDialog("${l.name}: colour method", listOf(
+                                            ThumbItem("Hue and saturation", "Recommended for this make", HueArt.method("hs"), checked = m != "xy") { sync.setMethod(st, id, "auto") },
+                                            ThumbItem("xy", "Like Philips lights", HueArt.method("xy"), checked = m == "xy") { sync.setMethod(st, id, "xy") }))
+                                    })
+                                }
+                            }
+                        }
+                        add(Note("Colours"))
+                        // A list to choose from (OK), with what each choice means.
+                        fun pick(title: String, desc: String, cur: String, opts: List<Triple<String, String, String>>, art: ((String) -> Any?)? = null, set: (String) -> Unit) =
+                            add(Act(title, desc, opts.firstOrNull { it.first == cur }?.second ?: opts[0].second) {
+                                dialog = ThumbDialog(title, opts.map { (k, name, hint) -> ThumbItem(name, hint, art?.invoke(k), checked = k == cur) { set(k) } })
+                            })
+                        pick("Colours from", "What the lights take their colours from", st.hueSource, listOf(
+                            Triple("backdrop", "Backdrop", "What fills the screen: the title's picture, your photo, the music page"),
+                            Triple("poster", "Poster", "The title's poster"), Triple("logo", "Logo", "The title's logo")), { HueArt.source(it) }) { st.hueSource = it }
+                        add(Toggle("Follow videos", "Your video background and trailers, live", { st.hueVideo }, { st.hueVideo = it }))
+                        if (st.hueVideo || st.hueSaver) add(Adjust("  · Every", "How often the lights follow a video", { if (st.hueVideoSec <= 0) "0.5 s" else "${st.hueVideoSec} s" }, { st.hueVideoSec = st.hueVideoSec + it }))
+                        add(Adjust("Lights", "Each light a different colour of the picture, or all of them its main colour", {
+                            if (st.hueSpread) "A colour each" else "One colour"
+                        }, { st.hueSpread = !st.hueSpread }))
+                        add(Adjust("Intensity", "How colourful the lights are", {
+                            listOf("Subtle", "Natural", "Vivid", "Maximum")[st.hueIntensity]
+                        }, { st.hueIntensity = (st.hueIntensity + it).coerceIn(0, 3) }))
+                        add(Adjust("Brightness", "", { "${st.hueBri} %" }, { st.hueBri = st.hueBri + it * 5 }))
+                        add(Toggle("Follow the picture's brightness", "Darker scenes, dimmer lights", { st.hueFollowBri }, { st.hueFollowBri = it }))
+                        pick("Change speed", "How long the lights take to follow a video (a new title's colours come at once)", st.hueSpeedMs.toString(), listOf(
+                            Triple("0", "Instant", ""), Triple("400", "Quick", "0.4 s"), Triple("1000", "Smooth", "1 s"),
+                            Triple("2000", "Slow", "2 s"), Triple("4000", "Very slow", "4 s"))) { st.hueSpeedMs = it.toInt() }
+                        add(Toggle("On the screensaver", "The lights follow its videos", { st.hueSaver }, { st.hueSaver = it }))
+                        add(Note("Selection"))
+                        add(Toggle("The selected app", "All the lights take the colour of the app selected in the dock (its glow's colour)", { st.hueApps }, { st.hueApps = it }))
+                        if (st.hueApps) add(Adjust("  · Brightness", "How bright the lights are with the app's colour", { "${st.hueAppsBri} %" }, { st.hueAppsBri = st.hueAppsBri + it * 5 }))
+                        add(Toggle("The selected poster in the Library", "All the lights take the colour of the poster you're on", { st.huePosters }, { st.huePosters = it }))
+                        if (st.huePosters) add(Adjust("  · Brightness", "How bright the lights are with the poster's colour", { "${st.huePostersBri} %" }, { st.huePostersBri = st.huePostersBri + it * 5 }))
+                        add(Note("Afterwards"))
+                        pick("When you open an app or a film", "", st.hueLeave, listOf(
+                            Triple("restore", "Back as they were", "As before Hue Sync"), Triple("dim", "Dim them", "Their own colour, at 20 %"),
+                            Triple("off", "Turn them off", ""), Triple("keep", "Leave them", "In the last colours"))) { st.hueLeave = it }
+                        pick("When the TV turns off", "", st.hueOff, listOf(
+                            Triple("restore", "Back as they were", "As before Hue Sync"), Triple("off", "Turn them off", ""),
+                            Triple("keep", "Leave them", "In the last colours"))) { st.hueOff = it }
+                        add(Act("Put the lights back now", "As they were before Hue Sync (they follow the screen again on the home screen)", "Restore") {
+                            sync.leave(st, "restore"); sync.resume(); toast(ctx, "Lights back as they were")
+                        })
+                        add(Act("Forget the bridge", "", "Forget") { sync.leave(st, "restore"); st.hueUser = ""; st.hueGroups = emptyList(); st.hueLights = emptyList() })
+                    }
+                }
+            }
         },
         Category("About", Kind.About),
     )
@@ -1060,8 +1524,14 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         page("Screensaver"),
         page("Manage from phone"),
         page("System"),
+        // From upstream Glassio (after System: Home opens Manage from phone and System by their place).
+        page("Cameras"),
+        page("Music"),
+        page("Hue lights"),
+        page("Remote mapping"),
         page("About"),
     )
+    catTitles[0] = categories.map { it.title }
     // Search: what you typed (Settings' first row); the rows of every page that match, while there's something typed.
     var query by remember { mutableStateOf("") }
     val results = remember { FocusRequester() }
@@ -1174,7 +1644,7 @@ private fun appMenu(app: GlassApp, e: AppEntry, ctx: Context, scope: kotlinx.cor
     }
     opts += "Icon from my phone (Manage from phone)" to { toast(ctx, "Open Settings > Manage from phone, scan the QR code, then pick ${e.label}") }
     if (app.icons.has(e.pkg)) opts += "Reset to the original icon" to { app.icons.reset(e.pkg) }
-    opts += "Open app" to { app.apps.launchIntent(e)?.let { runCatching { ctx.startActivity(it) } } }
+    opts += "Open app" to { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) }
     show(MenuDialog(e.label, opts))
 }
 
@@ -1359,3 +1829,7 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
         }
     }
 }
+
+private fun videoName(u: String): String = runCatching {
+    java.net.URLDecoder.decode(u.substringBefore('?').trimEnd('/').substringAfterLast('/'), "UTF-8").substringBeforeLast('.').replace('_', ' ').replace('-', ' ').trim()
+}.getOrNull().orEmpty().ifBlank { "Video link" }

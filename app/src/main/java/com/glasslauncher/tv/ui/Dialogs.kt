@@ -1,5 +1,12 @@
 package com.glasslauncher.tv.ui
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.foundation.focusable
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
@@ -57,7 +64,14 @@ sealed interface DialogState
 /** [secret]: what's typed shows as dots (a backup's code). */
 class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val action: String = "Save", val onDone: (String) -> Unit) : DialogState
 class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>) : DialogState
+/** A list with a small picture next to each choice (pictures, videos, screensaver videos). */
+class ThumbDialog(val title: String, val items: List<ThumbItem>) : DialogState
+/** "Press the button you want": the next key (not the arrows, OK or Back) goes to [onKey]. */
+class KeyCaptureDialog(val title: String, val onKey: (Int) -> Unit) : DialogState
+class ThumbItem(val label: String, val sub: String, val thumb: Any?, val checked: Boolean = false, val onClick: () -> Unit)
 /** A sign-in code with a QR code of the page to enter it on; closes by itself when [code] turns null. */
+/** Put a list in order: OK picks a row up, ▲ ▼ carry it, OK puts it down. [onDone] gets the keys in the new order. */
+class ReorderDialog(val title: String, val items: List<Pair<String, String>>, val onDone: (List<String>) -> Unit) : DialogState
 class QrCodeDialog(val title: String, val url: String, val code: kotlinx.coroutines.flow.StateFlow<String?>, val note: String) : DialogState
 
 @Composable
@@ -68,6 +82,9 @@ fun DialogHost(state: DialogState?, onDismiss: () -> Unit) {
             is TextEntry -> TextEntryDialog(state, onDismiss)
             is MenuDialog -> MenuDialogView(state, onDismiss)
             is QrCodeDialog -> QrCodeDialogView(state, onDismiss)
+            is ThumbDialog -> ThumbDialogView(state, onDismiss)
+            is ReorderDialog -> ReorderDialogView(state, onDismiss)
+            is KeyCaptureDialog -> KeyCaptureView(state, onDismiss)
             QuickPanelState -> QuickPanelView(onDismiss)
             is WhatsNew -> WhatsNewView(state, onDismiss)
         }
@@ -171,7 +188,7 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
     var armed by remember { mutableStateOf(false) }
     Dialog(onDismissRequest = onDismiss) {
         DialogSurface(
-            width = 230,
+            width = if (d.options.any { it.first.length > 30 }) 400 else 230,
             modifier = Modifier.onPreviewKeyEvent { ev ->
                 if (!ev.isSelect || armed) false
                 else if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) { armed = true; false }
@@ -180,12 +197,101 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
         ) {
             Text(d.title, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, fontWeight = FontWeight.Medium,
                 maxLines = 1, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
-            d.options.forEachIndexed { i, (label, action) ->
-                DialogButton(label, Modifier.fillMaxWidth().padding(bottom = 3.dp).let { if (i == 0) it.focusRequester(fr) else it }) { onDismiss(); action() }
+            // Long lists (Home Assistant sensors, cameras…) scroll with the focus instead of running off the screen.
+            Column(Modifier.heightIn(max = 380.dp).verticalScroll(rememberScrollState())) {
+                d.options.forEachIndexed { i, (label, action) ->
+                    DialogButton(label, Modifier.fillMaxWidth().padding(bottom = 3.dp).let { if (i == 0) it.focusRequester(fr) else it }) { onDismiss(); action() }
+                }
             }
         }
     }
     LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
+}
+
+@Composable
+private fun KeyCaptureView(d: KeyCaptureDialog, onDismiss: () -> Unit) {
+    val fr = remember { FocusRequester() }
+    var hint by remember { mutableStateOf("Press the button on the remote you want to use (Back cancels)") }
+    // The OK that opened this is still being released: ignored.
+    var armed by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = onDismiss) {
+        DialogSurface(width = 330, modifier = Modifier.focusRequester(fr).onPreviewKeyEvent { ev ->
+            val code = ev.nativeKeyEvent.keyCode
+            if (ev.type != KeyEventType.KeyDown) return@onPreviewKeyEvent true
+            when (code) {
+                android.view.KeyEvent.KEYCODE_BACK -> onDismiss()
+                android.view.KeyEvent.KEYCODE_DPAD_CENTER, android.view.KeyEvent.KEYCODE_ENTER, android.view.KeyEvent.KEYCODE_DPAD_UP,
+                android.view.KeyEvent.KEYCODE_DPAD_DOWN, android.view.KeyEvent.KEYCODE_DPAD_LEFT, android.view.KeyEvent.KEYCODE_DPAD_RIGHT ->
+                    if (armed) hint = "The arrows and OK move around Glassio: pick another button" else armed = true
+                else -> { onDismiss(); d.onKey(code) }
+            }
+            true
+        }.focusable()) {
+            Text(d.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 4.dp))
+            Text(hint, color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 4.dp))
+        }
+    }
+    LaunchedEffect(Unit) { kotlinx.coroutines.delay(400); armed = true; runCatching { fr.requestFocus() } }
+    // Buttons the system keeps from apps (YouTube, Netflix, the star…) are caught by the Home button service.
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.glasslauncher.tv.KeyHub.capture = { code -> onDismiss(); d.onKey(code) }
+        onDispose { com.glasslauncher.tv.KeyHub.capture = null }
+    }
+}
+
+/** A remote button's name for Settings ("Red", "Play/Pause"…). */
+fun keyName(code: Int): String = when (code) {
+    0 -> "Not set"
+    else -> android.view.KeyEvent.keyCodeToString(code).removePrefix("KEYCODE_").split('_')
+        .joinToString(" ") { w -> w.lowercase().replaceFirstChar { it.uppercase() } }
+}
+
+@Composable
+private fun ReorderDialogView(d: ReorderDialog, onDismiss: () -> Unit) {
+    val order = remember { androidx.compose.runtime.mutableStateListOf<String>().apply { addAll(d.items.map { it.first }) } }
+    val names = remember { d.items.toMap() }
+    var held by remember { mutableStateOf<String?>(null) }
+    val frs = remember { HashMap<String, FocusRequester>() }
+    var armed by remember { mutableStateOf(false) }
+    Dialog(onDismissRequest = { d.onDone(order.toList()); onDismiss() }) {
+        DialogSurface(width = 300) {
+            Text(d.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.padding(start = 4.dp))
+            Text(if (held == null) "OK picks a row up · Back saves" else "▲ ▼ move it · OK puts it down", color = Color.White.copy(alpha = 0.55f), fontSize = 10.5f.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 2.dp, bottom = 10.dp))
+            order.forEachIndexed { i, k ->
+                val fr = frs.getOrPut(k) { FocusRequester() }
+                var f by remember { mutableStateOf(false) }
+                val lifted = held == k
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 3.dp).focusRequester(fr).onFocusChanged { f = it.isFocused }
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(when { lifted -> editAccent(); f -> Color.White.copy(alpha = 0.92f); else -> Color.White.copy(alpha = 0.06f) })
+                        .onPreviewKeyEvent { ev ->
+                            if (ev.isSelect) {
+                                if (ev.type == KeyEventType.KeyDown) armed = true
+                                else if (armed) { held = if (held == k) null else k }
+                                return@onPreviewKeyEvent true
+                            }
+                            if (held == k && ev.type == KeyEventType.KeyDown && (ev.key == Key.DirectionUp || ev.key == Key.DirectionDown)) {
+                                val j = (i + if (ev.key == Key.DirectionUp) -1 else 1).coerceIn(0, order.lastIndex)
+                                if (j != i) { order.removeAt(i); order.add(j, k) }
+                                true
+                            } else false
+                        }
+                        .focusable()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("${i + 1}", color = (if (f && !lifted) Color.Black else Color.White).copy(alpha = 0.5f), fontSize = 12.sp, modifier = Modifier.width(22.dp))
+                    Text(names[k] ?: k, color = if (f && !lifted) Color.Black else Color.White, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                    if (lifted) Text("↕", color = Color.White, fontSize = 13.sp)
+                }
+            }
+        }
+    }
+    // The row that's carried keeps the focus as it moves.
+    LaunchedEffect(order.toList(), held) { held?.let { runCatching { frs[it]?.requestFocus() } } }
+    LaunchedEffect(Unit) { runCatching { frs[order.first()]?.requestFocus() } }
 }
 
 @Composable
@@ -222,3 +328,46 @@ private fun QrCodeDialogView(d: QrCodeDialog, onDismiss: () -> Unit) {
     }
     LaunchedEffect(Unit) { runCatching { fr.requestFocus() } }
 }
+
+
+@Composable
+private fun ThumbDialogView(d: ThumbDialog, onDismiss: () -> Unit) {
+    val fr = remember { FocusRequester() }
+    Dialog(onDismissRequest = onDismiss) {
+        DialogSurface(width = 520) {
+            Text(d.title, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                maxLines = 1, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
+            androidx.compose.foundation.lazy.LazyColumn(Modifier.height(380.dp)) {
+                items(d.items.size) { i ->
+                    val it = d.items[i]
+                    var focused by remember { mutableStateOf(false) }
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 4.dp).clip(RoundedCornerShape(10.dp))
+                            .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.05f))
+                            .let { m -> if (i == 0) m.focusRequester(fr) else m }
+                            .onFocusChanged { f -> focused = f.isFocused }
+                            .clickable { onDismiss(); it.onClick() }
+                            .padding(6.dp),
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.foundation.layout.Box(Modifier.width(96.dp).height(54.dp).clip(RoundedCornerShape(7.dp)).background(Color.White.copy(alpha = 0.08f))) {
+                            if (it.thumb is androidx.compose.ui.graphics.ImageBitmap) androidx.compose.foundation.Image(it.thumb, null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(54.dp))
+                            else if (it.thumb != null) coil3.compose.AsyncImage(model = it.thumb, contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(54.dp))
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(it.label, color = if (focused) Color.Black else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                            if (it.sub.isNotBlank()) Text(it.sub, color = (if (focused) Color.Black else Color.White).copy(alpha = 0.55f), fontSize = 10.sp, maxLines = 1)
+                        }
+                        if (it.checked) Text("✓", color = if (focused) Color.Black else Color.White, fontSize = 15.sp, modifier = Modifier.padding(end = 8.dp))
+                    }
+                }
+            }
+        }
+    }
+    LaunchedEffect(Unit) { delay100(); runCatching { fr.requestFocus() } }
+}
+
+private suspend fun delay100() = kotlinx.coroutines.delay(100)

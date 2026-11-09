@@ -3,9 +3,14 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <!-- "Open Glassio when the TV starts": the boot receiver opens Glassio (allowed once ADB grants the overlay right). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
     <!-- Granted once over adb: lets Glass keep its Home-button service enabled after updates. -->
     <uses-permission android:name="android.permission.WRITE_SECURE_SETTINGS" xmlns:tools="http://schemas.android.com/tools" tools:ignore="ProtectedPermissions"/>
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.KILL_BACKGROUND_PROCESSES"/>
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" xmlns:tools="http://schemas.android.com/tools" tools:ignore="ProtectedPermissions"/>
     <!-- Updates from GitHub Releases (fallback path; the TV's adb shell is tried first). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32"/>
@@ -49,6 +54,8 @@
         android:usesCleartextTraffic="true"
         android:networkSecurityConfig="@xml/network_security_config"
         android:hardwareAccelerated="true">
+        <!-- Lets the TV's own profiler (simpleperf) see where time goes in this build; nothing else changes. -->
+        <profileable android:shell="true" />
 
         <activity
             android:name=".MainActivity"
@@ -103,6 +110,16 @@
         </service>
 
         <service
+            android:name=".data.MusicListener"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+
+        <service
             android:name=".HomeKeyService"
             android:exported="true"
             android:label="@string/app_name"
@@ -127,9 +144,18 @@
         <receiver android:name=".BootReceiver" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
             </intent-filter>
         </receiver>
+        <activity
+            android:name=".RecentsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Glass.Recents"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity=".recents"
+            android:configChanges="keyboard|keyboardHidden|navigation|screenSize|orientation|uiMode"/>
 
         <!-- Live TV (IPTV): its own process (:live), so video never weighs on the home screen. Opened from the
              home screen's Live TV page and the menu; no entry of its own in the apps. -->

@@ -92,6 +92,8 @@ data class GlassEnv(
     val pageNoSideShade: Boolean = false,
     /** 0..1: the blur of the open-dock veil, which fades in once the dock has finished opening ([veil] is the dimming). */
     val blur: androidx.compose.runtime.State<Float>? = null,
+    /** The "Glass blur" setting as a blur radius in dp (upstream's; Yahsun's frosted copies are blurred ahead). */
+    val blurDp: Float = 0f,
 ) {
     // The pictures now. Read in a draw block they only redraw it; read while composing, they recompose the caller
     // on every slide (fine for the few that need it, such as the folder's page picture).

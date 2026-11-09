@@ -260,7 +260,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     Spacer(Modifier.height((10 * s).dp))
                     DsHeading("Apps", s)
                     LazyRow(state = appRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                        itemsIndexed(apps, key = { _, e -> e.pkg }) { i, e -> TextCard(e.label, "", s, appRow.of(i).nav(up = above(appRow), down = FocusRequester.Cancel, left = if (i == 0) keyFocus else null, right = edge(i == apps.lastIndex))) { app.apps.open(ctx, e) } }
+                        itemsIndexed(apps, key = { _, e -> e.pkg }) { i, e -> TextCard(e.label, "", s, appRow.of(i).nav(up = above(appRow), down = FocusRequester.Cancel, left = if (i == 0) keyFocus else null, right = edge(i == apps.lastIndex))) { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) } }
                     }
                 }
             }

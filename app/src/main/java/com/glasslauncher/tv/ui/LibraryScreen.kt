@@ -81,7 +81,8 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     val nuvioStatus by app.library.nuvioStatus.collectAsState()
     val stremioAll by app.library.stremioList.collectAsState()
     val stremioStatus by app.library.stremioStatus.collectAsState()
-    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.library.refreshWatchlist(); app.library.refreshNuvio(); app.library.refreshStremio() } }
+    val simklAll by app.library.simklList.collectAsState()
+    LaunchedEffect(Unit) { withContext(Dispatchers.IO) { app.library.refreshWatchlist(); app.library.refreshNuvio(); app.library.refreshStremio(); app.library.refreshSimkl() } }
     // One tab per list in use: what you saved here, the Nuvio account's library, the Stremio account's, the Trakt
     // watchlist. Each shows its whole list.
     val airingNow by app.shelf.airing.collectAsState()
@@ -98,6 +99,9 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         })
         if (st.libraryTrakt && app.cw.trakt.connected) add(LibraryTab("trakt", "Trakt", watch, status) { it: HeroItem ->
             app.library.removeFromWatchlist(it); toast(ctx, "Removed from the Trakt watchlist · ${it.name}")
+        })
+        if (st.librarySimkl && app.cw.simkl.connected) add(LibraryTab("simkl", "Simkl", simklAll, "") { it: HeroItem ->
+            app.library.removeFromSimkl(it); toast(ctx, "Removed from Simkl's Plan to watch · ${it.name}")
         })
         // Everything in one list, when there's more than one: a title in two of them shows once.
         if (size > 1) {

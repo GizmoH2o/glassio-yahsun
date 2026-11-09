@@ -356,6 +356,8 @@ internal fun HomePage(
     }?.let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }
     val hero = if (settings.homeFollow && inPart != Part.Hero && inPart != Part.Apps && pickedFull != null) pickedFull else slide
     LaunchedEffect(hero?.background) { onBackdrop(hero?.background?.takeIf { it.isNotBlank() }) }
+    // Hue lights (Settings › Hue lights): the room follows the picture on screen.
+    HueDriver(app, hero, on = visible && !paused)
     // Its text changes with its picture (or after a moment, if the picture is slow). In steps (Settings › Home ›
     // Changing title): the words fade out while the next picture comes, then the new ones fade in over it.
     var textItem by remember { mutableStateOf<HeroItem?>(null) }
@@ -1386,7 +1388,7 @@ private fun AppsGrid(
                                 .onFocusChanged { if (it.isFocused) { last = k; onFocusRow(r) } }
                             if (e == null) AppTile(app, null, s, tileW, movingPkg == FOLDER_KEY, base.focusRequester(folderFocus), onMoveKey, onFolder, onFolderMenu)
                             else AppTile(app, e, s, tileW, movingPkg == e.pkg, base.focusRequester(tileFocus.getOrPut(e.pkg) { FocusRequester() }), onMoveKey,
-                                { app.apps.open(ctx, e) }, { onMenu(e) })
+                                { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) }, { onMenu(e) })
                         }
                     }
                 }

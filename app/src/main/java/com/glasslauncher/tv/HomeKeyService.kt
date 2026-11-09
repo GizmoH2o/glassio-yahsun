@@ -23,10 +23,67 @@ class HomeKeyService : AccessibilityService() {
          * latter give way to a page that was asked for a moment before.
          */
         const val EXTRA_BY_KEY = "com.glasslauncher.tv.extra.HOME_BY_KEY"
+        /** The running service (the doorbell pop-up is drawn by it). */
+        @Volatile var instance: HomeKeyService? = null
     }
 
     private var lastLaunch = 0L
     private var homeDownAt = 0L
+    private var longDone = false
+    private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+    private var camera: CameraOverlay? = null
+    private var multi: MultiCamOverlay? = null
+
+    /** Multi-view: at the bottom (sliding up, on the screensaver) or in the middle; again closes it. */
+    fun toggleMulti(bottom: Boolean) {
+        multi?.let { if (it.showing) { it.close(); multi = null; return } }
+        val app = application as GlassApp
+        val cams = MultiCamOverlay.cams(app)
+        if (cams.isEmpty()) { android.widget.Toast.makeText(this, "Add a camera first: Glassio settings → Cameras", android.widget.Toast.LENGTH_LONG).show(); return }
+        multi = MultiCamOverlay(this, cams, bottom, app.settings.multiSec, app.settings.multiScale).also { it.show() }
+    }
+
+    fun closeMulti() { multi?.close(); multi = null }
+    val multiShowing get() = multi?.showing == true
+
+    /** The corner camera from a remote button (like holding Home with "Camera"). */
+    fun toggleCorner() = toggleCamera()
+    /** Hold Home: what Settings → System → "Hold Home" says. */
+    private val longPress = Runnable {
+        longDone = true
+        when ((application as? GlassApp)?.settings?.homeLong) {
+            "recents" -> runCatching { startActivity(Intent(this, RecentsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+            "library" -> openGlass("open_library")
+            "menu" -> openGlass("open_menu")
+            "camera" -> toggleCamera()
+        }
+    }
+
+    private fun openGlass(extra: String) = runCatching {
+        startActivity(Intent(this, MainActivity::class.java).putExtra(extra, true)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP))
+    }
+
+    /** A doorbell pop-up (Home Assistant → [com.glasslauncher.tv.net.NotifyServer]): the corner camera with its words. */
+    fun showDoorbell(cam: com.glasslauncher.tv.ui.Cam, all: List<com.glasslauncher.tv.ui.Cam>, seconds: Int, caption: Pair<String, String>?) {
+        val st = (application as GlassApp).settings
+        camera?.close()
+        val list = listOf(cam) + all.filterNot { it.url == cam.url }
+        camera = CameraOverlay(this, list, seconds, 0, st.doorbellCycleSec, st.doorbellScale, caption).also { it.show() }
+        if (st.doorbellChime) Chime.play()
+    }
+
+    fun closeDoorbell() { camera?.close(); camera = null }
+
+    private fun toggleCamera() {
+        camera?.let { if (it.showing) { it.close(); camera = null; return } }
+        val cams = (application as GlassApp).settings.cameras.mapNotNull { com.glasslauncher.tv.ui.Cam.parse(it) }
+        if (cams.isEmpty()) { android.widget.Toast.makeText(this, "Add a camera first: Glassio settings → Cameras", android.widget.Toast.LENGTH_LONG).show(); return }
+        val st = (application as GlassApp).settings
+        // The camera chosen in Settings → Cameras (the first one if none is chosen or it was removed).
+        val start = cams.indexOfFirst { it.url == st.cornerCamera }.coerceAtLeast(0)
+        camera = CameraOverlay(this, cams, st.cameraCornerSec, start, st.cameraCycleSec, st.cameraScale).also { it.show() }
+    }
 
     private fun enabled(): Boolean = (application as? GlassApp)?.settings?.interceptHome == true
 
@@ -43,6 +100,9 @@ class HomeKeyService : AccessibilityService() {
         )
     }
 
+    /** Home key events reach this service on this TV: the window-change fallback is then never needed. */
+    private val sp by lazy { getSharedPreferences("glass_home_key", MODE_PRIVATE) }
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
         // The remote's Guide button: Live TV's guide, not the TV maker's own app (a TCL remote's opens TCL's TV app).
         if (event.keyCode == KeyEvent.KEYCODE_GUIDE && (application as? GlassApp)?.settings?.interceptGuide == true) {
@@ -51,18 +111,85 @@ class HomeKeyService : AccessibilityService() {
             }.onFailure { com.glasslauncher.tv.data.Glog.w("Guide button", it) }
             return true
         }
+        // The camera in the corner: Back closes it (holding Home again too); every other key goes to the app as usual.
+        multi?.takeIf { it.showing }?.let { m ->
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) { if (event.action == KeyEvent.ACTION_UP) { m.close(); multi = null }; return true }
+        }
+        camera?.takeIf { it.showing }?.let { c ->
+            if (event.keyCode == KeyEvent.KEYCODE_BACK) { if (event.action == KeyEvent.ACTION_UP) { c.close(); camera = null }; return true }
+        }
+        // Glassio's own buttons (shuffle, "press the button you want"): every remote button reaches this service first.
+        (application as? GlassApp)?.let { if (KeyHub.handle(it, event.keyCode, event.action == KeyEvent.ACTION_DOWN)) return true }
         if (event.keyCode != KeyEvent.KEYCODE_HOME || !enabled()) return false
+        if (!sp.getBoolean("keys", false)) sp.edit().putBoolean("keys", true).apply()
+        val recents = (application as? GlassApp)?.settings?.homeLong.let { it != null && it != "off" }
         when (event.action) {
-            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) homeDownAt = System.currentTimeMillis()
-            KeyEvent.ACTION_UP -> showGlass(byKey = true)
+            KeyEvent.ACTION_DOWN -> if (event.repeatCount == 0) {
+                homeDownAt = System.currentTimeMillis(); longDone = false
+                if (recents) handler.postDelayed(longPress, 600)
+            } else if (recents && !longDone && (event.flags and KeyEvent.FLAG_LONG_PRESS != 0 || System.currentTimeMillis() - homeDownAt > 500)) {
+                handler.removeCallbacks(longPress); longPress.run()
+            }
+            KeyEvent.ACTION_UP -> {
+                handler.removeCallbacks(longPress)
+                // Back from an input Glassio switched to: the TV comes back to this box first.
+                if (!longDone) { com.glasslauncher.tv.data.Inputs.comeBack(this); showGlass(byKey = true) }
+                longDone = false
+            }
         }
         return true
     }
 
+    /**
+     * The TV coming back from standby. After a short standby Google TV shows the app that was on screen, after a
+     * longer one (minutes) it opens its own launcher instead, and nothing brought Glassio back until Home was
+     * pressed. For a short while after the screen comes on, the Google TV launcher's home screen is replaced by
+     * Glassio (System → "Open Glassio when the TV starts"); at any other time it is left alone (it also shows up
+     * for a moment when Wi-Fi comes back, and Glassio must not jump in front of what you're watching then).
+     */
+    @Volatile private var screenOnAt = 0L
+    @Volatile private var launcherHomeAt = 0L
+    private val screenReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: android.content.Context, i: Intent) {
+            if (i.action != Intent.ACTION_SCREEN_ON) return
+            screenOnAt = android.os.SystemClock.uptimeMillis()
+            // The launcher may have come up just before this broadcast arrived.
+            if (screenOnAt - launcherHomeAt < 3_000) wakeToGlass("screen on after the Google TV home")
+        }
+    }
+
+    private fun wakeOn(): Boolean = enabled() && (application as? GlassApp)?.settings?.bootStart == true
+
+    private fun wakeToGlass(why: String) {
+        if (!wakeOn()) return
+        com.glasslauncher.tv.data.Glog.i("Back from standby on the Google TV home: opening Glassio ($why)")
+        lastLaunch = 0L
+        showGlass(byKey = false)
+    }
+
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED || !enabled()) return
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
+        // The window on screen, for Nuvio's playback sent to Home Assistant.
+        event.packageName?.toString()?.let { p ->
+            com.glasslauncher.tv.data.NuvioWatch.onWindow(p, event.className?.toString().orEmpty())
+            // Recent apps without ADB: the app now on screen.
+            (application as? GlassApp)?.let { a -> com.glasslauncher.tv.data.AppHistory.onFront(this, p) { k -> a.apps.apps.value.any { it.pkg == k } } }
+        }
+        if (!enabled()) return
         val pkg = event.packageName?.toString() ?: return
         if (pkg != "com.google.android.apps.tv.launcherx" && pkg != "com.google.android.tvlauncher") return
+        val launcherHome = event.className?.toString().orEmpty().let { it.contains("HomeActivity") || it.contains("MainActivity") || it.contains("LauncherActivity") }
+        if (launcherHome) {
+            val now = android.os.SystemClock.uptimeMillis()
+            launcherHomeAt = now
+            if (now - screenOnAt < 20_000) { wakeToGlass("launcher home after screen on"); return }
+        }
+        // The fallback brought Glassio to the front whenever the Google TV launcher showed any window of its own
+        // (for example when Wi-Fi dropped and came back), even while you were watching. Where the Home key
+        // reaches this service it is never needed; elsewhere only the launcher's main screen counts.
+        if (sp.getBoolean("keys", false)) return
+        val cls = event.className?.toString().orEmpty()
+        if (!cls.contains("MainActivity") && !cls.contains("HomeActivity") && !cls.contains("LauncherActivity")) return
         // Only reached when the Home key was not filtered above (e.g. Home from the Google TV remote app).
         if (System.currentTimeMillis() - homeDownAt < 1500) return
         showGlass(byKey = false)
@@ -74,9 +201,26 @@ class HomeKeyService : AccessibilityService() {
         // Just after the TV started, Google TV's launcher came up before this service did (it never saw it): Glassio now.
         val app = application as? GlassApp
         if (app != null && app.settings.bootGlassio && android.os.SystemClock.elapsedRealtime() < 5 * 60_000L) showGlass(byKey = false)
+        instance = this
+        runCatching { registerReceiver(screenReceiver, android.content.IntentFilter(Intent.ACTION_SCREEN_ON)) }
         // Ask for key events explicitly; some TV builds ignore the flag from the XML alone.
         serviceInfo = serviceInfo.apply {
             flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS
+        }
+        watchAllWindows(true)
+    }
+
+    /**
+     * Window changes of every app (not only the Google TV launcher's): needed to know when Nuvio is on screen for
+     * its playback sent to Home Assistant. Only while that is on (a window change is a rare, small event).
+     */
+    fun watchAllWindows(@Suppress("UNUSED_PARAMETER") wanted: Boolean) {
+        // Always every app now: Recent apps uses the same window changes (no ADB needed).
+        val all = true
+        runCatching {
+            serviceInfo = serviceInfo.apply {
+                packageNames = if (all) null else arrayOf("com.google.android.apps.tv.launcherx", "com.google.android.tvlauncher")
+            }
         }
     }
 
@@ -86,4 +230,10 @@ class HomeKeyService : AccessibilityService() {
     }
 
     override fun onInterrupt() {}
+
+    override fun onDestroy() {
+        if (instance === this) instance = null
+        runCatching { unregisterReceiver(screenReceiver) }
+        super.onDestroy()
+    }
 }

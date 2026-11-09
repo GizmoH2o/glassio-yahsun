@@ -44,7 +44,7 @@ class BootReceiver : BroadcastReceiver() {
             }
             return
         }
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return
+        if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != "android.intent.action.QUICKBOOT_POWERON") return
         if (!app.settings.bootGlassio) return
         val done = goAsync()
         thread(name = "glass-boot", isDaemon = true) {

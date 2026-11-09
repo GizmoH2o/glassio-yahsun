@@ -629,6 +629,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             if (welcomeOn && screen == Screen.Home) Welcome(app, s, welcomeStep, onSettings = { settingsCat = it; onScreen(Screen.Settings) }) { settings.welcomeDone = true; welcomeOn = false; scope.launch { delay(120); runCatching { heroFocus.requestFocus() } } }
             DialogHost(dialog) { dialog = null }
+            // Music playing (Settings › Music): the island at the top of the home screen.
+            if (screen == Screen.Home && settings.musicOn && settings.islandHome && !MusicUi.forced.value) MusicIsland(app, s)
+            // A locked app's code window, over everything.
+            AppLockHost(app, s, settings.menuStyle)
         }
     }
 }
@@ -676,7 +680,7 @@ private fun appMenu(
 ): DialogState {
     val hidden = e.pkg in app.settings.hiddenApps
     val opts = mutableListOf<Pair<String, () -> Unit>>()
-    if (hidden) opts += "Open" to { app.apps.open(ctx, e) }
+    if (hidden) opts += "Open" to { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) }
     opts += "App info" to {
         runCatching {
             ctx.startActivity(
@@ -688,6 +692,8 @@ private fun appMenu(
     if (startMove != null) opts += "Move" to startMove
     opts += "Change icon" to pickIcon
     opts += (if (hidden) "Show in dock" else "Hide") to { app.apps.toggleHidden(e.pkg) }
+    // App lock (Settings › Apps & icons): unlocking asks for the code.
+    opts += (if (com.glasslauncher.tv.ui.AppLock.locked(app, e.pkg)) "Unlock" else "Lock") to { com.glasslauncher.tv.ui.AppLock.toggle(app, ctx, e) }
     return MenuDialog(e.label, opts)
 }
 
@@ -1661,7 +1667,7 @@ private fun FolderOverlay(
                                             entry = e, app = app, s = s, radius = radius, moving = moving == e.pkg,
                                             modifier = Modifier.weight(1f).focusProperties { canFocus = !blocked }.focusRequester(fr).then(if (r == 0 && c == 0) Modifier.focusRequester(first) else Modifier),
                                             onFocus = {}, onMoveKey = onMoveKey,
-                                            onClick = { app.apps.open(ctx, e) },
+                                            onClick = { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) },
                                             onLong = { onMenu(e) },
                                             alwaysLabel = true, flat = true,
                                             label = if (e.pkg in hidden) "${e.label} · hidden" else e.label, edges = edges,

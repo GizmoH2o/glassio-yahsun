@@ -2,6 +2,30 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.7.0 — 2026-11-08
+
+Merged with Glassio 3.2.1 (upstream): its new features, in Glassio Yahsun's own Home and Settings.
+
+**New in Settings**
+- **Cameras**: find cameras on your network (ONVIF: Hikvision, Dahua, Reolink, Tapo…), add Home Assistant cameras or a camera link, and see them in the corner (hold Home) or four at a time. Settings › Cameras.
+- **Doorbell**: a Home Assistant doorbell shows its camera in the corner, with a chime. Settings › Cameras.
+- **Music**: while any music app plays, a small island at the top of Home shows the song. Settings › Music.
+- **Hue lights**: Philips Hue lights take the colours of what's on screen. Settings › Hue lights.
+- **Remote mapping**: give a remote button the shuffle, the multi-view or the corner camera. Settings › Remote mapping.
+- **App lock**: hold OK on an app › Lock, and it asks for a code before it opens. Set your code in Settings › Apps & icons › App lock code.
+- **Simkl**: Continue Watching and "Plan to watch" from Simkl, as its own Library tab, and saving there too. Settings › Accounts & Home Assistant › Connect Simkl (its app id goes in on the phone page).
+- **Sync Library and Continue Watching** keeps them the same on Nuvio, Trakt and Simkl. Settings › Accounts & Home Assistant.
+- **Back from standby: Glassio** replaces Google TV's home screen after a long standby. Settings › System.
+- **Picture cache** sets how much of the TV's storage posters and backdrops may use. Settings › Look & motion.
+
+**Also from Glassio 3.2.1**
+- **Recent apps**: hold Home (Settings › System › Hold Home) or pick it in the menu, which also lists the TV's inputs. The icon picker can search for icons.
+- **The screensaver** fades out to Home instead of cutting away.
+- **A quicker carousel refresh**: titles already on screen stay put when the list comes back the same.
+
+**Fixes**
+- Newer Trakt progress replaces older progress from Nuvio again.
+
 ## 3.6.0 — 2026-11-08
 
 **Home**

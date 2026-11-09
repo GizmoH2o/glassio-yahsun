@@ -22,12 +22,15 @@ android {
         resValue("string", "live_search_authority", "$applicationId.live.search")
         minSdk = 28
         targetSdk = 35
-        versionCode = 46
-        versionName = "3.6.0"
+        versionCode = 47
+        versionName = "3.7.0"
+        // TV boxes are ARM: the depth model's native library only for those (keeps the download small).
+        ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
         // Trakt app (PKCE, no secret).
         buildConfigField("String", "TRAKT_CLIENT_ID", "\"${localProps.getProperty("TRAKT_CLIENT_ID", "")}\"")
         buildConfigField("String", "NUVIO_ANON_KEY", "\"${localProps.getProperty("NUVIO_ANON_KEY", "")}\"")
         buildConfigField("String", "TMDB_READ_TOKEN", "\"${localProps.getProperty("TMDB_READ_TOKEN", "")}\"")
+        buildConfigField("String", "SIMKL_CLIENT_ID", "\"${localProps.getProperty("SIMKL_CLIENT_ID", "")}\"")
     }
     // Glassio Yahsun's release key (RELEASE_STORE_FILE and the rest in local.properties). Without it, a release build
     // is signed with the local debug key instead: fine to try, but it won't update a published release
@@ -52,9 +55,13 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // NewPipe Extractor uses java.nio / java.time below Android 13.
+        isCoreLibraryDesugaringEnabled = true
     }
     buildFeatures { compose = true; buildConfig = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    // Unit tests run on the computer (./gradlew testDebugUnitTest); Android calls return defaults there.
+    testOptions { unitTests.isReturnDefaultValues = true }
 }
 
 kotlin {
@@ -87,12 +94,21 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.3.0")
     // WebDAV backups (PROPFIND, MKCOL): the version coil already brings, named so it stays.
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.coil-kt.coil3:coil-video:3.3.0")
     implementation("androidx.media3:media3-exoplayer:1.11.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.11.1")
+    implementation("androidx.media3:media3-exoplayer-rtsp:1.11.1")
     implementation("androidx.media3:media3-ui:1.11.1")
+    // Shuffle in other apps' music players (their MediaSessionCompat).
+    implementation("androidx.media:media:1.7.0")
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("com.google.zxing:core:3.5.3")
+    // Trailers played by Glassio's own player (no YouTube page): finds the trailer's video and sound streams.
+    implementation("com.github.teamnewpipe:NewPipeExtractor:v0.26.5")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.5")
     implementation("dev.mobile:dadb:1.2.10")
+    // Depth effect on photos: runs a small depth model (downloaded on first use) on the TV.
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
     implementation("androidx.profileinstaller:profileinstaller:1.4.1")
     // The backup's lock, checked on the computer: ./gradlew testReleaseUnitTest (tools/release.sh runs it).
     testImplementation("junit:junit:4.13.2")

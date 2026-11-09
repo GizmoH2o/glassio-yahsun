@@ -358,6 +358,19 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             require(code.isNotEmpty()) { "Turn on the weekly backup first (Settings › System): it has the code" }
             "Backed up: " + com.glasslauncher.tv.data.WebDav.backUp(app, code)
         }
+        "/api/unsplash" -> {
+            app.settings.unsplashKey = j.optString("key")
+            if (app.settings.unsplashKey.isNotBlank()) { app.settings.photoSource = "unsplash"; app.settings.bgMode = "photos" }
+            if (app.settings.unsplashKey.isBlank()) "Unsplash key removed" else "Unsplash key saved: the background now shows Unsplash photos"
+        }
+        "/api/ha/doorbell" -> {
+            val u = j.optString("url").trim(); val t = j.optString("token").trim()
+            require(u.startsWith("http")) { "The link starts with http:// or https://" }
+            app.settings.haUrl = u
+            if (t.isNotBlank()) app.settings.haToken = t
+            HaWatch.restart()
+            "Saved. Now pick the doorbell sensor on the TV: Settings → Cameras"
+        }
         "/api/ha" -> { app.settings.haWebhook = j.optString("url"); app.settings.haOnLaunch = app.settings.haWebhook.startsWith("http"); "Home Assistant webhook saved" }
         "/api/cal/add" -> {
             val u = j.optString("url").trim()
@@ -386,6 +399,38 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             app.settings.aerialUrls = (app.settings.aerialUrls + u).distinct(); "Video link added"
         }
         "/api/aerial/remove" -> { app.settings.aerialUrls = app.settings.aerialUrls - j.optString("url"); "Removed" }
+        "/api/restore" -> {
+            error("Restore a backup with its code: Backup on this page")
+        }
+        "/api/nuvio/server" -> {
+            val nv = app.library.nuvio
+            nv.setServer(j.optString("url"), j.optString("key"), j.optString("login"))
+            app.library.nuvioList.value = emptyList()
+            if (nv.custom) "Nuvio server set to ${runCatching { java.net.URI(nv.server).host }.getOrNull() ?: nv.server}. Now sign in" else "Back on the official Nuvio server"
+        }
+        "/api/nuvio/login" -> {
+            val nv = app.library.nuvio
+            if (nv.signInWithPassword(j.optString("email"), j.optString("password"))) {
+                app.settings.libraryNuvio = true
+                Thread { runCatching { app.library.refreshNuvio(); app.cw.pollNow() } }.start()
+                "Nuvio account connected" + (nv.email.takeIf { it.isNotBlank() }?.let { " as $it" } ?: "")
+            } else error("Nuvio: ${nv.lastError}")
+        }
+        "/api/stremio/login" -> {
+            error("Sign in to Stremio on the TV with its code: Settings › Nuvio, Stremio & Home Assistant")
+        }
+        "/api/simkl/client" -> { app.cw.simkl.clientId = j.optString("id").trim(); "Simkl client ID saved. The sign-in code shows on the TV now (or: Settings › Accounts & Home Assistant › Connect Simkl)" }
+        "/api/camera/add" -> {
+            val name = j.optString("name").trim().replace("|", " ").ifBlank { "Camera" }; val url = j.optString("url").trim()
+            require(url.startsWith("rtsp://") || url.startsWith("http")) { "Use an rtsp:// or http(s):// link" }
+            app.settings.cameras = app.settings.cameras + "$name|$url"; "Camera added"
+        }
+        "/api/camera/rename" -> {
+            val i = j.optInt("i", -1); val name = j.optString("name").trim().replace("|", " ")
+            require(name.isNotBlank()) { "Type a name" }
+            app.settings.cameras = app.settings.cameras.mapIndexed { k, l -> if (k == i) name + "|" + l.substringAfter('|') else l }; "Camera renamed"
+        }
+        "/api/camera/remove" -> { val i = j.optInt("i", -1); app.settings.cameras = app.settings.cameras.filterIndexed { k, _ -> k != i }; "Camera removed" }
         else -> error("Unknown action")
     }
 
@@ -409,7 +454,14 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
         fun shown(v: String) = if (v.startsWith("http")) v else v.substringAfterLast('/')
         val back = JSONObject().put("mode", st.bgMode).put("image", shown(st.bgImage)).put("video", shown(st.bgVideo)).put("files", files)
             .put("downloading", downloading).put("last", lastDownload)
-        return JSONObject().put("addons", addons).put("bg", back).put("apps", apps).put("aerial", aerial)
+        val cams = JSONArray()
+        st.cameras.forEach { l -> cams.put(JSONObject().put("name", l.substringBefore('|')).put("host", runCatching { java.net.URI(l.substringAfter('|')).host }.getOrNull() ?: "")) }
+        val acc = JSONObject().put("nuvio", app.cw.nuvio?.connected == true).put("stremio", app.library.stremio.connected)
+            .put("trakt", app.cw.trakt.connected).put("simkl", app.cw.simkl.connected)
+        val nv = app.library.nuvio
+        val nuvioServer = JSONObject().put("custom", nv.custom).put("host", if (nv.custom) runCatching { java.net.URI(nv.server).host }.getOrNull() ?: nv.server else "")
+            .put("login", if (nv.custom) nv.loginPage else "")
+        return JSONObject().put("addons", addons).put("bg", back).put("apps", apps).put("aerial", aerial).put("cams", cams).put("accounts", acc).put("nuvioServer", nuvioServer)
             .put("tmdb", app.settings.tmdbToken.isNotBlank()).put("ha", app.settings.haWebhook.isNotBlank())
             .put("cals", cals).put("haBase", app.settings.haBase).put("haToken", app.settings.haToken.isNotBlank())
             .put("live", app.settings.phoneLive).put("calendar", app.settings.phoneCalendar)
@@ -442,7 +494,8 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 .row{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .pad{display:grid;grid-template-columns:repeat(3,72px);gap:8px;justify-content:center;margin:6px 0 4px}.pad button{height:64px;margin:0;font-size:20px}.pad .okb{border-radius:50%}.tag{font-size:11px;background:#2a2150;color:#c8bdff;border-radius:6px;padding:1px 6px;margin-left:6px}
 </style></head><body><main>
-<h1>Glassio</h1><p>Manage your TV from here &middot; &#1573;&#1583;&#1575;&#1585;&#1577; &#1575;&#1604;&#1578;&#1604;&#1601;&#1586;&#1610;&#1608;&#1606; &#1605;&#1606; &#1607;&#1606;&#1575;</p>
+<h1>Glassio</h1><p class="lead">Manage your TV from here &middot; &#1573;&#1583;&#1575;&#1585;&#1577; &#1575;&#1604;&#1578;&#1604;&#1601;&#1586;&#1610;&#1608;&#1606; &#1605;&#1606; &#1607;&#1606;&#1575;</p>
+<input id="q" type="search" placeholder="Search" oninput="filt()">
 <div id="msg"></div>
 <h2>Remote</h2>
 <div class="pad"><span></span><button onclick="k('up')">&#9650;</button><span></span>
@@ -471,6 +524,7 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <p id="bgp"></p><div id="bgfiles"></div></div>
 <h2>Apps</h2><p>Open one on the TV, move it up or down on Home, or give it an icon: an image link or one from this phone.</p><div id="apps"></div>
 <h2>TMDB token (logos, synopsis, ratings)</h2><p>Paste the <b>API Read Access Token</b> (the long one, starting eyJ...), not the short API Key. themoviedb.org &rarr; Settings &rarr; API.</p><p id="tks"></p><input type="text" id="tk" placeholder="TMDB API Read Access Token"><button onclick="send('/api/tmdb',{token:v('tk')},'tk')">Save token</button>
+<h2>Simkl</h2><p>Simkl needs an app id of your own: simkl.com &rarr; Settings &rarr; Developer &rarr; create an app, then paste its Client ID here. The sign-in code then shows on the TV.</p><input type="text" id="skid" placeholder="Simkl Client ID"><button onclick="send('/api/simkl/client',{id:v('skid')},'skid')">Save Simkl client ID</button>
 <h2>Live TV sign-in</h2><p>Set up Live TV from here instead of typing with the remote. Xtream Codes: the server, your username and password. M3U: the playlist's link (and its guide's, if it has one). The details stay on your TV.</p><select id="lk" onchange="lkShow()"><option value="xtream">Xtream Codes</option><option value="m3u">M3U link</option><option value="mag">MAG portal</option></select><input type="text" id="ls" placeholder="Server (http://example.com:8080)"><input type="text" id="lu" placeholder="Username" autocomplete="off"><input type="password" id="lp" placeholder="Password" autocomplete="off"><button onclick="send('/api/live/signin',{kind:v('lk'),server:v('ls'),user:v('lu'),pass:v('lp')},'lp')">Sign in</button>
 <h2>Home Assistant control</h2><p>Paste into Home Assistant's <b>configuration.yaml</b>, restart it, then use these in automations: <b>rest_command.glassio_tune</b> (channel: a number or a name), <b>glassio_notify</b> (title, message), <b>glassio_pause</b>, <b>glassio_play</b>. Keep it private: the address has the TV's code. Needs Phone remote on (Settings &rsaquo; System).</p>
 <textarea id="hay" rows="12" readonly></textarea><button class="s" onclick="var t=document.getElementById('hay');t.select();try{document.execCommand('copy');say('Copied',true)}catch(e){}">Copy</button>
@@ -490,7 +544,7 @@ button.s{background:#2a2a2f;color:#fff;padding:8px 12px;font-size:13px;margin:0 
 <h2>Screensaver video links</h2><div id="aerial"></div>
 <input type="text" id="av" placeholder="https://.../video.mp4"><button onclick="send('/api/aerial/add',{url:v('av')},'av')">Add video</button>
 </main><script>
-var T=new URLSearchParams(location.search).get('t')||'';
+var T=new URLSearchParams(location.search).get('t')||'',D=null,mt=0;
 function v(i){return document.getElementById(i).value.trim()}
 function say(t,ok){var m=document.getElementById('msg');m.textContent=t;m.className=ok?'ok':'bad'}
 function lkShow(){var k=v('lk');document.getElementById('ls').placeholder=k=='xtream'?'Server (http://example.com:8080)':k=='m3u'?'Playlist link':'Portal address';document.getElementById('lu').placeholder=k=='xtream'?'Username':k=='m3u'?'Guide link (optional)':'MAC address (optional)';document.getElementById('lp').style.display=k=='xtream'?'':'none'}
@@ -545,7 +599,10 @@ r.appendChild(btn('Delete','s d',function(){if(confirm('Delete the recording of 
 function k(key){api('/api/key',{key:key}).then(function(r){if(!r.ok)say(r.error,false)}).catch(function(){say('Cannot reach the TV',false)})}
 function addAddon(){var u=v('au');if(u)send('/api/addon/add',{url:u},'au')}
 function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!==undefined)e.textContent=x;return e}
-function up(pkg,f){say('Uploading...',true);fetch('/api/icon/upload?pkg='+encodeURIComponent(pkg)+'&t='+encodeURIComponent(T),{method:'POST',body:f}).then(function(r){return r.json()}).then(function(r){say(r.ok?r.message:r.error,r.ok);load()}).catch(function(){say('Upload failed',false)})}
+function item(title,sub,tags){var c=el('div','it'),t=el('div','t'),b=el('b','',title);(tags||[]).forEach(function(g){b.appendChild(el('span','tag',g))});t.appendChild(b);if(sub)t.appendChild(el('small','',sub));c.appendChild(t);return c}
+function btn(label,cls,fn){var b=el('button',cls||'',label);b.onclick=fn;return b}
+function filt(){var q=v('q').toLowerCase();document.querySelectorAll('section').forEach(function(s){s.classList.toggle('hide',q&&(s.dataset.k+' '+s.textContent).toLowerCase().indexOf(q)<0)})}
+function up(pkg,f){say('Uploading…',true);fetch('/api/icon/upload?pkg='+encodeURIComponent(pkg)+'&t='+encodeURIComponent(T),{method:'POST',body:f}).then(function(r){return r.json()}).then(function(r){say(r.ok?r.message:r.error,r.ok);load()}).catch(function(){say('Upload failed',false)})}
 function bgLink(k,i){var u=v(i);if(u)send('/api/bg/link',{kind:k,url:u},i)}
 function bgSave(i){var u=v(i);if(u)send('/api/bg/download',{url:u,use:true},i)}
 function bgUp(){var f=document.getElementById('bf').files[0];if(!f)return;var x=new XMLHttpRequest(),p=document.getElementById('bgp');

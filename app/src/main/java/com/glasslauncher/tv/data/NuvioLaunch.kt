@@ -66,15 +66,58 @@ object NuvioLaunch {
     /** "Nuvio", "Nuvio Legacy", "Stremio"…: a target's short name for "Open in …". */
     fun shortName(target: String) = if (target == "official") "Nuvio" else NAMES[target] ?: target
 
-    fun intent(ctx: Context, s: Settings, type: String, id: String): Intent = intent(resolve(ctx, s), type, id)
+    /** [intentFor], as Yahsun's code names it. */
+    private fun intent(target: String, type: String, id: String): Intent = intentFor(target, type, id)
 
-    private fun intent(target: String, type: String, id: String): Intent {
+    fun intent(ctx: Context, s: Settings, type: String, id: String): Intent = intentFor(resolve(ctx, s), type, id)
+
+    /** The installed apps a title can be opened in (Nuvio's versions and Stremio), as target → name. */
+    fun installedTargets(ctx: Context): List<Pair<String, String>> =
+        TARGETS.entries.filter { installed(ctx, it.value) }.map { it.key to NAMES.getValue(it.key) }
+
+    /** Opens the title in one particular app ([target] as in [TARGETS]). */
+    fun openIn(ctx: Context, target: String, item: HeroItem): Boolean = runCatching { ctx.startActivity(intentFor(target, item.type, item.id)) }
+        .onFailure { Glog.w("Open in $target", it); Toast.makeText(ctx, "${NAMES[target]} can't open this title", Toast.LENGTH_LONG).show() }.isSuccess
+
+    /**
+     * Streaming apps by the names TMDB gives the platform (network) a title is on: name keyword → package.
+     * They are opened at their home page (they don't take a TMDB or IMDb id).
+     */
+    private val PLATFORMS = listOf(
+        "netflix" to "com.netflix.ninja", "apple tv" to "com.apple.atve.androidtv.appletv", "prime" to "com.amazon.amazonvideo.livingroom",
+        "amazon" to "com.amazon.amazonvideo.livingroom", "disney" to "com.disney.disneyplus", "hbo" to "com.wbd.stream", "max" to "com.wbd.stream",
+        "hulu" to "com.hulu.livingroomplus", "paramount" to "com.cbs.ott", "peacock" to "com.peacocktv.peacockandroid",
+        "shahid" to "net.mbc.shahidTV", "youtube" to "com.google.android.youtube.tv", "crunchyroll" to "com.crunchyroll.crunchyroid",
+        "osn" to "com.osn.go", "starz" to "com.bydeluxe.d3.android.program.starz", "mubi" to "com.mubi",
+    )
+
+    /** The installed streaming app for [platform] (e.g. "Apple TV+"), or null. */
+    fun platformApp(ctx: Context, platform: String): String? {
+        val p = platform.lowercase()
+        if (p.isBlank()) return null
+        return PLATFORMS.firstOrNull { p.contains(it.first) }?.second?.takeIf { installed(ctx, it) }
+    }
+
+    fun openApp(ctx: Context, pkg: String): Boolean = runCatching {
+        val pm = ctx.packageManager
+        val i = pm.getLeanbackLaunchIntentForPackage(pkg) ?: pm.getLaunchIntentForPackage(pkg) ?: error("no launch intent")
+        ctx.startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }.isSuccess
+
+    private fun intentFor(target: String, type: String, id: String): Intent {
+        if (target == "legacy") NuvioWatch.opened(type, id.trim())
         // No CLEAR_TASK: a running Nuvio is brought forward and opens the title at once, without
         // restarting (no splash). If Nuvio is not running it starts normally.
-        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        // Stremio is the exception: a running Stremio takes the link as a new intent and ignores it (it just came to
+        // the front on its home page), so its task starts again and the title's page opens (still quick: warm start).
+        val flags = if (target == "stremio") Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            else Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         val pkg = TARGETS.getValue(target)
         val t = if (type.equals("movie", true)) "movie" else "series"
-        val uri = if (target == "legacy") {
+        val uri = if (target == "stremio") {
+            // Stremio's own link: stremio:///detail/movie/tt0111161 (its page for the title, with your add-ons' streams).
+            Uri.parse("stremio:///detail/$t/${id.trim()}/${if (t == "movie") id.trim() else ""}".trimEnd('/'))
+        } else if (target == "legacy") {
             Uri.Builder().scheme("nuvio-legacy").authority("meta").appendPath(t).appendPath(id.trim()).build()
         } else if (target == "stremio") {
             // Stremio's own links: stremio:///detail/series/tt0944947 opens the title's page.

@@ -57,6 +57,8 @@ data class HeroItem(
     val watchedAt: Long = 0,
     /** A Continue Watching card for the next episode (in [sub]), the one before it finished. */
     val upNext: Boolean = false,
+    /** Continue Watching: the next episode after one you finished (Nuvio's "Next up"); [sub] names it. */
+    val nextUp: Boolean = false,
 )
 
 /**
@@ -153,7 +155,7 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
             }
             while (true) {
                 runCatching { refresh() }
-                delay(30 * 60 * 1000L)
+                delay((if (settings.surprise) settings.surpriseMin else 30) * 60 * 1000L)
             }
         }
     }
@@ -187,6 +189,10 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
             else CatalogRef(url, name, type, id, c.optString("name").ifBlank { id })
         }
     }
+
+    /** Everything the carousel's titles depend on: Settings reloads the catalogs only when this changed. */
+    fun signature(): String = listOf(allAddons(), selectedKeys.value.sorted(), settings.catalogsNuvio, settings.catalogsStremio,
+        settings.perCatalog, settings.maxItems, settings.shuffle, settings.surprise, settings.surpriseMin, settings.descLang, settings.tmdbToken.length).toString()
 
     suspend fun refresh() = loadLock.withLock {
         withContext(Dispatchers.IO) {
@@ -263,17 +269,20 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
                         gate.withPermit {
                             results[c.key] = runCatching { fetchCatalog(c, per) }.getOrDefault(emptyList())
                             // Show the first results early instead of waiting for every catalog (not over the
-                            // titles from last time: those stay till the new list is whole).
-                            if (!fromSnapshot && (results.size <= 3 || results.size % 8 == 0)) items.value = merge(false)
+                            // titles from last time: those stay till the new list is whole; nor over the titles on
+                            // screen on a reload, which rebuilt the home screen each time).
+                            if (!fromSnapshot && items.value.isEmpty() && (results.size <= 3 || results.size % 8 == 0)) items.value = merge(false)
                             status.value = "Loading ${results.size}/${chosen.size} catalogs…"
                         }
                     }
                 }.awaitAll()
             }
-            val merged = merge(settings.shuffle)
+            val merged = merge(settings.shuffle || settings.surprise)
             // Every add-on failing (no connection) leaves last time's titles in place.
             if (merged.isNotEmpty() || !fromSnapshot) {
-                items.value = merged
+                // The same titles as now (in the same order, unless shuffled on purpose): nothing changes on screen.
+                // Titles from the saved snapshot are always replaced: it keeps only some of each title's details.
+                if (fromSnapshot || merged.map { it.key } != items.value.map { it.key }) items.value = merged
                 fromSnapshot = false
                 if (merged.isNotEmpty()) HeroSnapshot.save(ctx, SNAPSHOT, merged)
             }
@@ -286,10 +295,14 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     private fun fetchCatalog(c: CatalogRef, limit: Int): List<HeroItem> {
         val base = c.addon.removeSuffix("/manifest.json").trimEnd('/')
         val out = mutableListOf<HeroItem>()
-        var skip = 0
+        // Surprise me: start further down the catalog now and then (a different mix each time).
+        val start = if (settings.surprise) listOf(0, 0, 100, 200).random() else 0
+        var skip = start
         while (out.size < limit && skip < 1000) {
             val url = "$base/catalog/${enc(c.type)}/${enc(c.id)}.json?skip=$skip&limit=100"
-            val metas = http.json(url, 15 * 60 * 1000L).optJSONArray("metas") ?: break
+            val metas = runCatching { http.json(url, if (settings.surprise) 5 * 60 * 1000L else 15 * 60 * 1000L).optJSONArray("metas") }.getOrNull()
+            if ((metas == null || metas.length() == 0) && skip == start && start > 0) { skip = 0; continue }
+            metas ?: break
             if (metas.length() == 0) break
             for (i in 0 until metas.length()) parseMeta(metas.optJSONObject(i) ?: continue, c.type)?.let(out::add)
             skip += metas.length()
@@ -401,7 +414,8 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
      * Turns the account's add-ons on or off. Their catalogs are listed but not put in the carousel by themselves
      * (you pick them, like any other catalog); turning it off also takes theirs out of the carousel.
      */
-    suspend fun useAccount(on: Boolean): String = withContext(Dispatchers.IO) {
+    suspend fun useAccount(on: Boolean, which: String = "nuvio"): String = withContext(Dispatchers.IO) {
+        if (which == "stremio") return@withContext useStremio(on)
         if (!on) {
             // The Nuvio account's alone: one the Stremio account has too stays, with its catalogs.
             val stremioKeys = if (settings.catalogsStremio) stremioAddons.value.map { addonKey(it) }.toSet() else emptySet()
