@@ -281,6 +281,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     val shownBackdropS = remember { mutableStateOf<ImageBitmap?>(null) }
     var shownBackdrop by shownBackdropS
     val prevBackdropS = remember { mutableStateOf<ImageBitmap?>(null) }
+    // Bumped when a new title's picture comes in, not when a sharper copy of the same one replaces it: the slow zoom
+    // goes by this, so the swap doesn't start the picture's zoom over.
+    val backdropSlide = remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var prevBackdrop by prevBackdropS
     // The page's colour from that picture (BackdropTint), null for neutral.
     val pageTint = remember { mutableStateOf<Int?>(null) }
@@ -370,6 +373,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             if (next != null) backImgs = next
             slideDir = if (slide && !first && prevBackdrop != null) SlideDir.dir else 0
             if (!first && next != null) mix.snapTo(0f)
+            backdropSlide.intValue++
             shownBackdrop = baked
             pageTint.value = tint
             shownUrl.value = u
@@ -510,7 +514,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             val motionOff = LocalReduceMotion.current
             val onHome = screen == Screen.Home
-            if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade",
+            if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade", backdropSlide,
                 slowZoom = !motionOff && settings.slowZoom in setOf("hero", "both"),
                 lift = { if (onHome && settings.heroScroll == "away") pageOffset.floatValue else 0f }) {
                 if (trailerDrawn) 1f - trailerShown.value else 1f
@@ -852,7 +856,7 @@ private fun SlideBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.c
 @Composable
 private fun PageBackdrop(
     prev: androidx.compose.runtime.State<ImageBitmap?>, cur: androidx.compose.runtime.State<ImageBitmap?>,
-    dir: androidx.compose.runtime.State<Int>, mix: androidx.compose.animation.core.Animatable<Float, *>, anim: String,
+    dir: androidx.compose.runtime.State<Int>, mix: androidx.compose.animation.core.Animatable<Float, *>, anim: String, slide: androidx.compose.runtime.State<Int>,
     /** Each picture slowly zooms in from the moment it comes in (Settings › Home › Slow zoom). */
     slowZoom: Boolean = false,
     /** How far up the page has gone, px: the picture goes up with it (0: it stays). */
@@ -861,7 +865,7 @@ private fun PageBackdrop(
 ) {
     Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity(); translationY = -lift() }) {
         if (anim != "fade") SlideBackdrop(prev.value, cur.value, mix, dir.value, if (anim == "apple") SLIDE_APPLE else SLIDE_PUSH)
-        else FadeBackdrop(prev.value, cur.value, mix, slowZoom)
+        else FadeBackdrop(prev.value, cur.value, mix, slide.value, slowZoom)
     }
 }
 
@@ -872,15 +876,16 @@ private fun PageBackdrop(
  */
 @Composable
 private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.compose.animation.core.Animatable<Float, *>,
-    slowZoom: Boolean = false) {
+    slide: Int, slowZoom: Boolean = false) {
     // The slow zoom, as on the streaming apps (measured from a recording): each picture grows at a steady pace from the
     // moment it comes in, towards a point right of its middle, and the old one keeps growing while the new one fades in
     // over it. When each came in (uptime ms): [0] the shown one, [1] the one before it.
     val since = remember { LongArray(2) }
-    remember(cur, slowZoom) { since[1] = since[0]; since[0] = android.os.SystemClock.uptimeMillis(); 0 }
+    // By the slide, not the picture: a sharper copy of the same picture swapped in keeps its zoom where it is.
+    remember(slide, slowZoom) { since[1] = since[0]; since[0] = android.os.SystemClock.uptimeMillis(); 0 }
     // The frame's time, ticking only while a picture is still growing (read while drawing: a redraw, never a recompose).
     val now = remember { androidx.compose.runtime.mutableLongStateOf(android.os.SystemClock.uptimeMillis()) }
-    LaunchedEffect(cur, slowZoom) {
+    LaunchedEffect(slide, slowZoom, cur == null) {
         if (!slowZoom || cur == null) return@LaunchedEffect
         while (slowZoomOf(since[0], now.longValue, HERO_ZOOM_PER_S) < SLOW_ZOOM_MAX || mix.value < 1f) {
             androidx.compose.runtime.withFrameMillis { now.longValue = android.os.SystemClock.uptimeMillis() }
