@@ -1,130 +1,58 @@
 package com.glasslauncher.tv.saver
 
-import android.graphics.Color
-import android.os.Handler
-import android.os.Looper
 import android.service.dreams.DreamService
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
+import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.glasslauncher.tv.GlassApp
-import kotlin.concurrent.thread
-
-private val R_FONT_SEMIBOLD = com.glasslauncher.tv.R.font.inter_semibold
-private val R_FONT_MEDIUM = com.glasslauncher.tv.R.font.inter_medium
 
 /**
- * System screensaver (Settings > Device Preferences > Screen saver): plays the same aerial playlist, with a
- * followed team's next match bottom left.
+ * Glassio as the TV's own screensaver (Settings > Screensaver > "Glassio is the TV screensaver"): the TV starts it
+ * when idle in any app, not only on the home screen. It shows exactly what Glassio's screensaver shows.
  */
-@UnstableApi
-class GlassDreamService : DreamService() {
-    private var player: ExoPlayer? = null
-    private val ui = Handler(Looper.getMainLooper())
-    private var view: PlayerView? = null
-    /** A followed team's next match (Live TV's Following), bottom left: its label, the match, where it's on. */
-    private var matchBox: android.widget.LinearLayout? = null
-    private val matchLines = arrayOfNulls<android.widget.TextView>(3)
-    private var scores: Any? = null
-    private val matchTick = object : Runnable {
-        override fun run() { readMatch(); ui.postDelayed(this, 30_000) }
+class GlassDreamService : DreamService(), LifecycleOwner, SavedStateRegistryOwner {
+    private val registry = LifecycleRegistry(this)
+    private val saved = SavedStateRegistryController.create(this)
+    override val lifecycle: Lifecycle get() = registry
+    override val savedStateRegistry: SavedStateRegistry get() = saved.savedStateRegistry
+
+    override fun onCreate() {
+        super.onCreate()
+        saved.performRestore(null)
+        registry.currentState = Lifecycle.State.CREATED
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        isInteractive = false
+        // Interactive: ◀ ▶ change the video and OK shows / hides the info; any other key wakes the TV.
+        isInteractive = true
         isFullscreen = true
         isScreenBright = true
-        view = PlayerView(this).apply {
-            useController = false
-            resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            setBackgroundColor(Color.BLACK)
-        }
-        val d = resources.displayMetrics.density
-        val box = android.widget.LinearLayout(this).apply {
-            orientation = android.widget.LinearLayout.VERTICAL
-            visibility = android.view.View.GONE
-            setPadding((20 * d).toInt(), (14 * d).toInt(), (20 * d).toInt(), (14 * d).toInt())
-            background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = 18 * d
-                setColor(0x61000000)
-                setStroke((0.8f * d).toInt().coerceAtLeast(1), 0x2EFFFFFF)
-            }
-        }
-        val faces = listOf(R_FONT_SEMIBOLD, R_FONT_SEMIBOLD, R_FONT_MEDIUM)
-        val sizes = listOf(10f, 20f, 12f)
-        val colors = listOf(0xB3FFFFFF.toInt(), Color.WHITE, 0xFFB3B3B8.toInt())
-        for (i in 0..2) {
-            matchLines[i] = android.widget.TextView(this).apply {
-                textSize = sizes[i]
-                setTextColor(colors[i])
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                maxWidth = (520 * d).toInt()
-                runCatching { typeface = androidx.core.content.res.ResourcesCompat.getFont(this@GlassDreamService, faces[i]) }
-                if (i == 0) letterSpacing = 0.12f
-                if (i > 0) setPadding(0, (4 * d).toInt(), 0, 0)
-            }
-            box.addView(matchLines[i])
-        }
-        matchBox = box
-        val root = android.widget.FrameLayout(this)
-        root.addView(view)
-        root.addView(box, android.widget.FrameLayout.LayoutParams(android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT, android.view.Gravity.BOTTOM or android.view.Gravity.START).apply {
-            leftMargin = (56 * d).toInt(); bottomMargin = (40 * d).toInt()
-        })
-        setContentView(root)
-    }
-
-    private fun readMatch() {
         val app = application as GlassApp
-        if (!app.settings.saverMatch) { matchBox?.visibility = android.view.View.GONE; return }
-        thread(name = "dream-match") {
-            val m = runCatching { com.glasslauncher.tv.live.LiveHome.matchDay(app) }.getOrNull()
-            ui.post {
-                val box = matchBox ?: return@post
-                if (m == null) { box.visibility = android.view.View.GONE; return@post }
-                matchLines[0]?.text = m.label
-                matchLines[1]?.text = m.headline
-                // Plain text here (no tags in this view): the country after the channel, in words.
-                matchLines[2]?.text = if (m.country.isEmpty()) m.where else m.where + "  " + m.country
-                box.visibility = android.view.View.VISIBLE
-            }
+        val view = ComposeView(this).apply {
+            setViewTreeLifecycleOwner(this@GlassDreamService)
+            setViewTreeSavedStateRegistryOwner(this@GlassDreamService)
+            setContent { com.glasslauncher.tv.ui.GlassType { SaverContent(app) } }
         }
+        window?.decorView?.let { it.setViewTreeLifecycleOwner(this); it.setViewTreeSavedStateRegistryOwner(this) }
+        setContentView(view)
     }
 
-    override fun onDreamingStarted() {
-        super.onDreamingStarted()
-        val app = application as GlassApp
-        if (app.settings.saverMatch) scores = com.glasslauncher.tv.live.LiveHome.watchScores(app) { readMatch() }
-        ui.post(matchTick)
-        thread(name = "aerial-list") {
-            val urls = AerialSource.playlist(app)
-            ui.post {
-                if (urls.isEmpty() || view == null) return@post
-                val p = ExoPlayer.Builder(this).build()
-                p.setMediaItems(urls.map { MediaItem.fromUri(it) })
-                p.repeatMode = Player.REPEAT_MODE_ALL
-                p.volume = 0f
-                p.addListener(object : Player.Listener {
-                    override fun onPlayerError(error: PlaybackException) { p.seekToNextMediaItem(); p.prepare(); p.play() }
-                })
-                p.prepare(); p.playWhenReady = true
-                view?.player = p
-                player = p
-            }
-        }
+    override fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean {
+        val k = event.keyCode
+        if (SaverControl.onKey(event, (application as com.glasslauncher.tv.GlassApp).settings)) return true
+        if (event.action == android.view.KeyEvent.ACTION_DOWN) wakeUp()
+        return true
     }
+    override fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean { wakeUp(); return true }
 
-    override fun onDreamingStopped() {
-        ui.removeCallbacks(matchTick)
-        scores?.let { com.glasslauncher.tv.live.LiveHome.stopScores(application, it) }; scores = null
-        player?.release(); player = null
-        super.onDreamingStopped()
-    }
+    override fun onDreamingStarted() { super.onDreamingStarted(); registry.currentState = Lifecycle.State.RESUMED }
+    override fun onDreamingStopped() { registry.currentState = Lifecycle.State.CREATED; super.onDreamingStopped() }
+    override fun onDestroy() { registry.currentState = Lifecycle.State.DESTROYED; super.onDestroy() }
 }

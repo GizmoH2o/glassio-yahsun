@@ -58,8 +58,9 @@ class MainActivity : ComponentActivity() {
                     val idle = System.currentTimeMillis() - lastInput
                     // Not while a channel plays in the small window (Watch on Home).
                     if (secs > 0 && idle > secs * 1000L && com.glasslauncher.tv.ui.MiniLive.now.value == null &&
-                        lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && !systemSaverFirst(secs)) {
                         lastInput = System.currentTimeMillis()
+                        com.glasslauncher.tv.ui.SaverGate.opening.value = true
                         startActivity(Intent(this@MainActivity, ScreensaverActivity::class.java))
                     }
                 }
@@ -75,6 +76,18 @@ class MainActivity : ComponentActivity() {
                     }) { androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.backGoesBack()) { HomeScreen(app, screen) { screen = it } } }
                     if (mv > 0.01f) androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()
                         .graphicsLayer { alpha = mv }.background(androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.2f)))
+                // Back from the screensaver: out of black (it closes faded to black, so nothing snaps).
+                if (com.glasslauncher.tv.ui.SaverGate.cover.floatValue > 0f) {
+                    // Runs once the home screen draws again (a stopped activity doesn't compose).
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        val cover = com.glasslauncher.tv.ui.SaverGate.cover
+                        kotlinx.coroutines.delay(80)
+                        androidx.compose.animation.core.animate(cover.floatValue, 0f, animationSpec = androidx.compose.animation.core.tween(420)) { v, _ -> cover.floatValue = v }
+                    }
+                    androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()
+                        .then(androidx.compose.ui.Modifier.graphicsLayer { alpha = com.glasslauncher.tv.ui.SaverGate.cover.floatValue })
+                        .then(androidx.compose.ui.Modifier.background(androidx.compose.ui.graphics.Color.Black)))
+                }
                     androidx.compose.runtime.SideEffect { KeyHub.homeInFront = resumed && screen == Screen.Home }
                 }
             } }
@@ -115,6 +128,26 @@ class MainActivity : ComponentActivity() {
         window.setBackgroundDrawable(null)
     }
 
+    /**
+     * The TV's own screensaver (another app, e.g. Aerial Views) is on and starts at about the same time or
+     * earlier: leave it to the TV. Starting Glassio's as well put one on top of the other, and Back then had
+     * to be pressed twice (issue #9). With Type "TV screensaver" Glassio only asks the TV to start its own.
+     */
+    private fun systemSaverFirst(secs: Int): Boolean {
+        val app = application as GlassApp
+        if (app.settings.saverMode == "system") return false
+        val cr = contentResolver
+        val on = runCatching { android.provider.Settings.Secure.getInt(cr, "screensaver_enabled", 1) == 1 }.getOrDefault(false)
+        val comp = runCatching { android.provider.Settings.Secure.getString(cr, "screensaver_components") }.getOrNull().orEmpty()
+        // (Glassio itself as the TV screensaver counts too: the TV then starts it, in every app.)
+        if (!on || comp.isBlank()) return false
+        // Glassio's own dream: on the home screen Glassio starts it itself (a playing background video kept the
+        // TV from starting it, so it never came on here).
+        if (comp.startsWith(packageName)) return false
+        val tv = runCatching { android.provider.Settings.System.getInt(cr, "screen_off_timeout") }.getOrDefault(Int.MAX_VALUE)
+        return tv <= secs * 1000L + 5_000
+    }
+
     private fun screenReaderOn(): Boolean =
         getSystemService(android.view.accessibility.AccessibilityManager::class.java)?.isTouchExplorationEnabled == true
 
@@ -143,6 +176,7 @@ class MainActivity : ComponentActivity() {
         // the screen unchanged, nothing was composed again, and Glassio counted as "not in front" until the next
         // change (a remote button meant for the home screen started Glassio again instead).
         KeyHub.homeInFront = screen == Screen.Home
+        com.glasslauncher.tv.ui.SaverGate.opening.value = false
         (application as GlassApp).ensureHomeService()     // the Home-button service, if an update switched it off
         com.glasslauncher.tv.data.HaEvents.home(this)     // back from watching: Home Assistant hears it
         openTodayInTheMorning()
