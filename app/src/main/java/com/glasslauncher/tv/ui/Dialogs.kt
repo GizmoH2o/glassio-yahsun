@@ -57,12 +57,16 @@ import androidx.compose.ui.window.Dialog
 
 fun toast(ctx: Context, msg: String) {
     val words = Lang.tr(msg)
+    // Glassio in front and Modern dialogs: its own glass notice at the bottom; else Android's.
+    if (Notice.front && dialogsModern(ctx)) { Notice.show(words); return }
     Handler(Looper.getMainLooper()).post { Toast.makeText(ctx, words, Toast.LENGTH_LONG).show() }
 }
 
 sealed interface DialogState
 /** [secret]: what's typed shows as dots (a backup's code). */
-class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val action: String = "Save", val onDone: (String) -> Unit) : DialogState
+class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val action: String = "Save",
+    /** 4: a PIN, typed on the round code pad (Modern dialogs). */
+    val digits: Int = 0, val onDone: (String) -> Unit) : DialogState
 class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>) : DialogState
 /** A list with a small picture next to each choice (pictures, videos, screensaver videos). */
 class ThumbDialog(val title: String, val items: List<ThumbItem>) : DialogState
@@ -124,6 +128,8 @@ private fun WhatsNewView(d: WhatsNew, onDismiss: () -> Unit) {
 
 @Composable
 private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    // Modern (Settings › Look & motion › Dialog style): the glass sheet over the dimmed, blurred page.
+    if (rememberDialogsModern()) { ModernSheet(width + 40, modifier, center = false) { content() }; return }
     Column(
         modifier.width(width.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(14.dp),
     ) { content() }
@@ -131,6 +137,7 @@ private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, conte
 
 @Composable
 private fun DialogButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    if (rememberDialogsModern()) { SheetButton(text, modifier, destructive = destructiveChoice(text), onClick = onClick); return }
     var focused by remember { mutableStateOf(false) }
     Text(
         text, color = if (focused) Ds.Ink else Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
@@ -144,6 +151,15 @@ private fun DialogButton(text: String, modifier: Modifier = Modifier, onClick: (
 
 @Composable
 private fun TextEntryDialog(d: TextEntry, onDismiss: () -> Unit) {
+    if (rememberDialogsModern()) {
+        Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            if (d.digits == 4) androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CodePad(d.title, d.hint, onCode = { d.onDone(it); onDismiss(); true }, onCancel = onDismiss)
+            }
+            else GlassKeyboardEntry(d.title, d.hint, d.initial, d.secret, d.action, onDone = { d.onDone(it); onDismiss() }, onCancel = onDismiss)
+        }
+        return
+    }
     var text by remember { mutableStateOf(d.initial) }
     val fr = remember { FocusRequester() }
     val saveFocus = remember { FocusRequester() }
@@ -186,6 +202,31 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
     // The menu opens while OK is still held (long press). Ignore that OK until it is released
     // and pressed again, otherwise the release would trigger the first option.
     var armed by remember { mutableStateOf(false) }
+    if (rememberDialogsModern()) {
+        val guard = Modifier.onPreviewKeyEvent { ev ->
+            if (!ev.isSelect || armed) false
+            else if (ev.type == KeyEventType.KeyDown && ev.nativeKeyEvent.repeatCount == 0) { armed = true; false }
+            else true
+        }
+        val confirm = isConfirmation(d.options.map { it.first })
+        Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            ModernSheet(if (confirm) 380 else if (d.options.any { it.first.length > 30 }) 460 else 340, guard) {
+                SheetTitle(d.title)
+                if (confirm) {
+                    // A question with a way out: the action, then Cancel, which is selected first (nothing happens by accident).
+                    val (label, action) = d.options[0]
+                    SheetButton(label, Modifier.padding(bottom = 8.dp), destructive = destructiveChoice(label), center = true) { onDismiss(); action() }
+                    SheetButton(d.options[1].first, Modifier.focusRequester(fr), center = true) { onDismiss(); d.options[1].second() }
+                } else Column(Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    d.options.forEachIndexed { i, (label, action) ->
+                        SheetButton(label, if (i == 0) Modifier.focusRequester(fr) else Modifier, destructive = destructiveChoice(label)) { onDismiss(); action() }
+                    }
+                }
+            }
+        }
+        LaunchedEffect(Unit) { delay(60); runCatching { fr.requestFocus() } }
+        return
+    }
     Dialog(onDismissRequest = onDismiss) {
         DialogSurface(
             width = if (d.options.any { it.first.length > 30 }) 400 else 230,
@@ -334,10 +375,14 @@ private fun QrCodeDialogView(d: QrCodeDialog, onDismiss: () -> Unit) {
 private fun ThumbDialogView(d: ThumbDialog, onDismiss: () -> Unit) {
     val fr = remember { FocusRequester() }
     Dialog(onDismissRequest = onDismiss) {
+        val modern = rememberDialogsModern()
+        // Pictures only when some choice has one (a list of words gets no empty boxes).
+        val pictures = d.items.any { it.thumb != null }
         DialogSurface(width = 520) {
-            Text(d.title, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, fontWeight = FontWeight.Medium,
+            if (modern) SheetTitle(d.title)
+            else Text(d.title, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, fontWeight = FontWeight.Medium,
                 maxLines = 1, modifier = Modifier.padding(start = 4.dp, bottom = 8.dp))
-            androidx.compose.foundation.lazy.LazyColumn(Modifier.height(380.dp)) {
+            androidx.compose.foundation.lazy.LazyColumn(if (modern) Modifier.heightIn(max = 420.dp) else Modifier.height(380.dp)) {
                 items(d.items.size) { i ->
                     val it = d.items[i]
                     var focused by remember { mutableStateOf(false) }
@@ -350,14 +395,14 @@ private fun ThumbDialogView(d: ThumbDialog, onDismiss: () -> Unit) {
                             .padding(6.dp),
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                     ) {
-                        androidx.compose.foundation.layout.Box(Modifier.width(96.dp).height(54.dp).clip(RoundedCornerShape(7.dp)).background(Color.White.copy(alpha = 0.08f))) {
+                        if (pictures || !modern) androidx.compose.foundation.layout.Box(Modifier.width(96.dp).height(54.dp).clip(RoundedCornerShape(7.dp)).background(Color.White.copy(alpha = 0.08f))) {
                             if (it.thumb is androidx.compose.ui.graphics.ImageBitmap) androidx.compose.foundation.Image(it.thumb, null,
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(54.dp))
                             else if (it.thumb != null) coil3.compose.AsyncImage(model = it.thumb, contentDescription = null,
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxWidth().height(54.dp))
                         }
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
+                        Spacer(Modifier.width(if (pictures || !modern) 12.dp else 8.dp))
+                        Column(Modifier.weight(1f).padding(vertical = if (pictures || !modern) 0.dp else 6.dp)) {
                             Text(it.label, color = if (focused) Color.Black else Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
                             if (it.sub.isNotBlank()) Text(it.sub, color = (if (focused) Color.Black else Color.White).copy(alpha = 0.55f), fontSize = 10.sp, maxLines = 1)
                         }

@@ -358,11 +358,6 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
             require(code.isNotEmpty()) { "Turn on the weekly backup first (Settings › System): it has the code" }
             "Backed up: " + com.glasslauncher.tv.data.WebDav.backUp(app, code)
         }
-        "/api/unsplash" -> {
-            app.settings.unsplashKey = j.optString("key")
-            if (app.settings.unsplashKey.isNotBlank()) { app.settings.photoSource = "unsplash"; app.settings.bgMode = "photos" }
-            if (app.settings.unsplashKey.isBlank()) "Unsplash key removed" else "Unsplash key saved: the background now shows Unsplash photos"
-        }
         "/api/ha/doorbell" -> {
             val u = j.optString("url").trim(); val t = j.optString("token").trim()
             require(u.startsWith("http")) { "The link starts with http:// or https://" }
@@ -415,9 +410,6 @@ class PhoneServer(private val app: GlassApp, private val token: String) {
                 Thread { runCatching { app.library.refreshNuvio(); app.cw.pollNow() } }.start()
                 "Nuvio account connected" + (nv.email.takeIf { it.isNotBlank() }?.let { " as $it" } ?: "")
             } else error("Nuvio: ${nv.lastError}")
-        }
-        "/api/stremio/login" -> {
-            error("Sign in to Stremio on the TV with its code: Settings › Nuvio, Stremio & Home Assistant")
         }
         "/api/simkl/client" -> { app.cw.simkl.clientId = j.optString("id").trim(); "Simkl client ID saved. The sign-in code shows on the TV now (or: Settings › Accounts & Home Assistant › Connect Simkl)" }
         "/api/camera/add" -> {

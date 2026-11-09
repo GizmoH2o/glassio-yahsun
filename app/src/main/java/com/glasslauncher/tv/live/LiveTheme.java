@@ -1031,10 +1031,40 @@ final class LiveTheme {
     }
 
     /** A dialog in the theme: its list's focus on the theme's tile instead of the system's grey. */
+    /** Glassio's Dialog style (Settings › Look & motion) is Modern: from the main app's file, Modern when there's none. */
+    static boolean modernDialogs(Context c) {
+        File f = new File(c.getApplicationContext().getFilesDir(), "dialog_style");
+        if (!f.exists()) return true;
+        try (FileInputStream in = new FileInputStream(f)) { return !"classic".equals(Xtream.read(in).trim()); }
+        catch (IOException e) { return true; }
+    }
+
     static AlertDialog.Builder dialog(Context c) {
         return new AlertDialog.Builder(c, android.R.style.Theme_DeviceDefault_Dialog_Alert) {
+            private CharSequence title;
+
+            @Override public AlertDialog.Builder setTitle(CharSequence t) {
+                title = t;
+                return super.setTitle(t);
+            }
+
             @Override public AlertDialog create() {
+                boolean modern = modernDialogs(c);
+                // Modern: the title centred in Glassio's lettering, as its own sheets have it.
+                if (modern && title != null && title.length() > 0) {
+                    float dpx = c.getResources().getDisplayMetrics().density;
+                    android.widget.TextView t = new android.widget.TextView(c);
+                    t.setText(title);
+                    t.setTextColor(0xFFF5F5F7);
+                    t.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 19);
+                    if (Ui.semibold != null) t.setTypeface(Ui.semibold);
+                    t.setGravity(android.view.Gravity.CENTER);
+                    int p = Math.round(22 * dpx);
+                    t.setPadding(p, Math.round(24 * dpx), p, Math.round(10 * dpx));
+                    setCustomTitle(t);
+                }
                 AlertDialog d = super.create();
+                if (modern && d.getWindow() != null) d.getWindow().setDimAmount(0.62f);
                 ListView list = d.getListView();
                 if (list != null) {
                     list.setSelector(selector(c));
@@ -1053,7 +1083,7 @@ final class LiveTheme {
                     card.setColor(sheet());
                     card.setStroke(Math.max(1, Math.round(0.8f * dp)), sheetRim());
                 }
-                card.setCornerRadius(panelRound(24 * dp));
+                card.setCornerRadius(modernDialogs(c) ? 28 * dp : panelRound(24 * dp));
                 if (d.getWindow() != null) d.getWindow().setBackgroundDrawable(card);
                 // Its buttons (made as it shows): the focused one on the theme's tile too, not the system's white.
                 d.setOnShowListener(x -> {

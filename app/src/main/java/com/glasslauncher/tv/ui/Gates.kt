@@ -1,12 +1,5 @@
 package com.glasslauncher.tv.ui
 
-/** Set just before the screensaver is started from the home screen; cleared when the home screen is back in front. */
-object SaverGate {
-    val opening = androidx.compose.runtime.mutableStateOf(false)
-    /** Black over the home screen when the screensaver has just closed (faded to black): it fades out on resume. */
-    val cover = androidx.compose.runtime.mutableFloatStateOf(0f)
-}
-
 /** Swallows a key for a moment after a page change, so presses meant for the old page don't run on into the next. */
 object NavGate {
     @Volatile private var key = 0

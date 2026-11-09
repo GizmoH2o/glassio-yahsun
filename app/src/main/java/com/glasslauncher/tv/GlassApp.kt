@@ -160,6 +160,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         // Live TV (:live) and its recordings (:rec) run in their own processes: none of the home screen's work there.
         if (getProcessName() != packageName) return
         settings = Settings(this)
+        settings.writeDialogFile()
         profiles = com.glasslauncher.tv.data.HomeProfiles(this, settings)
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityStarted(a: android.app.Activity) { if (shown++ == 0) com.glasslauncher.tv.data.HueSync.resume() }
@@ -193,8 +194,6 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
             if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(r, f, android.content.Context.RECEIVER_EXPORTED)
             else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(r, f)
         }
-        Thread { runCatching { DevHooks.key(this) } }.apply { isDaemon = true }.start()
-        com.glasslauncher.tv.ui.Glow.amount = settings.glowSize
         // The menu's TV numbers are ready before it first opens.
         if (settings.menuSys) Thread { runCatching { com.glasslauncher.tv.data.SystemInfo.read(this, settings.sysCpu || settings.sysGpu) } }.apply { isDaemon = true }.start()
         if (settings.perfMode == "auto") settings.applyMode("auto")
@@ -219,7 +218,6 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         sync = com.glasslauncher.tv.data.Sync(this, settings, library, cw, scope).also { it.start() }
         com.glasslauncher.tv.net.NotifyServer.start(this)
         com.glasslauncher.tv.net.HaWatch.start(this)
-        com.glasslauncher.tv.data.Photos.start(this)
         // Music: follows what any music app plays (its listener is switched on when Music is turned on).
         if (settings.musicOn) Thread { runCatching { com.glasslauncher.tv.data.NowPlaying.grant(this); com.glasslauncher.tv.data.NowPlaying.start(this) } }.apply { isDaemon = true }.start()
         // The TV's inputs (HDMI, CEC devices): read now and every few minutes.

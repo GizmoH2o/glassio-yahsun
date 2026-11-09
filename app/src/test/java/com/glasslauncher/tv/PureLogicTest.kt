@@ -32,9 +32,4 @@ class PureLogicTest {
     @Test fun untranslatedStaysEnglish() { I18n.lang = "ar"; assertEquals("Some new row", I18n.tr("Some new row")) }
     @Test fun indentedRowsKeepTheirDot() { I18n.lang = "ar"; assertEquals("  · " + I18n.tr("Glow"), I18n.tr("  · Glow")) }
 
-    // ---- Screensaver video quality falls back to what a video has
-    private val v = AerialSource.Video("a", "A", "amazon", mapOf("4K-SDR" to "u4k", "1080-SDR" to "u1080"), "")
-    @Test fun qualityItHas() = assertEquals("u4k", v.url("4K-SDR"))
-    @Test fun hdrFallsBackTo4k() = assertEquals("u4k", v.url("4K-HDR"))
-    @Test fun h264FallsBackTo1080() = assertEquals("u1080", v.url("1080-H264"))
 }

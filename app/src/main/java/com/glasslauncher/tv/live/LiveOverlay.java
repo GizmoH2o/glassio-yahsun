@@ -637,8 +637,8 @@ final class LiveOverlay {
         // Under the title: the episode, the times, how long is left, the channel's words about a later show.
         LiveEpisode ep = LiveEpisode.of(live, shown, true, view::postInvalidate);
         StringBuilder sub = new StringBuilder();
-        if (ep != null && !ep.label().isEmpty()) sub.append(ep.label()).append("  ·  ");
-        if (shown != null && past == null) sub.append(Ui.time(shown.start)).append(" – ").append(Ui.time(shown.end));
+        if (ep != null && !ep.label().isEmpty()) sub.append(ep.label());
+        if (shown != null && past == null) sub.append(sub.length() > 0 ? "  ·  " : "").append(Ui.time(shown.start)).append(" – ").append(Ui.time(shown.end));
         if (!rightText.isEmpty()) sub.append(sub.length() > 0 ? "  ·  " : "").append(rightText);
         c.drawText(ellipsize(sub.toString(), meta, (R - X) * k), X * k, (SUB_Y - raise) * k, meta);
 

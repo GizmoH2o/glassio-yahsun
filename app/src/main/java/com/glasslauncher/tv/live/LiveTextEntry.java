@@ -36,6 +36,16 @@ final class LiveTextEntry {
      * the keyboard's Done, hands what was typed to `onOk`. Cancel and Back just close.
      */
     static void show(Context c, String title, String message, EditText input, Consumer<String> onOk) {
+        // Modern dialogs (Glassio › Settings › Look & motion): typed on Live TV's own keyboard, not the TV's.
+        if (LiveTheme.modernDialogs(c)) {
+            int type = input.getInputType(), cls = type & android.text.InputType.TYPE_MASK_CLASS, var = type & android.text.InputType.TYPE_MASK_VARIATION;
+            boolean secret = cls == android.text.InputType.TYPE_CLASS_TEXT && (var == android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+                    || var == android.text.InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD)
+                    || cls == android.text.InputType.TYPE_CLASS_NUMBER && var == android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD;
+            String line = message != null && !message.isEmpty() ? message : input.getHint() == null ? null : input.getHint().toString();
+            LiveNamePad.type(c, title, line, input.getText() == null ? "" : input.getText().toString(), secret, onOk::accept);
+            return;
+        }
         Dialog d = new Dialog(c, android.R.style.Theme_DeviceDefault_Dialog_NoActionBar);
         LinearLayout card = new LinearLayout(c);
         card.setOrientation(LinearLayout.VERTICAL);

@@ -133,6 +133,13 @@ public class Live extends Activity {
      * (a few times, waiting longer each time). Played well for half a minute, the count starts over.
      */
     private static final long STUCK_MS = 10_000, STUCK_FIRST_MS = 15_000, FROZEN_MS = 10_000, WATCH_MS = 2000, GOOD_MS = 30_000;
+    /** Meant to play, but neither its place nor what's loaded has moved for this long: stuck, whatever the player says. */
+    private static final long STILL_MS = 20_000;
+    private long stillPos = -1, stillBuf = -1, stillSince;
+    /** The player's buffer, which notices when it's full with nothing it can play (LiveOptions.Unstuck). */
+    private LiveOptions.Unstuck loadGuard;
+    /** How long full with nothing to play before the stream is opened again from where it is. */
+    private static final long STARVED_MS = 6_000;
     private static final int MAX_RECONNECTS = 4;
     private int reconnects;
     private long themeTick;
@@ -819,7 +826,7 @@ public class Live extends Activity {
                 .setMediaSourceFactory(new DefaultMediaSourceFactory(new LiveGrowingSource.Factory(
                         Xtream.resolving(this, new DefaultDataSource.Factory(this, http)), this::catchupGrowing), extractors))
                 .setTrackSelector(tracks)
-                .setLoadControl(LiveOptions.loadControl(LiveOptions.buffer(this)))
+                .setLoadControl(loadGuard = LiveOptions.loadControl(LiveOptions.buffer(this)))
                 .build();
         player.setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true);
@@ -1975,6 +1982,31 @@ public class Live extends Activity {
             if (player == null || playing == null || shifted() || recordingFile != null || askingRating || !player.getPlayWhenReady()) return;
             long up = android.os.SystemClock.uptimeMillis();
             int state = player.getPlaybackState();
+            // Not playing, and nothing moving at all: neither where it is nor how far it has loaded (a catch-up stream
+            // once sat like that for twenty minutes, buffering, with no state change for the checks below to count from).
+            // Full of picture with nothing it can play (its sound moved to a track it isn't on): open it again from here.
+            if (loadGuard != null && state == Player.STATE_BUFFERING && loadGuard.starved(STARVED_MS)) {
+                AppLog.w("live: " + playing.name + ": buffer full with nothing to play (state " + state + ", at " + player.getCurrentPosition()
+                        + " ms, loaded to " + player.getBufferedPosition() + " ms" + (catchup != null ? ", catch-up" : "") + ")");
+                loadGuard.starvedSince = 0;
+                stillSince = 0;
+                recover(Ui.tr("O sinal travou", "The stream froze"));
+                return;
+            }
+            if (state != Player.STATE_ENDED && state != Player.STATE_IDLE && !player.isPlaying()) {
+                long pos = player.getCurrentPosition(), buf = player.getBufferedPosition();
+                if (pos != stillPos || buf != stillBuf || stillSince == 0) {
+                    stillPos = pos;
+                    stillBuf = buf;
+                    stillSince = up;
+                } else if (up - stillSince > STILL_MS) {
+                    AppLog.w("live: " + playing.name + ": stuck (state " + state + ", at " + pos + " ms, loaded to " + buf
+                            + " ms, loading " + player.isLoading() + (catchup != null ? ", catch-up" : "") + ")");
+                    stillSince = 0;
+                    recover(Ui.tr("O sinal travou", "The stream froze"));
+                    return;
+                }
+            } else stillSince = 0;
             if (state == Player.STATE_BUFFERING && bufferingSince > 0
                     && up - bufferingSince > (wasReady ? STUCK_MS : STUCK_FIRST_MS)) {
                 recover(Ui.tr("O sinal travou", "The stream froze"));

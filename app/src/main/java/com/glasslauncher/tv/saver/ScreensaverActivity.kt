@@ -62,7 +62,6 @@ import androidx.compose.material3.Text
 
 /** Full-screen aerial video (or backdrop slideshow). Any key press or touch dismisses it. */
 class ScreensaverActivity : ComponentActivity() {
-    private fun app() = application as GlassApp
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.glasslauncher.tv.data.HaEvents.screensaver(this)     // Home Assistant: the screensaver came on
@@ -104,51 +103,120 @@ class ScreensaverActivity : ComponentActivity() {
         setContent { com.glasslauncher.tv.ui.GlassType { SaverContent(app) } }
     }
 
-    // The TV started its own screensaver on top (another app's): step aside, so one Back gets you home (issue #9).
-    private val dreamReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(c: android.content.Context, i: android.content.Intent) { if (!isFinishing) finish() }
-    }
-    override fun onStart() {
-        super.onStart()
-        runCatching {
-            val f = android.content.IntentFilter(android.content.Intent.ACTION_DREAMING_STARTED)
-            if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(dreamReceiver, f, android.content.Context.RECEIVER_EXPORTED)
-            else @Suppress("UnspecifiedRegisterReceiverFlag") registerReceiver(dreamReceiver, f)
-        }
-    }
-    override fun onStop() { runCatching { unregisterReceiver(dreamReceiver) }; super.onStop() }
-
-    @android.annotation.SuppressLint("RestrictedApi")
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        // ◀ ▶ change the video, OK shows / hides the info; any other key ends it.
-        val k = event.keyCode
-        val st = app().settings
-        if (st.saverMode != "system" && SaverControl.onKey(event, st)) return true
-        if (event.action == KeyEvent.ACTION_DOWN) exit()
+        if (event.action == KeyEvent.ACTION_DOWN) finish()
         return true
     }
-    override fun dispatchTouchEvent(ev: MotionEvent): Boolean { exit(); return true }
-    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean { if (ev.actionMasked != MotionEvent.ACTION_HOVER_EXIT) exit(); return true }
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean { finish(); return true }
+    override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean { if (ev.actionMasked != MotionEvent.ACTION_HOVER_EXIT) finish(); return true }
+}
 
-    /**
-     * Closes it faded to black, and the home screen then comes out of black. Closing straight away showed the home
-     * screen half over the video for a moment, then it snapped (the video's surface went before the fade ended).
-     */
-    private var exiting = false
-    private fun exit() {
-        if (exiting || isFinishing) return
-        exiting = true
-        SaverControl.out.value = true
-        window.decorView.postDelayed({
-            com.glasslauncher.tv.ui.SaverGate.cover.floatValue = 1f
-            finish(); @Suppress("DEPRECATION") overridePendingTransition(0, 0)
-        }, 230)
+@OptIn(androidx.media3.common.util.UnstableApi::class)
+@Composable
+private fun SaverContent(app: GlassApp, forceSlideshow: Boolean = false) {
+    val ctx = LocalContext.current
+    val slideshow = forceSlideshow || app.settings.saverMode != "aerial"
+    val urls by produceState(emptyList<String>()) {
+        value = if (!slideshow) withContext(Dispatchers.IO) { AerialSource.playlist(app) } else emptyList()
+    }
+    var failed by remember { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+        if (urls.isNotEmpty() && !failed) {
+            val player = remember(urls) {
+                ExoPlayer.Builder(ctx).build().apply {
+                    setMediaItems(urls.map { MediaItem.fromUri(it) })
+                    repeatMode = Player.REPEAT_MODE_ALL
+                    volume = 0f
+                    addListener(object : Player.Listener {
+                        var errors = 0
+                        override fun onPlayerError(error: PlaybackException) {
+                            errors++
+                            if (errors > 6) failed = true else { seekToNextMediaItem(); prepare(); play() }
+                        }
+                        override fun onPlaybackStateChanged(state: Int) { if (state == Player.STATE_READY) errors = 0 }
+                    })
+                    prepare(); playWhenReady = true
+                }
+            }
+            DisposableEffect(player) { onDispose { player.release() } }
+            AndroidView(
+                factory = { c ->
+                    PlayerView(c).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        this.player = player
+                    }
+                },
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Slideshow(app)
+        }
+        // The clock and, under it, a followed team's next match: top right over the posters, bottom left over the videos.
+        val match = if (app.settings.saverMatch) rememberMatchDay(app) else null
+        if (app.settings.saverClock || match != null) androidx.compose.foundation.layout.Column(
+            if (slideshow) Modifier.align(Alignment.TopEnd).padding(end = 56.dp, top = 36.dp)
+            else Modifier.align(Alignment.BottomStart).padding(start = 56.dp, bottom = 40.dp),
+            horizontalAlignment = if (slideshow) Alignment.End else Alignment.Start,
+        ) {
+            if (match != null && !slideshow) { MatchCard(match); androidx.compose.foundation.layout.Spacer(Modifier.size(14.dp)) }
+            if (app.settings.saverClock) {
+                val t by produceState("") { while (true) { value = clockText(app.settings.clock24h); delay(15_000) } }
+                Text(t, color = Color.White.copy(alpha = 0.9f), fontSize = 34.sp)
+            }
+            if (match != null && slideshow) { androidx.compose.foundation.layout.Spacer(Modifier.size(14.dp)); MatchCard(match) }
+        }
+    }
+}
+
+/**
+ * A followed team's next match (Live TV's Following), read again every half minute and whenever its live score moves.
+ */
+@Composable
+private fun rememberMatchDay(app: GlassApp): com.glasslauncher.tv.live.LiveHome.MatchDay? {
+    var bump by remember { mutableIntStateOf(0) }
+    DisposableEffect(Unit) {
+        val watching = com.glasslauncher.tv.live.LiveHome.watchScores(app) { bump++ }
+        onDispose { com.glasslauncher.tv.live.LiveHome.stopScores(app, watching) }
+    }
+    val m by produceState<com.glasslauncher.tv.live.LiveHome.MatchDay?>(null, bump) {
+        while (true) {
+            value = withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveHome.matchDay(app) }.getOrNull() }
+            delay(30_000)
+        }
+    }
+    return m
+}
+
+/** The match on a small glass card: the competition, the match (or its score), LIVE or the kick-off and the channel. */
+@Composable
+private fun MatchCard(m: com.glasslauncher.tv.live.LiveHome.MatchDay) {
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+    androidx.compose.foundation.layout.Column(
+        Modifier.clip(shape).background(Color.Black.copy(alpha = 0.38f))
+            .border(0.8.dp, Color.White.copy(alpha = 0.18f), shape).padding(horizontal = 20.dp, vertical = 14.dp),
+    ) {
+        Text(m.label, color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, letterSpacing = 1.2.sp,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, maxLines = 1)
+        Text(m.headline, color = Color.White, fontSize = 20.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp).widthIn(max = 520.dp))
+        androidx.compose.foundation.layout.Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (m.live) {
+                Text("LIVE", color = Color.White, fontSize = 9.sp, letterSpacing = 0.8.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    modifier = Modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))
+                        .background(Color(0xFFE5322D)).padding(horizontal = 6.dp, vertical = 2.dp))
+                androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+            }
+            // "LIVE  ·  574 MUTV": the pill says LIVE already.
+            Text(if (m.live) m.where.substringAfter("·").trim() else m.where, color = Color(0xFFB3B3B8), fontSize = 12.sp, maxLines = 1)
+            if (m.country.isNotEmpty()) { androidx.compose.foundation.layout.Spacer(Modifier.size(6.dp)); com.glasslauncher.tv.ui.CountryTag(m.country, 1.7f) }
+        }
     }
 }
 
 /** Slow Ken Burns over the catalog backdrops, with each title's logo. */
 @Composable
-internal fun Slideshow(app: GlassApp) {
+private fun Slideshow(app: GlassApp) {
     val raw by app.catalogs.items.collectAsState()
     val enriched by app.catalogs.enrichedItems.collectAsState()
     val items = remember(raw) { raw.filter { it.background.isNotBlank() } }

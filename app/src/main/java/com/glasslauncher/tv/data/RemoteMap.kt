@@ -52,7 +52,7 @@ object RemoteMap {
                         val i = (pm.getLeanbackLaunchIntentForPackage(pkg) ?: pm.getLaunchIntentForPackage(pkg))
                             ?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
                         if (i != null) app.startActivity(i)
-                        else android.widget.Toast.makeText(app, "${m.label.ifBlank { pkg }} isn't installed", android.widget.Toast.LENGTH_SHORT).show()
+                        else com.glasslauncher.tv.ui.toast(app, "${m.label.ifBlank { pkg }} isn't installed")
                     }
                 }
                 // On the home screen the button opens the folder and closes it again; elsewhere it opens Glassio on it.

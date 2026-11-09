@@ -39,7 +39,7 @@ class HomeKeyService : AccessibilityService() {
         multi?.let { if (it.showing) { it.close(); multi = null; return } }
         val app = application as GlassApp
         val cams = MultiCamOverlay.cams(app)
-        if (cams.isEmpty()) { android.widget.Toast.makeText(this, "Add a camera first: Glassio settings → Cameras", android.widget.Toast.LENGTH_LONG).show(); return }
+        if (cams.isEmpty()) { com.glasslauncher.tv.ui.toast(this, "Add a camera first: Glassio settings → Cameras"); return }
         multi = MultiCamOverlay(this, cams, bottom, app.settings.multiSec, app.settings.multiScale).also { it.show() }
     }
 
@@ -78,7 +78,7 @@ class HomeKeyService : AccessibilityService() {
     private fun toggleCamera() {
         camera?.let { if (it.showing) { it.close(); camera = null; return } }
         val cams = (application as GlassApp).settings.cameras.mapNotNull { com.glasslauncher.tv.ui.Cam.parse(it) }
-        if (cams.isEmpty()) { android.widget.Toast.makeText(this, "Add a camera first: Glassio settings → Cameras", android.widget.Toast.LENGTH_LONG).show(); return }
+        if (cams.isEmpty()) { com.glasslauncher.tv.ui.toast(this, "Add a camera first: Glassio settings → Cameras"); return }
         val st = (application as GlassApp).settings
         // The camera chosen in Settings → Cameras (the first one if none is chosen or it was removed).
         val start = cams.indexOfFirst { it.url == st.cornerCamera }.coerceAtLeast(0)
@@ -185,9 +185,9 @@ class HomeKeyService : AccessibilityService() {
             if (now - screenOnAt < 20_000) { wakeToGlass("launcher home after screen on"); return }
         }
         // The fallback brought Glassio to the front whenever the Google TV launcher showed any window of its own
-        // (for example when Wi-Fi dropped and came back), even while you were watching. Where the Home key
-        // reaches this service it is never needed; elsewhere only the launcher's main screen counts.
-        if (sp.getBoolean("keys", false)) return
+        // (for example when Wi-Fi dropped and came back), even while you were watching: only the launcher's main
+        // screen counts. It always runs: a TV can stop passing the Home key to this service (a TCL one's system
+        // takes it first), and switched off after one Home key had come through, Home went to Google TV for good.
         val cls = event.className?.toString().orEmpty()
         if (!cls.contains("MainActivity") && !cls.contains("HomeActivity") && !cls.contains("LauncherActivity")) return
         // Only reached when the Home key was not filtered above (e.g. Home from the Google TV remote app).

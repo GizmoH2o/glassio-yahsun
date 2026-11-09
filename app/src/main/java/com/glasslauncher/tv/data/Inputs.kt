@@ -100,7 +100,7 @@ object Inputs {
             val la = raw.removePrefix("cec:").substringBefore(':')
             // At once on screen, while the TV switches (the device itself takes a moment to answer).
             list.value.firstOrNull { it.id == raw }?.let { i ->
-                android.os.Handler(android.os.Looper.getMainLooper()).post { android.widget.Toast.makeText(ctx, "Switching to ${i.label}…", android.widget.Toast.LENGTH_SHORT).show() }
+                android.os.Handler(android.os.Looper.getMainLooper()).post { com.glasslauncher.tv.ui.toast(ctx, "Switching to ${i.label}…") }
             }
             LocalShell.quick(ctx, "cmd hdmi_control deviceselect $la")
             true

@@ -1,6 +1,7 @@
 package com.glasslauncher.tv.ui
 
 import android.content.Context
+import android.media.MediaPlayer
 import android.view.TextureView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -18,12 +19,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.viewinterop.AndroidView
 import com.glasslauncher.tv.data.Glog
 import com.glasslauncher.tv.data.Settings
 import java.io.File
-import kotlinx.coroutines.sync.withLock
 
 /**
  * Your own picture or video behind the home screen instead of the titles' backdrops. A link (http…) or a file
@@ -34,38 +33,9 @@ object CustomBackground {
     /** Screensaver as background: the aerial video playing now (one per start of Glassio). */
     val aerial = androidx.compose.runtime.mutableStateOf<String?>(null)
     @Volatile var aerials: List<String> = emptyList()
-    /** "Next" from the menu or Settings: bumped for the next video / picture (photos have their own). */
-    val next = androidx.compose.runtime.mutableIntStateOf(0)
-    fun nextNow(s: Settings) { if (s.bgMode == "photos") com.glasslauncher.tv.data.Photos.next() else next.intValue++ }
-
-    /** My video: the chosen one first, then the other videos in the folder (in a random order with shuffle). */
-    fun videoList(ctx: Context, s: Settings): List<String> {
-        val chosen = s.bgVideo
-        val others = files(ctx, true).map { it.absolutePath }.filter { it != chosen }
-        return listOf(chosen) + if (s.bgVideoShuffle) others.shuffled() else others
-    }
-
-    /** My picture: the next one in the folder (a random other one with shuffle). */
-    fun nextPicture(ctx: Context, s: Settings) {
-        val files = files(ctx, false).map { it.absolutePath }
-        if (files.isEmpty()) return
-        val cur = files.indexOf(s.bgImage)
-        s.bgImage = if (s.bgImageShuffle && files.size > 1) files.filterIndexed { i, _ -> i != cur }.random() else files[(cur + 1).mod(files.size)]
-        s.bgMode = "image"
-    }
-
-    /** Each aerial video's place (shown over the background like on the screensaver). */
-    @Volatile var aerialTitles: Map<String, String> = emptyMap()
-    /** The place / title and the credit of what's behind the home screen now, or null. */
-    fun info(s: Settings): Pair<String, String>? = when (s.bgMode) {
-        "aerial" -> aerial.value?.let { aerialTitles[it] }?.takeIf { it.isNotBlank() }?.let { it to "" }
-        "photos" -> com.glasslauncher.tv.data.Photos.current.value?.let { it.title to it.credit }
-        else -> null
-    }
     private var tries = 0
     /** First video of [list] that answers (Apple's feed still lists videos it has taken down). Blocking. */
     fun firstLive(list: List<String>): String? = list.take(12).firstOrNull { u ->
-        if (u.startsWith("file://")) return@firstOrNull java.io.File(u.removePrefix("file://")).isFile
         runCatching {
             val c = java.net.URL(u).openConnection() as java.net.HttpURLConnection
             c.requestMethod = "HEAD"; c.connectTimeout = 4000; c.readTimeout = 4000
@@ -74,8 +44,7 @@ object CustomBackground {
     }
 
     /** That video didn't play (network, codec): the next one, a few times. */
-    fun nextAerial(ended: Boolean = false) {
-        if (ended) tries = 0
+    fun nextAerial() {
         if (aerials.size < 2 || ++tries > 4) { Glog.w("Screensaver background: no aerial video plays here"); return }
         val rest = aerials.drop(aerials.indexOf(aerial.value) + 1) + aerials.take(aerials.indexOf(aerial.value).coerceAtLeast(0))
         Thread { firstLive(rest)?.let { aerial.value = it } }.apply { isDaemon = true }.start()
@@ -100,7 +69,6 @@ object CustomBackground {
      */
     fun still(ctx: Context, s: Settings): String? = when (s.bgMode) {
         "image" -> s.bgImage.takeIf { it.isNotBlank() }?.let { uri(it) }
-        "photos" -> com.glasslauncher.tv.data.Photos.current.value?.url
         "video" -> s.bgVideo.takeIf { it.isNotBlank() }?.let { cachedFrame(ctx, it) }
         "aerial" -> aerial.value?.let { cachedFrame(ctx, it) }
         else -> null
@@ -143,72 +111,36 @@ object VideoFrames {
     val soft = mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
     /** A video is on screen (the page's own picture under it isn't drawn then). */
     val showing = mutableStateOf(false)
-    /** Bumped by [clear]: a copy finishing late (on its own thread) from a video that's gone is dropped. */
-    @Volatile var gen = 0; private set
-    @Synchronized fun clear() { gen++; sharp.value = null; soft.value = null; showing.value = false }
-    @Synchronized fun publish(g: Int, s: androidx.compose.ui.graphics.ImageBitmap?, f: androidx.compose.ui.graphics.ImageBitmap?) {
-        if (g != gen) return
-        sharp.value = s; soft.value = f
-    }
-    /** A frosted-glass surface (Liquid, Clear) shows the frosted copy. */
-    @Volatile var wantSoft = true
-    /** A clear-glass theme shows the sharp copy (set from the settings); otherwise only the frosted one is made. */
-    @Volatile var wantSharp = true
-    @Volatile var interval = 66L
-    /** Blur of the frosted copy (box radius at 160 px), from the Glass blur setting. */
-    @Volatile var softRadius = 3
-    /**
-     * Shuffle: the background fades through black into the next video, like the screensaver. The glass darkens
-     * with it (its copies of the video don't see the black layer on top of it). Survives the change of video.
-     */
-    val dim = androidx.compose.runtime.mutableFloatStateOf(0f)
+    fun clear() { sharp.value = null; soft.value = null; showing.value = false }
 }
 
-/**
- * Makes the frosted copy of a video frame: blurred at 160 px (cheap: it runs ~10 times a second), then scaled up
- * to [w] × [h] with filtering, so on screen it is smooth with no blocks or steps (~2 ms on the TV).
- */
+/** Makes a smooth frosted copy: 960 → 480 → 240 → 160 px with filtering, then two box-blur passes (CPU, ~1 ms). */
 private class Softener(val w: Int, val h: Int) {
-    private val sw = 160; private val sh = 90
+    private val m1 = android.graphics.Bitmap.createBitmap(480, 270, android.graphics.Bitmap.Config.ARGB_8888)
+    private val m2 = android.graphics.Bitmap.createBitmap(240, 135, android.graphics.Bitmap.Config.ARGB_8888)
     private val paint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
-    private val small = android.graphics.Bitmap.createBitmap(sw, sh, android.graphics.Bitmap.Config.ARGB_8888)
-    private val mid = android.graphics.Bitmap.createBitmap(240, 135, android.graphics.Bitmap.Config.ARGB_8888)
-    private val px = IntArray(sw * sh)
-    private val tmp = IntArray(sw * sh)
+    private val px = IntArray(w * h)
+    private val tmp = IntArray(w * h)
     private fun scale(src: android.graphics.Bitmap, dst: android.graphics.Bitmap) =
         android.graphics.Canvas(dst).drawBitmap(src, null, android.graphics.Rect(0, 0, dst.width, dst.height), paint)
 
-    fun make(src: android.graphics.Bitmap, out: android.graphics.Bitmap, fromLarge: Boolean = false) {
-        // Down in two filtered steps (one big step skips pixels and flickers), blurred, then up in two steps.
-        if (fromLarge) { scale(src, mid); scale(mid, small) } else { scale(src, mid); scale(mid, small) }
-        small.getPixels(px, 0, sw, 0, 0, sw, sh)
-        repeat(3) { blurH(px, tmp); blurV(tmp, px) }
-        small.setPixels(px, 0, sw, 0, 0, sw, sh)
-        scale(small, mid); scale(mid, out)
+    fun make(src: android.graphics.Bitmap, out: android.graphics.Bitmap) {
+        scale(src, m1); scale(m1, m2); scale(m2, out)
+        out.getPixels(px, 0, w, 0, 0, w, h)
+        repeat(2) { blur(px, tmp, false); blur(tmp, px, true) }
+        out.setPixels(px, 0, w, 0, 0, w, h)
     }
 
-    private val r get() = VideoFrames.softRadius
-    private fun blurH(src: IntArray, dst: IntArray) {
-        val div = 2 * r + 1
-        for (y in 0 until sh) {
-            val row = y * sw
+    private fun blur(src: IntArray, dst: IntArray, vertical: Boolean) {
+        val r = 3; val div = 2 * r + 1
+        val len = if (vertical) h else w; val lines = if (vertical) w else h
+        for (line in 0 until lines) {
+            fun idx(i: Int) = if (vertical) i.coerceIn(0, len - 1) * w + line else line * w + i.coerceIn(0, len - 1)
             var sr = 0; var sg = 0; var sb = 0
-            for (i in -r..r) { val c = src[row + i.coerceIn(0, sw - 1)]; sr += (c shr 16) and 255; sg += (c shr 8) and 255; sb += c and 255 }
-            for (x in 0 until sw) {
-                dst[row + x] = (0xFF shl 24) or ((sr / div) shl 16) or ((sg / div) shl 8) or (sb / div)
-                val o = src[row + (x - r).coerceAtLeast(0)]; val n = src[row + (x + r + 1).coerceAtMost(sw - 1)]
-                sr += ((n shr 16) and 255) - ((o shr 16) and 255); sg += ((n shr 8) and 255) - ((o shr 8) and 255); sb += (n and 255) - (o and 255)
-            }
-        }
-    }
-    private fun blurV(src: IntArray, dst: IntArray) {
-        val div = 2 * r + 1
-        for (x in 0 until sw) {
-            var sr = 0; var sg = 0; var sb = 0
-            for (i in -r..r) { val c = src[i.coerceIn(0, sh - 1) * sw + x]; sr += (c shr 16) and 255; sg += (c shr 8) and 255; sb += c and 255 }
-            for (y in 0 until sh) {
-                dst[y * sw + x] = (0xFF shl 24) or ((sr / div) shl 16) or ((sg / div) shl 8) or (sb / div)
-                val o = src[(y - r).coerceAtLeast(0) * sw + x]; val n = src[(y + r + 1).coerceAtMost(sh - 1) * sw + x]
+            for (i in -r..r) { val c = src[idx(i)]; sr += (c shr 16) and 255; sg += (c shr 8) and 255; sb += c and 255 }
+            for (i in 0 until len) {
+                dst[idx(i)] = (0xFF shl 24) or ((sr / div) shl 16) or ((sg / div) shl 8) or (sb / div)
+                val o = src[idx(i - r)]; val n = src[idx(i + r + 1)]
                 sr += ((n shr 16) and 255) - ((o shr 16) and 255); sg += ((n shr 8) and 255) - ((o shr 8) and 255); sb += (n and 255) - (o and 255)
             }
         }
@@ -216,155 +148,62 @@ private class Softener(val w: Int, val h: Int) {
 }
 
 /**
- * The video(s), muted, with the page's shades on top. Paused while [playing] is false.
- *
- * One ExoPlayer with the whole [list] as its playlist, reading through the screensaver's video cache: the videos
- * the screensaver kept on the TV play from there at once, and the next one is fetched before this one ends.
- * With [advance] it goes to the next video near the end of each, fading through black like the screensaver
- * (the glass darkens with it); otherwise it loops the one it started on. [onItem] gets the video now playing.
+ * The video, muted and looping, with the page's shades on top. Paused while [playing] is false.
  *
  * A SurfaceView: the video goes straight to the screen as its own layer (the display hardware puts it
  * together), so the GPU doesn't redraw the home screen for every video frame. The glass gets live copies
- * (PixelCopy, scaled on the GPU) about 15 times a second.
+ * (PixelCopy, scaled on the GPU) about 20 times a second.
  */
-@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-fun VideoBackground(list: List<String>, start: Int, playing: Boolean, advance: Boolean, onItem: (String) -> Unit = {}) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    val st = (ctx.applicationContext as com.glasslauncher.tv.GlassApp).settings
-    var ready by remember { mutableStateOf(false) }
-    var rendered by remember { mutableStateOf(false) }
-    var aspect by remember { mutableStateOf(16f / 9f) }
+fun VideoBackground(src: String, playing: Boolean, onError: () -> Unit = {}, busy: () -> Boolean = { false }) {
+    var ready by remember(src) { mutableStateOf(false) }
+    var aspect by remember(src) { mutableStateOf(16f / 9f) }
+    val player = remember(src) { MediaPlayer() }
     var view by remember { mutableStateOf<android.view.SurfaceView?>(null) }
-    val dim = VideoFrames.dim
-    val player = remember {
-        val load = androidx.media3.exoplayer.DefaultLoadControl.Builder().setBufferDurationsMs(15_000, 50_000, 2_500, 5_000).build()
-        androidx.media3.exoplayer.ExoPlayer.Builder(ctx)
-            .setMediaSourceFactory(com.glasslauncher.tv.saver.VideoCache.factory(ctx, st.saverCache, st.saverCacheGb))
-            .setLoadControl(load).build().apply {
-                volume = 0f
-                setMediaItems(list.map { androidx.media3.common.MediaItem.fromUri(CustomBackground.uri(it)) }, start.coerceIn(0, (list.size - 1).coerceAtLeast(0)), 0L)
-                repeatMode = if (advance && list.size > 1) androidx.media3.common.Player.REPEAT_MODE_ALL else androidx.media3.common.Player.REPEAT_MODE_ONE
-                prepare()
-            }
+    DisposableEffect(src) {
+        Glog.i("Background video on: $src")
+        onDispose { Glog.i("Background video off"); runCatching { player.release() }; VideoFrames.clear() }
     }
-    // Back from another app the video's surface is new and black until the player draws again: the last frame
-    // stands in for it (the glass shows that same frame), then fades out.
-    var still by remember { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
-    var cover by remember { mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(cover, rendered, playing) { if (cover && rendered && playing) { kotlinx.coroutines.delay(300); cover = false } }
-    val coverAlpha by androidx.compose.animation.core.animateFloatAsState(if (cover) 1f else 0f, androidx.compose.animation.core.tween(if (cover) 0 else 380), label = "cover")
-    DisposableEffect(Unit) {
-        Glog.i("Background video on: ${list.getOrNull(start)} (${list.size} in the list)")
-        var errors = 0
-        val l = object : androidx.media3.common.Player.Listener {
-            override fun onVideoSizeChanged(v: androidx.media3.common.VideoSize) {
-                if (v.width > 0 && v.height > 0) aspect = v.width * v.pixelWidthHeightRatio / v.height
-            }
-            override fun onRenderedFirstFrame() { rendered = true; ready = true; errors = 0; VideoFrames.showing.value = true }
-            override fun onMediaItemTransition(item: androidx.media3.common.MediaItem?, reason: Int) {
-                // The same video starting again (one video, or Shuffle off) plays on without a new "first frame":
-                // marking it as not drawn stopped the glass copies for good (dock, menu and clock froze).
-                if (reason == androidx.media3.common.Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) return
-                rendered = false
-                val u = item?.localConfiguration?.uri?.toString() ?: return
-                list.firstOrNull { CustomBackground.uri(it) == u }?.let { Glog.i("Background video: $it"); onItem(it) }
-            }
-            override fun onPlayerError(e: androidx.media3.common.PlaybackException) {
-                Glog.w("Background video error ${e.errorCodeName}")
-                // That one doesn't play (gone from the feed, network): the next one, a few times.
-                if (++errors <= list.size.coerceAtMost(6) && list.size > 1) { player.seekToNextMediaItem(); player.prepare() }
-            }
-        }
-        player.addListener(l)
-        onDispose {
-            Glog.i("Background video off")
-            player.removeListener(l); runCatching { player.release() }
-            VideoFrames.clear(); dim.floatValue = 0f
-        }
+    androidx.compose.runtime.LaunchedEffect(playing, ready) {
+        runCatching { if (ready) { if (playing && !player.isPlaying) player.start() else if (!playing && player.isPlaying) player.pause() } }
     }
-    androidx.compose.runtime.LaunchedEffect(playing) { player.playWhenReady = playing }
-    // Never left "not drawn" while the video plays on (a video following another without a new first-frame
-    // report): the glass copies would stop and everything glass froze on the last picture.
-    androidx.compose.runtime.LaunchedEffect(rendered, ready, view) {
-        if (rendered || !ready) return@LaunchedEffect
-        kotlinx.coroutines.delay(1500)
-        if (player.isPlaying && view?.holder?.surface?.isValid == true) { Glog.i("Background video: drawing again"); rendered = true }
-    }
-    // The fade in, once the first frame of a video is on screen.
-    androidx.compose.runtime.LaunchedEffect(rendered) {
-        if (rendered && dim.floatValue > 0f)
-            androidx.compose.animation.core.animate(dim.floatValue, 0f, animationSpec = androidx.compose.animation.core.tween(1000)) { v, _ -> dim.floatValue = v }
-    }
-    // To the next video, like the screensaver: fade to black, the next one starts under it, then it fades in.
-    val switching = remember { kotlinx.coroutines.sync.Mutex() }
-    suspend fun toNext(fadeMs: Int) = switching.withLock {
-        if (player.mediaItemCount < 2) return@withLock
-        androidx.compose.animation.core.animate(dim.floatValue, 1f, animationSpec = androidx.compose.animation.core.tween(fadeMs)) { v, _ -> dim.floatValue = v }
-        player.seekTo((player.currentMediaItemIndex + 1) % player.mediaItemCount, 0L)
-        // The next one's first frame (from the cache: at once); not for ever, if it never comes.
-        var w = 0
-        while (!rendered && w < 10_000) { kotlinx.coroutines.delay(50); w += 50 }
-        if (!rendered) androidx.compose.animation.core.animate(dim.floatValue, 0f, animationSpec = androidx.compose.animation.core.tween(600)) { v, _ -> dim.floatValue = v }
-    }
-    // Shuffle: near the end of each video.
-    androidx.compose.runtime.LaunchedEffect(ready, playing) {
-        if (!advance || list.size < 2 || !ready || !playing) return@LaunchedEffect
-        while (true) {
-            kotlinx.coroutines.delay(100)
-            val d = player.duration; val p = player.currentPosition
-            if (d <= 2000 || p < d - 900) continue
-            toNext(700)
-        }
-    }
-    // "Next video" from the menu or Settings.
-    val nextRev = CustomBackground.next.intValue
-    val seenNext = remember { intArrayOf(nextRev) }
-    androidx.compose.runtime.LaunchedEffect(nextRev) { if (nextRev != seenNext[0]) { seenNext[0] = nextRev; toNext(300) } }
     androidx.compose.runtime.LaunchedEffect(ready, playing, view) {
         val v = view ?: return@LaunchedEffect
         if (!ready || !playing || android.os.Build.VERSION.SDK_INT < 24) return@LaunchedEffect
-        val myGen = VideoFrames.gen
-        if (rendered) VideoFrames.showing.value = true
-        // One copy at a time, into buffers used in turn: a new copy never lands in the picture on screen
-        // (that showed as flashes in the glass).
-        val inFlight = java.util.concurrent.atomic.AtomicBoolean(false)
-        // The frosted glass needs only a small copy: the GPU scales the video down in the copy itself (scaling
-        // a full-size copy down on the CPU took ~15 ms every time). The sharp copy is made only when a clear
-        // glass theme (Still Glass / Dynamic Glass) shows it.
-        val sharpBufs = Array(4) { android.graphics.Bitmap.createBitmap(720, 405, android.graphics.Bitmap.Config.ARGB_8888) }
-        val smallBufs = Array(2) { android.graphics.Bitmap.createBitmap(320, 180, android.graphics.Bitmap.Config.ARGB_8888) }
-        val softBufs = Array(4) { android.graphics.Bitmap.createBitmap(320, 180, android.graphics.Bitmap.Config.ARGB_8888) }
-        val soften = Softener(320, 180)
-        // The copies finish on their own thread: on the main thread they held up the home screen while you moved.
-        val worker = android.os.HandlerThread("glass-video-copy").apply { start() }
-        val h = android.os.Handler(worker.looper)
+        val sharpBufs = Array(3) { android.graphics.Bitmap.createBitmap(960, 540, android.graphics.Bitmap.Config.ARGB_8888) }
+        val softBufs = Array(3) { android.graphics.Bitmap.createBitmap(160, 90, android.graphics.Bitmap.Config.ARGB_8888) }
+        val soften = Softener(160, 90)
+        val h = android.os.Handler(android.os.Looper.getMainLooper())
+        val shadeH = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG).apply {
+            shader = android.graphics.LinearGradient(0f, 0f, 960 * 0.62f, 0f, 0xB0000000.toInt(), 0, android.graphics.Shader.TileMode.CLAMP) }
+        val shadeV = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG).apply {
+            shader = android.graphics.LinearGradient(0f, 540 * 0.58f, 0f, 540f, 0, 0xCC000000.toInt(), android.graphics.Shader.TileMode.CLAMP) }
         var k = 0
         try {
             while (true) {
-                // Frosted glass only: 10 a second is plenty for a blurred picture (the clear glass needs 15).
-                kotlinx.coroutines.delay(if (VideoFrames.wantSharp) VideoFrames.interval else 100L)
-                if (!v.holder.surface.isValid || !rendered) continue
-                if (!inFlight.compareAndSet(false, true)) continue
-                val i = k++ % 4
-                val wantSharp = VideoFrames.wantSharp; val wantSoft = VideoFrames.wantSoft
-                val dst = if (wantSharp) sharpBufs[i] else smallBufs[i % 2]
+                kotlinx.coroutines.delay(33)
+                if (!v.holder.surface.isValid) continue
+                // While you move around, the GPU goes to the menu / dock: the glass catches up right after.
+                if (busy()) continue
+                val i = k++ % 3
+                val sb = sharpBufs[i]
                 runCatching {
-                    android.view.PixelCopy.request(v, dst, { r ->
-                        try {
-                            if (r != android.view.PixelCopy.SUCCESS || myGen != VideoFrames.gen) return@request
-                            val soft = if (wantSoft || !wantSharp) softBufs[i].also { soften.make(dst, it, fromLarge = wantSharp) } else null
-                            VideoFrames.publish(myGen, if (wantSharp) dst.asImageBitmap() else null, soft?.asImageBitmap())
-                        } finally { inFlight.set(false) }
+                    android.view.PixelCopy.request(v, sb, { r ->
+                        if (r != android.view.PixelCopy.SUCCESS) return@request
+                        // The page's shades, painted into the small copy here on the CPU (the glass then draws one
+                        // picture; shading every glass surface on the TV GPU cost more than the whole page).
+                        android.graphics.Canvas(sb).apply { drawRect(0f, 0f, sb.width * 0.62f, sb.height.toFloat(), shadeH); drawRect(0f, sb.height * 0.58f, sb.width.toFloat(), sb.height.toFloat(), shadeV) }
+                        // Reused buffers (three, in turn): copying into new bitmaps each time piled up native memory faster
+                        // than the garbage collector freed it.
+                        VideoFrames.sharp.value = sb.asImageBitmap()
+                        // Frosted copy: halved step by step (no sparkle), then blurred, so scaled up it reads as frost.
+                        val soft = softBufs[i]
+                        soften.make(sb, soft)
+                        VideoFrames.soft.value = soft.asImageBitmap()
                     }, h)
-                }.onFailure { inFlight.set(false) }
+                }
             }
-        } finally {
-            // Paused (the Library, another screen): the last copies stay, and the video is still the background.
-            // Clearing them here left the glass and the clock on the still picture after coming back, until the
-            // next video started. They are cleared only when the video goes away (onDispose).
-            worker.quitSafely()
-        }
+        } finally { VideoFrames.clear() }
     }
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         // Centre crop: the surface is made as big as needed to fill the screen with the video's shape.
@@ -373,34 +212,38 @@ fun VideoBackground(list: List<String>, start: Int, playing: Boolean, advance: B
         val vw = if (aspect > screenAspect) sh * aspect else sw
         val vh = if (aspect > screenAspect) sh else sw / aspect
         AndroidView(
-            factory = { c ->
-                android.view.SurfaceView(c).also { view = it }.apply {
-                    player.setVideoSurfaceView(this)
+            factory = { ctx ->
+                android.view.SurfaceView(ctx).also { view = it }.apply {
                     holder.addCallback(object : android.view.SurfaceHolder.Callback {
-                        override fun surfaceCreated(hd: android.view.SurfaceHolder) {}
-                        override fun surfaceChanged(hd: android.view.SurfaceHolder, f: Int, w: Int, h: Int) {}
-                        override fun surfaceDestroyed(hd: android.view.SurfaceHolder) {
-                            // No copies for the glass until the video draws on the new surface (a copy of an empty
-                            // surface is black: the glass went black after coming back).
-                            rendered = false
-                            (VideoFrames.sharp.value ?: VideoFrames.soft.value)?.let { f ->
-                                runCatching { still = f.asAndroidBitmap().copy(android.graphics.Bitmap.Config.ARGB_8888, false).asImageBitmap(); cover = true }
-                            }
+                        override fun surfaceCreated(hd: android.view.SurfaceHolder) {
+                            runCatching {
+                                player.setDisplay(hd)
+                                if (ready) return
+                                player.setDataSource(ctx, android.net.Uri.parse(CustomBackground.uri(src)))
+                                player.isLooping = true
+                                player.setVolume(0f, 0f)
+                                player.setOnPreparedListener { p ->
+                                    if (p.videoWidth > 0 && p.videoHeight > 0) aspect = p.videoWidth.toFloat() / p.videoHeight
+                                    ready = true
+                                    VideoFrames.showing.value = true
+                                    if (playing) p.start()
+                                }
+                                player.setOnErrorListener { _, what, extra -> Glog.w("Background video error $what/$extra"); onError(); true }
+                                player.prepareAsync()
+                            }.onFailure { Glog.w("Background video", it) }
                         }
+                        override fun surfaceChanged(hd: android.view.SurfaceHolder, f: Int, w: Int, h: Int) {}
+                        override fun surfaceDestroyed(hd: android.view.SurfaceHolder) { runCatching { player.setDisplay(null) } }
                     })
                 }
             },
             modifier = Modifier.align(androidx.compose.ui.Alignment.Center).wrapContentSize(unbounded = true).requiredSize(vw, vh),
         )
-        still?.let { b -> if (coverAlpha > 0.01f) androidx.compose.foundation.Image(b, null, Modifier.fillMaxSize().graphicsLayer { alpha = coverAlpha },
-            contentScale = androidx.compose.ui.layout.ContentScale.Crop) }
+        // The same shades the backdrops have baked in, so the text stays readable.
         // The page's shades as one small picture painted once (dithered) and scaled up: drawn live as two
         // full-screen gradients over the video they cost the TV GPU 30 ms a frame, this costs about 2.
         if (DebugHide.intValue and 8192 == 0) androidx.compose.foundation.Image(Shades.get(), null, Modifier.fillMaxSize(),
             contentScale = androidx.compose.ui.layout.ContentScale.FillBounds, filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
-        // Shuffle: the fade through black between two videos.
-        val dark by remember { androidx.compose.runtime.derivedStateOf { dim.floatValue > 0.003f } }
-        if (dark) Box(Modifier.fillMaxSize().graphicsLayer { alpha = dim.floatValue }.background(Color.Black))
     }
 }
 
@@ -418,66 +261,3 @@ private object Shades {
         b.copy(android.graphics.Bitmap.Config.ARGB_8888, false).also { b.recycle(); it.prepareToDraw() }.asImageBitmap().also { img = it }
     }
 }
-
-/**
- * Live copies of a video for the glass (the dock, menus and pop-up menus follow the picture), ~15 a second:
- * the same copies as the video background's, for any other video on a SurfaceView (the carousel's trailers).
- * Runs until cancelled; [rendered] says a frame of the video is on screen.
- */
-/** The part of a video's surface on screen ([src], null = all of it) and where it sits on screen (fractions). */
-class FrameRegion(val src: android.graphics.Rect?, val dst: android.graphics.RectF)
-
-suspend fun copyVideoFrames(v: android.view.SurfaceView, rendered: () -> Boolean, region: () -> FrameRegion? = { null }) {
-    if (android.os.Build.VERSION.SDK_INT < 24) return
-    val myGen = VideoFrames.gen
-    val inFlight = java.util.concurrent.atomic.AtomicBoolean(false)
-    val sharpBufs = Array(4) { android.graphics.Bitmap.createBitmap(720, 405, android.graphics.Bitmap.Config.ARGB_8888) }
-    val smallBufs = Array(2) { android.graphics.Bitmap.createBitmap(320, 180, android.graphics.Bitmap.Config.ARGB_8888) }
-    val softBufs = Array(4) { android.graphics.Bitmap.createBitmap(320, 180, android.graphics.Bitmap.Config.ARGB_8888) }
-    val soften = Softener(320, 180)
-    val worker = android.os.HandlerThread("glass-trailer-copy").apply { start() }
-    val h = android.os.Handler(worker.looper)
-    var k = 0
-    try {
-        while (true) {
-            kotlinx.coroutines.delay(if (VideoFrames.wantSharp) VideoFrames.interval else 100L)
-            if (!v.holder.surface.isValid || !rendered()) continue
-            if (!inFlight.compareAndSet(false, true)) continue
-            val i = k++ % 4
-            val wantSharp = VideoFrames.wantSharp; val wantSoft = VideoFrames.wantSoft
-            val dst = if (wantSharp) sharpBufs[i] else smallBufs[i % 2]
-            val reg = region()
-            val whole = reg == null || (reg.dst.left <= 0f && reg.dst.top <= 0f && reg.dst.right >= 1f && reg.dst.bottom >= 1f)
-            // Only part of the screen (bars around it): copied small, then placed where it is, black around.
-            val into = if (whole) dst else tmpFor(dst, reg!!.dst)
-            val done = { r: Int ->
-                try {
-                    if (r == android.view.PixelCopy.SUCCESS && myGen == VideoFrames.gen) {
-                        if (!whole) android.graphics.Canvas(dst).apply {
-                            drawColor(android.graphics.Color.BLACK)
-                            drawBitmap(into, null, android.graphics.RectF(reg!!.dst.left * dst.width, reg.dst.top * dst.height, reg.dst.right * dst.width, reg.dst.bottom * dst.height), placePaint)
-                        }
-                        val soft = if (wantSoft || !wantSharp) softBufs[i].also { soften.make(dst, it, fromLarge = wantSharp) } else null
-                        VideoFrames.publish(myGen, if (wantSharp) dst.asImageBitmap() else null, soft?.asImageBitmap())
-                    }
-                } finally { inFlight.set(false) }
-            }
-            runCatching {
-                val src = reg?.src
-                if (src != null && android.os.Build.VERSION.SDK_INT >= 26) android.view.PixelCopy.request(v, src, into, { r -> done(r) }, h)
-                else android.view.PixelCopy.request(v, into, { r -> done(r) }, h)
-            }.onFailure { inFlight.set(false) }
-        }
-    } finally { worker.quitSafely() }
-}
-
-private val placePaint = android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG)
-private val tmpBufs = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
-
-/** A buffer the size of the [part] of [full] (kept for the next copies). */
-private fun tmpFor(full: android.graphics.Bitmap, part: android.graphics.RectF): android.graphics.Bitmap {
-    val w = (full.width * (part.right - part.left)).toInt().coerceAtLeast(16)
-    val h = (full.height * (part.bottom - part.top)).toInt().coerceAtLeast(16)
-    return tmpBufs.getOrPut("${w}x$h") { android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888) }
-}
-

@@ -100,6 +100,18 @@ fun AppLockHost(app: GlassApp, s: Float, style: String) {
     // with the picture behind (the window covers the whole screen, like the page).
     androidx.compose.ui.window.Dialog(onDismissRequest = { AppLock.ask.value = null },
         properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)) {
+        if (rememberDialogsModern()) {
+            // Modern: the round number pad (the remote's number keys type too); the right code opens at once.
+            androidx.compose.runtime.key(a) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    val hint = app.settings.lockHint.trim().takeIf { !a.newCode && app.settings.lockHintOn }.orEmpty()
+                    CodePad(a.title, hint, onCode = { c ->
+                        if (a.newCode || c == app.settings.lockCode) { AppLock.ask.value = null; a.onOk(c); true } else false
+                    }, onCancel = { AppLock.ask.value = null })
+                }
+            }
+            return@Dialog
+        }
         val view = androidx.compose.ui.platform.LocalView.current
         LaunchedEffect(view) { (view.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window?.setDimAmount(0f) }
         androidx.compose.runtime.key(a) { CodePop(app, a, s, style) }

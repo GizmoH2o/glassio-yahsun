@@ -432,6 +432,10 @@ class Settings(private val ctx: Context) {
     }
     /** Look & motion: no lift, slide or zoom; a stronger selection and solid backing behind text. */
     var reduceMotion: Boolean get() = b("reduceMotion", false); set(v) = putB("reduceMotion", v)
+    /** Look & motion › Dialog style: "modern" (glass sheets, Glassio's keyboard, glass notices) | "classic". */
+    var dialogStyle: String get() = s("dialogStyle", "modern"); set(v) { putS("dialogStyle", v); writeDialogFile() }
+    /** Live TV runs in its own process (it doesn't see a change made here): the style in a small file it reads. */
+    fun writeDialogFile() { runCatching { java.io.File(ctx.filesDir, "dialog_style").writeText(dialogStyle) } }
     var highContrast: Boolean get() = b("highContrast", false); set(v) = putB("highContrast", v)
     /** Home's dark page picks up a little of the title's colour (off with High contrast). */
     var backdropTint: Boolean get() = b("backdropTint", true); set(v) = putB("backdropTint", v)
@@ -640,7 +644,7 @@ class Settings(private val ctx: Context) {
     /** Netflix style: the bar before each line — "red", "white", "black" or "off". */
     var saverBar: String get() = s("saverBar", "black"); set(v) = putS("saverBar", v)
     /** How far and how strong the glow is (0.4 … 1.6). */
-    var glowSize: Float get() = f("glowSize", 1.1f); set(v) { putF("glowSize", v.coerceIn(0.3f, 1.6f)); com.glasslauncher.tv.ui.Glow.amount = v.coerceIn(0.3f, 1.6f) }
+    var glowSize: Float get() = f("glowSize", 1.1f); set(v) { putF("glowSize", v.coerceIn(0.3f, 1.6f)) }
     /** Dock: on focus the whole tile grows ("tile"), only the icon inside the glass ("icon"), or nothing ("off"). */
     var tileZoom: String get() = s("tileZoom", "tile"); set(v) = putS("tileZoom", v)
     /** A very soft glow around the selected icon / poster: "off", "color" (its own colour) or "white". */

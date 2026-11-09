@@ -174,16 +174,6 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     fun io(block: suspend () -> String) = scope.launch(Dispatchers.IO) {
         toast(ctx, runCatching { block() }.getOrElse { it.message ?: "Failed" })
     }
-    /** A video link's picture if it's made already (no waiting). */
-    fun thumbOf(id: String): java.io.File? = if (!id.startsWith("http")) null
-        else com.glasslauncher.tv.saver.VideoThumbs.file(ctx, id).takeIf { it.isFile && it.length() > 0 }
-    /** Makes the pictures still missing, then shows the same list again with them (if it's still open). */
-    fun fillThumbs(ids: List<String>, title: String, items: () -> List<ThumbItem>) = scope.launch(Dispatchers.IO) {
-        val missing = ids.filter { it.startsWith("http") && thumbOf(it) == null }
-        if (missing.isEmpty()) return@launch
-        missing.forEach { com.glasslauncher.tv.saver.VideoThumbs.get(ctx, it) }
-        if ((dialog as? ThumbDialog)?.title == title) dialog = ThumbDialog(title, items())
-    }
     // Simkl (from upstream Glassio): its app id comes from the phone page, then a sign-in code on the TV.
     fun connectSimkl() {
         val sk = app.cw.simkl
@@ -1134,7 +1124,6 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { if (st.cameraCornerSec == 0) "Never" else if (st.cameraCornerSec < 60) "${st.cameraCornerSec} s" else "${st.cameraCornerSec / 60} min" },
                     { st.cameraCornerSec = cycle(listOf(10, 20, 30, 60, 120, 300, 0), st.cameraCornerSec, it) }))
                 add(Note("Multi-view: up to four cameras in a row"))
-                add(Toggle("On the screensaver", "▼ on the screensaver brings them up from the bottom (Back or ▼ again closes them)", { st.saverMultiCam }, { st.saverMultiCam = it }))
                 if (camList.isNotEmpty()) add(Act("  · Cameras", "Which ones, in this order (up to four). None chosen = the first four",
                     com.glasslauncher.tv.MultiCamOverlay.cams(app).joinToString(" · ") { it.name }) {
                     fun chooser() {
@@ -1251,16 +1240,12 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     add(Note("Where it shows"))
                     add(Toggle("Player in the menu", "▶ in the menu turns it into a small player", { st.musicMenu }, { st.musicMenu = it }))
                     add(Toggle("Music in the dock", "A Music icon (move, hide and change it like an app): opens the player", { st.musicDock }, { st.musicDock = it; app.apps.reload() }))
-                    add(Toggle("Music mode", "While a song plays, the carousel's place becomes the player (artwork, song, buttons). ■ stops the music. With your own picture, photos, video or the screensaver's videos as the background, the island shows instead",
-                        { st.musicMode }, { st.musicMode = it }))
-                    add(Adjust("  · Player size", "", { pct(st.musicStageScale) }, { st.musicStageScale = ((st.musicStageScale * 10).roundToInt() + it) / 10f }))
-                    add(Adjust("  · Buttons", "White or black turn the other way round when selected", {
+                    add(Adjust("  · Player buttons", "In the menu's player. White or black turn the other way round when selected", {
                         when (st.musicButtons) { "white" -> "White"; "black" -> "Black"; else -> "With the theme" }
                     }, { st.musicButtons = cycle(listOf("theme", "white", "black"), st.musicButtons, it) }))
-                    add(Note("Island on the screensaver"))
-                    add(Toggle("Island", "While music plays, a small island at the top of the screensaver (like the iPhone's). ▲ opens it with its buttons, ▼ closes it", { st.musicIsland }, { st.musicIsland = it }))
-                    add(Toggle("  · Island on the home screen too", "When Music mode is off", { st.islandHome }, { st.islandHome = it }))
-                    if (st.musicIsland) {
+                    add(Note("Island"))
+                    add(Toggle("Island on the home screen", "While music plays, a small island at the top of the home screen (like the iPhone's)", { st.islandHome }, { st.islandHome = it }))
+                    if (st.islandHome) {
                         add(Adjust("  · Look", "", { when (st.islandStyle) { "glass" -> "Glass"; "black" -> "Black"; "none" -> "No background"; else -> "With the theme" } }, { st.islandStyle = cycle(listOf("none", "theme", "glass", "black"), st.islandStyle, it) }))
                         add(Toggle("  · Joined to the top", "Like a MacBook's notch, instead of floating below the top", { st.islandAttached }, { st.islandAttached = it }))
                         add(Adjust("  · Size", "", { pct(st.islandScale) }, { st.islandScale = ((st.islandScale * 10).roundToInt() + it) / 10f }))
@@ -1343,7 +1328,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     if (com.glasslauncher.tv.data.AppHistory.usageAccess(ctx)) "On" else "Off", ok = if (com.glasslauncher.tv.data.AppHistory.usageAccess(ctx)) true else null) {
                     val i = android.content.Intent(android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                     if (runCatching { ctx.startActivity(i) }.isFailure)
-                        android.widget.Toast.makeText(ctx, "This TV has no Usage access screen: Recent apps still works without it", android.widget.Toast.LENGTH_LONG).show()
+                        com.glasslauncher.tv.ui.toast(ctx, "This TV has no Usage access screen: Recent apps still works without it")
                 })
                 add(Toggle("Back on the home screen starts the screensaver", "Like Apple TV", { st.backSaver }, { st.backSaver = it }))
             }
@@ -1440,7 +1425,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                             Triple("backdrop", "Backdrop", "What fills the screen: the title's picture, your photo, the music page"),
                             Triple("poster", "Poster", "The title's poster"), Triple("logo", "Logo", "The title's logo")), { HueArt.source(it) }) { st.hueSource = it }
                         add(Toggle("Follow videos", "Your video background and trailers, live", { st.hueVideo }, { st.hueVideo = it }))
-                        if (st.hueVideo || st.hueSaver) add(Adjust("  · Every", "How often the lights follow a video", { if (st.hueVideoSec <= 0) "0.5 s" else "${st.hueVideoSec} s" }, { st.hueVideoSec = st.hueVideoSec + it }))
+                        if (st.hueVideo) add(Adjust("  · Every", "How often the lights follow a video", { if (st.hueVideoSec <= 0) "0.5 s" else "${st.hueVideoSec} s" }, { st.hueVideoSec = st.hueVideoSec + it }))
                         add(Adjust("Lights", "Each light a different colour of the picture, or all of them its main colour", {
                             if (st.hueSpread) "A colour each" else "One colour"
                         }, { st.hueSpread = !st.hueSpread }))
@@ -1452,7 +1437,6 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         pick("Change speed", "How long the lights take to follow a video (a new title's colours come at once)", st.hueSpeedMs.toString(), listOf(
                             Triple("0", "Instant", ""), Triple("400", "Quick", "0.4 s"), Triple("1000", "Smooth", "1 s"),
                             Triple("2000", "Slow", "2 s"), Triple("4000", "Very slow", "4 s"))) { st.hueSpeedMs = it.toInt() }
-                        add(Toggle("On the screensaver", "The lights follow its videos", { st.hueSaver }, { st.hueSaver = it }))
                         add(Note("Selection"))
                         add(Toggle("The selected app", "All the lights take the colour of the app selected in the dock (its glow's colour)", { st.hueApps }, { st.hueApps = it }))
                         if (st.hueApps) add(Adjust("  · Brightness", "How bright the lights are with the app's colour", { "${st.hueAppsBri} %" }, { st.hueAppsBri = st.hueAppsBri + it * 5 }))
@@ -1509,6 +1493,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 })
                 add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it; com.glasslauncher.tv.live.LiveHome.setReduceMotion(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
+                add(Adjust("Dialog style", "Pop-ups, text boxes and notices, here and in Live TV. Modern: glass sheets, Glassio's own keyboard. Classic: as before",
+                    { if (st.dialogStyle == "classic") "Classic" else "Modern" }, { st.dialogStyle = if (st.dialogStyle == "classic") "modern" else "classic" }))
                 add(Toggle("Colour from the picture", "Home's dark background picks up a little colour from the selected title", { st.backdropTint }, { st.backdropTint = it }))
                 addAll(page("Clock & glass").rows().filterNot { it is Adjust && it.title == "Glass refraction" })
                 addAll(page("Performance").rows())

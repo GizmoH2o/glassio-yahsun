@@ -86,10 +86,8 @@ internal fun QuickPanelView(onDismiss: () -> Unit) {
         audio.adjustStreamVolume(AudioManager.STREAM_MUSIC, dir, AudioManager.FLAG_SHOW_UI)
         volume = audio.getStreamVolume(AudioManager.STREAM_MUSIC); muted = audio.isStreamMute(AudioManager.STREAM_MUSIC)
     }
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            Modifier.width(560.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(18.dp),
-        ) {
+    Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+        QuickSurface {
             Text("Quick settings", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             if (inputs.isNotEmpty()) {
                 Label("Input")
@@ -129,6 +127,13 @@ internal fun QuickPanelView(onDismiss: () -> Unit) {
     LaunchedEffect(Unit) { delay(60); runCatching { first.requestFocus() } }
 }
 
+/** Modern dialogs: the glass sheet; Classic: the flat card. */
+@Composable
+private fun QuickSurface(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    if (rememberDialogsModern()) ModernSheet(560, center = false, content = content)
+    else Column(Modifier.width(560.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(18.dp), content = content)
+}
+
 @Composable
 private fun Label(text: String) {
     Spacer(Modifier.height(14.dp))
@@ -145,11 +150,12 @@ private fun Chips(content: @Composable () -> Unit) {
 @Composable
 private fun Chip(text: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
+    val modern = rememberDialogsModern()
     Text(
         text, color = if (focused) Ds.Ink else Color.White, fontSize = 13.sp, fontWeight = if (focused || on) FontWeight.SemiBold else FontWeight.Normal,
         maxLines = 1, softWrap = false,
         modifier = modifier.clip(RoundedCornerShape(50))
-            .background(when { focused -> Color.White.copy(alpha = 0.95f); on -> Color.White.copy(alpha = 0.26f); else -> Ds.SurfaceHi })
+            .background(when { focused -> Color.White.copy(alpha = 0.95f); on -> Color.White.copy(alpha = 0.26f); modern -> Color.White.copy(alpha = 0.10f); else -> Ds.SurfaceHi })
             .onFocusChanged { focused = it.isFocused }
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),

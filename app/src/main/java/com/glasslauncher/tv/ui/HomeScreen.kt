@@ -186,7 +186,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     val askPin: (then: () -> Unit) -> Unit = { then ->
         val pin = settings.homePin
         if (!settings.kidsMode || pin.isBlank()) then()
-        else dialog = TextEntry("PIN", "", "Home's PIN, to leave Kids mode", secret = true) { typed ->
+        else dialog = TextEntry("PIN", "", "Home's PIN, to leave Kids mode", secret = true, digits = 4) { typed ->
             if (typed.trim() == pin) then() else toast(ctx, "That's not the PIN")
         }
     }
@@ -535,7 +535,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                         "Hide from the apps row" to {
                             settings.showFolder = false
                             scope.launch { delay(80); runCatching { appsFocus.requestFocus() } }
-                            android.widget.Toast.makeText(ctx, "Apps folder hidden. Show it again: Settings › Apps & icons", android.widget.Toast.LENGTH_LONG).show()
+                            com.glasslauncher.tv.ui.toast(ctx, "Apps folder hidden. Show it again: Settings › Apps & icons")
                         },
                     )) },
                     onLibrary = { onScreen(Screen.Library) },
@@ -665,7 +665,7 @@ internal fun profileMenu(app: GlassApp, ctx: android.content.Context, askPin: ((
             show(TextEntry("New kids profile", "Kids", "A name") { name ->
                 val add = { val k = p.add(name, true); toast(ctx, "${k.name} added: family titles and the apps you choose (Settings › Home)") }
                 if (app.settings.homePin.length == 4) add()
-                else show(TextEntry("Home PIN (4 digits)", "", "Asked to leave Kids mode", secret = true) { pin ->
+                else show(TextEntry("Home PIN (4 digits)", "", "Asked to leave Kids mode", secret = true, digits = 4) { pin ->
                     if (pin.trim().matches(Regex("\\d{4}"))) { app.settings.homePin = pin.trim(); add() } else toast(ctx, "The PIN must be 4 digits: no kids profile added")
                 })
             })

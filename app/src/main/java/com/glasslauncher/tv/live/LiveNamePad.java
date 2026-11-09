@@ -42,6 +42,25 @@ final class LiveNamePad extends Dialog {
         new LiveNamePad(c, title, start, done).show();
     }
 
+    /**
+     * Any text (a link, a sign-in field, a search), on the same keyboard: `message` under the title (null for none),
+     * dots for a `secret`, up to 500 characters, no capital letters added. Done gives it as typed (spaces kept).
+     */
+    static void type(Context c, String title, String message, String start, boolean secret, Done done) {
+        LiveNamePad p = new LiveNamePad(c, title, start, done);
+        p.message = message == null ? "" : message;
+        p.secret = secret;
+        p.max = 500;
+        p.words = false;
+        p.caps = false;
+        p.show();
+    }
+
+    /** A line under the title; dots instead of the text; the longest it may be; capitals at the start of words. */
+    private String message = "";
+    private boolean secret, words = true;
+    private int max = MAX;
+
     private LiveNamePad(Context c, String title, String start, Done done) {
         super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
         this.title = title;
@@ -132,19 +151,19 @@ final class LiveNamePad extends Dialog {
 
     /** A letter: a capital at the start of each word (a name's). */
     private void type(char ch) {
-        if (text.length() >= MAX) return;
+        if (text.length() >= max) return;
         if (caps && Character.isLetter(ch)) ch = Character.toUpperCase(ch);
         text += ch;
-        caps = ch == ' ';
+        caps = words && ch == ' ';
     }
 
     private void delete() {
         if (!text.isEmpty()) text = text.substring(0, text.length() - 1);
-        caps = text.isEmpty() || text.endsWith(" ");
+        caps = words && (text.isEmpty() || text.endsWith(" "));
     }
 
     private void finish() {
-        String name = text.trim();
+        String name = words ? text.trim() : text;
         dismiss();
         done.got(name);
     }
@@ -195,12 +214,13 @@ final class LiveNamePad extends Dialog {
             LiveTheme.background(c, getWidth(), getHeight(), a);
             c.save();
             c.translate(0, (1 - a) * 40 * k);
-            c.drawText(title, cx, 170 * k, titleP);
+            c.drawText(title, cx, (message.isEmpty() ? 170 : 150) * k, titleP);
+            if (!message.isEmpty()) c.drawText(ellipsizeStart(message, hint, getWidth() - 200 * k), cx, 205 * k, hint);
             // The field: the name so far, and its blinking caret.
             r.set(cx - FIELD_W / 2 * k, FIELD_Y * k, cx + FIELD_W / 2 * k, (FIELD_Y + FIELD_H) * k);
             fill.setColor(0x1FFFFFFF);
             c.drawRoundRect(r, FIELD_H / 2 * k, FIELD_H / 2 * k, fill);
-            String shown = ellipsizeStart(text, field, r.width() - 120 * k);
+            String shown = ellipsizeStart(secret ? text.replaceAll(".", "•") : text, field, r.width() - 120 * k);
             float tx = r.left + 52 * k;
             c.drawText(shown, tx, r.centerY() + Ui.halfCap(field), field);
             if ((up / 530) % 2 == 0) {

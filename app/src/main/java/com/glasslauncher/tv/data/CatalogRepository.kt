@@ -57,8 +57,6 @@ data class HeroItem(
     val watchedAt: Long = 0,
     /** A Continue Watching card for the next episode (in [sub]), the one before it finished. */
     val upNext: Boolean = false,
-    /** Continue Watching: the next episode after one you finished (Nuvio's "Next up"); [sub] names it. */
-    val nextUp: Boolean = false,
 )
 
 /**
@@ -155,7 +153,7 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
             }
             while (true) {
                 runCatching { refresh() }
-                delay((if (settings.surprise) settings.surpriseMin else 30) * 60 * 1000L)
+                delay(30 * 60 * 1000L)
             }
         }
     }
@@ -189,10 +187,6 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
             else CatalogRef(url, name, type, id, c.optString("name").ifBlank { id })
         }
     }
-
-    /** Everything the carousel's titles depend on: Settings reloads the catalogs only when this changed. */
-    fun signature(): String = listOf(allAddons(), selectedKeys.value.sorted(), settings.catalogsNuvio, settings.catalogsStremio,
-        settings.perCatalog, settings.maxItems, settings.shuffle, settings.surprise, settings.surpriseMin, settings.descLang, settings.tmdbToken.length).toString()
 
     suspend fun refresh() = loadLock.withLock {
         withContext(Dispatchers.IO) {
@@ -277,7 +271,7 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
                     }
                 }.awaitAll()
             }
-            val merged = merge(settings.shuffle || settings.surprise)
+            val merged = merge(settings.shuffle)
             // Every add-on failing (no connection) leaves last time's titles in place.
             if (merged.isNotEmpty() || !fromSnapshot) {
                 // The same titles as now (in the same order, unless shuffled on purpose): nothing changes on screen.
@@ -295,14 +289,10 @@ class CatalogRepository(private val ctx: Context, private val settings: Settings
     private fun fetchCatalog(c: CatalogRef, limit: Int): List<HeroItem> {
         val base = c.addon.removeSuffix("/manifest.json").trimEnd('/')
         val out = mutableListOf<HeroItem>()
-        // Surprise me: start further down the catalog now and then (a different mix each time).
-        val start = if (settings.surprise) listOf(0, 0, 100, 200).random() else 0
-        var skip = start
+        var skip = 0
         while (out.size < limit && skip < 1000) {
             val url = "$base/catalog/${enc(c.type)}/${enc(c.id)}.json?skip=$skip&limit=100"
-            val metas = runCatching { http.json(url, if (settings.surprise) 5 * 60 * 1000L else 15 * 60 * 1000L).optJSONArray("metas") }.getOrNull()
-            if ((metas == null || metas.length() == 0) && skip == start && start > 0) { skip = 0; continue }
-            metas ?: break
+            val metas = http.json(url, 15 * 60 * 1000L).optJSONArray("metas") ?: break
             if (metas.length() == 0) break
             for (i in 0 until metas.length()) parseMeta(metas.optJSONObject(i) ?: continue, c.type)?.let(out::add)
             skip += metas.length()

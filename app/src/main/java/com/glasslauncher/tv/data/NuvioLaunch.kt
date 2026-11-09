@@ -77,7 +77,7 @@ object NuvioLaunch {
 
     /** Opens the title in one particular app ([target] as in [TARGETS]). */
     fun openIn(ctx: Context, target: String, item: HeroItem): Boolean = runCatching { ctx.startActivity(intentFor(target, item.type, item.id)) }
-        .onFailure { Glog.w("Open in $target", it); Toast.makeText(ctx, "${NAMES[target]} can't open this title", Toast.LENGTH_LONG).show() }.isSuccess
+        .onFailure { Glog.w("Open in $target", it); com.glasslauncher.tv.ui.toast(ctx, "${NAMES[target]} can't open this title") }.isSuccess
 
     /**
      * Streaming apps by the names TMDB gives the platform (network) a title is on: name keyword → package.
@@ -108,16 +108,10 @@ object NuvioLaunch {
         if (target == "legacy") NuvioWatch.opened(type, id.trim())
         // No CLEAR_TASK: a running Nuvio is brought forward and opens the title at once, without
         // restarting (no splash). If Nuvio is not running it starts normally.
-        // Stremio is the exception: a running Stremio takes the link as a new intent and ignores it (it just came to
-        // the front on its home page), so its task starts again and the title's page opens (still quick: warm start).
-        val flags = if (target == "stremio") Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            else Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        val flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         val pkg = TARGETS.getValue(target)
         val t = if (type.equals("movie", true)) "movie" else "series"
-        val uri = if (target == "stremio") {
-            // Stremio's own link: stremio:///detail/movie/tt0111161 (its page for the title, with your add-ons' streams).
-            Uri.parse("stremio:///detail/$t/${id.trim()}/${if (t == "movie") id.trim() else ""}".trimEnd('/'))
-        } else if (target == "legacy") {
+        val uri = if (target == "legacy") {
             Uri.Builder().scheme("nuvio-legacy").authority("meta").appendPath(t).appendPath(id.trim()).build()
         } else if (target == "stremio") {
             // Stremio's own links: stremio:///detail/series/tt0944947 opens the title's page.
@@ -141,7 +135,7 @@ object NuvioLaunch {
         val target = resolve(ctx, s, item)
         if (target != "stremio") {
             open(ctx, s, http, item, target)
-            Toast.makeText(ctx, "${shortName(target)} opens on the series: choose S$season · E$episode", Toast.LENGTH_LONG).show()
+            com.glasslauncher.tv.ui.toast(ctx, "${shortName(target)} opens on the series: choose S$season · E$episode")
             return
         }
         val id = item.id.trim()
@@ -206,7 +200,7 @@ object NuvioLaunch {
             ctx.startActivity(intent(target, item.type, item.id))
         } catch (e: Exception) {
             Glog.w("Open ${item.type} ${item.id} in $pkg", e)
-            Toast.makeText(ctx, "${NAMES[target]} is not installed or can't open this title", Toast.LENGTH_LONG).show()
+            com.glasslauncher.tv.ui.toast(ctx, "${NAMES[target]} is not installed or can't open this title")
             return
         }
         HaEvents.playing(ctx, "title", item.name, pkg, JSONObject().put("type", item.type).put("id", item.id))

@@ -73,12 +73,68 @@ final class LiveOptions {
                 DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS, DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS};
     }
 
-    static LoadControl loadControl(int buffer) {
+    static Unstuck loadControl(int buffer) {
         int[] ms = bufferMs(buffer);
-        return new DefaultLoadControl.Builder()
+        return new Unstuck(new DefaultLoadControl.Builder()
                 .setBufferDurationsMs(ms[0], ms[1], ms[2], ms[3])
                 .setBufferDurationsMsForLocalPlayback(ms[0], ms[1], ms[2], ms[3])
-                .build();
+                .build());
+    }
+
+    /**
+     * Media3's buffer, except where it deadlocks: full in bytes with under half a second to play (a catch-up stream
+     * whose audio comes far behind its picture, or a track that sends nothing for a while), it stopped loading and
+     * never started playing ("Target buffer size reached with less than 500ms of buffered media data", for good).
+     * Then it goes on loading, up to a hard cap; past that, the stream watch recovers it.
+     */
+    static final class Unstuck implements LoadControl {
+        /** All the player may hold while stuck like that (Media3's own target for video is about 130 MB). */
+        static final int CAP = 192 * 1024 * 1024;
+        private final LoadControl d;
+        /**
+         * When it last found itself full with nothing to play (uptime ms; 0: not now). A UK channel's catch-up that
+         * moves its sound to a new track mid-stream (stereo to surround, a programme in) leaves the old one silent
+         * for good: the picture fills the buffer and nothing ever plays. The stream watch reopens it from there.
+         */
+        volatile long starvedSince;
+
+        Unstuck(LoadControl d) {
+            this.d = d;
+        }
+
+        @Override public void onPrepared(androidx.media3.exoplayer.analytics.PlayerId p) { d.onPrepared(p); }
+
+        @Override public void onTracksSelected(LoadControl.Parameters p, androidx.media3.exoplayer.source.TrackGroupArray g,
+                androidx.media3.exoplayer.trackselection.ExoTrackSelection[] s) { d.onTracksSelected(p, g, s); }
+
+        @Override public void onStopped(androidx.media3.exoplayer.analytics.PlayerId p) { d.onStopped(p); }
+
+        @Override public void onReleased(androidx.media3.exoplayer.analytics.PlayerId p) { d.onReleased(p); }
+
+        @Override public androidx.media3.exoplayer.upstream.Allocator getAllocator(androidx.media3.exoplayer.analytics.PlayerId p) {
+            return d.getAllocator(p);
+        }
+
+        @Override public long getBackBufferDurationUs(androidx.media3.exoplayer.analytics.PlayerId p) { return d.getBackBufferDurationUs(p); }
+
+        @Override public boolean retainBackBufferFromKeyframe(androidx.media3.exoplayer.analytics.PlayerId p) {
+            return d.retainBackBufferFromKeyframe(p);
+        }
+
+        @Override public boolean shouldStartPlayback(LoadControl.Parameters p) { return d.shouldStartPlayback(p); }
+
+        @Override public boolean shouldContinueLoading(LoadControl.Parameters p) {
+            if (d.shouldContinueLoading(p)) { starvedSince = 0; return true; }
+            if (p.bufferedDurationUs >= 500_000) { starvedSince = 0; return false; }
+            if (starvedSince == 0) starvedSince = android.os.SystemClock.uptimeMillis();
+            return d.getAllocator(p.playerId).getTotalBytesAllocated() < CAP;
+        }
+
+        /** Full with nothing to play for longer than `ms`. */
+        boolean starved(long ms) {
+            long at = starvedSince;
+            return at > 0 && android.os.SystemClock.uptimeMillis() - at > ms;
+        }
     }
 
     // MARK: - Playback
