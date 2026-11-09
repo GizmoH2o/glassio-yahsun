@@ -11,7 +11,7 @@ object HomeRows {
         "RecSeries" to "Popular series", "Col1" to "Pixar", "Col2" to "Studio Ghibli", "Col3" to "Marvel Studios",
         "Mine1" to "Your collection", "Mine2" to "Your collection", "Mine3" to "Your collection", "Mine4" to "Your collection",
         "Mine5" to "Your collection", "Mine6" to "Your collection", "Because" to "Because you watched", "Quick" to "Quick watches",
-        "Apps" to "Apps", "Widgets" to "At a glance",
+        "Apps" to "Apps", "Inputs" to "Inputs", "Widgets" to "At a glance",
     )
 
     fun title(row: String): String = ALL.firstOrNull { it.first == row }?.second ?: row

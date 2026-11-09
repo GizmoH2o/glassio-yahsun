@@ -33,4 +33,10 @@ class HomeRowsTest {
         assertEquals("Films", HomeRows.name(n, "Movies"))
         assertEquals("", HomeRows.name(HomeRows.rename(n, "Movies", " "), "Movies"))
     }
+
+    @Test fun inputsComeRightAfterAppsInAnOrderSavedBeforeThem() {
+        val order = HomeRows.order("Apps,Watch,Airing")
+        assertEquals(order.indexOf("Apps") + 1, order.indexOf("Inputs"))
+        assertEquals("Inputs", HomeRows.title("Inputs"))
+    }
 }

@@ -530,6 +530,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Bounce at the edges", "In the Apps folder: pressing past the first or last icon nudges it, like tvOS", { st.edgeBounce }, { st.edgeBounce = it }),
                 Toggle("Lift selected icon", "In the Apps folder: the selected icon rises a little, glass and all", { st.tileLift }, { st.tileLift = it }),
                 Toggle("Show phone apps too", "Apps without a TV launcher entry", { st.showMobileApps }, { st.showMobileApps = it; app.apps.reload() }),
+                Toggle("Inputs in their own row", "On Home, the TV's inputs (HDMI) in a row of their own under the apps", { st.inputsRow }, { st.inputsRow = it }),
             )
         },
         Category("Apps & icons") {

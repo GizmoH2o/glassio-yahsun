@@ -123,7 +123,7 @@ internal val CARD = Color(0xFF1C1C1F)
 private val CARD_LIGHT = Color(0xFF2A2A2D)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Widgets }
+private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Inputs, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -199,6 +199,11 @@ internal fun HomePage(
     val allAppsNow by app.apps.apps.collectAsState()
     val anyApps = remember(allAppsNow, kids, settings.kidsApps) {
         !kids || settings.kidsApps.toSet().let { ok -> app.apps.ordered(includeHidden = true).any { it.pkg in ok } }
+    }
+    // The TV's inputs in a row of their own (Apps & icons › Inputs in their own row); never in Kids mode.
+    val inputsApart = settings.inputsRow && !kids
+    val anyInputs = remember(allAppsNow, inputsApart, settings.hiddenApps) {
+        inputsApart && app.apps.ordered().any { com.glasslauncher.tv.data.Inputs.isInput(it.pkg) }
     }
     val showAiring = !kids && settings.homeAiring && airing.isNotEmpty()
     val showMovies = settings.homeMovies && kidsMovies.isNotEmpty()
@@ -293,6 +298,7 @@ internal fun HomePage(
         if (becauseList.isNotEmpty()) add(Part.Because)
         if (quickList.isNotEmpty()) add(Part.Quick)
         if (anyApps) add(Part.Apps)
+        if (anyInputs) add(Part.Inputs)
         if (showWidgets) add(Part.Widgets)
     }.let { present ->
         // As Settings › Home › Home rows arranges them: the big picture first, the rows in your order, without those off.
@@ -657,7 +663,14 @@ internal fun HomePage(
                 val appsRow: @Composable () -> Unit = {
                 if (anyApps) section(Part.Apps, "Apps") {
                     AppsGrid(app, s, settings.appsPerRow, appsFocus, above(Part.Apps), below(Part.Apps), folderFocus, tileFocus, movingPkg, onMoveKey, onAppMenu, onFolder, onFolderMenu,
-                        onRow = { r, top, bottom -> appRows[r] = (top + offset.value) to (bottom + offset.value) }, onFocusRow = { appRow = it })
+                        onRow = { r, top, bottom -> appRows[r] = (top + offset.value) to (bottom + offset.value) }, onFocusRow = { appRow = it },
+                        inputs = if (inputsApart) InputsShown.Without else InputsShown.With)
+                }
+                }
+                val inputsRow: @Composable () -> Unit = {
+                if (anyInputs) section(Part.Inputs, "Inputs") {
+                    AppsGrid(app, s, settings.appsPerRow, req(Part.Inputs), above(Part.Inputs), below(Part.Inputs), remember { FocusRequester() }, tileFocus, movingPkg,
+                        onMoveKey, onAppMenu, onFolder, onFolderMenu, onRow = { _, _, _ -> }, onFocusRow = {}, inputs = InputsShown.Only)
                 }
                 }
                 val widgetsRow: @Composable () -> Unit = {
@@ -697,6 +710,7 @@ internal fun HomePage(
                             Part.Quick -> recs(p, "Quick watches", quickList)
                             Part.ForYou -> recs(p, "For You", forYouList, "Picked on this TV from what you watch")
                             Part.Apps -> appsRow()
+                            Part.Inputs -> inputsRow()
                             Part.Widgets -> widgetsRow()
                         }
                     }
@@ -1346,19 +1360,24 @@ private fun SeeAllCard(s: Float, modifier: Modifier, onOpen: () -> Unit) {
 private fun AppsGrid(
     app: GlassApp, s: Float, perRow: Int, appsFocus: FocusRequester, up: FocusRequester, below: FocusRequester, folderFocus: FocusRequester, tileFocus: HashMap<String, FocusRequester>,
     movingPkg: String?, onMoveKey: (KeyEvent) -> Boolean, onMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit,
-    onRow: (Int, Float, Float) -> Unit, onFocusRow: (Int) -> Unit,
+    onRow: (Int, Float, Float) -> Unit, onFocusRow: (Int) -> Unit, inputs: InputsShown = InputsShown.With,
 ) {
     val ctx = LocalContext.current
     val settings = app.settings
     val allApps by app.apps.apps.collectAsState()
     // Kids mode: only the apps chosen for it (hidden ones too, when chosen), and no Apps folder.
     val kids = settings.kidsMode
-    val apps = remember(allApps, settings.dockOrder, settings.hiddenApps, settings.showMobileApps, kids, settings.kidsApps) {
-        if (kids) settings.kidsApps.toSet().let { ok -> app.apps.ordered(includeHidden = true).filter { it.pkg in ok } } else app.apps.ordered()
+    val apps = remember(allApps, settings.dockOrder, settings.hiddenApps, settings.showMobileApps, kids, settings.kidsApps, inputs) {
+        val all = if (kids) settings.kidsApps.toSet().let { ok -> app.apps.ordered(includeHidden = true).filter { it.pkg in ok } } else app.apps.ordered()
+        when (inputs) {
+            InputsShown.With -> all
+            InputsShown.Without -> all.filterNot { com.glasslauncher.tv.data.Inputs.isInput(it.pkg) }
+            InputsShown.Only -> all.filter { com.glasslauncher.tv.data.Inputs.isInput(it.pkg) }
+        }
     }
-    val tiles: List<AppEntry?> = remember(apps, settings.folderPos, settings.showFolder, kids) {
+    val tiles: List<AppEntry?> = remember(apps, settings.folderPos, settings.showFolder, kids, inputs) {
         val p = settings.folderPos.let { if (it < 0 || it > apps.size) apps.size else it }
-        apps.toMutableList<AppEntry?>().apply { if (settings.showFolder && !kids) add(p, null) }
+        apps.toMutableList<AppEntry?>().apply { if (settings.showFolder && !kids && inputs != InputsShown.Only) add(p, null) }
     }
     // Moving an app: it keeps the focus at every step (laid out again in its new place).
     LaunchedEffect(tiles, movingPkg) {
@@ -1396,6 +1415,9 @@ private fun AppsGrid(
         }
     }
 }
+
+/** The TV's inputs in the apps' grid: among the apps, left out (they have their own row), or alone (that row). */
+private enum class InputsShown { With, Without, Only }
 
 /** How many apps a row of the grid can hold (Settings → Apps & icons → Apps per row). */
 internal const val APPS_MIN = 3

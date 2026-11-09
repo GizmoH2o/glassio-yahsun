@@ -256,6 +256,8 @@ class Settings(private val ctx: Context) {
     var menuInputs: Boolean get() = b("menuInputs", false); set(v) = putB("menuInputs", v)
     /** The inputs as icons in the dock too (moved, hidden and given icons like apps). */
     var inputsDock: Boolean get() = b("inputsDock", true); set(v) = putB("inputsDock", v)
+    /** Apps & icons › Inputs in their own row: Home shows the TV's inputs in a row of their own, apart from the apps. */
+    var inputsRow: Boolean get() = b("inputsRow", true); set(v) = putB("inputsRow", v)
     var menuThemes: Boolean get() = b("menuThemes", true); set(v) = putB("menuThemes", v)
     var menuBackground: Boolean get() = b("menuBackground", true); set(v) = putB("menuBackground", v)
     /** Size of the menu (0.8 – 1.3). */
