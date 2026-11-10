@@ -2,6 +2,23 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.8.0 — 2026-11-09
+
+**Home**
+- **Cinematic trailers**: the big picture's trailer plays with sound, and after a few seconds it takes over the screen; any button brings the page back. Normal keeps it muted behind the title. Settings › Home › Trailer mode.
+- **Inputs in their own row**: the TV's HDMI inputs sit in a row under the apps instead of among them. Settings › Apps & icons › Inputs in their own row.
+- **Modern dialogs**: pop-ups, text boxes and notices as glass sheets, with Glassio's own keyboard and a code pad, here and in Live TV. Settings › Look & motion › Dialog style (Modern or Classic).
+
+**Screensaver**
+- **Glassio's screensaver is back**: Apple's aerial videos or your own video links, the big clock, and the Hue lights, the music island and your cameras on it. Settings › Screensaver.
+
+**Fixes**
+- The remote's Home button returns to Glassio even when the TV takes the key first.
+- Catch-up no longer freezes: it reconnects at the same spot when playback stalls.
+- The big picture's slow zoom no longer jumps back a moment after a title changes.
+- The weather at the top of Home no longer runs into the tabs.
+- Parts of Glassio 3.2.1 that clashed with Glassio Yahsun are gone: its trailer player, Stremio sign-in and photo backgrounds.
+
 ## 3.7.0 — 2026-11-08
 
 Merged with Glassio 3.2.1 (upstream): its new features, in Glassio Yahsun's own Home and Settings.

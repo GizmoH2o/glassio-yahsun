@@ -385,7 +385,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Because you watched", "Every third title is one like what's in Continue watching (it says why)", { st.heroBecause }, { st.heroBecause = it }),
                 Toggle("Seasonal picks first", "Horror in October, Christmas titles in December, romance in February", { st.heroSeasonal }, { st.heroSeasonal = it }),
                 Adjust("Trailers", if (st.trailerMode == "auto" && TrailerGuard.tripped(ctx)) "Off for now: they kept failing on this TV. Choose On to try again"
-                    else "After a few seconds on a title, its trailer plays (muted) behind it. Auto turns them off if they keep failing",
+                    else "After a few seconds on a title, its trailer plays behind it (Trailer mode: how). Auto turns them off if they keep failing",
                     { when (st.trailerMode) { "on" -> "On"; "off" -> "Off"; else -> "Auto" } },
                     { st.trailerMode = cycle(listOf("auto", "on", "off"), st.trailerMode, it); if (st.trailerMode == "on") TrailerGuard.playedWell(ctx) }),
                 Adjust("  · Trailer mode", "Normal: muted, behind the title and the rows. Cinematic: with sound, and after a few seconds it takes over the screen; any button brings the page back",
