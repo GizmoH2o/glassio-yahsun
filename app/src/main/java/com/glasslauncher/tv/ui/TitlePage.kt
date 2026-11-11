@@ -278,7 +278,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
             }
 
             // The band: Play and the round buttons, what's left of it, where else it is; the story and the people.
-            Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(bandH).padding(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (8 * s).dp),
+            // Cinematic: the band (Play alone left on it) settles near the bottom edge.
+            val bandDrop = with(androidx.compose.ui.platform.LocalDensity.current) { (bandH - (78 * s).dp).toPx() }
+            Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(bandH).graphicsLayer { translationY = (1f - uiA) * bandDrop }
+                .padding(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (8 * s).dp),
                 horizontalArrangement = Arrangement.spacedBy((26 * s).dp)) {
                 Column(Modifier.width((228 * s).dp).wordsIn(0.3f), verticalArrangement = Arrangement.spacedBy((7 * s).dp)) {
                     var label by remember { mutableStateOf("") }
@@ -316,6 +319,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                             }
                         }
                     }
+                    Box {
+                    // Cinematic: in place of what's under Play, what the other buttons do.
+                    Text(Lang.tr("Any other button: back to the page"), color = Color.White.copy(alpha = 0.6f), fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(top = (2 * s).dp).graphicsLayer { alpha = 1f - uiA })
                     Column(Modifier.graphicsLayer { alpha = uiA }, verticalArrangement = Arrangement.spacedBy((5 * s).dp)) {
                         if (label.isNotBlank()) Text(label, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.SemiBold)
                         else if (resume != null && resume.progress in 0.01f..0.99f) Row(Modifier.padding(top = (3 * s).dp), verticalAlignment = Alignment.CenterVertically) {
@@ -329,6 +336,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         }
                         if (where.isNotEmpty()) Text(where.joinToString("  ·  "), color = Text2, fontSize = (7.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
+                    }
                 }
                 Column(Modifier.weight(1f).graphicsLayer { alpha = uiA }.wordsIn(0.4f), verticalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                     if (shown.overview.isNotBlank()) Text(shown.overview, color = Color(0xFFECECEF), fontSize = (10 * s).sp, lineHeight = (15 * s).sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
@@ -338,6 +346,14 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         if (people.makers.isNotEmpty()) add((if (shown.type.equals("movie", true)) Lang.tr("Directed by") else Lang.tr("Created by")) + " " + people.makers.joinToString(", "))
                     }
                     if (who.isNotEmpty()) Text(who.joinToString("  ·  "), color = Text2, fontSize = (7.5f * s).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            // Cinematic: the title's logo at the top left, on a soft dark corner so it reads over any picture.
+            if (uiA < 0.999f) {
+                Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - uiA }.background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset.Zero, radius = 900f)))
+                Box(Modifier.padding(start = (EDGE * s).dp, top = (26 * s).dp).width((220 * s).dp).graphicsLayer { alpha = 1f - uiA }) {
+                    Title(shown, st.titleMode.takeIf { it != "hidden" } ?: "text", st.titleScale * 0.7f, s)
                 }
             }
             // The section bar: Down goes to the one in white.
