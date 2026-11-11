@@ -106,7 +106,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val scroll = rememberScrollState()
     // The trailer on the page (not the Trailer button's, which fills the screen): after a few seconds at the top of the
     // page, with sound; gone once the page is scrolled, another app opens it, or it ends.
-    val atTop by remember { androidx.compose.runtime.derivedStateOf { scroll.value < 8 } }
+    // Down from the first screen: the details layout (Prime Video's), its panel at the top following the selection.
+    var inDetails by remember(item.key) { mutableStateOf(false) }
+    var panel by remember(item.key) { mutableStateOf<PanelInfo?>(null) }
+    val atTop = !inDetails
     // Its own setting, not Home's Trailers (which is about the big picture): still never on a TV where trailers keep failing.
     val autoOk = st.titleTrailer && TrailerGuard.allowed(ctx, if (st.trailerMode == "on") "on" else "auto")
     var inline by remember(item.key) { mutableStateOf(false) }
@@ -134,6 +137,12 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         val e = 1f - (1f - t) * (1f - t) * (1f - t)
         alpha *= e; translationY = (1f - e) * rise
     }
+    val easeOut = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
+    val detailsA by androidx.compose.animation.core.animateFloatAsState(if (inDetails) 1f else 0f,
+        androidx.compose.animation.core.tween(if (reduce) 150 else 380, easing = easeOut), label = "details")
+    // The picture dims as the details come in; going back up, it brightens last.
+    val dimA by androidx.compose.animation.core.animateFloatAsState(if (inDetails) 0.74f else 0f,
+        androidx.compose.animation.core.tween(if (inDetails) 320 else 450, delayMillis = if (inDetails || reduce) 0 else 180), label = "dim")
     val uiA by androidx.compose.animation.core.animateFloatAsState(if (cinematic) 0f else 1f,
         androidx.compose.animation.core.tween(if (cinematic) 900 else 250), label = "cinematic")
     val hasSeasons = details.seasons.isNotEmpty() && !item.type.equals("movie", true)
@@ -236,14 +245,13 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         // Cinematic: only a soft corner behind Play.
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - uiA }.background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent),
             center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = (scroll.value / 400f).coerceIn(0f, 0.75f) }.background(Ds.Bg))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = dimA }.background(Ds.Bg))
+        val rise = with(androidx.compose.ui.platform.LocalDensity.current) { 40.dp.toPx() }
+        val screenPx = with(androidx.compose.ui.platform.LocalDensity.current) { screenH.toPx() }
 
-        // Scrolled only as far as a selection needs to be seen whole (the TV's own way keeps it a third of the way down,
-        // which took the title off the top of the first screen).
-        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides WholeInView) {
-        Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = (24 * s).dp)) {
-            // ── The first screen
-            Box(Modifier.fillMaxWidth().height(screenH).onFocusChanged { if (it.hasFocus) scope.launch { scroll.animateScrollTo(0) } }) {
+            // ── The first screen: up and away as the details come in, back down on Up from their first row.
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - detailsA; if (!reduce) translationY = -detailsA * screenPx * 0.3f }
+                .onFocusChanged { if (it.hasFocus) inDetails = false }) {
                 Column(Modifier.padding(start = (EDGE * s).dp, top = (22 * s).dp).width((330 * s).dp).graphicsLayer { alpha = uiA }.wordsIn(0.2f)) {
                     val kind = if (shown.type.equals("movie", true)) "FILM" else "SERIES"
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -330,8 +338,25 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 if (stops.size > (if (primary) 2 else 1) + (if (canPlay && links.isNotEmpty()) 1 else 0)) Row(
                     Modifier.align(Alignment.BottomCenter).padding(bottom = (7 * s).dp).graphicsLayer { alpha = uiA * 0.6f },
                     verticalAlignment = Alignment.CenterVertically,
-                ) { Text("⌄  " + Lang.tr("Episodes, cast and more"), color = Color.White, fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold) }
+                ) {
+                    val next = when { hasSeasons -> Lang.tr("Episodes"); anywhere > 0 -> Lang.tr("Where to watch"); people.cast.isNotEmpty() -> Lang.tr("Cast"); else -> Lang.tr("More like this") }
+                    Text("⌄  " + next, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.Bold)
+                }
             }
+
+            // ── The details: a panel at the top about what's selected, the rows under it, the one in use always just
+            // under the panel and its selection at the left (Prime Video's).
+            val panelH = screenH * 0.36f
+            val headroom = with(androidx.compose.ui.platform.LocalDensity.current) { (26 * s).dp.toPx() }
+            val edgePx = with(androidx.compose.ui.platform.LocalDensity.current) { (EDGE * s).dp.toPx() }
+            val pinTop = remember(headroom) { PinAt(headroom) }
+            val pinLeft = remember(edgePx) { PinAt(edgePx) }
+            Box(Modifier.fillMaxSize().graphicsLayer { alpha = detailsA; if (!reduce) translationY = (1f - detailsA) * rise }) {
+                DetailPanel(panel ?: PanelInfo(shown.key, shown.name, item = shown, body = shown.overview), s, Modifier.height(panelH))
+                Box(Modifier.fillMaxSize().padding(top = panelH)) {
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides pinTop) {
+                Column(Modifier.fillMaxSize().onFocusChanged { if (it.hasFocus) inDetails = true }.verticalScroll(scroll).padding(bottom = screenH * 0.5f)) {
+                androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides pinLeft) {
 
             if (hasSeasons) {
                 val now = remember { System.currentTimeMillis() }
@@ -351,7 +376,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                                 if (n == 0) "Specials" else "Season $n", color = if (f) Ds.Ink else if (n == seasonOn) Color.White else Text2, fontSize = (9.5f * s).sp,
                                 fontWeight = if (f || n == seasonOn) FontWeight.Bold else FontWeight.SemiBold,
                                 // The focus coming onto a season shows it, as the Library's tabs do.
-                                modifier = seasonEntry.of(i).nav(up = above(seasonEntry.req), down = epEntry.req, left = edge(i == 0), right = edge(i == seasonKeys.lastIndex)).onFocusChanged { f = it.isFocused; if (it.isFocused) season = n }.tvPress(onClick = { season = n })
+                                modifier = seasonEntry.of(i).nav(up = above(seasonEntry.req), down = epEntry.req, left = edge(i == 0), right = edge(i == seasonKeys.lastIndex)).onFocusChanged { f = it.isFocused; if (it.isFocused) { season = n
+                                    panel = PanelInfo("season:$n", shown.name, item = shown, kicker = (if (n == 0) Lang.tr("Specials") else Lang.tr("Season") + " $n") + "  ·  " + details.seasons[n].orEmpty().size + " " + Lang.tr("episodes"), body = shown.overview) } }.tvPress(onClick = { season = n })
                                     .clip(RoundedCornerShape(50)).background(if (f) Color.White else if (n == seasonOn) Ds.Glass else Color.Transparent)
                                     .padding(horizontal = (9 * s).dp, vertical = (3.5f * s).dp),
                             )
@@ -368,7 +394,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 ) {
                     itemsIndexed(eps, key = { _, e -> "$seasonOn:${e.number}" }) { i, e ->
                         val current = resume != null && seasonOn == fromResume && e.number == epNow
-                        EpisodeCard(e, item, s, now, if (current) resume?.progress ?: -1f else -1f, epEntry.of(i).nav(up = seasonEntry.req, down = below(epEntry.req), left = edge(i == 0), right = edge(i == eps.lastIndex))) {
+                        EpisodeCard(e, item, s, now, if (current) resume?.progress ?: -1f else -1f, epEntry.of(i).nav(up = seasonEntry.req, down = below(epEntry.req), left = edge(i == 0), right = edge(i == eps.lastIndex))
+                            .onFocusChanged { if (it.hasFocus) panel = PanelInfo("ep:${e.season}:${e.number}", "${e.number}. ${e.name.ifBlank { "Episode ${e.number}" }}",
+                                kicker = "S${e.season} · E${e.number}" + (if (e.released > 0) "  ·  " + java.text.SimpleDateFormat("d MMM yyyy", Lang.locale()).format(java.util.Date(e.released)) else ""),
+                                body = e.overview) }) {
                             if (canPlay) NuvioLaunch.openEpisode(ctx, st, app.http, item, e.season, e.number)
                             else toast(ctx, "No app for titles on this TV: Nuvio or Stremio plays them")
                         }
@@ -384,24 +413,25 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
                     horizontalArrangement = Arrangement.spacedBy((6 * s).dp),
                 ) {
-                    fun place(i: Int) = watchEntry.of(i).nav(up = above(watchEntry.req), down = below(watchEntry.req), left = edge(i == 0), right = edge(i == anywhere - 1))
+                    fun place(i: Int, title: String, sub: String) = watchEntry.of(i).nav(up = above(watchEntry.req), down = below(watchEntry.req), left = edge(i == 0), right = edge(i == anywhere - 1))
+                        .onFocusChanged { if (it.hasFocus) panel = PanelInfo("watch:$i", title, kicker = Lang.tr("Where to watch"), body = sub) }
                     fun airing(a: LiveHome.Airing) {
                         if (a.onNow(System.currentTimeMillis())) ctx.startActivity(LiveHome.open(ctx, a.channel, false))
                         else scope.launch { toast(ctx, withContext(Dispatchers.IO) { LiveHome.toggle(ctx, a, true) }) }
                     }
                     itemsIndexed(onNow, key = { _, a -> "now:${a.channel}:${a.start}" }) { i, a ->
-                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(i), titleTag = a.country) { airing(a) }
+                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(i, a.channelName, LiveHome.whenLine(a)), titleTag = a.country) { airing(a) }
                     }
                     itemsIndexed(recorded, key = { _, a -> "rec:${a.recording}" }) { i, a ->
-                        TextCard(a.channelName.ifBlank { a.title }, "Your recording", s, place(onNow.size + i), titleTag = if (a.channelName.isBlank()) "" else a.country) { ctx.startActivity(LiveHome.openRecording(ctx, a.recording)) }
+                        TextCard(a.channelName.ifBlank { a.title }, "Your recording", s, place(onNow.size + i, a.channelName.ifBlank { a.title }, Lang.tr("Your recording")), titleTag = if (a.channelName.isBlank()) "" else a.country) { ctx.startActivity(LiveHome.openRecording(ctx, a.recording)) }
                     }
                     itemsIndexed(otherApps, key = { _, l -> "app:${l.service}" }) { i, l ->
-                        TextCard(l.service, "Streaming", s, place(onNow.size + recorded.size + i)) {
+                        TextCard(l.service, "Streaming", s, place(onNow.size + recorded.size + i, l.service, Lang.tr("Streaming"))) {
                             runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") }
                         }
                     }
                     itemsIndexed(later, key = { _, a -> "later:${a.channel}:${a.start}" }) { i, a ->
-                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(onNow.size + recorded.size + otherApps.size + i), titleTag = a.country) { airing(a) }
+                        TextCard(a.channelName, LiveHome.whenLine(a), s, place(onNow.size + recorded.size + otherApps.size + i, a.channelName, LiveHome.whenLine(a)), titleTag = a.country) { airing(a) }
                     }
                 }
             }
@@ -415,7 +445,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     horizontalArrangement = Arrangement.spacedBy((6 * s).dp),
                 ) {
                     itemsIndexed(people.cast, key = { _, p -> p.id }) { i, p ->
-                        PersonCard(p, s, castEntry.of(i).nav(up = above(castEntry.req), down = below(castEntry.req), left = edge(i == 0), right = edge(i == people.cast.lastIndex))) { person = p }
+                        PersonCard(p, s, castEntry.of(i).nav(up = above(castEntry.req), down = below(castEntry.req), left = edge(i == 0), right = edge(i == people.cast.lastIndex))
+                            .onFocusChanged { if (it.hasFocus) panel = PanelInfo("person:${p.id}", p.name, kicker = p.role, body = Lang.tr("OK for their other titles")) }) { person = p }
                     }
                 }
             }
@@ -429,7 +460,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
                 ) {
                     itemsIndexed(theirs, key = { _, h -> h.key }) { i, h ->
-                        SmallPoster(h, s, withEntry.of(i).nav(up = above(withEntry.req), down = below(withEntry.req), left = edge(i == 0), right = edge(i == theirs.lastIndex))) { onOpen(h) }
+                        SmallPoster(h, s, withEntry.of(i).nav(up = above(withEntry.req), down = below(withEntry.req), left = edge(i == 0), right = edge(i == theirs.lastIndex)),
+                            onFocused = { panel = PanelInfo(h.key, h.name, item = h, body = h.overview) }) { onOpen(h) }
                     }
                 }
             }
@@ -442,11 +474,15 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
                     horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
                 ) {
-                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = above(moreEntry.req), down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex))) { onOpen(h) } }
+                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = above(moreEntry.req), down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex)),
+                        onFocused = { panel = PanelInfo(h.key, h.name, item = h, body = h.overview) }) { onOpen(h) } }
                 }
             }
-        }
-        }
+                }
+                }
+                }
+                }
+            }
         if (trailerOn) trailerIds?.let { ids -> TrailerPlayer(ids) { trailerOn = false } }
     }
 }
@@ -571,12 +607,36 @@ private fun BigPlay(label: String, s: Float, modifier: Modifier, onClick: () -> 
     }
 }
 
-/** Scrolls a page just enough for the selection to be seen whole, no further. */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-private val WholeInView = object : androidx.compose.foundation.gestures.BringIntoViewSpec {
-    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = when {
-        offset >= 0f && offset + size <= containerSize -> 0f
-        offset < 0f || size > containerSize -> offset
-        else -> offset + size - containerSize
+
+/** What the details' panel is about: a title (its logo, rating, year, genres), or an episode, a channel, someone in the cast. */
+internal data class PanelInfo(val key: String, val title: String, val item: HeroItem? = null, val kicker: String = "", val body: String = "")
+
+/** The details' panel (Prime Video's): about what's selected, changing over with a quick fade. */
+@Composable
+private fun DetailPanel(info: PanelInfo, s: Float, modifier: Modifier) {
+    val st = (LocalContext.current.applicationContext as GlassApp).settings
+    androidx.compose.animation.Crossfade(info, modifier.fillMaxWidth(), animationSpec = androidx.compose.animation.core.tween(220), label = "panel") { p ->
+        Column(Modifier.fillMaxSize().padding(start = (EDGE * s).dp, top = (22 * s).dp, end = (EDGE * s).dp).width((360 * s).dp),
+            verticalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+            val h = p.item
+            if (h != null) Title(h, st.titleMode.takeIf { it != "hidden" } ?: "text", st.titleScale * 0.55f, s)
+            else Text(p.title.uppercase(Lang.locale()), color = Color.White, fontSize = (13 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (p.kicker.isNotBlank()) Text(p.kicker, color = Color(0xFFD0D0D4), fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (h != null) {
+                val facts = listOf(h.year).filter { it.isNotBlank() } + h.genres.take(3)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                    if (h.rating.isNotBlank()) ImdbBadge(h.rating, s)
+                    Text(facts.joinToString("  ·  "), color = Color(0xFFB9B9C0), fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (p.body.isNotBlank()) Text(p.body, color = Color(0xFFECECEF), fontSize = (9.5f * s).sp, lineHeight = (14 * s).sp, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.width((330 * s).dp))
+        }
     }
+}
+
+/** Scrolls so the selection sits [at] px in from the start (the top of the rows, the left of a row), as far as the list goes. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private class PinAt(private val at: Float) : androidx.compose.foundation.gestures.BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = offset - at
 }
