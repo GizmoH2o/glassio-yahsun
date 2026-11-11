@@ -211,6 +211,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     var trailerPlaying by remember { mutableStateOf(false) }
     // Cinematic: the page faded away over the trailer, and the press that brings it back (its key up swallowed too).
     var cineHidden by remember { mutableStateOf(false) }
+    // The title whose trailer plays: its logo and Play over the trailer in Cinematic.
+    var trailerItem by remember { mutableStateOf<HeroItem?>(null) }
     var cineSwallowUp by remember { mutableStateOf(false) }
     val cineAlpha = animateFloatAsState(if (cineHidden) 0f else 1f, tween(if (cineHidden) 900 else 250), label = "cinematic")
     val trailerShown = remember { androidx.compose.animation.core.Animatable(0f) }
@@ -549,7 +551,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn }
                     .onPreviewKeyEvent { ev ->
                         when {
-                            cineHidden && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown -> { cineHidden = false; cineSwallowUp = true; true }
+                            // OK plays the title (as on its page); any other button brings the page back, and does nothing else.
+                            cineHidden && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown -> {
+                                val t = trailerItem
+                                if (ev.isSelect && t != null && NuvioLaunch.playable(ctx, settings)) NuvioLaunch.play(ctx, settings, app.http, app.cw.items.value.firstOrNull { it.key == t.key } ?: t)
+                                cineHidden = false; cineSwallowUp = true; true
+                            }
                             cineSwallowUp && ev.type == androidx.compose.ui.input.key.KeyEventType.KeyUp -> { cineSwallowUp = false; true }
                             else -> false
                         }
@@ -571,7 +578,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                         },
                     )) },
                     onLibrary = { onScreen(Screen.Library) },
-                    onTrailer = { trailer = it; trailerPlaying = false; if (it != null) trailerOver = false }, trailerOver = trailerOver,
+                    onTrailer = { id, t -> trailer = id; trailerItem = t; trailerPlaying = false; if (id != null) trailerOver = false }, trailerOver = trailerOver,
                     down = pageDown,
                     pageOffset = pageOffset,
                     tabFocus = tabFocus,
@@ -595,6 +602,25 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     // A followed team playing now: its score under the tabs, going with them as the page scrolls
                     // (Settings › Home › Live match ticker).
                     if (settings.homeTicker) MatchTicker(app, s, Modifier.align(Alignment.TopCenter).padding(top = (50 * s).dp))
+                }
+            }
+            // Cinematic: over the trailer, the title's logo at the top left and Play at the bottom left (as on its page).
+            val cineItem = trailerItem
+            if (cineItem != null && screen == Screen.Home && cineAlpha.value < 0.999f) Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - cineAlpha.value }) {
+                Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent), center = androidx.compose.ui.geometry.Offset.Zero, radius = 900f)))
+                Box(Modifier.fillMaxSize().background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent),
+                    center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
+                Box(Modifier.padding(start = (EDGE * s).dp, top = (26 * s).dp).width((220 * s).dp)) { Title(cineItem, settings.titleMode.takeIf { it != "hidden" } ?: "text", settings.titleScale * 0.7f, s) }
+                Column(Modifier.align(Alignment.BottomStart).padding(start = (EDGE * s).dp, bottom = (26 * s).dp), verticalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                    val r = app.cw.items.value.firstOrNull { it.key == cineItem.key }
+                    if (NuvioLaunch.playable(ctx, settings)) Row(Modifier.height((30 * s).dp).clip(RoundedCornerShape(50)).background(Color.White).padding(horizontal = (18 * s).dp),
+                        verticalAlignment = Alignment.CenterVertically) {
+                        PlayGlyph(Modifier.size((9 * s).dp), Ds.Ink)
+                        Spacer(Modifier.width((7 * s).dp))
+                        Text(if (r != null) (if (r.upNext) "Play" else "Resume") + (r.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play",
+                            color = Ds.Ink, fontSize = (11.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                    Text(Lang.tr("Any other button: back to the page"), color = Color.White.copy(alpha = 0.6f), fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold)
                 }
             }
             if (folderOpen) {

@@ -140,7 +140,7 @@ internal fun HomePage(
     onHeroFocus: (Boolean) -> Unit, onDialog: (DialogState) -> Unit,
     onAppMenu: (AppEntry) -> Unit, onFolder: () -> Unit, onFolderMenu: () -> Unit, onLibrary: () -> Unit,
     /** The trailer to play behind the big picture (null: none), and whether the last one has ended. */
-    onTrailer: (String?) -> Unit, trailerOver: Boolean,
+    onTrailer: (String?, HeroItem?) -> Unit, trailerOver: Boolean,
     /** How far down the page is, 0 (the top) to 1: the top bar fades as it goes. */
     down: androidx.compose.runtime.MutableFloatState,
     /** How far up the page has moved, px (the page's picture goes up with it when it scrolls away). */
@@ -423,13 +423,13 @@ internal fun HomePage(
     val cardTrailer = if (settings.cardTrailerSec > 0 && TrailerGuard.allowed(ctx, if (settings.trailerMode == "on") "on" else "auto") && visible && !paused && resumed) settings.cardTrailerSec else 0
     LaunchedEffect(trailerReady) {
         androidx.compose.runtime.snapshotFlow { textItem?.takeIf { trailerReady } }.distinctUntilChangedBy { it?.key }.collectLatest { restingOn ->
-            onTrailer(null); trailerOn = false
+            onTrailer(null, null); trailerOn = false
             val t = restingOn ?: return@collectLatest
             delay(4_000)
             val id = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { trailerOf(app, t) }
             if (id == null) return@collectLatest
             trailerOn = true
-            onTrailer(id)
+            onTrailer(id, t)
         }
     }
     // On its own: the next title every few seconds while the big picture is selected (or nothing is); not while its
