@@ -42,6 +42,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,11 +68,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * A title's own page: its picture and details, Resume or Play, its trailer with sound, its streaming app, My Library and
- * Not interested; a series' seasons and episodes; where to watch (Live TV, your recordings, its other apps); the cast,
- * each with their other titles; More like this. [onOpen] goes to another title's page.
+ * A title's own page (More info). Its first screen, as on the streaming apps: the picture across the whole screen, the
+ * title at the top left, round buttons and a large Play at the bottom left, the story in the middle and the people at the
+ * right. Its trailer plays there by itself with sound after a few seconds (Settings › Home › Trailer on More info), and a
+ * few seconds later the page steps aside for it, Play alone at the bottom left. Down: a series' seasons and episodes,
+ * where to watch (Live TV, your recordings, its other apps), the cast with their other titles, More like this.
+ * [onOpen] goes to another title's page.
  */
-@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOpen: (HeroItem) -> Unit, onDialog: (DialogState) -> Unit = {}) {
     val ctx = LocalContext.current
@@ -93,6 +101,41 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val kids = st.kidsMode
     var trailerOn by remember { mutableStateOf(false) }
     val first = remember { FocusRequester() }
+    val iconsReq = remember { FocusRequester() }
+    val linkReq = remember { FocusRequester() }
+    val scroll = rememberScrollState()
+    // The trailer on the page (not the Trailer button's, which fills the screen): after a few seconds at the top of the
+    // page, with sound; gone once the page is scrolled, another app opens it, or it ends.
+    val atTop by remember { androidx.compose.runtime.derivedStateOf { scroll.value < 8 } }
+    // Its own setting, not Home's Trailers (which is about the big picture): still never on a TV where trailers keep failing.
+    val autoOk = st.titleTrailer && TrailerGuard.allowed(ctx, if (st.trailerMode == "on") "on" else "auto")
+    var inline by remember(item.key) { mutableStateOf(false) }
+    var inlinePlaying by remember(item.key) { mutableStateOf(false) }
+    LaunchedEffect(trailerIds, autoOk, atTop, trailerOn) {
+        if (!atTop || trailerOn) { inline = false; inlinePlaying = false }
+        if (autoOk && trailerIds != null && atTop && !trailerOn && !inline) { delay(TITLE_TRAILER_AFTER_MS); inline = true }
+    }
+    val inlineShown = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(inline, inlinePlaying) { inlineShown.animateTo(if (inline && inlinePlaying) 1f else 0f, androidx.compose.animation.core.tween(700)) }
+    // Cinematic: a few seconds into it, untouched, everything but Play fades away; the next button only brings it back.
+    var cinematic by remember(item.key) { mutableStateOf(false) }
+    var swallowUp by remember { mutableStateOf(false) }
+    LaunchedEffect(inlinePlaying, app.interaction.longValue, atTop) {
+        cinematic = false
+        if (inlinePlaying && atTop) { delay(TITLE_CINEMATIC_AFTER_MS); cinematic = true; runCatching { first.requestFocus() } }
+    }
+    // Coming in: the picture first, then each block of words rising into place a moment apart (none with Reduce motion).
+    val reduce = LocalReduceMotion.current
+    val enter = remember(item.key) { androidx.compose.animation.core.Animatable(if (reduce) 1f else 0f) }
+    LaunchedEffect(item.key) { enter.animateTo(1f, androidx.compose.animation.core.tween(700, easing = androidx.compose.animation.core.LinearEasing)) }
+    val rise = with(androidx.compose.ui.platform.LocalDensity.current) { 20.dp.toPx() }
+    fun Modifier.wordsIn(delay: Float): Modifier = graphicsLayer {
+        val t = ((enter.value - delay) / (1f - delay)).coerceIn(0f, 1f)
+        val e = 1f - (1f - t) * (1f - t) * (1f - t)
+        alpha *= e; translationY = (1f - e) * rise
+    }
+    val uiA by androidx.compose.animation.core.animateFloatAsState(if (cinematic) 0f else 1f,
+        androidx.compose.animation.core.tween(if (cinematic) 900 else 250), label = "cinematic")
     val hasSeasons = details.seasons.isNotEmpty() && !item.type.equals("movie", true)
     val seasonEntry = remember { RowEntry() }
     val epEntry = remember { RowEntry() }
@@ -103,7 +146,10 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val scope = rememberCoroutineScope()
     val full = st.titleRich
     val airings by produceState(emptyList<LiveHome.Airing>(), item.key, full) {
-        value = if (!full) emptyList() else withContext(Dispatchers.IO) { runCatching { LiveHome.airingsOf(ctx, item.name, 8) }.getOrDefault(emptyList()) }
+        // This title itself, not an episode of another show that happens to share its name (The Assassin, a T J Hooker).
+        value = if (!full) emptyList() else withContext(Dispatchers.IO) {
+            runCatching { LiveHome.airingsOf(ctx, item.name, 8) }.getOrDefault(emptyList()).filter { it.title.trim().equals(item.name.trim(), ignoreCase = true) }
+        }
     }
     val recorded by produceState(emptyList<LiveHome.Airing>(), item.key, full) {
         value = if (!full) emptyList() else withContext(Dispatchers.IO) { runCatching { LiveHome.recordingsOf(ctx, item.name, 8) }.getOrDefault(emptyList()) }
@@ -123,7 +169,12 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         }
     }
     LaunchedEffect(theirs) { if (theirs.isNotEmpty()) { delay(120); runCatching { withEntry.req.requestFocus() } } }
-    LaunchedEffect(item.key) { delay(120); runCatching { first.requestFocus() } }
+    LaunchedEffect(item.key, canPlay || links.isNotEmpty()) {
+        delay(120)
+        runCatching { (if (canPlay || links.isNotEmpty()) first else iconsReq).requestFocus() }
+        // The system may have put the focus on a row lower down first, scrolling there: the page starts at its top.
+        scroll.scrollTo(0)
+    }
     val more by produceState(emptyList<HeroItem>(), item.key) {
         value = withContext(Dispatchers.IO) {
             val like = app.recs.similar(item).ifEmpty {
@@ -143,8 +194,11 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val otherApps = if (full) links.drop(1) else emptyList()
     val anywhere = onNow.size + recorded.size + otherApps.size + later.size
     // The rows top to bottom, for Up and Down: each goes to the one beside it that's there.
+    val primary = canPlay || links.isNotEmpty()
     val stops = buildList {
-        add(first)
+        add(iconsReq)
+        if (primary) add(first)
+        if (canPlay && links.isNotEmpty()) add(linkReq)
         if (hasSeasons) { add(seasonEntry.req); add(epEntry.req) }
         if (anywhere > 0) add(watchEntry.req)
         if (people.cast.isNotEmpty()) add(castEntry.req)
@@ -154,60 +208,129 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     fun above(r: FocusRequester) = stops.getOrNull(stops.indexOf(r) - 1) ?: FocusRequester.Cancel
     fun below(r: FocusRequester) = stops.getOrNull(stops.indexOf(r) + 1) ?: FocusRequester.Cancel
 
-    Box(Modifier.fillMaxSize().background(Ds.Bg).focusProperties { exit = { FocusRequester.Cancel } }.focusGroup()) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg).focusProperties { exit = { FocusRequester.Cancel } }.focusGroup()
+        .onPreviewKeyEvent { ev ->
+            val down = ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
+            when {
+                // Cinematic: OK on Play plays; any other button brings the page back, and does nothing else.
+                cinematic && ev.isSelect -> false
+                cinematic && down -> { cinematic = false; swallowUp = true; true }
+                swallowUp && !down -> { swallowUp = false; true }
+                else -> false
+            }
+        }) {
+        val screenH = maxHeight
+        // The trailer, under the picture that fades away once it plays (the TV's video plane shows through).
+        if (inline) trailerIds?.let { ids ->
+            HeroTrailer(ids, { inlineShown.value }, onPlaying = { inlinePlaying = true }, onWaiting = { inlinePlaying = false },
+                muted = false, shade = { uiA }) { inline = false; inlinePlaying = false }
+        }
         val pic = shown.background.ifBlank { shown.poster }
         if (pic.isNotBlank()) AsyncImage(
-            remember(pic) { ImageRequest.Builder(ctx).data(pic).size(1280, 720).build() }, null, contentScale = ContentScale.Crop,
-            modifier = Modifier.align(Alignment.TopEnd).fillMaxWidth(0.72f).aspectRatio(16f / 9f),
+            remember(pic) { ImageRequest.Builder(ctx).data(pic).size(1920, 1080).build() }, null, contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = (1f - inlineShown.value) * (enter.value * 2.5f).coerceAtMost(1f) },
         )
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(0.3f to Ds.Bg, 0.62f to Ds.Bg.copy(alpha = 0.45f), 0.88f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.32f to Color.Transparent, 0.74f to Ds.Bg)))
+        // The shades the words need; the darker the further down the page, so the rows read as on Home.
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.horizontalGradient(0f to Ds.Bg, 0.24f to Ds.Bg.copy(alpha = 0.82f), 0.5f to Ds.Bg.copy(alpha = 0.3f), 0.7f to Color.Transparent)))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.verticalGradient(0.45f to Color.Transparent, 0.75f to Ds.Bg.copy(alpha = 0.82f), 1f to Ds.Bg)))
+        // Cinematic: only a soft corner behind Play.
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - uiA }.background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent),
+            center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = (scroll.value / 400f).coerceIn(0f, 0.75f) }.background(Ds.Bg))
 
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = (24 * s).dp, bottom = (24 * s).dp)) {
-            Column(Modifier.padding(start = (EDGE * s).dp).width((410 * s).dp)) {
-                Text(if (shown.type.equals("movie", true)) "FILM" else "SERIES", color = LocalAccent.current, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, letterSpacing = (1.5f * s).sp)
-                Spacer(Modifier.height((4 * s).dp))
-                Title(shown, st.titleMode.takeIf { it != "hidden" } ?: "text", st.titleScale * 0.9f, s)
-                Spacer(Modifier.height((8 * s).dp))
-                val facts = listOf(shown.year, shown.runtime).filter { it.isNotBlank() } + shown.genres.take(3).joinToString(" · ").takeIf { it.isNotBlank() }.let { listOfNotNull(it) }
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
-                    if (shown.rating.isNotBlank()) ImdbBadge(shown.rating, s)
-                    Text(facts.joinToString("  ·  "), color = Color(0xFFE8E8EC), fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                if (shown.overview.isNotBlank()) {
-                    Spacer(Modifier.height((7 * s).dp))
-                    Text(shown.overview, color = Color(0xFFD0D0D4), fontSize = (9.5f * s).sp, lineHeight = (13.5f * s).sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
-                }
-                if (people.makers.isNotEmpty()) {
+        // Scrolled only as far as a selection needs to be seen whole (the TV's own way keeps it a third of the way down,
+        // which took the title off the top of the first screen).
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides WholeInView) {
+        Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(bottom = (24 * s).dp)) {
+            // ── The first screen
+            Box(Modifier.fillMaxWidth().height(screenH).onFocusChanged { if (it.hasFocus) scope.launch { scroll.animateScrollTo(0) } }) {
+                Column(Modifier.padding(start = (EDGE * s).dp, top = (22 * s).dp).width((330 * s).dp).graphicsLayer { alpha = uiA }.wordsIn(0.2f)) {
+                    val kind = if (shown.type.equals("movie", true)) "FILM" else "SERIES"
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(kind, color = LocalAccent.current, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, letterSpacing = (1.5f * s).sp)
+                        if (inLibrary) Text("  ·  " + Lang.tr("IN YOUR LIBRARY"), color = Color(0xFFD0D0D4), fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, letterSpacing = (1.5f * s).sp)
+                    }
                     Spacer(Modifier.height((5 * s).dp))
-                    Text((if (shown.type.equals("movie", true)) "Directed by " else "Created by ") + people.makers.joinToString(", "), color = Text2, fontSize = (8 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                } else if (details.cast.isNotEmpty() && people.cast.isEmpty()) {
-                    Spacer(Modifier.height((5 * s).dp))
-                    Text("Starring " + details.cast.take(4).joinToString(", "), color = Text2, fontSize = (8 * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Title(shown, st.titleMode.takeIf { it != "hidden" } ?: "text", st.titleScale * 0.95f, s)
                 }
-            }
-            Spacer(Modifier.height((11 * s).dp))
-            // The buttons. With no player app for titles on this TV, no Play: the trailer and any streaming app it's on.
-            Row(Modifier.padding(start = (EDGE * s).dp), horizontalArrangement = dsGap(s), verticalAlignment = Alignment.CenterVertically) {
-                var firstUsed = false
-                val toRows = Modifier.nav(down = below(first))
-                fun firstMod(): Modifier = if (firstUsed) toRows else { firstUsed = true; toRows.nav(left = FocusRequester.Cancel).focusRequester(first) }
-                if (canPlay) DsButton(if (resume != null) (if (resume.upNext) "Play" else "Resume") + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play", s, firstMod(), primary = true,
-                    leading = { c -> PlayGlyph(Modifier.size((8.5f * s).dp), c) }) { NuvioLaunch.play(ctx, st, app.http, resume ?: item) }
-                links.firstOrNull()?.let { l ->
-                    DsButton(l.service, s, firstMod(), leading = { ServiceIcon(l.pkg, s) }) { runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") } }
+
+                // Bottom left: round buttons, then the large Play (or the app it's on), what's left of it, its app.
+                Column(Modifier.align(Alignment.BottomStart).padding(start = (EDGE * s).dp, bottom = (26 * s).dp).width((196 * s).dp).wordsIn(0.3f),
+                    verticalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+                    var label by remember { mutableStateOf("") }
+                    Column(Modifier.graphicsLayer { alpha = uiA }) {
+                        Row(horizontalArrangement = Arrangement.spacedBy((7 * s).dp)) {
+                            val icons = buildList<Triple<String, String, () -> Unit>> {
+                                add(Triple(if (inLibrary) "check" else "plus", if (inLibrary) "In Library" else "My Library") {
+                                    val now = app.library.toggle(item)
+                                    toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
+                                })
+                                if (trailerIds != null) add(Triple("trailer", "Trailer") { trailerOn = true })
+                                if (!kids && st.homeMine) add(Triple("stack", "Add to a collection") { onDialog(collectionMenu(app, ctx, scope, item, onDialog)) })
+                                if (!kids) add(Triple("ban", "Not interested") {
+                                    st.heroHidden = (st.heroHidden + item.key).distinct()
+                                    toast(ctx, "${item.name} won't show on the big picture again (Settings › Home to bring it back)")
+                                    onClose()
+                                })
+                            }
+                            icons.forEachIndexed { i, (icon, name, act) ->
+                                RoundIcon(icon, name, s, (if (i == 0) Modifier.focusRequester(iconsReq) else Modifier)
+                                    .nav(up = FocusRequester.Cancel, down = below(iconsReq), left = edge(i == 0), right = edge(i == icons.lastIndex)),
+                                    onFocus = { f -> if (f) label = name else if (label == name) label = "" }, onClick = act)
+                            }
+                        }
+                        Text(label.ifBlank { " " }, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = (4 * s).dp))
+                    }
+                    if (canPlay) BigPlay(
+                        if (resume != null) (if (resume.upNext) "Play" else "Resume") + (resume.sub.takeIf { it.isNotBlank() }?.let { " $it" } ?: "") else "Play",
+                        s, Modifier.focusRequester(first).nav(up = above(first), down = below(first), left = FocusRequester.Cancel, right = FocusRequester.Cancel),
+                    ) { NuvioLaunch.play(ctx, st, app.http, resume ?: item) }
+                    else links.firstOrNull()?.let { l ->
+                        BigPlay(l.service, s, Modifier.focusRequester(first).nav(up = above(first), down = below(first), left = FocusRequester.Cancel, right = FocusRequester.Cancel)) {
+                            runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") }
+                        }
+                    }
+                    Column(Modifier.graphicsLayer { alpha = uiA }, verticalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+                        if (resume != null && resume.progress in 0.01f..0.99f) Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.weight(1f).height((2 * s).dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.25f))) {
+                                Box(Modifier.fillMaxWidth(resume.progress).height((2 * s).dp).background(LocalAccent.current))
+                            }
+                        }
+                        if (canPlay) links.firstOrNull()?.let { l ->
+                            DsButton(l.service, s, Modifier.fillMaxWidth().focusRequester(linkReq).nav(up = above(linkReq), down = below(linkReq), left = FocusRequester.Cancel, right = FocusRequester.Cancel),
+                                leading = { ServiceIcon(l.pkg, s) }) { runCatching { ctx.startActivity(l.intent()) }.onFailure { toast(ctx, "${l.service} couldn't open it") } }
+                        }
+                    }
                 }
-                if (trailerIds != null) DsButton("Trailer", s, firstMod()) { trailerOn = true }
-                DsButton(if (inLibrary) "✓  In Library" else "+  My Library", s, firstMod().then(if (kids) Modifier.nav(right = FocusRequester.Cancel) else Modifier)) {
-                    val now = app.library.toggle(item)
-                    toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
+
+                // The story, in the middle.
+                Column(Modifier.align(Alignment.BottomStart).padding(start = ((EDGE + 222) * s).dp, bottom = (30 * s).dp).width((265 * s).dp).graphicsLayer { alpha = uiA }.wordsIn(0.38f),
+                    verticalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                    val nextAiring = onNow.firstOrNull() ?: later.firstOrNull()
+                    if (nextAiring != null) Text((if (nextAiring.onNow(nowTime)) Lang.tr("ON NOW") else Lang.tr("ON LIVE TV")) + "  ·  " + nextAiring.channelName.uppercase(),
+                        color = Ds.Ink, fontSize = (7f * s).sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (0.5f * s).sp, maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape((3 * s).dp)).background(Color.White).padding(horizontal = (5 * s).dp, vertical = (2 * s).dp))
+                    if (shown.overview.isNotBlank()) Text(shown.overview, color = Color(0xFFECECEF), fontSize = (9.5f * s).sp, lineHeight = (14 * s).sp, maxLines = 4, overflow = TextOverflow.Ellipsis)
+                    val facts = shown.genres.take(3) + listOf(shown.runtime, shown.year).filter { it.isNotBlank() }
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                        if (shown.rating.isNotBlank()) ImdbBadge(shown.rating, s)
+                        Text(facts.joinToString("  ·  "), color = Color(0xFFB9B9C0), fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-                if (!kids && st.homeMine) DsButton("Add to a collection", s, firstMod()) { onDialog(collectionMenu(app, ctx, scope, item, onDialog)) }
-                if (!kids) DsButton("Not interested", s, toRows.nav(right = FocusRequester.Cancel)) {
-                    st.heroHidden = (st.heroHidden + item.key).distinct()
-                    toast(ctx, "${item.name} won't show on the big picture again (Settings › Home to bring it back)")
-                    onClose()
+
+                // The people, at the right.
+                Column(Modifier.align(Alignment.BottomEnd).padding(end = (EDGE * s).dp, bottom = (30 * s).dp).width((150 * s).dp).graphicsLayer { alpha = uiA }.wordsIn(0.46f),
+                    verticalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                    val cast = people.cast.take(4).map { it.name }.ifEmpty { details.cast.take(4) }
+                    if (people.makers.isNotEmpty()) Text((if (shown.type.equals("movie", true)) Lang.tr("Directed by") + " " else Lang.tr("Created by") + " ") + people.makers.joinToString(", "),
+                        color = Text2, fontSize = (8 * s).sp, lineHeight = (11 * s).sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (cast.isNotEmpty()) Text(Lang.tr("Cast") + ": " + cast.joinToString(", "), color = Text2, fontSize = (8 * s).sp, lineHeight = (11 * s).sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
+
+                if (stops.size > (if (primary) 2 else 1) + (if (canPlay && links.isNotEmpty()) 1 else 0)) Row(
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = (7 * s).dp).graphicsLayer { alpha = uiA * 0.6f },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) { Text("⌄  " + Lang.tr("Episodes, cast and more"), color = Color.White, fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold) }
             }
 
             if (hasSeasons) {
@@ -228,7 +351,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                                 if (n == 0) "Specials" else "Season $n", color = if (f) Ds.Ink else if (n == seasonOn) Color.White else Text2, fontSize = (9.5f * s).sp,
                                 fontWeight = if (f || n == seasonOn) FontWeight.Bold else FontWeight.SemiBold,
                                 // The focus coming onto a season shows it, as the Library's tabs do.
-                                modifier = seasonEntry.of(i).nav(up = first, down = epEntry.req, left = edge(i == 0), right = edge(i == seasonKeys.lastIndex)).onFocusChanged { f = it.isFocused; if (it.isFocused) season = n }.tvPress(onClick = { season = n })
+                                modifier = seasonEntry.of(i).nav(up = above(seasonEntry.req), down = epEntry.req, left = edge(i == 0), right = edge(i == seasonKeys.lastIndex)).onFocusChanged { f = it.isFocused; if (it.isFocused) season = n }.tvPress(onClick = { season = n })
                                     .clip(RoundedCornerShape(50)).background(if (f) Color.White else if (n == seasonOn) Ds.Glass else Color.Transparent)
                                     .padding(horizontal = (9 * s).dp, vertical = (3.5f * s).dp),
                             )
@@ -323,6 +446,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 }
             }
         }
+        }
         if (trailerOn) trailerIds?.let { ids -> TrailerPlayer(ids) { trailerOn = false } }
     }
 }
@@ -388,5 +512,71 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
             RawText(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))
             if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
+    }
+}
+
+/** More info: before its trailer plays (ms on the page), and before the page steps aside for it (ms of the trailer untouched). */
+internal const val TITLE_TRAILER_AFTER_MS = 4_000L
+internal const val TITLE_CINEMATIC_AFTER_MS = 5_000L
+
+/** A round button with a drawn icon (More info): white when selected; [onFocus] tells which, for its name under the row. */
+@Composable
+private fun RoundIcon(icon: String, name: String, s: Float, modifier: Modifier, onFocus: (Boolean) -> Unit, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    val fg = if (focused) Ds.Ink else Color.White
+    Box(
+        modifier.size((27 * s).dp)
+            .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
+            .tvPress(onClick = onClick)
+            .graphicsLayer { val k = if (focused) 1.08f else 1f; scaleX = k; scaleY = k }
+            .clip(CircleShape).background(if (focused) Color.White else Ds.Glass)
+            .semantics { contentDescription = name },
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.foundation.Canvas(Modifier.size((12 * s).dp)) {
+            val w = size.width; val sw = w * 0.11f
+            val stroke = androidx.compose.ui.graphics.drawscope.Stroke(sw, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+            fun p(vararg pts: Float) = androidx.compose.ui.graphics.Path().apply { moveTo(pts[0] * w, pts[1] * w); var i = 2; while (i < pts.size) { lineTo(pts[i] * w, pts[i + 1] * w); i += 2 } }
+            when (icon) {
+                "check" -> drawPath(p(0.12f, 0.52f, 0.4f, 0.8f, 0.9f, 0.22f), fg, style = stroke)
+                "plus" -> { drawPath(p(0.5f, 0.1f, 0.5f, 0.9f), fg, style = stroke); drawPath(p(0.1f, 0.5f, 0.9f, 0.5f), fg, style = stroke) }
+                "trailer" -> {
+                    drawRoundRect(fg, androidx.compose.ui.geometry.Offset(0.04f * w, 0.18f * w), androidx.compose.ui.geometry.Size(0.92f * w, 0.64f * w),
+                        androidx.compose.ui.geometry.CornerRadius(0.14f * w), style = stroke)
+                    drawPath(p(0.4f, 0.34f, 0.66f, 0.5f, 0.4f, 0.66f).apply { close() }, fg)
+                }
+                "stack" -> { drawRoundRect(fg, androidx.compose.ui.geometry.Offset(0.08f * w, 0.08f * w), androidx.compose.ui.geometry.Size(0.84f * w, 0.84f * w),
+                    androidx.compose.ui.geometry.CornerRadius(0.16f * w), style = stroke); drawPath(p(0.5f, 0.3f, 0.5f, 0.7f), fg, style = stroke); drawPath(p(0.3f, 0.5f, 0.7f, 0.5f), fg, style = stroke) }
+                else -> { drawCircle(fg, 0.43f * w, style = stroke); drawPath(p(0.2f, 0.2f, 0.8f, 0.8f), fg, style = stroke) }
+            }
+        }
+    }
+}
+
+/** More info's large Play (or the app it plays in): white, the width of the buttons above it, a little larger when selected. */
+@Composable
+private fun BigPlay(label: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Row(
+        modifier.fillMaxWidth().height((31 * s).dp)
+            .onFocusChanged { focused = it.isFocused }
+            .tvPress(onClick = onClick)
+            .graphicsLayer { val k = if (focused) 1.04f else 1f; scaleX = k; scaleY = k }
+            .clip(RoundedCornerShape((8 * s).dp)).background(if (focused) Color.White else Color.White.copy(alpha = 0.85f)),
+        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PlayGlyph(Modifier.size((9 * s).dp), Ds.Ink)
+        Spacer(Modifier.width((7 * s).dp))
+        Text(label, color = Ds.Ink, fontSize = (11.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Scrolls a page just enough for the selection to be seen whole, no further. */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+private val WholeInView = object : androidx.compose.foundation.gestures.BringIntoViewSpec {
+    override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = when {
+        offset >= 0f && offset + size <= containerSize -> 0f
+        offset < 0f || size > containerSize -> offset
+        else -> offset + size - containerSize
     }
 }

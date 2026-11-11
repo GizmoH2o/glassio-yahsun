@@ -541,7 +541,11 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             val homeVisible by remember { androidx.compose.runtime.derivedStateOf { homeAlphaState.value > 0.001f } }
             // Kept under a title's page opened from Home (its row, its scroll stay as they were).
             if (homeVisible || (screen == Screen.Home && !folderOpen) || (screen == Screen.Title && titleFrom == Screen.Home)) Box(
-                Modifier.fillMaxSize().graphicsLayer { alpha = homeAlphaState.value * cineAlpha.value }
+                Modifier.fillMaxSize().graphicsLayer {
+                    alpha = homeAlphaState.value * cineAlpha.value
+                    // Another page coming over it: Home sinks back a little as it fades (none with Reduce motion).
+                    if (!motionOff) { val k = 0.96f + 0.04f * homeAlphaState.value; scaleX = k; scaleY = k }
+                }
                     .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn }
                     .onPreviewKeyEvent { ev ->
                         when {
@@ -619,15 +623,17 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 onSettings = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Settings) },
                 onToday = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Today) },
             )
-            if (screen == Screen.Settings) SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
+            if (screen == Screen.Settings) Box(Modifier.fillMaxSize().pageEnter(screen == Screen.Settings, motionOff)) {
+                SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
+            }
             if (screen == Screen.Today || screen == Screen.Title && titleFrom == Screen.Today) Box(
-                Modifier.fillMaxSize().focusProperties { canFocus = screen != Screen.Title },
+                Modifier.fillMaxSize().pageEnter("today", motionOff).focusProperties { canFocus = screen != Screen.Title },
             ) { TodayScreen(app, active = screen == Screen.Today, onTitle = openTitle) { onScreen(Screen.Home) } }
             // The pages with tabs: the bar above them, the page below it.
             // (Library and Search stay there under a title's page opened from them, as they were.)
             val tabPage = if (screen == Screen.Title) titleFrom else screen
             if (tabPage == Screen.Library || tabPage == Screen.LiveTv || tabPage == Screen.Following || tabPage == Screen.Search) Box(
-                Modifier.fillMaxSize().background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
+                Modifier.fillMaxSize().pageEnter(tabPage, motionOff).background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
             ) {
                 val onTop = screen != Screen.Title
                 // Live TV's picture runs up behind the tabs; the others start under them.
@@ -642,7 +648,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> onScreen(to) }
             }
             if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
-                androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
+                androidx.compose.runtime.key(t.key) { Box(Modifier.fillMaxSize().pageEnter(t.key, motionOff)) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) } }
             }
             pickerFor?.let { e ->
                 IconPicker(
@@ -931,6 +937,26 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
         })
     else if (prev == null) Box(Modifier.fillMaxSize().background(Ds.Bg))
 }
+
+/**
+ * A page coming in, as on the streaming apps: it rises 20 dp and fades in over 380 ms, settling slowly (ease-out
+ * 0.2, 0.8, 0.2, 1), each time [key] changes (a tab, a title). With Reduce motion: a plain 150 ms fade.
+ */
+@Composable
+internal fun Modifier.pageEnter(key: Any?, reduce: Boolean): Modifier {
+    val p = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(key) {
+        p.snapTo(0f)
+        p.animateTo(1f, tween(if (reduce) 150 else PAGE_ENTER_MS, easing = androidx.compose.animation.core.CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)))
+    }
+    val rise = with(androidx.compose.ui.platform.LocalDensity.current) { 20.dp.toPx() }
+    return graphicsLayer {
+        val v = p.value
+        alpha = v
+        if (!reduce) { translationY = (1f - v) * rise; val k = 0.98f + 0.02f * v; scaleX = k; scaleY = k }
+    }
+}
+internal const val PAGE_ENTER_MS = 380
 
 /**
  * Slow zoom (Settings › Home), measured from a streaming app's recording: a steady pace from the moment a picture

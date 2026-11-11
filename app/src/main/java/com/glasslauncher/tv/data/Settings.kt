@@ -329,6 +329,8 @@ class Settings(private val ctx: Context) {
     /** Seconds on a title before its trailer starts by itself (0 = only when asked). */
     /** The big picture's trailer: "normal" (muted, behind the title and rows) | "cinematic" (with sound, then the screen is its own). */
     var trailerLook: String get() = s("trailerLook", "normal"); set(v) = putS("trailerLook", v)
+    /** More info: the title's trailer plays by itself with sound, then takes over the screen with Play at the bottom left. */
+    var titleTrailer: Boolean get() = b("titleTrailer", true); set(v) = putB("titleTrailer", v)
     var trailerAutoSec: Int get() = i("trailerAutoSec", 5); set(v) = putI("trailerAutoSec", v.coerceIn(0, 60))
     var trailerPopupScale: Float get() = f("trailerPopupScale", 1.4f); set(v) = putF("trailerPopupScale", v.coerceIn(0.6f, 2f))
     /** Size of the carousel's dots bar (1 = as designed). */

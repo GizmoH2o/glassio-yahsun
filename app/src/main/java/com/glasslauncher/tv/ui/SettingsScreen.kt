@@ -391,6 +391,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("  · Trailer mode", "Normal: muted, behind the title and the rows. Cinematic: with sound, and after a few seconds it takes over the screen; any button brings the page back",
                     { if (st.trailerLook == "cinematic") "Cinematic" else "Normal" },
                     { st.trailerLook = if (st.trailerLook == "cinematic") "normal" else "cinematic" }),
+                Toggle("Trailer on More info", "On a title's page its trailer plays with sound after a few seconds, then takes over the screen with Play at the bottom left; any button brings the page back",
+                    { st.titleTrailer }, { st.titleTrailer = it }),
                 Adjust("OK on a card", "Open its title page, or play straight away", { if (st.cardOk == "play") "Play straight away" else "Title page" },
                     { st.cardOk = cycle(listOf("title", "play"), st.cardOk, it) }),
                 Adjust("OK on Continue watching", "Resume in its app: Stremio plays it where you left off; Nuvio opens on it (its links can't start a stream). As other cards: as OK on a card",
