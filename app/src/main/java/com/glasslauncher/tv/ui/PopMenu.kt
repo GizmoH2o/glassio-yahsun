@@ -102,7 +102,8 @@ private fun PopMenu(state: PopState, s: Float, style: String, onDismiss: () -> U
     val arrows = remember { setOf(androidx.compose.ui.input.key.Key.DirectionUp, androidx.compose.ui.input.key.Key.DirectionDown,
         androidx.compose.ui.input.key.Key.DirectionLeft, androidx.compose.ui.input.key.Key.DirectionRight) }
     val enter = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { enter.animateTo(1f, tween(180)) }
+    val follow = LocalFollowTvSpeed.current
+    LaunchedEffect(Unit) { atOwnSpeed(follow) { enter.animateTo(1f, tween(200, easing = Motion.EaseOut)) } }
     LaunchedEffect(page) { repeat(8) { kotlinx.coroutines.delay(30); if (runCatching { first.requestFocus() }.isSuccess) return@LaunchedEffect } }
     // Back is read from the key itself: the home screen's own Back actions (screensaver, dock) could take it first,
     // and the menu stayed open with the remote somewhere else.

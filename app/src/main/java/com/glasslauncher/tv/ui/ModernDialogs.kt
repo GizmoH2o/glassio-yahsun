@@ -92,7 +92,8 @@ fun ModernSheet(width: Int, modifier: Modifier = Modifier, center: Boolean = tru
     DialogBackdrop()
     val enter = remember { Animatable(0f) }
     val still = LocalReduceMotion.current
-    LaunchedEffect(Unit) { if (still) enter.snapTo(1f) else enter.animateTo(1f, tween(220, easing = FastOutSlowInEasing)) }
+    val follow = LocalFollowTvSpeed.current
+    LaunchedEffect(Unit) { if (still) enter.snapTo(1f) else atOwnSpeed(follow) { enter.animateTo(1f, tween(240, easing = Motion.EaseOut)) } }
     val shape = RoundedCornerShape(26.dp)
     Column(
         modifier.width(width.dp)

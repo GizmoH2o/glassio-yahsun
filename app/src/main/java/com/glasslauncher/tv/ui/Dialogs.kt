@@ -39,6 +39,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -130,8 +131,16 @@ private fun WhatsNewView(d: WhatsNew, onDismiss: () -> Unit) {
 private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     // Modern (Settings › Look & motion › Dialog style): the glass sheet over the dimmed, blurred page.
     if (rememberDialogsModern()) { ModernSheet(width + 40, modifier, center = false) { content() }; return }
+    // Classic too settles in, as the modern sheet does: a little scale and a fade.
+    val enter = remember { androidx.compose.animation.core.Animatable(0f) }
+    val still = LocalReduceMotion.current
+    val follow = LocalFollowTvSpeed.current
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (still) enter.snapTo(1f) else atOwnSpeed(follow) { enter.animateTo(1f, androidx.compose.animation.core.tween(220, easing = Motion.EaseOut)) }
+    }
     Column(
-        modifier.width(width.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(14.dp),
+        modifier.graphicsLayer { alpha = enter.value; val k = 0.95f + 0.05f * enter.value; scaleX = k; scaleY = k }
+            .width(width.dp).clip(RoundedCornerShape(14.dp)).background(Ds.Surface).padding(14.dp),
     ) { content() }
 }
 

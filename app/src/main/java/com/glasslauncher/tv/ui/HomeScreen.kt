@@ -226,7 +226,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     var restoreFocus by remember { mutableIntStateOf(0) }
     var seenRestore by remember { mutableIntStateOf(0) }
     val searchQuery = remember { mutableStateOf("") }
+    /** Where the card a title was opened from sits (a fraction of the screen): its page grows out of it. */
+    var titleOrigin by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
     val openTitle: (com.glasslauncher.tv.data.HeroItem) -> Unit = { item ->
+        titleOrigin = CardOrigin.fraction()
         if (screen != Screen.Title) { titleFrom = screen; titleStack.clear() }
         titleStack.add(item)
         onScreen(Screen.Title)
@@ -539,7 +542,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
 
             // Fully covered by settings or the folder: stop drawing it at all.
-            val homeAlphaState = animateFloatAsState(if (screen == Screen.Home && !folderOpen) 1f else 0f, tween(180), label = "homeAlpha")
+            val homeAlphaState = animateAtOwnSpeed(if (screen == Screen.Home && !folderOpen) 1f else 0f, tween(220, easing = Motion.EaseOut), settings.homeTvSpeed)
             val homeVisible by remember { androidx.compose.runtime.derivedStateOf { homeAlphaState.value > 0.001f } }
             // Kept under a title's page opened from Home (its row, its scroll stay as they were).
             if (homeVisible || (screen == Screen.Home && !folderOpen) || (screen == Screen.Title && titleFrom == Screen.Home)) Box(
@@ -623,7 +626,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     Text(Lang.tr("Any other button: back to the page"), color = Color.White.copy(alpha = 0.6f), fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold)
                 }
             }
-            if (folderOpen) {
+            // The folder: the blurred page fades in under it and the panel grows a little as it comes; Back, the reverse.
+            Presence(if (folderOpen) true else null, if (motionOff) Motion.PLAIN_MS else 260, if (motionOff) Motion.PLAIN_MS else 200, Modifier.fillMaxSize(),
+                transform = { k, _ -> alpha = k; if (!motionOff) { val sc = 0.97f + 0.03f * k; scaleX = sc; scaleY = sc } }) {
+                Box(Modifier.fillMaxSize()) {
                 FolderOverlay(
                     app, s, metrics, radius, screenHdp,
                     moving = folderMoving, onMoveDone = { folderMoving = null }, blocked = pickerFor != null,
@@ -634,10 +640,15 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                         scope.launch { delay(150); runCatching { folderFocus.requestFocus() } }
                     },
                 )
+                }
             }
             if (screen == Screen.Home && !folderOpen) UpdateBanner(app, s, Modifier.align(Alignment.TopEnd).padding(end = (34 * s).dp))
-            if (screen == Screen.Home && menuOpen) SideMenu(
-                app, s, modifier = Modifier.align(Alignment.TopEnd),
+            // The menu slides in by itself; on closing it slides back out to the right as it fades.
+            val menuSlide = with(androidx.compose.ui.platform.LocalDensity.current) { (40 * s).dp.toPx() }
+            Presence(if (screen == Screen.Home && menuOpen) true else null, 0, if (motionOff) Motion.PLAIN_MS else 200, Modifier.align(Alignment.TopEnd),
+                transform = { k, leaving -> if (leaving) { alpha = k; if (!motionOff) translationX = (1f - k) * menuSlide } }) {
+            SideMenu(
+                app, s,
                 onClose = {
                     menuClosedAt = android.os.SystemClock.uptimeMillis()
                     menuOpen = false
@@ -649,17 +660,20 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 onSettings = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Settings) },
                 onToday = { menuClosedAt = android.os.SystemClock.uptimeMillis(); menuOpen = false; onScreen(Screen.Today) },
             )
-            if (screen == Screen.Settings) Box(Modifier.fillMaxSize().pageEnter(screen == Screen.Settings, motionOff)) {
+            }
+            PageLayer(if (screen == Screen.Settings) Screen.Settings else null, motionOff) {
                 SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
             }
-            if (screen == Screen.Today || screen == Screen.Title && titleFrom == Screen.Today) Box(
-                Modifier.fillMaxSize().pageEnter("today", motionOff).focusProperties { canFocus = screen != Screen.Title },
-            ) { TodayScreen(app, active = screen == Screen.Today, onTitle = openTitle) { onScreen(Screen.Home) } }
+            PageLayer(if (screen == Screen.Today || screen == Screen.Title && titleFrom == Screen.Today) Screen.Today else null, motionOff) {
+                Box(Modifier.fillMaxSize().focusProperties { canFocus = screen != Screen.Title }) {
+                    TodayScreen(app, active = screen == Screen.Today, onTitle = openTitle) { onScreen(Screen.Home) }
+                }
+            }
             // The pages with tabs: the bar above them, the page below it.
             // (Library and Search stay there under a title's page opened from them, as they were.)
             val tabPage = if (screen == Screen.Title) titleFrom else screen
-            if (tabPage == Screen.Library || tabPage == Screen.LiveTv || tabPage == Screen.Following || tabPage == Screen.Search) Box(
-                Modifier.fillMaxSize().pageEnter(tabPage, motionOff).background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
+            PageLayer(tabPage.takeIf { it == Screen.Library || it == Screen.LiveTv || it == Screen.Following || it == Screen.Search }, motionOff) { tabPage -> Box(
+                Modifier.fillMaxSize().background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
             ) {
                 val onTop = screen != Screen.Title
                 // Live TV's picture runs up behind the tabs; the others start under them.
@@ -672,9 +686,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 // What scrolls up goes dark behind the tabs, so nothing reads through them.
                 if (onTop) Box(Modifier.fillMaxWidth().height((58 * s).dp).background(Brush.verticalGradient(0.72f to Ds.Bg, 1f to Color.Transparent)))
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> onScreen(to) }
-            }
-            if (screen == Screen.Title) titleStack.lastOrNull()?.let { t ->
-                androidx.compose.runtime.key(t.key) { Box(Modifier.fillMaxSize().pageEnter(t.key, motionOff)) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) } }
+            } }
+            PageLayer(if (screen == Screen.Title) titleStack.lastOrNull() else null, motionOff, origin = titleOrigin) { t ->
+                androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
             }
             pickerFor?.let { e ->
                 IconPicker(

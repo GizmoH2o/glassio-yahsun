@@ -226,7 +226,7 @@ private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, mo
     val req = remember(item.poster) {
         ImageRequest.Builder(ctx).data(sharpPoster(item.poster).ifBlank { item.background }).size((180 * s * 2f).toInt(), (270 * s * 2f).toInt()).build()
     }
-    Column(modifier.graphicsLayer { scaleX = k; scaleY = k }, horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(modifier.markCardOrigin(focused).graphicsLayer { scaleX = k; scaleY = k }, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f)
                 .drawBehind {

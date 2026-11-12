@@ -961,7 +961,7 @@ internal fun Modifier.cardFocus(s: Float, focused: Boolean, radius: Float = Ds.R
     val sc = liftOf(focused, grow)
     val shape = RoundedCornerShape((radius * s).dp)
     val strong = LocalHighContrast.current
-    return this.zIndex(if (focused) 1f else 0f).graphicsLayer { scaleX = sc; scaleY = sc }
+    return this.markCardOrigin(focused).zIndex(if (focused) 1f else 0f).graphicsLayer { scaleX = sc; scaleY = sc }
         // The soft shadow under what's selected (one picture, drawn only for it): lifted off the page, like tvOS.
         .then(if (focused) Modifier.drawBehind { drawCardShadow() } else Modifier)
         .border(if (focused) ((if (strong) 3f else 1.8f) * s).dp else 0.dp, if (focused) Color.White else Color.Transparent, shape).clip(shape)

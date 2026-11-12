@@ -93,7 +93,8 @@ fun SideMenu(app: GlassApp, s0: Float, onClose: () -> Unit, onLibrary: () -> Uni
     var current by remember { mutableIntStateOf(0) }
     val enter = remember { Animatable(0f) }
     val still = LocalReduceMotion.current
-    LaunchedEffect(Unit) { if (still) enter.snapTo(1f) else enter.animateTo(1f, tween(260, easing = EASE)) }
+    val follow = LocalFollowTvSpeed.current
+    LaunchedEffect(Unit) { if (still) enter.snapTo(1f) else atOwnSpeed(follow) { enter.animateTo(1f, tween(260, easing = EASE)) } }
     var inside by remember { mutableStateOf(false) }
     // Take focus from the settings button (or wherever it is): retry until a row has it.
     LaunchedEffect(themes, camPage, inputsPage, musicPage, style) { inside = false; repeat(16) { delay(25); if (inside) return@LaunchedEffect; runCatching { reqs[target.coerceIn(0, reqs.lastIndex)].requestFocus() } } }

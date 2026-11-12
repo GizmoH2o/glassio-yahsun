@@ -367,7 +367,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Card style", "An opened poster: Lighter, the lighter grey of the streaming apps. Dark: as dark as the page",
                     { if (st.cardStyle == "dark") "Dark" else "Lighter" },
                     { st.cardStyle = cycle(listOf("light", "dark"), st.cardStyle, it) }),
-                Toggle("Follow the TV's animation speed", "Off: the big picture's title change and the cards open at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs",
+                Toggle("Follow the TV's animation speed", "Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs",
                     { st.homeTvSpeed }, { st.homeTvSpeed = it }),
                 Adjust("Slow zoom", "The pictures slowly zoom in from the moment they come in: the big picture, an open card, or both",
                     { when (st.slowZoom) { "off" -> "Off"; "hero" -> "Big picture"; "cards" -> "Cards"; else -> "Both" } },

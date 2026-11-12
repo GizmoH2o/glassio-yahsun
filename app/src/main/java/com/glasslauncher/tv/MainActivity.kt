@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
-            com.glasslauncher.tv.ui.GlassType(app.settings.accent, app.settings.textSize, app.settings.reduceMotion, app.settings.highContrast) { com.glasslauncher.tv.ui.QuietSemantics {
+            com.glasslauncher.tv.ui.GlassType(app.settings.accent, app.settings.textSize, app.settings.reduceMotion, app.settings.highContrast, app.settings.homeTvSpeed) { com.glasslauncher.tv.ui.QuietSemantics {
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                     val multi = com.glasslauncher.tv.MultiCamOverlay.open.value
                     val mv by androidx.compose.animation.core.animateFloatAsState(if (multi) 1f else 0f,
