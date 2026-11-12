@@ -607,6 +607,8 @@ class Settings(private val ctx: Context) {
         set(v) = putI("idleSeconds", v.coerceAtLeast(0))
     /** aerial (Apple videos) | slideshow (posters with logos) | system (the TV's own screensaver, e.g. Aerial Views) */
     var saverMode: String get() = s("saverMode", "aerial"); set(v) = putS("saverMode", v)
+    /** Posters screensaver motion: pan (each picture drifts left, the next right, as on Prime Video) | zoom (Ken Burns). */
+    var saverMotion: String get() = s("saverMotion", "pan"); set(v) = putS("saverMotion", v)
     var useAppleAerials: Boolean get() = b("useAppleAerials", false); set(v) = putB("useAppleAerials", v)
     var aerialUrls: List<String> get() = list("aerialUrls"); set(v) = putList("aerialUrls", v)
     var saverClock: Boolean get() = b("saverClock", true); set(v) = putB("saverClock", v)

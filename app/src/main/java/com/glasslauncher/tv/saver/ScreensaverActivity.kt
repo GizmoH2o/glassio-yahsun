@@ -146,24 +146,44 @@ class ScreensaverActivity : ComponentActivity() {
     }
 }
 
-/** Slow Ken Burns over the catalog backdrops, with each title's logo. */
+/**
+ * The catalog backdrops with each title's logo. Pan (the default): each picture drifts slowly sideways, one to the left,
+ * the next to the right, as Prime Video's screensaver does. Zoom: the slow Ken Burns of before.
+ */
 @Composable
 internal fun Slideshow(app: GlassApp) {
     val raw by app.catalogs.items.collectAsState()
     val enriched by app.catalogs.enrichedItems.collectAsState()
     val items = remember(raw) { raw.filter { it.background.isNotBlank() } }
     var index by remember { mutableIntStateOf(0) }
-    LaunchedEffect(items.size) { while (items.size > 1) { delay(12_000); index++ } }
+    LaunchedEffect(items.size) { while (items.size > 1) { delay(SAVER_SLIDE_MS.toLong()); index++ } }
     val item = items.takeIf { it.isNotEmpty() }?.let { val r = it[index.mod(it.size)]; enriched[r.key] ?: r }
     val url = item?.background
+    val pan = app.settings.saverMotion != "zoom"
     val t = rememberInfiniteTransition(label = "kb")
     val scale by t.animateFloat(1.0f, 1.14f, infiniteRepeatable(tween(12_000, easing = LinearEasing), RepeatMode.Reverse), label = "s")
-    Crossfade(targetState = url, animationSpec = tween(1600), label = "show") { u ->
+    // The slide's number goes with its picture, so the direction flips with each one (and the fading-out picture keeps its own).
+    Crossfade(targetState = url?.let { it to index }, animationSpec = tween(1600), label = "show") { slide ->
         Box(Modifier.fillMaxSize().clipToBounds()) {
-            if (u != null) AsyncImage(
-                model = u, contentDescription = null, contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale }.alpha(0.95f),
-            )
+            if (slide != null) {
+                val (u, n) = slide
+                // 0 → 1 across the slide's whole time on screen, fades included, so it never stops or jumps back.
+                val p = remember { androidx.compose.animation.core.Animatable(0f) }
+                if (pan) LaunchedEffect(Unit) { p.animateTo(1f, tween(SAVER_SLIDE_MS + 2 * 1600, easing = LinearEasing)) }
+                val left = n % 2 == 0
+                AsyncImage(
+                    model = u, contentDescription = null, contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize().graphicsLayer {
+                        if (pan) {
+                            scaleX = SAVER_PAN_SCALE; scaleY = SAVER_PAN_SCALE
+                            // The room the enlarged picture has on each side, travelled from one side to the other.
+                            val room = size.width * (SAVER_PAN_SCALE - 1f) / 2f
+                            val d = room * (1f - 2f * p.value)
+                            translationX = if (left) d else -d
+                        } else { scaleX = scale; scaleY = scale }
+                    }.alpha(0.95f),
+                )
+            }
         }
     }
     // Soft shade so the logo reads on bright frames.
@@ -181,3 +201,7 @@ internal fun Slideshow(app: GlassApp) {
         }
     }
 }
+
+private const val SAVER_SLIDE_MS = 12_000
+/** How far the picture is enlarged for the pan: the travel is the extra width, 12% of the screen end to end. */
+private const val SAVER_PAN_SCALE = 1.12f
