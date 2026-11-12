@@ -705,7 +705,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             PageLayer(if (screen == Screen.Title) titleStack.lastOrNull() else null, motionOff, origin = titleOrigin) { t ->
                 androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
             }
-            pickerFor?.let { e ->
+            // The icon picker and the welcome: they settle in and leave like the other pages.
+            Presence(pickerFor, if (motionOff) Motion.PLAIN_MS else 300, if (motionOff) Motion.PLAIN_MS else 200, Modifier.fillMaxSize(),
+                transform = { k, _ -> alpha = k; if (!motionOff) { val sc = 0.97f + 0.03f * k; scaleX = sc; scaleY = sc } }) { e ->
                 IconPicker(
                     app, e,
                     onPhone = { settingsCat = PHONE_CATEGORY; onScreen(Screen.Settings) },
@@ -716,7 +718,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     },
                 )
             }
-            if (welcomeOn && screen == Screen.Home) Welcome(app, s, welcomeStep, onSettings = { settingsCat = it; onScreen(Screen.Settings) }) { settings.welcomeDone = true; welcomeOn = false; scope.launch { delay(120); runCatching { heroFocus.requestFocus() } } }
+            Presence(if (welcomeOn && screen == Screen.Home) true else null, if (motionOff) Motion.PLAIN_MS else 420, if (motionOff) Motion.PLAIN_MS else 240, Modifier.fillMaxSize(),
+                transform = { k, _ -> alpha = k }) {
+                Welcome(app, s, welcomeStep, onSettings = { settingsCat = it; onScreen(Screen.Settings) }) { settings.welcomeDone = true; welcomeOn = false; scope.launch { delay(120); runCatching { heroFocus.requestFocus() } } }
+            }
             DialogHost(dialog) { dialog = null }
             // Music playing (Settings › Music): the island at the top of the home screen.
             if (screen == Screen.Home && settings.musicOn && settings.islandHome && !MusicUi.forced.value) MusicIsland(app, s)
