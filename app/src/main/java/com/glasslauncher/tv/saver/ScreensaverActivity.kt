@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -123,6 +124,13 @@ class ScreensaverActivity : ComponentActivity() {
         // ◀ ▶ change the video, OK shows / hides the info; any other key ends it.
         val k = event.keyCode
         val st = app().settings
+        // The posters: OK opens the title on screen (its More info page, as Prime Video's screensaver does).
+        val poster = SaverControl.posterNow
+        if (poster != null && st.saverMode == "slideshow" && (k == KeyEvent.KEYCODE_DPAD_CENTER || k == KeyEvent.KEYCODE_ENTER) &&
+            !com.glasslauncher.tv.ui.MusicUi.islandOpen.value) {
+            if (event.action == KeyEvent.ACTION_UP) { app().requestTitle.value = poster; exit() }
+            return true
+        }
         if (st.saverMode != "system" && SaverControl.onKey(event, st)) return true
         if (event.action == KeyEvent.ACTION_DOWN) exit()
         return true
@@ -162,6 +170,17 @@ internal fun Slideshow(app: GlassApp, posters: Boolean = true) {
     if (!pan) LaunchedEffect(items.size) { while (items.size > 1) { delay(SAVER_SLIDE_MS.toLong()); index++ } }
     val item = items.takeIf { it.isNotEmpty() }?.let { val r = it[index.mod(it.size)]; enriched[r.key] ?: r }
     val url = item?.background
+    // OK opens it (ScreensaverActivity): the Posters screensaver only.
+    androidx.compose.runtime.DisposableEffect(item, posters) {
+        SaverControl.posterNow = if (posters) item else null
+        onDispose { SaverControl.posterNow = null }
+    }
+    // The next picture, fetched while this one shows: it comes in at once (a full-size TMDB picture took seconds).
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(index, items.size) {
+        val next = items.getOrNull((index + 1).mod(items.size.coerceAtLeast(1)))?.let { enriched[it.key] ?: it }?.background ?: return@LaunchedEffect
+        coil3.SingletonImageLoader.get(ctx).enqueue(coil3.request.ImageRequest.Builder(ctx).data(next).build())
+    }
     val t = rememberInfiniteTransition(label = "kb")
     val scale by t.animateFloat(1.0f, 1.14f, infiniteRepeatable(tween(12_000, easing = LinearEasing), RepeatMode.Reverse), label = "s")
     // The slide's number goes with its picture, so the direction flips with each one (and the fading-out picture keeps its own).
@@ -180,19 +199,25 @@ internal fun Slideshow(app: GlassApp, posters: Boolean = true) {
                     if (index == n && items.size > 1) index++
                 }
                 val left = n % 2 == 0
-                AsyncImage(
-                    model = u, contentDescription = null, contentScale = ContentScale.Crop,
-                    onState = { if (it is coil3.compose.AsyncImagePainter.State.Success || it is coil3.compose.AsyncImagePainter.State.Error) ready = true },
-                    modifier = Modifier.fillMaxSize().graphicsLayer {
-                        if (pan) {
-                            scaleX = SAVER_PAN_SCALE; scaleY = SAVER_PAN_SCALE
-                            // The room the enlarged picture has on each side, travelled from one side to the other.
-                            val room = size.width * (SAVER_PAN_SCALE - 1f) / 2f
-                            val d = room * (1f - 2f * p.value)
-                            translationX = if (left) d else -d
-                        } else { scaleX = scale; scaleY = scale }
-                    }.alpha(0.95f),
-                )
+                Box(Modifier.fillMaxSize().graphicsLayer {
+                    if (pan) {
+                        scaleX = SAVER_PAN_SCALE; scaleY = SAVER_PAN_SCALE
+                        // The room the enlarged picture has on each side, travelled from one side to the other.
+                        val room = size.width * (SAVER_PAN_SCALE - 1f) / 2f
+                        val d = room * (1f - 2f * p.value)
+                        translationX = if (left) d else -d
+                    } else { scaleX = scale; scaleY = scale }
+                }.alpha(0.95f)) {
+                    // The small copy Home already keeps (its glass is made from it) at once, the full picture over it:
+                    // the screensaver no longer opens on black while that loads.
+                    val small = com.glasslauncher.tv.ui.sized(u, "w780")
+                    if (small != u) AsyncImage(model = small, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                        onState = { if (it is coil3.compose.AsyncImagePainter.State.Success) ready = true })
+                    AsyncImage(
+                        model = u, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                        onState = { if (it is coil3.compose.AsyncImagePainter.State.Success || it is coil3.compose.AsyncImagePainter.State.Error) ready = true },
+                    )
+                }
             }
         }
     }
@@ -208,6 +233,9 @@ internal fun Slideshow(app: GlassApp, posters: Boolean = true) {
                     modifier = Modifier.size(380.dp, 150.dp),
                 ) else Text(it.name, color = Color.White, fontSize = 40.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
             }
+            // What OK does here, small under the logo (Posters only).
+            if (it != null && posters) Text(com.glasslauncher.tv.ui.Lang.tr("OK · More info"), color = Color.White.copy(alpha = 0.5f), fontSize = 13.sp,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold, modifier = Modifier.offset(y = 26.dp))
         }
     }
 }

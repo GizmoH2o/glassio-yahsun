@@ -161,7 +161,10 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                     Text("Nothing in this list yet.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
                 }
                 itemsIndexed(shown, key = { _, it -> tab.key + ":" + it.key }) { i, it ->
-                    Poster(it, it.id in newIds, s, st.libraryTitles, (if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
+                    // Another tab: its posters fade in where the others were; one removed, the rest close up.
+                    Poster(it, it.id in newIds, s, st.libraryTitles, Modifier.animateItem(fadeInSpec = androidx.compose.animation.core.tween(260, delayMillis = (i % 10) * 18),
+                        placementSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), fadeOutSpec = androidx.compose.animation.core.tween(140))
+                        .then(if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
                         onFocused = { lastKey = it.key },
                         onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })

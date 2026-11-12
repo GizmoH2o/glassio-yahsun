@@ -121,6 +121,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     LaunchedEffect(inline, inlinePlaying) { inlineShown.animateTo(if (inline && inlinePlaying) 1f else 0f, androidx.compose.animation.core.tween(700)) }
     // Cinematic: a few seconds into it, untouched, everything but Play fades away; the next button only brings it back.
     var cinematic by remember(item.key) { mutableStateOf(false) }
+    val trailerAt = remember(item.key) { androidx.compose.runtime.mutableFloatStateOf(0f) }
     var swallowUp by remember { mutableStateOf(false) }
     LaunchedEffect(inlinePlaying, app.interaction.longValue, atTop) {
         cinematic = false
@@ -238,7 +239,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         // The trailer, under the picture that fades away once it plays (the TV's video plane shows through).
         if (inline) trailerIds?.let { ids ->
             HeroTrailer(ids, { inlineShown.value }, onPlaying = { inlinePlaying = true }, onWaiting = { inlinePlaying = false },
-                muted = false, shade = { uiA }) { inline = false; inlinePlaying = false }
+                muted = false, shade = { uiA }, onProgress = { trailerAt.floatValue = it }) { inline = false; inlinePlaying = false }
         }
         val pic = shown.background.ifBlank { shown.poster }
         if (pic.isNotBlank()) AsyncImage(
@@ -251,6 +252,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         // Cinematic: only a soft corner behind Play.
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - uiA }.background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent),
             center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
+        // Cinematic: how far through the trailer is, and that it plays with sound.
+        CinematicChrome({ trailerAt.floatValue }, { 1f - uiA }, s)
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = dimA }.background(Ds.Bg))
         val rise = with(androidx.compose.ui.platform.LocalDensity.current) { 40.dp.toPx() }
         val screenPx = with(androidx.compose.ui.platform.LocalDensity.current) { screenH.toPx() }

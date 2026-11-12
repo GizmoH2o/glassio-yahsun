@@ -142,3 +142,23 @@ internal fun <T : Any> PageLayer(target: T?, reduce: Boolean, origin: Offset? = 
         }
     }) { v -> Box(Modifier.fillMaxSize()) { content(v) } }
 }
+
+/**
+ * A pane changing over in place (a Settings category, a Library filter, a Live TV section), as tvOS does: the new one
+ * fades in and settles from a little to the side, each time [key] changes. Nothing the first time, as the page itself
+ * is coming in then. With Reduce motion: a short fade.
+ */
+@Composable
+internal fun Modifier.paneEnter(key: Any?): Modifier {
+    val reduce = LocalReduceMotion.current
+    val follow = LocalFollowTvSpeed.current
+    val p = remember { Animatable(1f) }
+    val first = remember { mutableStateOf(true) }
+    LaunchedEffect(key) {
+        if (first.value) { first.value = false; return@LaunchedEffect }
+        p.snapTo(0f)
+        atOwnSpeed(follow) { p.animateTo(1f, tween(if (reduce) Motion.PLAIN_MS else 280, easing = Motion.EaseOut)) }
+    }
+    val shift = with(LocalDensity.current) { 14.dp.toPx() }
+    return graphicsLayer { val v = p.value; alpha = v; if (!reduce) translationX = (1f - v) * shift }
+}

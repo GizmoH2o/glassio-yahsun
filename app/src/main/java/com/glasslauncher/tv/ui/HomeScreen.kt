@@ -214,6 +214,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     // The title whose trailer plays: its logo and Play over the trailer in Cinematic.
     var trailerItem by remember { mutableStateOf<HeroItem?>(null) }
     var cineSwallowUp by remember { mutableStateOf(false) }
+    /** How far through the trailer is (0 to 1), for the line along the bottom in Cinematic. */
+    val trailerAt = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val cineAlpha = animateFloatAsState(if (cineHidden) 0f else 1f, tween(if (cineHidden) 900 else 250), label = "cinematic")
     val trailerShown = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(trailer, trailerPlaying) {
@@ -240,6 +242,18 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             titleStack.clear()
             if (titleFrom == Screen.Home) restoreFocus++
             onScreen(titleFrom)
+        }
+    }
+    // OK on the Posters screensaver: that title's page, rising in on its own (no card it came from).
+    // (One watcher for good: clearing the request mustn't cancel the opening it started.)
+    val openTitleNow by androidx.compose.runtime.rememberUpdatedState(openTitle)
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { app.requestTitle.value }.collect { t ->
+            if (t == null) return@collect
+            app.requestTitle.value = null
+            CardOrigin.coords = null
+            delay(120)
+            openTitleNow(t)
         }
     }
     /** The welcome, on a first run; What's new, after an update. */
@@ -528,7 +542,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             trailer?.let { id ->
                 if (trailerDrawn) HeroTrailer(id, { trailerShown.value }, onPlaying = { trailerPlaying = true }, onWaiting = { trailerPlaying = false },
-                    muted = !cinematic, shade = { cineAlpha.value }) {
+                    muted = !cinematic, shade = { cineAlpha.value }, onProgress = { trailerAt.floatValue = it }) {
                     trailerPlaying = false
                     scope.launch { delay(700); if (trailer == id) { trailer = null; trailerOver = true } }
                 }
@@ -625,6 +639,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     }
                     Text(Lang.tr("Any other button: back to the page"), color = Color.White.copy(alpha = 0.6f), fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold)
                 }
+                CinematicChrome({ trailerAt.floatValue }, { 1f }, s)
             }
             // The folder: the blurred page fades in under it and the panel grows a little as it comes; Back, the reverse.
             Presence(if (folderOpen) true else null, if (motionOff) Motion.PLAIN_MS else 260, if (motionOff) Motion.PLAIN_MS else 200, Modifier.fillMaxSize(),

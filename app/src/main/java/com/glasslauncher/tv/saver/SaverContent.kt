@@ -66,6 +66,8 @@ object SaverControl {
     val showRev = androidx.compose.runtime.mutableIntStateOf(0)
     /** Whether the info is on screen right now (written while it draws). */
     @Volatile var infoOnScreen = false
+    /** The title on the Posters screensaver right now: OK opens its page. */
+    @Volatile var posterNow: com.glasslauncher.tv.data.HeroItem? = null
     /** The link of the video on screen (for Lock & release). */
     @Volatile var currentUrl: String? = null
     /** Shown after a hold of OK: true = just locked, false = released; [lockRev] restarts the animation. */

@@ -1588,7 +1588,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             ) {
                 // A page that isn't there (asked for from outside by number, past About): the first one, not a crash.
                 val c = categories.getOrNull(shownCat) ?: categories.first()
-                Column(Modifier.fillMaxSize()) {
+                Column(Modifier.fillMaxSize().paneEnter(if (query.isNotBlank()) -1 else shownCat)) {
                     Text(if (query.isNotBlank()) "Results for “$query”" else c.title, color = Color.White, fontSize = (17 * s).sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(start = (2 * s).dp, top = (4 * s).dp, bottom = (10 * s).dp))
                     if (query.isNotBlank()) {
                         val found = categories.filter { it.kind == Kind.Rows }.flatMap { it.rows() }.filter { r ->

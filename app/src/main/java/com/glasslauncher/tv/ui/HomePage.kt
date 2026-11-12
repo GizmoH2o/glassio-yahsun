@@ -765,7 +765,10 @@ private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: F
         contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (6 * s).dp, bottom = (6 * s).dp),
     ) {
         itemsIndexed(keys, key = { _, k -> k }) { i, k ->
-            card(i, Modifier.then(if (k == entryKey) Modifier.focusRequester(entry) else Modifier)
+            // A card new to the row fades in, one taken out fades away (no sliding: a card opening up wide moves the
+            // others itself).
+            card(i, Modifier.animateItem(fadeInSpec = tween(260), placementSpec = null, fadeOutSpec = tween(160))
+                .then(if (k == entryKey) Modifier.focusRequester(entry) else Modifier)
                 .focusProperties { this.up = up; this.down = down }
                 .onFocusChanged { if (it.isFocused) last = k })
         }

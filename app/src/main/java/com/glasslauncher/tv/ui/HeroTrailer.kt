@@ -12,6 +12,13 @@ import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
@@ -41,8 +48,10 @@ fun trailerOf(app: GlassApp, item: HeroItem): String? = runCatching {
 }.getOrNull()
 
 /** Called from YouTube's page (the trailer playing, over or stopped, or one that won't play here), on the main thread. */
-private class TrailerBridge(val onPlaying: () -> Unit, val onEnded: () -> Unit, val onFailed: () -> Unit) {
+private class TrailerBridge(val onPlaying: () -> Unit, val onEnded: () -> Unit, val onProgress: (Float) -> Unit, val onFailed: () -> Unit) {
     private val main = Handler(Looper.getMainLooper())
+    /** How far through it is, 0 to 1, twice a second. */
+    @JavascriptInterface fun progress(p: Float) { main.post { onProgress(p.coerceIn(0f, 1f)) } }
     @JavascriptInterface fun playing() { main.post(onPlaying) }
     @JavascriptInterface fun ended() { main.post(onEnded) }
     @JavascriptInterface fun failed() { main.post(onFailed) }
@@ -72,20 +81,23 @@ private const val WATCH = """(function(){
 var Q='%QUALITY%';
 function ask(){var p=document.querySelector('#movie_player');if(p&&p.setPlaybackQualityRange){try{p.setPlaybackQualityRange(Q,Q)}catch(e){}}}
 var s=document.createElement('style');s.textContent='$HIDE_CSS';document.head.appendChild(s);
-var seen=false,done=false,n=0;
+var seen=false,done=false,n=0,V=null,vol=0,going=false;
 function over(){if(!done){done=true;clearInterval(t);Glassio.ended()}}
+function ramp(to,ms){if(!V||V.muted)return;clearInterval(vol);var from=V.volume,st=Date.now();vol=setInterval(function(){var k=Math.min(1,(Date.now()-st)/ms);V.volume=from+(to-from)*k;if(k>=1)clearInterval(vol)},40)}
+window.glassioQuiet=function(){ramp(0,280)};
 var t=setInterval(function(){n++;
  if(!s.isConnected)document.head.appendChild(s);
  if(document.querySelector('.ytp-error')){clearInterval(t);Glassio.failed();return}
  var v=document.querySelector('video');
- if(v&&!seen){seen=true;v.muted=true;
-  v.addEventListener('playing',function(){Glassio.playing();ask()});
+ if(v&&!seen){seen=true;V=v;v.muted=true;if(!v.muted)v.volume=0;
+  v.addEventListener('playing',function(){Glassio.playing();ask();if(!going)ramp(1,1200)});
   ask();
   setTimeout(function(){var p=document.querySelector('#movie_player');Glassio.quality(v.videoWidth+'x'+v.videoHeight+' ('+(p&&p.getPlaybackQuality?p.getPlaybackQuality():'?')+', asked '+Q+')')},6000);
   v.addEventListener('ended',over);
   v.addEventListener('pause',function(){setTimeout(function(){if(v.paused&&!v.ended)over()},1500)});
   if(!v.paused&&v.currentTime>0)Glassio.playing();
   v.play().catch(function(){});}
+ if(v&&v.duration>0){Glassio.progress(v.currentTime/v.duration);if(!going&&v.duration-v.currentTime<1.8){going=true;ramp(0,1500)}}
  if(n>40&&!(v&&v.currentTime>0)){clearInterval(t);Glassio.failed()}
 },500)})()"""
 
@@ -136,7 +148,8 @@ object TrailerGuard {
 
 /** The web view with YouTube's page in it, [muted] or not, in the shape both players need. */
 @SuppressLint("SetJavaScriptEnabled")
-private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolean, onPlaying: () -> Unit, onWaiting: () -> Unit, onEnded: () -> Unit): WebView = WebView(ctx).apply {
+private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolean, onPlaying: () -> Unit, onWaiting: () -> Unit, onEnded: () -> Unit,
+                        onProgress: (Float) -> Unit = {}): WebView = WebView(ctx).apply {
     val list = ids.split(',')
     var at = 0
     val mute = if (muted) 1 else 0
@@ -172,7 +185,7 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
         // Half a minute on screen without trouble: this TV takes trailers.
         played.removeCallbacksAndMessages(null)
         played.postDelayed({ TrailerGuard.playedWell(context) }, 30_000)
-    }, onEnded) {
+    }, onEnded, onProgress) {
         at++
         // The next one: the picture back over it while it loads (YouTube's loading screen never shows).
         if (at < list.size) { onWaiting(); load() } else onEnded()
@@ -183,7 +196,9 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
 
 private fun releaseTrailer(v: WebView) {
     TrailerGuard.disarm(v.context)
-    v.stopLoading(); v.loadUrl("about:blank"); v.destroy()
+    // Its sound fades away (a quarter of a second) rather than cutting off, then it goes.
+    runCatching { v.evaluateJavascript("window.glassioQuiet&&glassioQuiet()", null) }
+    Handler(Looper.getMainLooper()).postDelayed({ runCatching { v.stopLoading(); v.loadUrl("about:blank"); v.destroy() } }, 300)
 }
 
 /** A trailer full screen with its sound (a title page's Trailer). Back, or its end, closes it. */
@@ -288,11 +303,11 @@ private class CardTrailerWindow(private val host: android.view.View, ids: String
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
 fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaiting: () -> Unit,
-                muted: Boolean = true, shade: () -> Float = { 1f }, onEnded: () -> Unit) {
+                muted: Boolean = true, shade: () -> Float = { 1f }, onProgress: (Float) -> Unit = {}, onEnded: () -> Unit) {
     key(ids, muted) {
         Box(Modifier.fillMaxSize()) {
             AndroidView(
-                factory = { ctx -> trailerView(ctx, ids, muted, onPlaying, onWaiting, onEnded) },
+                factory = { ctx -> trailerView(ctx, ids, muted, onPlaying, onWaiting, onEnded, onProgress) },
                 onRelease = { releaseTrailer(it) },
                 modifier = Modifier.fillMaxSize(),
             )
@@ -302,5 +317,33 @@ fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaitin
                 .background(Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.78f), 0.45f to Color.Black.copy(alpha = 0.25f), 0.7f to Color.Transparent))
                 .background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
         }
+    }
+}
+
+/**
+ * Over a cinematic trailer, as the streaming apps show it: a thin line along the bottom for how far through it is, and
+ * a round sound symbol at the bottom right (it plays with sound). [alpha]: shown with the cinematic view.
+ */
+@Composable
+fun CinematicChrome(progress: () -> Float, alpha: () -> Float, s: Float, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxSize().graphicsLayer { this.alpha = alpha() }) {
+        Box(Modifier.align(Alignment.BottomEnd).padding(end = (EDGE * s * 0.7f).dp, bottom = (24 * s).dp).size((22 * s).dp)
+            .clip(androidx.compose.foundation.shape.CircleShape).background(Color.Black.copy(alpha = 0.35f)), contentAlignment = Alignment.Center) {
+            androidx.compose.foundation.Canvas(Modifier.size((11 * s).dp)) {
+                val w = size.width; val h = size.height
+                val body = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(0f, h * 0.36f); lineTo(w * 0.22f, h * 0.36f); lineTo(w * 0.5f, h * 0.12f)
+                    lineTo(w * 0.5f, h * 0.88f); lineTo(w * 0.22f, h * 0.64f); lineTo(0f, h * 0.64f); close()
+                }
+                drawPath(body, Color.White)
+                val stroke = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.08f, cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawArc(Color.White, -45f, 90f, false, topLeft = androidx.compose.ui.geometry.Offset(w * 0.38f, h * 0.3f), size = androidx.compose.ui.geometry.Size(w * 0.4f, h * 0.4f), style = stroke)
+                drawArc(Color.White, -45f, 90f, false, topLeft = androidx.compose.ui.geometry.Offset(w * 0.3f, h * 0.12f), size = androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.76f), style = stroke)
+            }
+        }
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height((1.6f * s).dp).background(Color.White.copy(alpha = 0.18f)))
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height((1.6f * s).dp).graphicsLayer {
+            scaleX = progress().coerceIn(0f, 1f); transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+        }.background(Color.White.copy(alpha = 0.75f)))
     }
 }

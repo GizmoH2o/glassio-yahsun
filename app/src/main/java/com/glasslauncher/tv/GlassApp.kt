@@ -126,6 +126,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     val folderToggle = androidx.compose.runtime.mutableIntStateOf(0)
     /** Set by `am start ... --ei open_settings <tab>`: opens Settings on that tab. */
     val requestSettings = androidx.compose.runtime.mutableIntStateOf(-1)
+    /** A title to open on Home (OK on the Posters screensaver): its More info page, then cleared. */
+    val requestTitle = androidx.compose.runtime.mutableStateOf<com.glasslauncher.tv.data.HeroItem?>(null)
     /** Bumped with every request, so asking for the same tab twice (or while the screen was asleep) still works. */
     val requestSettingsRev = androidx.compose.runtime.mutableIntStateOf(0)
     /** Bumped to show the first-run setup again (System → Run setup again). */
