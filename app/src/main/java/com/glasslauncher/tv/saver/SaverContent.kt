@@ -347,7 +347,7 @@ internal fun SaverContent(app: GlassApp, forceSlideshow: Boolean = false) {
                 }
             }
         } else {
-            Slideshow(app)
+            Slideshow(app, posters = !forceSlideshow)
         }
         if (list != null) SaverInfo(app, if (slideshow || list.isEmpty() || failed) "" else title, change)
         LockBadge()

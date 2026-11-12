@@ -151,12 +151,13 @@ class ScreensaverActivity : ComponentActivity() {
  * the next to the right, as Prime Video's screensaver does. Zoom: the slow Ken Burns of before.
  */
 @Composable
-internal fun Slideshow(app: GlassApp) {
+internal fun Slideshow(app: GlassApp, posters: Boolean = true) {
     val raw by app.catalogs.items.collectAsState()
     val enriched by app.catalogs.enrichedItems.collectAsState()
     val items = remember(raw) { raw.filter { it.background.isNotBlank() } }
     var index by remember { mutableIntStateOf(0) }
-    val pan = app.settings.saverMotion != "zoom"
+    // The drift is for the Posters screensaver only; the posters standing in for the TV's own screensaver keep the zoom.
+    val pan = posters && app.settings.saverMotion != "zoom"
     // Zoom: a new picture every 12 s. Pan: each picture says when its drift is done (below), and only then the next comes in.
     if (!pan) LaunchedEffect(items.size) { while (items.size > 1) { delay(SAVER_SLIDE_MS.toLong()); index++ } }
     val item = items.takeIf { it.isNotEmpty() }?.let { val r = it[index.mod(it.size)]; enriched[r.key] ?: r }
