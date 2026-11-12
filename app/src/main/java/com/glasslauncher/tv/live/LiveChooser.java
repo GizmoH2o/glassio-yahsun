@@ -19,7 +19,7 @@ import android.view.WindowManager;
  * A setting's choices all at once, as tiles with a picture each (a theme picker's): the arrows move between them, OK
  * picks one, Back leaves it as it was. The one in use has a check; the focused one is raised in a white ring.
  */
-final class LiveChooser extends Dialog {
+final class LiveChooser extends LiveDialog {
     /** Draws choice `i`'s picture in `r` (screen pixels). */
     interface Picture {
         void draw(Canvas c, RectF r, int i);
@@ -45,7 +45,7 @@ final class LiveChooser extends Dialog {
     private int focus;
 
     private LiveChooser(Context c, String title, String[] labels, int current, int perRow, float aspect, Picture picture, Picked picked) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.title = title;
         this.labels = labels;
         this.current = current;

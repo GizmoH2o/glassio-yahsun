@@ -31,7 +31,7 @@ import java.util.function.Consumer;
  * comes from; the one in use has a check. The focused row takes the white plate, a little bigger, with what's on it
  * now. Typed nothing: the suggestions. OK on a row chooses it; Back closes. Searching runs off the screen's thread.
  */
-final class LiveGuideSearch extends Dialog {
+final class LiveGuideSearch extends LiveDialog {
     /** Voice input: what was said, to `done` (null for nothing). */
     interface Voice {
         void listen(Consumer<String> done);
@@ -65,7 +65,7 @@ final class LiveGuideSearch extends Dialog {
      */
     LiveGuideSearch(Context c, String header, String start, String nowId, List<String[]> all, List<String[]> suggestions,
             Voice voice, Consumer<String[]> onPick) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.header = header;
         this.nowId = nowId == null ? "" : nowId;
         this.all = all;

@@ -18,7 +18,7 @@ import android.view.WindowManager;
  * and a number pad (1 to 9, delete, 0, OK); the remote's numbers type too. Checking the PIN, the right one opens at
  * once; a wrong one shakes the dots and clears them, the card staying for another try. Back cancels.
  */
-final class LivePinPad extends Dialog {
+final class LivePinPad extends LiveDialog {
     /** What was typed: true when it's done (the card closes), false when it isn't right (it shakes, to try again). */
     interface Done {
         boolean got(String pin);
@@ -54,7 +54,7 @@ final class LivePinPad extends Dialog {
     private boolean plain;
 
     private LivePinPad(Context c, String title, String hint, boolean checkAsTyped, Done done, Runnable cancel) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.title = title;
         this.hint = hint == null ? "" : hint;
         this.checkAsTyped = checkAsTyped;

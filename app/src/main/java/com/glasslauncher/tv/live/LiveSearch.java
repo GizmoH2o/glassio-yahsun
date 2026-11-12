@@ -31,7 +31,7 @@ import java.util.Set;
  * later. The rows glide up so the focused one stays in view. Typed nothing yet: the channels watched lately.
  * ← → ↑ ↓ move between them, OK types a letter or picks; a remote's or a keyboard's letters and numbers type too.
  */
-final class LiveSearch extends Dialog {
+final class LiveSearch extends LiveDialog {
     private final LiveView view;
     private final Live live;
     private final Page page;
@@ -73,7 +73,7 @@ final class LiveSearch extends Dialog {
     private final int[] rowBuf = new int[1 + GROUPS];
 
     LiveSearch(Context c, LiveView view, Live live, String start) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.view = view;
         this.live = live;
         page = new Page(c);

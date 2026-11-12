@@ -21,7 +21,7 @@ import java.util.List;
  * then Add profile. OK switches (leaving a Kids profile asks for the parental PIN); held OK (or Menu) renames or
  * removes one; Back closes.
  */
-final class LiveProfilesPage extends Dialog {
+final class LiveProfilesPage extends LiveDialog {
     private final LiveView view;
     private final Live live;
     private final Page page;
@@ -30,7 +30,7 @@ final class LiveProfilesPage extends Dialog {
     private boolean okDown, okHeld;
 
     LiveProfilesPage(Context c, LiveView view, Live live) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.view = view;
         this.live = live;
         page = new Page(c);

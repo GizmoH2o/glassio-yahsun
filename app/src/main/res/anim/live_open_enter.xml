@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Live TV coming in: it settles from a little larger as it fades in (Glassio's pages' ease-out). -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:interpolator="@anim/ease_out" android:shareInterpolator="true">
+    <alpha android:fromAlpha="0" android:toAlpha="1" android:duration="320" />
+    <scale android:fromXScale="1.03" android:toXScale="1" android:fromYScale="1.03" android:toYScale="1"
+        android:pivotX="50%" android:pivotY="50%" android:duration="380" />
+</set>

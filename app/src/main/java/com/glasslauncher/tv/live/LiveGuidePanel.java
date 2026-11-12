@@ -32,7 +32,7 @@ import java.util.function.Consumer;
  * plate with what's on it now (as Netflix's rows); and at the bottom the pills: Search, Type an ID, and Automatic when
  * it was chosen by hand. ↑ ↓ move, ← → between the pills, OK chooses, Back closes.
  */
-final class LiveGuidePanel extends Dialog {
+final class LiveGuidePanel extends LiveDialog {
     /** What the panel is for and what it does. */
     static final class Spec {
         String number = "", name = "", country = "", logoUrl = "";
@@ -56,7 +56,7 @@ final class LiveGuidePanel extends Dialog {
     private int focus;
 
     LiveGuidePanel(Context c, Spec spec) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.spec = spec;
         for (String[] g : spec.suggestions) if (!g[0].equals(spec.nowId) && rows.size() < 5) rows.add(g);
         if (spec.onSearch != null) pills.add(SEARCH);

@@ -7,6 +7,14 @@
         <item name="android:windowFullscreen">true</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowAnimationStyle">@style/HomeMotion</item>
+    </style>
+    <!-- The home screen as another app or Live TV opens over it (it sinks back and fades) and closes again (it rises back). -->
+    <style name="HomeMotion">
+        <item name="android:taskOpenExitAnimation">@anim/live_open_exit</item>
+        <item name="android:taskCloseEnterAnimation">@anim/live_close_enter</item>
+        <item name="android:taskToFrontEnterAnimation">@anim/live_close_enter</item>
+        <item name="android:taskToBackExitAnimation">@anim/live_open_exit</item>
     </style>
     <!-- Live TV: the graphite of its Glassio style already in the window, so opening it never flashes another colour. -->
     <style name="Theme.Glass.Live" parent="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen">
@@ -14,6 +22,22 @@
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowShowWallpaper">false</item>
         <item name="android:colorBackgroundCacheHint">@null</item>
+        <item name="android:windowAnimationStyle">@style/LiveMotion</item>
+    </style>
+    <!-- Into Live TV and back, as Glassio's own pages move: it settles in over the home screen sinking back; Back, the reverse. -->
+    <style name="LiveMotion">
+        <item name="android:activityOpenEnterAnimation">@anim/live_open_enter</item>
+        <item name="android:activityOpenExitAnimation">@anim/live_open_exit</item>
+        <item name="android:activityCloseEnterAnimation">@anim/live_close_enter</item>
+        <item name="android:activityCloseExitAnimation">@anim/live_close_exit</item>
+        <item name="android:taskOpenEnterAnimation">@anim/live_open_enter</item>
+        <item name="android:taskOpenExitAnimation">@anim/live_open_exit</item>
+        <item name="android:taskCloseEnterAnimation">@anim/live_close_enter</item>
+        <item name="android:taskCloseExitAnimation">@anim/live_close_exit</item>
+        <item name="android:taskToFrontEnterAnimation">@anim/live_open_enter</item>
+        <item name="android:taskToFrontExitAnimation">@anim/live_open_exit</item>
+        <item name="android:taskToBackEnterAnimation">@anim/live_close_enter</item>
+        <item name="android:taskToBackExitAnimation">@anim/live_close_exit</item>
     </style>
     <color name="live_background">#FF0E0E11</color>
     <style name="Theme.Glass.Saver" parent="Theme.Glass">

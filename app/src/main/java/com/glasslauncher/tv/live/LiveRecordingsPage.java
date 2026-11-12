@@ -26,7 +26,7 @@ import java.util.List;
  * how long it is and its channel. OK plays one (recording now: from its start), held OK (or Menu) its choices:
  * play, stop recording, delete; on one set for later, cancel it. ← → ↑ ↓ move, Back closes.
  */
-final class LiveRecordingsPage extends Dialog {
+final class LiveRecordingsPage extends LiveDialog {
     private final LiveView view;
     private final Live live;
     private final Page page;
@@ -57,7 +57,7 @@ final class LiveRecordingsPage extends Dialog {
     }
 
     LiveRecordingsPage(Context c, LiveView view, Live live) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.view = view;
         this.live = live;
         page = new Page(c);

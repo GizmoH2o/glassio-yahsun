@@ -21,7 +21,7 @@ import android.view.WindowManager;
  * and numbers, a page of symbols, space, delete, Done in the theme's color). A remote's or a keyboard's letters type
  * too. Done (or OK on it) gives the name; Back cancels.
  */
-final class LiveNamePad extends Dialog {
+final class LiveNamePad extends LiveDialog {
     interface Done {
         void got(String name);
     }
@@ -62,7 +62,7 @@ final class LiveNamePad extends Dialog {
     private int max = MAX;
 
     private LiveNamePad(Context c, String title, String start, Done done) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.title = title;
         this.done = done;
         text = start == null ? "" : start;

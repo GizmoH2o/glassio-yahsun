@@ -24,7 +24,7 @@ import android.view.WindowManager;
  * theme's color. ← → choose, OK picks, Back closes. Built like an AlertDialog (title, message, items or two buttons),
  * so the menus moved over as they were; the dialogs that need typing stay AlertDialogs.
  */
-final class LiveSheet extends Dialog {
+final class LiveSheet extends LiveDialog {
     private CharSequence title = "", message = "";
     private CharSequence[] labels = new CharSequence[0];
     private int checked = -1;
@@ -158,7 +158,7 @@ final class LiveSheet extends Dialog {
     }
 
     private LiveSheet(Context c, int n) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         which = new int[n];
         sheet = new Sheet(c);
     }

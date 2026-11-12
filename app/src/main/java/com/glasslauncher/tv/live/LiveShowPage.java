@@ -34,7 +34,7 @@ import java.util.Map;
  * score, the synopsis and cast, its buttons (watch, record, remind, every episode: what the guide offers for it),
  * then when it's on again on any channel. OK on another airing opens that one's choices; Back closes.
  */
-final class LiveShowPage extends Dialog {
+final class LiveShowPage extends LiveDialog {
     /** Another airing picked: the guide's choices for it (watch it on now, else remind or record). */
     interface Airing {
         void open(Xtream.Channel channel, Xtream.Program p);
@@ -73,7 +73,7 @@ final class LiveShowPage extends Dialog {
 
     LiveShowPage(Context c, Xtream.Lineup lineup, Xtream.Channel channel, Xtream.Program show, List<String> labels,
             List<String> icons, List<Runnable> actions, Names names, Airing airing, java.util.function.Consumer<LiveRecordings.Rec> recording) {
-        super(c, android.R.style.Theme_Translucent_NoTitleBar_Fullscreen);
+        super(c);
         this.channel = channel;
         this.show = show;
         this.labels = labels;
