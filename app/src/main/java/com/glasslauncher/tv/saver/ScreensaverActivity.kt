@@ -156,10 +156,11 @@ internal fun Slideshow(app: GlassApp) {
     val enriched by app.catalogs.enrichedItems.collectAsState()
     val items = remember(raw) { raw.filter { it.background.isNotBlank() } }
     var index by remember { mutableIntStateOf(0) }
-    LaunchedEffect(items.size) { while (items.size > 1) { delay(SAVER_SLIDE_MS.toLong()); index++ } }
+    val pan = app.settings.saverMotion != "zoom"
+    // Zoom: a new picture every 12 s. Pan: each picture says when its drift is done (below), and only then the next comes in.
+    if (!pan) LaunchedEffect(items.size) { while (items.size > 1) { delay(SAVER_SLIDE_MS.toLong()); index++ } }
     val item = items.takeIf { it.isNotEmpty() }?.let { val r = it[index.mod(it.size)]; enriched[r.key] ?: r }
     val url = item?.background
-    val pan = app.settings.saverMotion != "zoom"
     val t = rememberInfiniteTransition(label = "kb")
     val scale by t.animateFloat(1.0f, 1.14f, infiniteRepeatable(tween(12_000, easing = LinearEasing), RepeatMode.Reverse), label = "s")
     // The slide's number goes with its picture, so the direction flips with each one (and the fading-out picture keeps its own).
@@ -167,12 +168,20 @@ internal fun Slideshow(app: GlassApp) {
         Box(Modifier.fillMaxSize().clipToBounds()) {
             if (slide != null) {
                 val (u, n) = slide
-                // 0 → 1 across the slide's whole time on screen, fades included, so it never stops or jumps back.
+                // The drift, 0 → 1. It starts once the picture is in (a slow load no longer eats into it), runs while the
+                // picture fades in, and when it reaches the far side the next picture fades in over this one, now still.
                 val p = remember { androidx.compose.animation.core.Animatable(0f) }
-                if (pan) LaunchedEffect(Unit) { p.animateTo(1f, tween(SAVER_SLIDE_MS + 2 * 1600, easing = LinearEasing)) }
+                var ready by remember { mutableStateOf(false) }
+                if (pan) LaunchedEffect(ready) {
+                    if (!ready) { delay(4_000); ready = true; return@LaunchedEffect } // not loaded after 4 s: drift anyway
+                    // In real time: the TV's animation speed (0.5× in Developer options on ours) halved the drift.
+                    withContext(RealTime) { p.animateTo(1f, tween(SAVER_SLIDE_MS, easing = LinearEasing)) }
+                    if (index == n && items.size > 1) index++
+                }
                 val left = n % 2 == 0
                 AsyncImage(
                     model = u, contentDescription = null, contentScale = ContentScale.Crop,
+                    onState = { if (it is coil3.compose.AsyncImagePainter.State.Success || it is coil3.compose.AsyncImagePainter.State.Error) ready = true },
                     modifier = Modifier.fillMaxSize().graphicsLayer {
                         if (pan) {
                             scaleX = SAVER_PAN_SCALE; scaleY = SAVER_PAN_SCALE
@@ -205,3 +214,5 @@ internal fun Slideshow(app: GlassApp) {
 private const val SAVER_SLIDE_MS = 12_000
 /** How far the picture is enlarged for the pan: the travel is the extra width, 12% of the screen end to end. */
 private const val SAVER_PAN_SCALE = 1.12f
+/** Animations run at the clock's speed, whatever the TV's animation scale is set to. */
+private object RealTime : androidx.compose.ui.MotionDurationScale { override val scaleFactor = 1f }
