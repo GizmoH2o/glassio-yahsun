@@ -23,6 +23,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.draw.drawBehind
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,26 +51,55 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
         if (st.menuLibrary) add("Library" to Screen.Library)
         add("Search" to Screen.Search)
     }
+    // One pill that slides from tab to tab (as tvOS's top bar does), rather than each tab lighting up on its own:
+    // white under the selected tab, faint under the page's own while the selection is elsewhere.
+    val spots = remember { androidx.compose.runtime.mutableStateMapOf<Screen, Pair<Float, Float>>() }
+    var focusedTab by remember { mutableStateOf<Screen?>(null) }
+    val target = focusedTab ?: current
+    val spot = spots[target]
+    val reduce = LocalReduceMotion.current
+    val pillX = remember { androidx.compose.animation.core.Animatable(0f) }
+    val pillW = remember { androidx.compose.animation.core.Animatable(0f) }
+    var placed by remember { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(spot) {
+        val (x, w) = spot ?: return@LaunchedEffect
+        if (!placed || reduce) { pillX.snapTo(x); pillW.snapTo(w); placed = true; return@LaunchedEffect }
+        val spec = androidx.compose.animation.core.spring<Float>(dampingRatio = 0.86f, stiffness = 520f)
+        kotlinx.coroutines.coroutineScope {
+            launch { pillX.animateTo(x, spec) }
+            launch { pillW.animateTo(w, spec) }
+        }
+    }
+    val pillColor by androidx.compose.animation.animateColorAsState(
+        if (focusedTab != null) Color.White else Color.White.copy(alpha = 0.2f), androidx.compose.animation.core.tween(180), label = "pill")
     Row(
         modifier.onGloballyPositioned { tabsRight.floatValue = it.boundsInWindow().right }
-            .clip(RoundedCornerShape(50)).background(Color(0xFF1E1E22).copy(alpha = 0.72f)).padding((2.5f * s).dp),
+            .clip(RoundedCornerShape(50)).background(Color(0xFF1E1E22).copy(alpha = 0.72f)).padding((2.5f * s).dp)
+            .drawBehind {
+                if (placed && spots[target] != null) drawRoundRect(pillColor, topLeft = androidx.compose.ui.geometry.Offset(pillX.value, 0f),
+                    size = androidx.compose.ui.geometry.Size(pillW.value, size.height), cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f))
+            },
         horizontalArrangement = Arrangement.spacedBy((2 * s).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         tabs.forEach { (label, to) ->
             var focused by remember { mutableStateOf(false) }
             val on = to == current
+            val ink by androidx.compose.animation.animateColorAsState(
+                if (focused) Ds.Ink else if (on) Color.White else Color(0xFFD0D0D4), androidx.compose.animation.core.tween(160), label = "tabInk")
             Text(
-                label, color = if (focused) Ds.Ink else if (on) Color.White else Color(0xFFD0D0D4), fontSize = (11.5f * s).sp,
+                label, color = ink, fontSize = (11.5f * s).sp,
                 fontWeight = if (focused || on) FontWeight.Bold else FontWeight.SemiBold,
                 modifier = (if (on) Modifier.focusRequester(entry) else Modifier)
-                    .onFocusChanged { focused = it.isFocused; onFocus(it.isFocused) }
+                    .onPlaced { spots[to] = it.positionInParent().x to it.size.width.toFloat() }
+                    .onFocusChanged {
+                        focused = it.isFocused; onFocus(it.isFocused)
+                        if (it.isFocused) focusedTab = to else if (focusedTab == to) focusedTab = null
+                    }
                     // Down to the page: asked of the page itself, as the arrow alone can land on a list as a whole, with nothing selected.
                     .tvPress(onKey = { ev ->
                         if (onDown != null && ev.key == Key.DirectionDown) { if (ev.type == KeyEventType.KeyDown) onDown(); true } else false
                     }, onClick = { onTab(to) })
-                    .clip(RoundedCornerShape(50))
-                    .background(if (focused) Color.White else if (on) Color.White.copy(alpha = 0.2f) else Color.Transparent)
                     .padding(horizontal = (13 * s).dp, vertical = (5.5f * s).dp),
             )
         }
