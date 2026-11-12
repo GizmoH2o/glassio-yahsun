@@ -128,6 +128,8 @@ final class LivePublicLogos {
      */
     static final class Matches {
         long indexAt;
+        /** The channels' fingerprint when they were matched (Live.logoPrint): the same, every match still holds. */
+        long print;
         final Map<Integer, String[]> byId = new HashMap<>();
     }
 
@@ -143,6 +145,7 @@ final class LivePublicLogos {
         try (FileInputStream in = new FileInputStream(f)) {
             org.json.JSONObject o = new org.json.JSONObject(Xtream.read(in));
             m.indexAt = o.optLong("at");
+            m.print = o.optLong("fp");
             org.json.JSONObject all = o.optJSONObject("m");
             for (java.util.Iterator<String> it = all == null ? null : all.keys(); it != null && it.hasNext(); ) {
                 String id = it.next();
@@ -156,12 +159,16 @@ final class LivePublicLogos {
     }
 
     static synchronized void saveMatches(Context c, long indexAt, Map<Integer, String[]> byId) {
+        saveMatches(c, indexAt, byId, 0);
+    }
+
+    static synchronized void saveMatches(Context c, long indexAt, Map<Integer, String[]> byId, long print) {
         try {
             org.json.JSONObject all = new org.json.JSONObject();
             for (Map.Entry<Integer, String[]> e : byId.entrySet()) {
                 all.put(String.valueOf(e.getKey()), new org.json.JSONArray().put(e.getValue()[0]).put(e.getValue()[1]));
             }
-            Xtream.write(new File(c.getFilesDir(), MATCHES), new org.json.JSONObject().put("at", indexAt).put("m", all).toString());
+            Xtream.write(new File(c.getFilesDir(), MATCHES), new org.json.JSONObject().put("at", indexAt).put("fp", print).put("m", all).toString());
         } catch (IOException | org.json.JSONException e) {
             AppLog.w("live: couldn't keep the public logos' matches");
         }

@@ -973,7 +973,7 @@ public class Live extends Activity {
         LiveGroups.apply(this, l);              // the groups made by hand
         XmltvStore.matchNames(this, l);         // channels with no guide, by exactly their name
         if (LiveOptions.hideNoGuide(this)) LiveGroups.onlyGuided(l, XmltvStore.guided(this));
-        applyLogos(l);      // the logos from the source chosen (the provider's, the guide's, the public database's)
+        applyLogos(l);
         if (LiveProfiles.kids(this)) l = LiveProfiles.kidsOnly(this, l);     // a Kids profile: the children's channels only
         return l;
     }
@@ -1073,6 +1073,19 @@ public class Live extends Activity {
         // is read again only for a channel not matched yet (new, renamed) or when the database itself is new.
         LivePublicLogos.Matches saved = LivePublicLogos.matches(app);
         boolean complete = saved.indexAt != 0 && saved.indexAt == LivePublicLogos.indexAt(app) && !LivePublicLogos.due(app);
+        // The same channels as last time (names, groups, guide ids): every match holds, applied by id at once. Working
+        // out each channel's country for its signature took seconds for 16,000 channels, every time Live TV opened.
+        final long print = logoPrint(all, setting, picks);
+        if (complete && saved.print == print) {
+            for (Xtream.Channel ch : all) {
+                if (sourceOf(ch, setting, picks) != LiveOptions.LOGOS_PUBLIC) continue;
+                String[] m = saved.byId.get(ch.id);
+                if (m != null && !m[1].isEmpty()) ch.logo = m[1];
+            }
+            AppLog.w("live: public logos from the last look-up (same channels)");
+            saveShown(app, all);
+            return;
+        }
         for (Xtream.Channel ch : all) {
             if (sourceOf(ch, setting, picks) != LiveOptions.LOGOS_PUBLIC) continue;
             String[] m = saved.byId.get(ch.id);
@@ -1084,6 +1097,10 @@ public class Live extends Activity {
         }
         if (complete) {
             AppLog.w("live: public logos from the last look-up");
+            // Next time, straight from the fingerprint.
+            final long at = saved.indexAt;
+            final java.util.Map<Integer, String[]> byId = saved.byId;
+            io.execute(() -> LivePublicLogos.saveMatches(app, at, byId, print));
             saveShown(app, all);
             return;
         }
@@ -1100,7 +1117,7 @@ public class Live extends Activity {
                     if (url != null) found.put(ch, url);
                     matches.put(ch.id, new String[] {LivePublicLogos.signature(ch.name, country, ch.epg), url == null ? "" : url});
                 }
-                LivePublicLogos.saveMatches(app, LivePublicLogos.indexAt(app), matches);
+                LivePublicLogos.saveMatches(app, LivePublicLogos.indexAt(app), matches, print);
                 AppLog.w("live: public logos for " + found.size() + " of " + all.size() + " channels");
             }
             main.post(() -> {
@@ -1111,6 +1128,19 @@ public class Live extends Activity {
                 saveShown(app, all);
             });
         }, "live-public-logos").start();
+    }
+
+    /** A fingerprint of what the public logos are matched by (the channels' ids, names, groups and guide ids). Pure. */
+    static long logoPrint(List<Xtream.Channel> all, int setting, java.util.Map<Integer, Integer> picks) {
+        long h = 1125899906842597L;
+        for (Xtream.Channel ch : all) {
+            if (sourceOf(ch, setting, picks) != LiveOptions.LOGOS_PUBLIC) continue;
+            h = 31 * h + ch.id;
+            h = 31 * h + (ch.name == null ? 0 : ch.name.hashCode());
+            h = 31 * h + (ch.category == null ? 0 : ch.category.hashCode());
+            h = 31 * h + (ch.epg == null ? 0 : ch.epg.hashCode());
+        }
+        return h == 0 ? 1 : h;
     }
 
     /** Channel `ch`'s logo source: its own pick, else the setting. */

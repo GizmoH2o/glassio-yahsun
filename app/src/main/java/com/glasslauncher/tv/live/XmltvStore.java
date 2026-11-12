@@ -338,14 +338,42 @@ final class XmltvStore {
             SQLiteDatabase d = read(c);
             if (d == null) return new HashSet<>();
             if (guided != null && guidedStamp == dbStamp) return guided;
-            Set<String> out = new HashSet<>();
-            try (Cursor q = d.rawQuery("SELECT DISTINCT epg FROM p", null)) {
-                while (q.moveToNext()) out.add(q.getString(0));
-            } catch (RuntimeException ignored) {
+            // Kept in a file for this guide too: the query reads every programme (seconds), and Live TV's process
+            // starts afresh each time it opens.
+            Set<String> out = readGuided(c, dbStamp);
+            if (out == null) {
+                out = new HashSet<>();
+                try (Cursor q = d.rawQuery("SELECT DISTINCT epg FROM p", null)) {
+                    while (q.moveToNext()) out.add(q.getString(0));
+                } catch (RuntimeException ignored) {
+                }
+                writeGuided(c, dbStamp, out);
             }
             guided = out;
             guidedStamp = dbStamp;
             return out;
+        }
+    }
+
+    private static Set<String> readGuided(Context c, long stamp) {
+        File f = new File(c.getFilesDir(), GUIDED_FILE);
+        if (!f.exists()) return null;
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(f), java.nio.charset.StandardCharsets.UTF_8))) {
+            if (!String.valueOf(stamp).equals(r.readLine())) return null;
+            Set<String> out = new HashSet<>();
+            for (String line; (line = r.readLine()) != null; ) if (!line.isEmpty()) out.add(line);
+            return out;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static void writeGuided(Context c, long stamp, Set<String> s) {
+        StringBuilder b = new StringBuilder().append(stamp).append('\n');
+        for (String e : s) if (e != null && e.indexOf('\n') < 0) b.append(e).append('\n');
+        try {
+            Xtream.write(new File(c.getFilesDir(), GUIDED_FILE), b.toString());
+        } catch (IOException ignored) {
         }
     }
 
@@ -426,6 +454,25 @@ final class XmltvStore {
     /** Channels with no guide take the one with exactly their name (LiveGuideMatch). */
     static void matchNames(Context c, Xtream.Lineup l) {
         if (!LiveOptions.fullGuide(c) || !LiveOptions.matchNames(c)) return;
+        // Live TV's process starts afresh each time it opens, and this took seconds (16,000 channels against the whole
+        // guide): what it found is kept, for the same guide and the same channels, and used at once.
+        Set<Integer> hand = LiveChannelEdits.guided(c);
+        String key = matchKey(c, l, hand);
+        if (key != null) {
+            Map<Integer, String> kept = readMatches(c, key);
+            if (kept != null) {
+                Set<Integer> found = new HashSet<>();
+                for (Xtream.Channel ch : l.all()) {
+                    String id = kept.get(ch.id);
+                    if (id == null) continue;
+                    ch.epg = id;
+                    found.add(ch.id);
+                }
+                byName = found;
+                AppLog.w("guide: " + found.size() + " channels found their guide by name (kept)");
+                return;
+            }
+        }
         Set<String> guided = guided(c);
         Map<String, String> names = LiveGuideMatch.unique(fileNames(c), guided);
         if (names.isEmpty()) return;
@@ -443,6 +490,63 @@ final class XmltvStore {
         }
         byName = found;
         AppLog.w("guide: " + matched + " channels found their guide by name");
+        if (key != null) {
+            Map<Integer, String> keep = new HashMap<>();
+            for (Xtream.Channel ch : l.all()) if (found.contains(ch.id)) keep.put(ch.id, ch.epg);
+            writeMatches(c, key, keep);
+        }
+    }
+
+    private static final String MATCHES_FILE = "guide-name-matches.txt";
+    private static final String GUIDED_FILE = "guide-guided.txt";
+
+    /**
+     * What a name match depends on: the guide in use (its file's stamp), the channels (ids, names and the guide ids
+     * they came with) and those chosen by hand. A cheap fingerprint, no names compared. Null without a guide.
+     */
+    private static String matchKey(Context c, Xtream.Lineup l, Set<Integer> hand) {
+        long stamp;
+        synchronized (XmltvStore.class) {
+            if (read(c) == null) return null;
+            stamp = dbStamp;
+        }
+        return stamp + ":" + lineupPrint(l) + ":" + hand.hashCode();
+    }
+
+    /** A fingerprint of the channels as read (ids, names, their own guide ids), before anything is matched. Pure. */
+    static long lineupPrint(Xtream.Lineup l) {
+        long h = 1125899906842597L;
+        for (Xtream.Channel ch : l.all()) {
+            h = 31 * h + ch.id;
+            h = 31 * h + (ch.name == null ? 0 : ch.name.hashCode());
+            h = 31 * h + (ch.epg == null ? 0 : ch.epg.hashCode());
+        }
+        return h;
+    }
+
+    private static Map<Integer, String> readMatches(Context c, String key) {
+        File f = new File(c.getFilesDir(), MATCHES_FILE);
+        if (!f.exists()) return null;
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(f), java.nio.charset.StandardCharsets.UTF_8))) {
+            if (!key.equals(r.readLine())) return null;
+            Map<Integer, String> out = new HashMap<>();
+            for (String line; (line = r.readLine()) != null; ) {
+                int tab = line.indexOf('\t');
+                if (tab > 0) out.put(Integer.parseInt(line.substring(0, tab)), line.substring(tab + 1));
+            }
+            return out;
+        } catch (IOException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static void writeMatches(Context c, String key, Map<Integer, String> m) {
+        StringBuilder b = new StringBuilder(key).append('\n');
+        for (Map.Entry<Integer, String> e : m.entrySet()) b.append(e.getKey()).append('\t').append(e.getValue()).append('\n');
+        try {
+            Xtream.write(new File(c.getFilesDir(), MATCHES_FILE), b.toString());
+        } catch (IOException ignored) {     // next time it's worked out again
+        }
     }
 
     /** Whether there's room to keep the past: a good margin past what the guide takes already. Pure. */
