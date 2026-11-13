@@ -1045,3 +1045,9 @@ Poster tilt	Inclinaison des affiches
 The selected poster leans toward where you came from and settles, as on Apple TV	L'affiche sélectionnée s'incline vers là d'où vous venez puis se stabilise, comme sur Apple TV
 Show the welcome tour	Afficher la visite d'accueil
 The first-run tour again: signing in, making Glassio the TV's home	La visite du premier démarrage : connexion, faire de Glassio l'accueil de la TV
+Recent searches	Recherches récentes
+Suggestions	Suggestions
+Clear recent searches	Effacer les recherches récentes
+People	Personnes
+With	Avec
+More like	Plus comme

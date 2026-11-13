@@ -1046,3 +1046,9 @@ Poster tilt	Наклон постера
 The selected poster leans toward where you came from and settles, as on Apple TV	Выбранный постер наклоняется в сторону, откуда вы пришли, и выравнивается, как на Apple TV
 Show the welcome tour	Показать приветственный тур
 The first-run tour again: signing in, making Glassio the TV's home	Тур первого запуска заново: вход, Glassio как главный экран ТВ
+Recent searches	Недавние запросы
+Suggestions	Подсказки
+Clear recent searches	Очистить недавние запросы
+People	Люди
+With	С участием
+More like	Похожее на

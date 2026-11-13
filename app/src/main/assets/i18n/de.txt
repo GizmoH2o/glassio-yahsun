@@ -1046,3 +1046,9 @@ Poster tilt	Poster-Neigung
 The selected poster leans toward where you came from and settles, as on Apple TV	Das ausgewählte Poster neigt sich zur Seite, von der du kommst, und kommt zur Ruhe, wie bei Apple TV
 Show the welcome tour	Willkommenstour zeigen
 The first-run tour again: signing in, making Glassio the TV's home	Die Tour vom ersten Start noch einmal: Anmelden, Glassio als Startbildschirm
+Recent searches	Letzte Suchen
+Suggestions	Vorschläge
+Clear recent searches	Letzte Suchen löschen
+People	Personen
+With	Mit
+More like	Mehr wie

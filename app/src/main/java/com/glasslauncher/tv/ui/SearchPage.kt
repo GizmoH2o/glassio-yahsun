@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -75,7 +77,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val titlesAll by produceState(emptyList<HeroItem>(), q) {
         if (q.length < 2) { value = emptyList(); return@produceState }
         delay(350)      // not at every key
-        value = withContext(Dispatchers.IO) { app.recs.search(q) }.take(20)
+        value = withContext(Dispatchers.IO) { app.recs.search(likeTarget(q) ?: q) }.take(20)
     }
     val channelsAll by produceState(emptyList<LiveHome.Airing>(), q) {
         if (q.length < 2) { value = emptyList(); return@produceState }
@@ -139,6 +141,47 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         val mineKeys = (saved + watch + nuvio + stremio).map { it.key }.toSet()
         Moods.pick(pool.map { app.shelf.filled(it) }, mood, maxMinutes, mineKeys, kids)
     }
+    // As you type: names that fit, at once (no waiting on the search), from your lists, Continue watching and the catalogs.
+    val suggestions = remember(q, catalog, rows, saved, nuvio, stremio, going) {
+        val t = q.trim()
+        if (t.isEmpty()) emptyList() else (going + saved + watch + nuvio + stremio + catalog + rows.trending + rows.films + rows.series)
+            .map { it.name }.filter { it.isNotBlank() }.distinct()
+            .filter { n -> !n.equals(t, true) && (n.startsWith(t, true) || n.split(' ').any { w -> w.startsWith(t, true) }) }
+            .sortedBy { if (it.startsWith(t, true)) 0 else 1 }.take(4)
+    }
+    // Nothing typed: what was searched lately (kept once a title was opened from it, or its results stayed up a while).
+    var recentRev by remember { mutableStateOf(0) }
+    val recent = remember(recentRev, q.isEmpty()) { RecentSearches.all(ctx).take(4) }
+    LaunchedEffect(q) { if (q.trim().length >= 3) { delay(6_000); if (titlesAll.isNotEmpty() || channelsAll.isNotEmpty()) RecentSearches.add(ctx, q) } }
+    // People: TMDB's, by name; OK on one shows their titles in a row under them.
+    val peopleAll by produceState(emptyList<com.glasslauncher.tv.data.TitlePeople.Person>(), q) {
+        if (q.trim().length < 3) { value = emptyList(); return@produceState }
+        delay(450)
+        value = withContext(Dispatchers.IO) { app.recs.searchPeople(q) }
+    }
+    val people = if (on("titles")) peopleAll else emptyList()
+    var person by remember { mutableStateOf<com.glasslauncher.tv.data.TitlePeople.Person?>(null) }
+    LaunchedEffect(q) { person = null }
+    val theirs by produceState(emptyList<HeroItem>(), person) {
+        val p = person
+        value = if (p == null) emptyList() else withContext(Dispatchers.IO) { app.recs.titlesOf(p.id) }.let { l -> if (kids) l.filter { com.glasslauncher.tv.data.HeroPicks.isKids(it) } else l }
+    }
+    // "Something like Severance" (typed or said): titles like it, first.
+    val likeOf = remember(q) { likeTarget(q) }
+    val like by produceState<Pair<HeroItem, List<HeroItem>>?>(null, likeOf) {
+        val t = likeOf
+        if (t == null) { value = null; return@produceState }
+        delay(350)
+        value = withContext(Dispatchers.IO) {
+            // The one meant: of those with exactly that name, one you have or that's in the catalogs, else the newest
+            // (Severance the series, not the 2006 film).
+            val known = (going + saved + watch + nuvio + stremio + catalog + rows.trending + rows.films + rows.series).map { it.id }.toSet()
+            app.recs.search(t).let { r ->
+                val exact = r.filter { it.name.equals(t, true) }.ifEmpty { r.take(1) }
+                exact.firstOrNull { it.id in known } ?: exact.maxByOrNull { it.year.take(4).toIntOrNull() ?: 0 }
+            }?.let { base -> base to app.recs.similar(base).filter { it.key != base.key }.take(16) }?.takeIf { it.second.isNotEmpty() }
+        }
+    }
     val lastTitle = remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }
     LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { keyFocus.requestFocus() } }     // Down from the tabs
@@ -157,6 +200,11 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val channelRow = remember { RowEntry() }
     val appRow = remember { RowEntry() }
     val moodRow = remember { RowEntry() }
+    val likeRow = remember { RowEntry() }
+    val peopleRow = remember { RowEntry() }
+    val theirsRow = remember { RowEntry() }
+    // A title opened from the results: the words kept as a recent search.
+    val openTitle: (HeroItem) -> Unit = { h -> if (q.trim().length >= 2) RecentSearches.add(ctx, q); onTitle(h) }
     val timeRow = remember { RowEntry() }
     val chips = moods && q.length < 2
     val hasTitles = if (filtering) fitting.isNotEmpty() else if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
@@ -164,7 +212,8 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     // Settings too (as the streaming apps' search finds their settings): a card that opens them searched for the words.
     val settingsCard = q.trim().length >= 3 && on("settings")
     val hasApps = q.length >= 2 && apps.isNotEmpty() || settingsCard
-    val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
+    val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, likeRow.takeIf { q.length >= 2 && like != null && on("titles") }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
+        peopleRow.takeIf { q.length >= 2 && people.isNotEmpty() }, theirsRow.takeIf { q.length >= 2 && person != null && theirs.isNotEmpty() },
         showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
         channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
     fun above(r: RowEntry) = order.getOrNull(order.indexOf(r) - 1)?.req
@@ -218,6 +267,14 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                 Spacer(Modifier.height((3.5f * s).dp))
                 Key("Voice search", s, lastKey, keyFocus, Modifier.fillMaxWidth().nav(right = toResults)) { runCatching { voice.launch(voiceAsk) } }
             }
+            val side = if (q.isEmpty()) recent else suggestions
+            if (side.isNotEmpty()) {
+                Spacer(Modifier.height((10 * s).dp))
+                Text(if (q.isEmpty()) "Recent searches" else "Suggestions", color = Text2, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                Spacer(Modifier.height((3 * s).dp))
+                side.forEach { w -> SideLine(w, s, Modifier.nav(right = toResults)) { query.value = w.take(60) } }
+                if (q.isEmpty()) SideLine(Lang.tr("Clear recent searches"), s, Modifier.nav(right = toResults), dim = true) { RecentSearches.clear(ctx); recentRev++ }
+            }
         }
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(androidx.compose.foundation.rememberScrollState()).onFocusChanged { inResults = it.hasFocus }) {
             // Nothing typed: what's trending, so the page is never empty.
@@ -251,10 +308,28 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     }
                 }
                 if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
-                if (mine.isNotEmpty()) TitlesRow("In your library", mine, s, mineRow, below(mineRow), keyFocus, resultsTop, lastTitle, lastFocus, onTitle)
+                like?.takeIf { on("titles") }?.let { (base, list) ->
+                    TitlesRow(Lang.tr("More like") + " " + base.name, list, s, likeRow, below(likeRow), keyFocus, resultsTop, lastTitle, lastFocus, openTitle)
+                    Spacer(Modifier.height((10 * s).dp))
+                }
+                if (mine.isNotEmpty()) TitlesRow("In your library", mine, s, mineRow, below(mineRow), keyFocus, above(mineRow) ?: resultsTop, lastTitle, lastFocus, openTitle)
                 if (titles.isNotEmpty()) {
                     if (mine.isNotEmpty()) Spacer(Modifier.height((10 * s).dp))
-                    TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, if (mine.isNotEmpty()) mineRow.req else resultsTop, lastTitle, lastFocus, onTitle)
+                    TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, above(titleRow) ?: resultsTop, lastTitle, lastFocus, openTitle)
+                }
+                if (people.isNotEmpty()) {
+                    Spacer(Modifier.height((10 * s).dp))
+                    DsHeading("People", s)
+                    LazyRow(state = peopleRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
+                        itemsIndexed(people, key = { _, p -> p.id }) { i, p ->
+                            PersonCard(p, person?.id == p.id, s, peopleRow.of(i).nav(up = above(peopleRow), down = below(peopleRow), left = if (i == 0) keyFocus else null, right = edge(i == people.lastIndex))) { person = p }
+                        }
+                    }
+                }
+                val who = person
+                if (who != null && theirs.isNotEmpty()) {
+                    Spacer(Modifier.height((10 * s).dp))
+                    TitlesRow(Lang.tr("With") + " " + who.name, theirs, s, theirsRow, below(theirsRow), keyFocus, peopleRow.req, lastTitle, lastFocus, openTitle)
                 }
                 if (shows.isNotEmpty()) {
                     Spacer(Modifier.height((10 * s).dp))
@@ -383,4 +458,48 @@ object SearchFilter {
     val now = androidx.compose.runtime.mutableStateOf("all")
     /** Search asked to start listening (the remote's microphone), taken once the page is up. */
     val listen = androidx.compose.runtime.mutableStateOf(false)
+}
+
+/** A line under the keyboard (a suggestion, a recent search): OK puts it in the box. */
+@Composable
+private fun SideLine(text: String, s: Float, modifier: Modifier, dim: Boolean = false, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    RawText(text, color = if (focused) Ds.Ink else if (dim) Text2 else Color.White, fontSize = (9.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
+            .clip(RoundedCornerShape((Ds.R_CONTROL * s).dp)).background(if (focused) Color.White else Color.Transparent)
+            .padding(horizontal = (8 * s).dp, vertical = (4 * s).dp))
+}
+
+/** Someone found by name: their photo, round, the name and what they do under it; picked (their titles below) in the accent. */
+@Composable
+private fun PersonCard(p: com.glasslauncher.tv.data.TitlePeople.Person, picked: Boolean, s: Float, modifier: Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Column(modifier.width((64 * s).dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size((56 * s).dp).onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
+            .cardFocus(s, focused, 28f, 1.08f).clip(androidx.compose.foundation.shape.CircleShape).background(Ds.Surface)
+            .border((2 * s).dp, if (picked) LocalAccent.current else Color.Transparent, androidx.compose.foundation.shape.CircleShape)) {
+            coil3.compose.AsyncImage(p.photo, p.name, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        }
+        Spacer(Modifier.height((4 * s).dp))
+        RawText(p.name, color = if (focused) Color.White else Color.White.copy(alpha = 0.85f), fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (p.role.isNotBlank()) Text(p.role, color = Text2, fontSize = (6.5f * s).sp, maxLines = 1)
+    }
+}
+
+/** "something like Severance", "similar to Heat", "like Dark": the title asked about; null for any other search. Pure. */
+internal fun likeTarget(q: String): String? =
+    Regex("^(?:something |anything |a film |a movie |a show |a series |shows |movies |films |series )?(?:like|similar to) (.+)$", RegexOption.IGNORE_CASE)
+        .find(q.trim())?.groupValues?.get(1)?.trim()?.trimEnd('?', '.', '!')?.takeIf { it.length >= 2 }
+
+/** What was searched lately (Search's empty page), newest first, eight at most. */
+object RecentSearches {
+    private fun sp(c: android.content.Context) = c.getSharedPreferences("glass_search", android.content.Context.MODE_PRIVATE)
+    fun all(c: android.content.Context): List<String> = sp(c).getString("recent", "").orEmpty().split('\n').filter { it.isNotBlank() }
+    fun add(c: android.content.Context, q: String) {
+        val t = q.trim()
+        if (t.length < 2) return
+        sp(c).edit().putString("recent", (listOf(t) + all(c).filterNot { it.equals(t, true) }).take(8).joinToString("\n")).apply()
+    }
+    fun clear(c: android.content.Context) = sp(c).edit().remove("recent").apply()
 }

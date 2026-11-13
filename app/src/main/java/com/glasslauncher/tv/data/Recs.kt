@@ -124,6 +124,19 @@ class Recs(private val settings: Settings, private val http: Http) {
         }.onFailure { Glog.w("TMDB credits", it) }.getOrDefault(TitlePeople.NONE)
     }
 
+    /** Blocking: the people TMDB knows by [query] (actors, directors), the better known first; none without a token. */
+    fun searchPeople(query: String): List<TitlePeople.Person> {
+        if (token.isBlank() || query.trim().length < 3) return emptyList()
+        return runCatching {
+            val a = http.json("https://api.themoviedb.org/3/search/person?query=" + java.net.URLEncoder.encode(query.trim(), "UTF-8"), day, token)
+                .optJSONArray("results") ?: JSONArray()
+            (0 until minOf(a.length(), 8)).mapNotNull { a.optJSONObject(it) }
+                .filter { it.optString("profile_path").startsWith("/") && it.optDouble("popularity", 0.0) >= 2.0 }
+                .map { TitlePeople.Person(it.optInt("id"), it.optString("name"), it.optString("known_for_department"), "https://image.tmdb.org/t/p/w185" + it.optString("profile_path")) }
+                .take(5)
+        }.onFailure { Glog.w("TMDB people", it) }.getOrDefault(emptyList())
+    }
+
     /** Blocking: a person's best known films and series. */
     fun titlesOf(person: Int): List<HeroItem> {
         if (token.isBlank()) return emptyList()
