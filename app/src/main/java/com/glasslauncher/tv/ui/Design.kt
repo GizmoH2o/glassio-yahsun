@@ -308,3 +308,37 @@ fun becauseYouWatched(except: String = ""): Pair<com.glasslauncher.tv.data.HeroI
     }
     return if (seen == null || list.isEmpty()) null else seen to list
 }
+
+/** Which way the selection last moved (for Poster tilt): -1 left, 1 right, 0 up or down. */
+object Tilt {
+    @Volatile var dx = 0
+    @Volatile var dy = 0
+    fun cameFrom(code: Int) {
+        when (code) {
+            android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { dx = -1; dy = 0 }
+            android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { dx = 1; dy = 0 }
+            android.view.KeyEvent.KEYCODE_DPAD_UP -> { dx = 0; dy = -1 }
+            android.view.KeyEvent.KEYCODE_DPAD_DOWN -> { dx = 0; dy = 1 }
+        }
+    }
+}
+
+/**
+ * Poster tilt (Settings › Look & motion): the poster selected leans a few degrees toward where you came from, as if
+ * the move nudged it, and springs flat, as tvOS's posters do. Nothing with it off or with Reduce motion.
+ */
+@Composable
+fun Modifier.posterTilt(focused: Boolean): Modifier {
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as? com.glasslauncher.tv.GlassApp ?: return this
+    if (!app.settings.posterTilt || LocalReduceMotion.current) return this
+    val rx = remember { androidx.compose.animation.core.Animatable(0f) }
+    val ry = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(focused) {
+        if (!focused) { launch { rx.animateTo(0f, tween(160)) }; ry.animateTo(0f, tween(160)); return@LaunchedEffect }
+        // Lean back toward where it came from (Right: its left edge nearer), then settle with a little give.
+        rx.snapTo(Tilt.dy * 7f); ry.snapTo(-Tilt.dx * 9f)
+        launch { rx.animateTo(0f, androidx.compose.animation.core.spring(0.42f, 260f)) }
+        ry.animateTo(0f, androidx.compose.animation.core.spring(0.42f, 260f))
+    }
+    return this.graphicsLayer { rotationX = rx.value; rotationY = ry.value; cameraDistance = 14f * density }
+}

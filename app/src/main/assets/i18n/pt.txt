@@ -1041,3 +1041,5 @@ Hold Back for Home	Segure Voltar para o início
 Holding Back goes to Home from anywhere, Live TV included	Segurar Voltar leva ao início de qualquer lugar, inclusive da TV ao vivo
 Bounce at a row's end	Balanço no fim da fileira
 The card nudges and springs back when there's nothing further, as on Apple TV	O cartão se mexe e volta quando não há mais nada, como na Apple TV
+Poster tilt	Inclinação do pôster
+The selected poster leans toward where you came from and settles, as on Apple TV	O pôster selecionado se inclina para o lado de onde você veio e se acomoda, como na Apple TV

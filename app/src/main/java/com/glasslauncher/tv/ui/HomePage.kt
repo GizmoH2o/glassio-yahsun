@@ -1256,6 +1256,7 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
         modifier.width(w).height(h)
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .tvPress(onLong = onHold, onKey = backKey(), onClick = onOpen)
+            .posterTilt(focused && !open)
             .cardFocus(s, focused, 5f, if (open) 1.03f else 1.06f)
             .background(cardBg)
             .watchedBar(item.key, s),

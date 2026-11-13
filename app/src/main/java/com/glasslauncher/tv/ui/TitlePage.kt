@@ -630,6 +630,7 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
             Modifier.fillMaxWidth().aspectRatio(2f / 3f)
                 .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
                 .tvPress(onKey = backKey(), onClick = onClick)
+                .posterTilt(focused)
                 .cardFocus(s, focused)
                 .background(Ds.Surface)
                 .watchedBar(h.key, s),

@@ -1042,3 +1042,5 @@ Hold Back for Home	Zurück halten für Startseite
 Holding Back goes to Home from anywhere, Live TV included	Zurück gedrückt halten führt überall zur Startseite, auch in Live-TV
 Bounce at a row's end	Federn am Ende einer Reihe
 The card nudges and springs back when there's nothing further, as on Apple TV	Die Karte stupst an und federt zurück, wenn nichts mehr kommt, wie bei Apple TV
+Poster tilt	Poster-Neigung
+The selected poster leans toward where you came from and settles, as on Apple TV	Das ausgewählte Poster neigt sich zur Seite, von der du kommst, und kommt zur Ruhe, wie bei Apple TV

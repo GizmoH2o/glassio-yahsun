@@ -353,6 +353,7 @@ class MainActivity : ComponentActivity() {
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (com.glasslauncher.tv.ui.NavGate.blocks(event.keyCode)) return true
         (application as GlassApp).lastKeyAt = android.os.SystemClock.uptimeMillis()
+        if (event.action == KeyEvent.ACTION_DOWN) com.glasslauncher.tv.ui.Tilt.cameFrom(event.keyCode)
         com.glasslauncher.tv.live.NavSound.onKey(this, event)
         // The shuffle button and "press the button you want" (also caught by the Home button service first).
         if (KeyHub.handle(application as GlassApp, event.keyCode, event.action == KeyEvent.ACTION_DOWN)) return true

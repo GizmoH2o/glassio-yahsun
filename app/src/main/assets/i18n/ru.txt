@@ -1042,3 +1042,5 @@ Hold Back for Home	Удерживайте «Назад» для главной
 Holding Back goes to Home from anywhere, Live TV included	Удержание «Назад» ведёт на главную отовсюду, включая ТВ
 Bounce at a row's end	Отскок в конце ряда
 The card nudges and springs back when there's nothing further, as on Apple TV	Карточка сдвигается и пружинит назад, когда дальше ничего нет, как на Apple TV
+Poster tilt	Наклон постера
+The selected poster leans toward where you came from and settles, as on Apple TV	Выбранный постер наклоняется в сторону, откуда вы пришли, и выравнивается, как на Apple TV

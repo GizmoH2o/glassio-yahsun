@@ -1041,3 +1041,5 @@ Hold Back for Home	Maintenir Retour pour l'accueil
 Holding Back goes to Home from anywhere, Live TV included	Maintenir Retour ramène à l'accueil depuis partout, TV en direct comprise
 Bounce at a row's end	Rebond en fin de rangée
 The card nudges and springs back when there's nothing further, as on Apple TV	La carte se décale et revient quand il n'y a rien d'autre, comme sur Apple TV
+Poster tilt	Inclinaison des affiches
+The selected poster leans toward where you came from and settles, as on Apple TV	L'affiche sélectionnée s'incline vers là d'où vous venez puis se stabilise, comme sur Apple TV

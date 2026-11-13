@@ -1514,6 +1514,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { LiveLook.on.value ?: com.glasslauncher.tv.live.LiveHome.matchesGlassio(ctx).also { LiveLook.on.value = it } },
                     { com.glasslauncher.tv.live.LiveHome.setMatchGlassio(ctx, it); LiveLook.on.value = it }))
                 add(Toggle("Opening", "Glassio's name for a moment as it starts, then Welcome back when there's more than one profile", { st.openingAnim }, { st.openingAnim = it }))
+                add(Toggle("Poster tilt", "The selected poster leans toward where you came from and settles, as on Apple TV", { st.posterTilt }, { st.posterTilt = it }))
                 add(Toggle("Bounce at a row's end", "The card nudges and springs back when there's nothing further, as on Apple TV", { st.rowBounce }, { st.rowBounce = it }))
                 add(Toggle("Hold Back for Home", "Holding Back goes to Home from anywhere, Live TV included", { st.holdBackHome }, { st.holdBackHome = it }))
                 add(Toggle("No connection banner", "One banner at the top while the TV is offline, in Glassio and Live TV, instead of each page failing on its own", { st.offlineBanner }, { st.offlineBanner = it }))
