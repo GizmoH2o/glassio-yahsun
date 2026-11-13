@@ -515,7 +515,15 @@ final class LiveShowPage extends LiveDialog {
             if (!tag.isEmpty()) kx = LiveCountry.drawTag(c, tag, kx + 12 * k, 72 * k, g3Ch, tagPaint, k);
             LiveBadge.drawInline(c, badge, kx + 12 * k, 72 * k, g3Ch, k);
             String name = show.title.isEmpty() ? channel.name : show.title;
-            c.drawText(ellipsize(name, g3Title, 1500 * k), x, 147 * k, g3Title);
+            // Its title's logo, as Glassio's pages have it (the name until it has come, or when there's none).
+            Bitmap logo = info == null || info.logo.isEmpty() ? null : LiveLogos.get(getContext(), info.logo, this::postInvalidate);
+            if (logo != null && logo.getWidth() > 0 && logo.getHeight() > 0) {
+                float maxW = 560 * k, maxH = 78 * k, sc = Math.min(maxW / logo.getWidth(), maxH / logo.getHeight());
+                float lw = logo.getWidth() * sc, lh = logo.getHeight() * sc, bottom = 168 * k;
+                box.set(x, bottom - lh, x + lw, bottom);
+                image.setAlpha(Math.round(255 * a));
+                c.drawBitmap(logo, null, box, image);
+            } else c.drawText(ellipsize(name, g3Title, 1500 * k), x, 147 * k, g3Title);
             // Year, genres, the episode, how long, the age, the score.
             LiveEpisode ep = LiveEpisode.of(getContext(), show, true, this::postInvalidate);
             StringBuilder m = new StringBuilder();

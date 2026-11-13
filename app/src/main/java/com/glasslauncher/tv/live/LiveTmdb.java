@@ -33,10 +33,13 @@ final class LiveTmdb {
         double score;
         /** IMDb's rating ("7.2", from Cinemeta by the IMDb id TMDB gives), as Glassio's pages show it; "" when none. */
         String imdb = "";
+        /** Its title's logo (TMDB's, in English or without words); "" when it has none. */
+        String logo = "";
         String year = "", genres = "", overview = "", cast = "", backdrop = "", poster = "";
     }
 
-    private static final String IMAGES = "https://image.tmdb.org/t/p/w1280", POSTERS = "https://image.tmdb.org/t/p/w342";
+    private static final String IMAGES = "https://image.tmdb.org/t/p/w1280", POSTERS = "https://image.tmdb.org/t/p/w342",
+            LOGOS = "https://image.tmdb.org/t/p/w500";
     private static final long KEEP = 30L * 24 * 3600_000L, RETRY = 24 * 3600_000L;
     private static final int MAX = 600;
     private static final Map<String, Info> FOUND = new HashMap<>();
@@ -153,16 +156,32 @@ final class LiveTmdb {
                 if (!a.equalsIgnoreCase(name) && !b.equalsIgnoreCase(name)) continue;
                 if (!LiveTmdbMatch.plausible(name, o.optInt("vote_count"), o.optString("overview"), about)) continue;
                 JSONObject d = LiveArt.get(key, "/" + kind + "/" + o.optInt("id") + "?append_to_response="
-                        + (tv ? "content_ratings,aggregate_credits,external_ids" : "release_dates,credits,external_ids") + lang);
+                        + (tv ? "content_ratings,aggregate_credits,external_ids,images" : "release_dates,credits,external_ids,images") + lang
+                        + "&include_image_language=en,null");
                 if (!LiveTmdbMatch.fitsSeason(tv, season, d.optInt("number_of_seasons"))) continue;
                 if (!tv && !LiveTmdbMatch.fitsSlot(d.optInt("runtime"), minutes)) continue;
                 Info i = info(d, tv);
                 JSONObject ids = d.optJSONObject("external_ids");
                 i.imdb = imdbRating(tv, ids != null ? ids.optString("imdb_id") : d.optString("imdb_id"));
+                i.logo = logoOf(d.optJSONObject("images"));
                 return i;
             }
         }
         return null;
+    }
+
+    /** The title's logo from TMDB's images: an English one first, else one without words. */
+    private static String logoOf(JSONObject images) {
+        JSONArray logos = images == null ? null : images.optJSONArray("logos");
+        String none = "";
+        for (int n = 0; logos != null && n < logos.length(); n++) {
+            JSONObject o = logos.optJSONObject(n);
+            String path = o == null ? "" : o.optString("file_path");
+            if (!path.startsWith("/") || path.endsWith(".svg")) continue;
+            if ("en".equals(o.optString("iso_639_1"))) return LOGOS + path;
+            if (none.isEmpty()) none = LOGOS + path;
+        }
+        return none;
     }
 
     /** IMDb's rating for that IMDb id, from Cinemeta (as Glassio's own pages get it); "" when it has none. */
@@ -276,7 +295,7 @@ final class LiveTmdb {
                 // Found with no rating before more countries were asked (RATINGS): asked again.
                 if (o.optInt("age", -1) < 0 && o.optInt("r") < RATINGS) continue;
                 // From before IMDb's rating was asked for: asked again (once), for the IMDb badge.
-                if (!o.has("imdb")) continue;
+                if (!o.has("imdb") || !o.has("logo")) continue;
                 Info i = new Info();
                 i.id = o.optInt("id");
                 i.tv = o.optBoolean("tv");
@@ -284,6 +303,7 @@ final class LiveTmdb {
                 i.score = o.optDouble("score", 0);
                 i.votes = o.optInt("votes");
                 i.imdb = o.optString("imdb");
+                i.logo = o.optString("logo");
                 i.year = o.optString("year");
                 i.genres = o.optString("genres");
                 i.overview = o.optString("overview");
@@ -306,7 +326,7 @@ final class LiveTmdb {
                 Info i = e.getValue();
                 Long at = AT.get(e.getKey());
                 all.put(e.getKey(), new JSONObject().put("id", i.id).put("tv", i.tv).put("age", i.age).put("score", i.score)
-                        .put("votes", i.votes).put("imdb", i.imdb).put("year", i.year).put("genres", i.genres).put("overview", i.overview)
+                        .put("votes", i.votes).put("imdb", i.imdb).put("logo", i.logo).put("year", i.year).put("genres", i.genres).put("overview", i.overview)
                         .put("cast", i.cast).put("backdrop", i.backdrop).put("poster", i.poster).put("at", at == null ? 0 : at)
                         .put("r", RATINGS));
             }
