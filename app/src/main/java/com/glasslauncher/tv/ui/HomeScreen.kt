@@ -264,7 +264,20 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             if (q == null) return@collect
             app.requestSearch.value = null
             searchQuery.value = q
-            SearchFilter.now.value = "titles"
+            SearchFilter.now.value = app.requestSearchFilter
+            app.requestSearchFilter = "titles"
+            onScreenNow(Screen.Search)
+        }
+    }
+    // The remote's microphone: Search, on All, listening (SearchPage starts the recogniser).
+    LaunchedEffect(Unit) {
+        var seen = app.requestVoice.intValue
+        androidx.compose.runtime.snapshotFlow { app.requestVoice.intValue }.collect { n ->
+            if (n == seen) return@collect
+            seen = n
+            searchQuery.value = ""
+            SearchFilter.now.value = "all"
+            SearchFilter.listen.value = true
             onScreenNow(Screen.Search)
         }
     }

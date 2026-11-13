@@ -181,6 +181,17 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
             .putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, Lang.locale().toLanguageTag())
     }
     val canVoice = remember { voiceAsk.resolveActivity(ctx.packageManager) != null }
+    // The remote's microphone opened it: listening straight away (a moment after the page is up).
+    // (Watched through snapshotFlow: clearing the request mustn't cancel the wait before listening.)
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { SearchFilter.listen.value }.collect { on ->
+            if (!on) return@collect
+            SearchFilter.listen.value = false
+            if (!canVoice) return@collect
+            kotlinx.coroutines.delay(250)
+            runCatching { voice.launch(voiceAsk) }
+        }
+    }
 
     Row(Modifier.fillMaxSize().padding(start = (EDGE * s).dp, top = (6 * s).dp), horizontalArrangement = Arrangement.spacedBy((22 * s).dp)) {
         // No scrolling or focus group on either side (it all fits): those columns take the focus themselves, with nothing to show for it.
@@ -368,4 +379,8 @@ internal fun TextCard(title: String, sub: String, s: Float, modifier: Modifier,
 private val SEARCH_FILTERS = listOf("all" to "All", "titles" to "Titles", "live" to "Live TV", "onnow" to "On now", "apps" to "Apps", "settings" to "Settings")
 
 /** The filter Search is on ("all", "titles", "live", "onnow", "apps", "settings"); Live TV's Search sets "live". */
-object SearchFilter { val now = androidx.compose.runtime.mutableStateOf("all") }
+object SearchFilter {
+    val now = androidx.compose.runtime.mutableStateOf("all")
+    /** Search asked to start listening (the remote's microphone), taken once the page is up. */
+    val listen = androidx.compose.runtime.mutableStateOf(false)
+}

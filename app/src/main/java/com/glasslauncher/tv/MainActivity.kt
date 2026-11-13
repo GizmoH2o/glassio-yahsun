@@ -275,7 +275,10 @@ class MainActivity : ComponentActivity() {
             }
         }
         // Live TV's More info on a programme TMDB doesn't know: Search, on Titles, for its name.
-        i?.getStringExtra("open_search")?.takeIf { it.isNotBlank() }?.let { app.requestSearch.value = it }
+        i?.getStringExtra("open_search")?.takeIf { it.isNotBlank() }?.let {
+            app.requestSearchFilter = i.getStringExtra("open_search_filter") ?: "titles"
+            app.requestSearch.value = it
+        }
         i?.getStringExtra("bg_mode")?.let { if (it in setOf("carousel", "image", "video", "aerial")) app.settings.bgMode = it }
         if (i?.hasExtra("menu_city") == true) app.settings.menuCity = i.getBooleanExtra("menu_city", true)
         if (i?.hasExtra("focus_color") == true) app.settings.focusColor = i.getBooleanExtra("focus_color", false)
@@ -345,6 +348,11 @@ class MainActivity : ComponentActivity() {
         com.glasslauncher.tv.live.NavSound.onKey(this, event)
         // The shuffle button and "press the button you want" (also caught by the Home button service first).
         if (KeyHub.handle(application as GlassApp, event.keyCode, event.action == KeyEvent.ACTION_DOWN)) return true
+        // The remote's microphone (or Search key): Glassio's Search, listening (Settings › Look & motion).
+        if ((event.keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || event.keyCode == KeyEvent.KEYCODE_SEARCH) && (application as GlassApp).settings.micSearch) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) (application as GlassApp).requestVoice.intValue++
+            return true
+        }
         if (event.keyCode == KeyEvent.KEYCODE_BACK && com.glasslauncher.tv.ui.KickOff.now.value != null) {
             if (event.action == KeyEvent.ACTION_UP && !event.isCanceled) com.glasslauncher.tv.ui.KickOff.close()
             return true

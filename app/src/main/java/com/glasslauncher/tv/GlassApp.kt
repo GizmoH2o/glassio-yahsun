@@ -134,6 +134,10 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     val requestTitle = androidx.compose.runtime.mutableStateOf<com.glasslauncher.tv.data.HeroItem?>(null)
     /** Words to look for in Search (on Titles): Live TV's More info on a programme with no title page of its own. */
     val requestSearch = androidx.compose.runtime.mutableStateOf<String?>(null)
+    /** Bumped by the remote's microphone: Search opens, listening. */
+    val requestVoice = androidx.compose.runtime.mutableIntStateOf(0)
+    /** The filter [requestSearch] opens Search on ("titles" from More info, "all" from Live TV's microphone). */
+    @Volatile var requestSearchFilter = "titles"
     /** Bumped with every request, so asking for the same tab twice (or while the screen was asleep) still works. */
     val requestSettingsRev = androidx.compose.runtime.mutableIntStateOf(0)
     /** Bumped to show the first-run setup again (System → Run setup again). */

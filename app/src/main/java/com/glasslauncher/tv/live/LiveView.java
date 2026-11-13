@@ -1941,6 +1941,18 @@ final class LiveView extends View {
             live.voiceSearch(said -> {
                 if (said == null || said.trim().isEmpty() || voiceWatch(said)) return;
                 overlay.hide();
+                // Glassio's Search (Settings › Mic opens Glassio's search): everything, Live TV's channels among it.
+                boolean glassio = getContext().getApplicationContext().getSharedPreferences("glass", android.content.Context.MODE_MULTI_PROCESS)
+                        .getBoolean("micSearch", true);
+                if (glassio) {
+                    try {
+                        getContext().startActivity(new android.content.Intent(getContext(), com.glasslauncher.tv.MainActivity.class)
+                                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                .putExtra("open_search", said.trim()).putExtra("open_search_filter", "all"));
+                        return;
+                    } catch (RuntimeException ignored) {
+                    }
+                }
                 new LiveSearch(getContext(), this, live, said.trim()).show();
             });
             return true;
