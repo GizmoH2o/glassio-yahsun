@@ -437,7 +437,11 @@ public class ReminderActivity extends Activity {
             String when = countdown ? Ui.tr("Mudando de canal em ", "Switching in ") + Math.max(0, (left + 999) / 1000) + " s"
                     : left > 30_000 ? Ui.tr("Começa às ", "Starts at ") + Ui.time(item.start) : Ui.tr("Começando agora", "Starting now");
             float tw = r.right - 32 * k - x;
+            // In the accent (the profile's colour), as Glassio's Up next card has its line, the same over Home or anywhere.
+            int was = small.getColor();
+            small.setColor(LiveTheme.accent);
             c.drawText(when.toUpperCase(Ui.locale()), x, r.top + 58 * k, small);
+            small.setColor(was);
             c.drawText(ellipsize(item.title.isEmpty() ? item.ch.name : item.title, title, tw), x, r.top + 106 * k, title);
             c.drawText(ellipsize((item.ch.num > 0 ? item.ch.num + "  " : "") + LiveCountry.named(getContext(), item.ch), meta, tw), x, r.top + 142 * k, meta);
             // Watch, then Dismiss.
