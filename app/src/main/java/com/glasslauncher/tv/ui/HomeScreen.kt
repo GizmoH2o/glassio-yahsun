@@ -736,7 +736,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 val onTop = screen != Screen.Title
                 // Live TV's picture runs up behind the tabs; the others start under them.
                 Box(Modifier.fillMaxSize().padding(top = if (tabPage == Screen.LiveTv) 0.dp else (48 * s).dp)) {
-                    if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, downAsk = tabDown, toTabs = tabFocus, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
+                    if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, downAsk = tabDown, toTabs = tabFocus, onBrowse = { SearchFilter.now.value = "all"; onScreen(Screen.Search) }, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
                     if (tabPage == Screen.LiveTv) LiveTvScreen(app, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) },
                         onSearch = { onScreen(Screen.Search) })
                     if (tabPage == Screen.Following) FollowingScreen(app, downAsk = tabDown, toTabs = tabFocus) { onScreen(Screen.Home) }

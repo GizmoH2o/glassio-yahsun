@@ -1369,7 +1369,7 @@ private fun SeeAllCard(s: Float, modifier: Modifier, onOpen: () -> Unit) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("See all", color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold)
-            Text("in the Library", color = Color.White.copy(alpha = 0.6f), fontSize = (6.5f * s).sp)
+            Text("in My List", color = Color.White.copy(alpha = 0.6f), fontSize = (6.5f * s).sp)
         }
     }
 }

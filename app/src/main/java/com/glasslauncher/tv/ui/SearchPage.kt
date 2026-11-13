@@ -307,7 +307,12 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                             right = edge(i == SEARCH_FILTERS.lastIndex))) { SearchFilter.now.value = key }
                     }
                 }
-                if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
+                if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) {
+                    // Nothing: say so, and offer the way on (fewer words, or what's trending).
+                    Text("Nothing found for “${q.trim()}” yet. Try fewer words, or a person's name.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
+                    Spacer(Modifier.height((8 * s).dp))
+                    Row { DsButton("Clear the search", s, Modifier.nav(left = keyFocus)) { query.value = "" } }
+                }
                 like?.takeIf { on("titles") }?.let { (base, list) ->
                     TitlesRow(Lang.tr("More like") + " " + base.name, list, s, likeRow, below(likeRow), keyFocus, resultsTop, lastTitle, lastFocus, openTitle)
                     Spacer(Modifier.height((10 * s).dp))

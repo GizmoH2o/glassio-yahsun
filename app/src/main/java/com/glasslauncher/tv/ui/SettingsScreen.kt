@@ -208,10 +208,10 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 dialog = MenuDialog("Sign out of Simkl?", listOf("Sign out" to { sk.signOut(); tvRev.intValue++; toast(ctx, "Signed out of Simkl") }, "Cancel" to { }))
             })
             add(Toggle("Continue Watching from Simkl", "What you paused in any app that uses Simkl", { st.cwSimkl }, { st.cwSimkl = it; app.cw.pollNow() }))
-            add(Toggle("Simkl \"Plan to watch\" in the Library", "Its own tab", { st.librarySimkl }, { st.librarySimkl = it; scope.launch(Dispatchers.IO) { app.library.refreshSimkl() } }))
-            add(Toggle("Saving to the Library saves to Simkl too", "", { st.libraryToSimkl }, { st.libraryToSimkl = it }))
+            add(Toggle("Simkl \"Plan to watch\" in My List", "Its own tab", { st.librarySimkl }, { st.librarySimkl = it; scope.launch(Dispatchers.IO) { app.library.refreshSimkl() } }))
+            add(Toggle("Adding to My List saves to Simkl too", "", { st.libraryToSimkl }, { st.libraryToSimkl = it }))
         }
-        add(Toggle("Sync Library and Continue Watching", "Keeps them the same on every connected account: Nuvio, Trakt and Simkl (Stremio is read). Removing a title removes it everywhere",
+        add(Toggle("Sync My List and Continue Watching", "Keeps them the same on every connected account: Nuvio, Trakt and Simkl (Stremio is read). Removing a title removes it everywhere",
             { st.syncAll }, { on -> st.syncAll = on; if (on) app.sync.runSoon { m -> toast(ctx, m) } }))
     }
     // A row that opens another section (things that belong together are reachable from both).
@@ -300,7 +300,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Text size", "Every screen of Glassio's own, and Live TV's (unless it has its own in Live TV's settings)", {
                     (TEXT_SIZES.firstOrNull { it.first == st.textSize } ?: TEXT_SIZES[1]).second.first
                 }, { st.textSize = cycle(TEXT_SIZES.map { it.first }, st.textSize, it) }),
-                Adjust("Library on Home", "Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here", {
+                Adjust("My List on Home", "Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here", {
                     when (st.homeSource) { "nuvio" -> "Nuvio"; "stremio" -> "Stremio"; else -> "Nuvio and Stremio" }
                 }, { st.homeSource = cycle(listOf("both", "nuvio", "stremio"), st.homeSource, it); app.shelf.rebuild() }),
                 Toggle("Today page", "Your matches, new episodes, recordings and what's set for today, with the weather: in the menu, and at the front of At a glance in the morning", { st.todayPage }, { st.todayPage = it }),
@@ -374,7 +374,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Slow zoom", "The pictures slowly zoom in from the moment they come in: the big picture, an open card, or both",
                     { when (st.slowZoom) { "off" -> "Off"; "hero" -> "Big picture"; "cards" -> "Cards"; else -> "Both" } },
                     { st.slowZoom = cycle(listOf("off", "hero", "cards", "both"), st.slowZoom, it) }),
-                Note("The big picture: titles from your catalogs (Settings › Catalogs). Play opens one; My Library saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play: Not interested, or another picture."),
+                Note("The big picture: titles from your catalogs (Settings › Catalogs). Play opens one; My List saves it; ◀ on Play and ▶ on My Library go to the previous and next title. Hold OK on Play: Not interested, or another picture."),
                 Adjust("Big picture shows", "Everything: your catalogs' titles (and the recommendations when they're on). Recommendations only: trending and popular titles from TMDB",
                     { if (st.heroSource == "recs") "Recommendations only" else "Everything" },
                     { st.heroSource = cycle(listOf("all", "recs"), st.heroSource, it) }),
@@ -593,7 +593,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("City in the menu", "", { st.menuCity }, { st.menuCity = it }),
                 Toggle("Live TV tab and Following", "Your IPTV channels with a full guide, and the teams and shows you follow (in the menu)", { st.menuLive }, { st.menuLive = it }),
                 Toggle("Following tab", "The teams and shows you follow, in the top bar. Off, it's in the menu.", { st.menuFollowing }, { st.menuFollowing = it }),
-                Toggle("Library tab", "", { st.menuLibrary }, { st.menuLibrary = it }),
+                Toggle("My List tab", "", { st.menuLibrary }, { st.menuLibrary = it }),
                 Toggle("Search everything", "Search also looks through the TV guide, your recordings and your library", { st.searchEverything }, { st.searchEverything = it }),
                 Toggle("Mood and time filters", "Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts", { st.moodFilters }, { st.moodFilters = it }),
                 Toggle("Android settings in the menu", "", { st.menuAndroid }, { st.menuAndroid = it }),
@@ -601,9 +601,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("Themes in the menu", "", { st.menuThemes }, { st.menuThemes = it }),
             )
         },
-        Category("Library") {
+        Category("My List") {
             listOf(
-                Toggle("Trakt watchlist in the Library", "Needs Trakt (Continue Watching)", { st.libraryTrakt }, { st.libraryTrakt = it; scope.launch(Dispatchers.IO) { app.library.refreshWatchlist() } }),
+                Toggle("Trakt watchlist in My List", "Needs Trakt (Continue Watching)", { st.libraryTrakt }, { st.libraryTrakt = it; scope.launch(Dispatchers.IO) { app.library.refreshWatchlist() } }),
                 Toggle("Nuvio library", if (app.library.nuvio.connected) "From your Nuvio account" + (app.library.nuvio.email.takeIf { it.isNotBlank() }?.let { " ($it)" } ?: "") + ": Nuvio Legacy, the official Nuvio app and forks that sync with it"
                     else "Connect your Nuvio account above", { st.libraryNuvio }, { st.libraryNuvio = it; scope.launch(Dispatchers.IO) { app.library.refreshNuvio() } }),
                 nuvioAccountRow(),
@@ -613,8 +613,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 stremioAccountRow(),
                 Toggle("Save to the Stremio library too", "The + button also saves the title to your Stremio account", { st.libraryToStremio }, { st.libraryToStremio = it }),
                 Toggle("Save to the Trakt watchlist too", "The + button also adds the title on Trakt", { st.libraryToTrakt }, { st.libraryToTrakt = it }),
-                Toggle("Titles under posters", "In the Library", { st.libraryTitles }, { st.libraryTitles = it }),
-                Note("In the Library: OK opens the title like the carousel. Hold OK (or Menu) to remove it."),
+                Toggle("Titles under posters", "In My List", { st.libraryTitles }, { st.libraryTitles = it }),
+                Note("In My List: OK opens the title like the carousel. Hold OK (or Menu) to remove it."),
             )
         },
         Category("Catalogs") {
@@ -1335,9 +1335,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 addAll(keyRow("Corner camera button", "Anywhere: the camera in the corner (again closes it)", { st.cornerKey }, { st.cornerKey = it }))
                 add(Note("Home and Back"))
                 add(Act("Hold Home", "What holding the Home button does, in any app", when (st.homeLong) {
-                    "recents" -> "Recent apps"; "camera" -> "Corner camera"; "library" -> "The Library"; "menu" -> "The menu"; else -> "Nothing" }) {
+                    "recents" -> "Recent apps"; "camera" -> "Corner camera"; "library" -> "My List"; "menu" -> "The menu"; else -> "Nothing" }) {
                     dialog = ThumbDialog("Hold Home", listOf("recents" to ("Recent apps" to "The open apps, like the Apple TV app switcher"),
-                        "camera" to ("Corner camera" to "A live camera in the corner, over any app"), "library" to ("The Library" to ""),
+                        "camera" to ("Corner camera" to "A live camera in the corner, over any app"), "library" to ("My List" to ""),
                         "menu" to ("The menu" to ""), "off" to ("Nothing" to "")).map { (k, v) -> ThumbItem(v.first, v.second, null, checked = st.homeLong == k) { st.homeLong = k; tvRev.intValue++ } })
                 })
                 add(Toggle("Recent apps use TV access (ADB)", "On: the exact open apps, while USB debugging is on. Off, or with USB debugging off: the apps used lately, no ADB needed",
@@ -1459,7 +1459,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         add(Note("Selection"))
                         add(Toggle("The selected app", "All the lights take the colour of the app selected in the dock (its glow's colour)", { st.hueApps }, { st.hueApps = it }))
                         if (st.hueApps) add(Adjust("  · Brightness", "How bright the lights are with the app's colour", { "${st.hueAppsBri} %" }, { st.hueAppsBri = st.hueAppsBri + it * 5 }))
-                        add(Toggle("The selected poster in the Library", "All the lights take the colour of the poster you're on", { st.huePosters }, { st.huePosters = it }))
+                        add(Toggle("The selected poster in My List", "All the lights take the colour of the poster you're on", { st.huePosters }, { st.huePosters = it }))
                         if (st.huePosters) add(Adjust("  · Brightness", "How bright the lights are with the poster's colour", { "${st.huePostersBri} %" }, { st.huePostersBri = st.huePostersBri + it * 5 }))
                         add(Note("Afterwards"))
                         pick("When you open an app or a film", "", st.hueLeave, listOf(
@@ -1556,7 +1556,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             )
         },
         Category("Accounts & Home Assistant") {
-            page("Nuvio, Stremio & Home Assistant").rows() + page("Library").rows().filterNot { it is Act && (it.title == "Nuvio account" || it.title == "Stremio account") }
+            page("Nuvio, Stremio & Home Assistant").rows() + page("My List").rows().filterNot { it is Act && (it.title == "Nuvio account" || it.title == "Stremio account") }
         },
         page("Screensaver"),
         page("Manage from phone"),

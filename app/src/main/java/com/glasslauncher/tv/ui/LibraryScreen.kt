@@ -69,7 +69,7 @@ import kotlinx.coroutines.withContext
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTabs: FocusRequester? = null, onTitle: (HeroItem) -> Unit, onClose: () -> Unit) {
+fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTabs: FocusRequester? = null, onBrowse: () -> Unit = {}, onTitle: (HeroItem) -> Unit, onClose: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     val st = app.settings
@@ -205,7 +205,11 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
             if (tab != null) {
                 if (tab.status.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) { Section(tab.status, s) }
                 if (tab.items.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text("Nothing in this list yet.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
+                    // Empty: what to do next, not only that there's nothing (a way to something to add).
+                    androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+                        Text("Nothing in this list yet. Add titles with + on their page or hold OK on a card.", color = Color.White.copy(alpha = 0.55f), fontSize = (11 * s).sp)
+                        androidx.compose.foundation.layout.Row { DsButton("Browse what's trending", s, Modifier.focusRequester(first), primary = true) { onBrowse() } }
+                    }
                 }
                 itemsIndexed(shown, key = { _, it -> tab.key + ":" + it.key }) { i, it ->
                     // Another tab: its posters fade in where the others were; one removed, the rest close up.

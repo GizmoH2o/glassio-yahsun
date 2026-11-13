@@ -10,7 +10,7 @@ import androidx.compose.runtime.mutableIntStateOf
 val MENU_KEYS = listOf("library", "sliders", "gear", "wifi", "theme", "camera", "saver", "background", "recents", "inputs", "trailer")
 /** The menu's order on a new TV. */
 val MENU_DEFAULT = listOf("inputs", "library", "camera", "sliders", "recents", "gear", "wifi", "saver", "trailer", "theme", "background")
-val MENU_NAMES = mapOf("library" to "Library", "sliders" to "Glassio settings", "gear" to "Android settings", "wifi" to "Wi-Fi",
+val MENU_NAMES = mapOf("library" to "My List", "sliders" to "Glassio settings", "gear" to "Android settings", "wifi" to "Wi-Fi",
     "theme" to "Themes", "camera" to "Camera", "saver" to "Screensaver", "background" to "Background", "recents" to "Recent apps", "inputs" to "Inputs", "trailer" to "Trailer")
 
 class Settings(private val ctx: Context) {
