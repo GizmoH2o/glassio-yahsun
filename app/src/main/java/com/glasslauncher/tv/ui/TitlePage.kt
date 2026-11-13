@@ -83,7 +83,6 @@ import kotlinx.coroutines.withContext
 fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOpen: (HeroItem) -> Unit, onDialog: (DialogState) -> Unit = {}) {
     val ctx = LocalContext.current
     val st = app.settings
-    BackHandler { onClose() }
     val details by produceState(TitleDetails.NONE, item.key) { value = withContext(Dispatchers.IO) { TitleDetails.load(app.http, item) } }
     LaunchedEffect(item.key) { if (st.tmdbToken.isNotBlank()) withContext(Dispatchers.IO) { runCatching { app.catalogs.enrich(item) } } }
     val enriched by app.catalogs.enrichedItems.collectAsState()
@@ -106,11 +105,20 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val first = remember { FocusRequester() }
     val iconsReq = remember { FocusRequester() }
     val scroll = rememberScrollState()
+
     // The trailer on the page (not the Trailer button's, which fills the screen): after a few seconds at the top of the
     // page, with sound; gone once the page is scrolled, another app opens it, or it ends.
     // Down from the first screen: the sections (episodes as a list, where to watch, cast, more like this).
     var inDetails by remember(item.key) { mutableStateOf(false) }
     val atTop = !inDetails
+    // Back climbs before it leaves: from the details below (episodes, cast, more) to the top (Play), then out.
+    val backScope = rememberCoroutineScope()
+    BackHandler {
+        if (inDetails) {
+            runCatching { first.requestFocus() }
+            backScope.launch { scroll.animateScrollTo(0) }
+        } else onClose()
+    }
     // Its own setting, not Home's Trailers (which is about the big picture): still never on a TV where trailers keep failing.
     val autoOk = st.titleTrailer && TrailerGuard.allowed(ctx, if (st.trailerMode == "on") "on" else "auto")
     var inline by remember(item.key) { mutableStateOf(false) }
@@ -319,7 +327,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         val icons = buildList<Triple<String, String, () -> Unit>> {
                             add(Triple(if (inLibrary) "check" else "plus", if (inLibrary) "In My List" else "My List") {
                                 val now = app.library.toggle(item)
-                                toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
+                                toast(ctx, if (now) "Added to My List · ${item.name}" else "Removed from My List · ${item.name}")
                             })
                             if (trailerIds != null) add(Triple("trailer", "Trailer") { trailerOn = true })
                             if (moreActs.isNotEmpty()) add(Triple("more", "More") { onDialog(MenuDialog(item.name, moreActs)) })

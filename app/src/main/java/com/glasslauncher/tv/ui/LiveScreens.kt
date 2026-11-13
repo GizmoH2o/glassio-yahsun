@@ -133,7 +133,7 @@ private val INK = Color(0xFF111114)
 fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null, onClose: () -> Unit, onFollowing: () -> Unit, onSearch: (() -> Unit)? = null) {
     val s = LocalScale.current
     val ctx = LocalContext.current
-    BackHandler { onClose() }
+    var topHasFocus by remember { mutableStateOf(true) }
     // Live TV's own process gets ready meanwhile (its channels read), so Watch opens it at once.
     LaunchedEffect(Unit) { com.glasslauncher.tv.live.LiveWarm.ask(ctx) }
     var ready by remember { mutableStateOf(LiveMemory.ready) }
@@ -164,6 +164,13 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
         }
     }
     val first = remember { FocusRequester() }
+    // Back climbs before it leaves: from down the page (its rows) to its top card (Watch), then out.
+    val list = androidx.compose.foundation.lazy.rememberLazyListState()
+    val backScope = androidx.compose.runtime.rememberCoroutineScope()
+    BackHandler {
+        if (topHasFocus) onClose()
+        else backScope.launch { list.animateScrollToItem(0); kotlinx.coroutines.delay(40); runCatching { first.requestFocus() } }
+    }
     LaunchedEffect(ready, page != null) { if (ready != null) focusFirst(first) }
     LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { first.requestFocus() } }     // Down from the tabs
     val r = ready
@@ -175,7 +182,7 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
         FavoritesPicker(app) { picking = false; rev++ }
         return
     }
-    LivePage(s, top = if (r == false || p == null) 82f else 0f) {
+    LivePage(s, top = if (r == false || p == null) 82f else 0f, state = list) {
         if (r == false || p == null) header("Live TV", if (r == false) "Watch your TV channels with a full guide" else "OK watches · in the guide, hold OK for a channel's menu", s)
         if (r == false) {
             item(key = "setup") {
@@ -186,12 +193,14 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
         }
         if (p == null) return@LivePage
         item(key = "top") {
+            Box(Modifier.onFocusChanged { topHasFocus = it.hasFocus }) {
             LiveHero(p.last, s, shown, first, toTabs,
                 onWatch = { open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false)) },
                 onGuide = { open(ctx, LiveHome.open(ctx, -1, true)) },
                 // One search: Glassio's own, on its Live TV filter (Live TV's own search only without a way to it).
                 onSearch = { if (onSearch != null) { SearchFilter.now.value = "live"; onSearch() } else open(ctx, LiveHome.search(ctx)) },
                 onFollowing = if (app.settings.menuFollowing) null else onFollowing)     // a tab of its own, unless turned off
+            }
         }
         if (p.onNow.isEmpty()) item(key = "pick") {
             EmptyCardView("Choose your favorite channels", "They show here with what's on now, and first in Live TV.",
@@ -485,11 +494,12 @@ private fun TableRowView(s: Float, rank: String, team: String, numbers: Array<St
 /** The graphite page: one scrolling column, the selected row kept at the same height (as the Library does). */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun LivePage(s: Float, top: Float = 34f, content: LazyListScope.() -> Unit) {
+private fun LivePage(s: Float, top: Float = 34f, state: androidx.compose.foundation.lazy.LazyListState? = null, content: LazyListScope.() -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
         val rowScroll = androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
         CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides RowPivot, LocalRowScroll provides rowScroll) {
             LazyColumn(
+                state = state ?: androidx.compose.foundation.lazy.rememberLazyListState(),
                 contentPadding = PaddingValues(start = (MARGIN * s).dp, end = (MARGIN * s).dp, top = (top * s).dp, bottom = (60 * s).dp),
                 verticalArrangement = Arrangement.spacedBy((12 * s).dp),
                 modifier = Modifier.fillMaxSize(),

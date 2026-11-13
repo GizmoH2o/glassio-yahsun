@@ -57,6 +57,7 @@ import coil3.request.ImageRequest
 import com.glasslauncher.tv.GlassApp
 import com.glasslauncher.tv.data.HeroItem
 import com.glasslauncher.tv.data.NuvioLaunch
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -76,7 +77,6 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     val watch by app.library.watchlist.collectAsState()
     val status by app.library.status.collectAsState()
     val first = remember { FocusRequester() }
-    BackHandler { onClose() }
     val nuvioAll by app.library.nuvioList.collectAsState()
     val nuvioStatus by app.library.nuvioStatus.collectAsState()
     val stremioAll by app.library.stremioList.collectAsState()
@@ -141,6 +141,19 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
 
     // Moving onto Following (or off it) changes the page under the filters: the focus stays on the filter.
     val selPill = remember { FocusRequester() }
+    val grid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
+    val backScope = androidx.compose.runtime.rememberCoroutineScope()
+    var atPills by remember { mutableStateOf(true) }
+    // Back climbs before it leaves: from down the list to its top (the list's pill), then out.
+    BackHandler {
+        if (atPills && grid.firstVisibleItemIndex == 0) onClose()
+        else {
+            atPills = true
+            backScope.launch { grid.animateScrollToItem(0) }
+            backScope.launch { kotlinx.coroutines.delay(60); if (runCatching { selPill.requestFocus() }.isFailure) runCatching { first.requestFocus() } }
+        }
+    }
+
     LaunchedEffect(tab?.key == FOLLOWING) { delay(30); if (pillsFocused) runCatching { selPill.requestFocus() } }
     if (tab?.key == FOLLOWING) {
         Column(Modifier.fillMaxSize().background(Ds.Bg)) {
@@ -151,7 +164,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                     // Down from a filter: into what's followed (asked of it: a list found by the arrows takes the focus whole).
                     val down = Modifier.onPreviewKeyEvent { e -> if (e.key == Key.DirectionDown) { if (e.type == KeyEventType.KeyDown) followDown++; true } else false }
                     tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab.key, i == 0, i == tabs.lastIndex, s, toTabs,
-                        down.then(if (t.key == tab.key) Modifier.focusRequester(selPill) else Modifier)) { tabKey = t.key; pillsFocused = true } }
+                        down.then(if (t.key == tab.key) Modifier.focusRequester(selPill) else Modifier)) { tabKey = t.key; pillsFocused = true; atPills = true } }
                 }
             }
             Box(Modifier.fillMaxSize().paneEnter(FOLLOWING)) { FollowingScreen(app, downAsk = downAsk + followDown, toTabs = selPill, embedded = true) { onClose() } }
@@ -163,6 +176,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         // scrolls (the default "just bring it into view" nudged the page up and down with every poster).
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides PivotScroll) {
         LazyVerticalGrid(
+            state = grid,
             columns = GridCells.Fixed(5),
             contentPadding = PaddingValues(start = (64 * s).dp, end = (64 * s).dp, top = (34 * s).dp, bottom = (40 * s).dp),
             horizontalArrangement = Arrangement.spacedBy((22 * s).dp),
@@ -182,7 +196,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                         Spacer(Modifier.height((14 * s).dp))
                         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                             if (tabs.size > 1) tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, false, s, toTabs,
-                                if (t.key == tab?.key) Modifier.focusRequester(selPill) else Modifier) { tabKey = t.key; pillsFocused = true } }
+                                if (t.key == tab?.key) Modifier.focusRequester(selPill) else Modifier) { tabKey = t.key; pillsFocused = true; atPills = true } }
                             if (shown.isNotEmpty()) DsButton("Surprise me", s, Modifier.nav(up = toTabs)) { onTitle(shown.random()) }
                         }
                     }
@@ -198,7 +212,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                     Poster(it, it.id in newIds, s, st.libraryTitles, Modifier.animateItem(fadeInSpec = androidx.compose.animation.core.tween(260, delayMillis = (i % 10) * 18),
                         placementSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), fadeOutSpec = androidx.compose.animation.core.tween(140))
                         .then(if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
-                        onFocused = { lastKey = it.key; pillsFocused = false },
+                        onFocused = { lastKey = it.key; pillsFocused = false; atPills = i < 5 },
                         onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })
                 }
