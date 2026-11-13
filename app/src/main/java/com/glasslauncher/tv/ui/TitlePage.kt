@@ -542,7 +542,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     horizontalArrangement = Arrangement.spacedBy((6 * s).dp),
                 ) {
                     itemsIndexed(people.cast, key = { _, p -> p.id }) { i, p ->
-                        PersonCard(p, s, castEntry.of(i).nav(up = above(castEntry.req), down = below(castEntry.req), left = edge(i == 0), right = edge(i == people.cast.lastIndex))) { person = p }
+                        PersonCard(p, s, castEntry.of(i).nav(up = above(castEntry.req), down = below(castEntry.req), left = edge(i == 0), right = edge(i == people.cast.lastIndex))) { if (st.personPages) onOpen(com.glasslauncher.tv.data.Browse.personPage(p)) else person = p }
                     }
                 }
                 }

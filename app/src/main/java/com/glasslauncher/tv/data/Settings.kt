@@ -469,6 +469,10 @@ class Settings(private val ctx: Context) {
     var holdBackHome: Boolean get() = b("holdBackHome", true); set(v) = putB("holdBackHome", v)
     var nowBadge: Boolean get() = b("nowBadge", true); set(v) = putB("nowBadge", v)
     var micSearch: Boolean get() = b("micSearch", true); set(v) = putB("micSearch", v)
+    /** OK on someone (a title's cast, Search's People) opens their page; off: their titles in a row under it, as before. */
+    var personPages: Boolean get() = b("personPages", true); set(v) = putB("personPages", v)
+    /** Search's Browse by genre row (each genre its own page). */
+    var searchGenres: Boolean get() = b("searchGenres", true); set(v) = putB("searchGenres", v)
     /** Back on Home's first press explained itself (it starts the screensaver). */
     var backSaverHinted: Boolean get() = b("backSaverHinted", false); set(v) = putB("backSaverHinted", v)
     /** Look & motion › Dialog style: "modern" (glass sheets, Glassio's keyboard, glass notices) | "classic". */

@@ -228,6 +228,39 @@ class Recs(private val settings: Settings, private val http: Http) {
         }.onFailure { Glog.w("TMDB person", it) }.getOrDefault(emptyList())
     }
 
+    /** A person's page: what TMDB says of them (a line or two of their life, born when and where) and how many titles. */
+    class PersonInfo(val bio: String, val born: String, val place: String, val dept: String, val count: Int)
+
+    /** Blocking: who [person] is and their titles (their roles, or what they made when that's what they're known for). */
+    fun person(person: Int): Pair<PersonInfo, List<HeroItem>>? {
+        if (token.isBlank()) return null
+        return runCatching {
+            val root = http.json("https://api.themoviedb.org/3/person/$person?append_to_response=combined_credits", 7 * day, token)
+            val credits = root.optJSONObject("combined_credits") ?: org.json.JSONObject()
+            val dept = root.optString("known_for_department")
+            val acted = TitlePeople.known(credits)
+            val made = TitlePeople.made(credits)
+            val picked = if (dept == "Acting") acted.ifEmpty { made } else made.ifEmpty { acted }
+            val genres = genreNames()
+            val titles = picked.mapNotNull { o -> runCatching { tmdbItem(o, null, genres) }.getOrNull() }
+            val count = ((credits.optJSONArray("cast")?.length() ?: 0) + (credits.optJSONArray("crew")?.length() ?: 0))
+            fun t(k: String) = root.optString(k).takeIf { it.isNotBlank() && it != "null" }.orEmpty()
+            PersonInfo(t("biography"), t("birthday").take(4), t("place_of_birth"), dept, count) to titles
+        }.onFailure { Glog.w("TMDB person page", it) }.getOrNull()
+    }
+
+    /** Blocking: a genre's most popular films and series on TMDB ([movie], [tv]: its ids; null for none). */
+    fun genre(movie: Int?, tv: Int?, kids: Boolean): Pair<List<HeroItem>, List<HeroItem>> {
+        if (token.isBlank()) return emptyList<HeroItem>() to emptyList()
+        val lang = "&language=" + (TMDB_LANGS[settings.descLang] ?: "en-US")
+        val gentle = if (kids) "&certification_country=US&certification.lte=PG" else ""
+        val genres = genreNames()
+        fun list(kind: String, id: Int?) = if (id == null) emptyList() else runCatching {
+            kotlinx.coroutines.runBlocking { tmdbList("https://api.themoviedb.org/3/discover/$kind?sort_by=popularity.desc&vote_count.gte=150&with_genres=$id" + (if (kind == "movie") gentle else "") + lang, kind, genres) }
+        }.onFailure { Glog.w("TMDB genre", it) }.getOrDefault(emptyList())
+        return list("movie", movie).take(20) to list("tv", tv).take(20)
+    }
+
     // ── Cinemeta (no key)
 
     private fun fromCinemeta(): Rows {

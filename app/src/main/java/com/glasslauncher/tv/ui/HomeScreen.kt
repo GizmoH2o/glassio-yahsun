@@ -233,7 +233,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     var titleOrigin by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
     val openTitle: (com.glasslauncher.tv.data.HeroItem) -> Unit = { item ->
         titleOrigin = CardOrigin.fraction()
-        if (!settings.reduceMotion) CardFlight.start(item)
+        if (!settings.reduceMotion && !com.glasslauncher.tv.data.Browse.isPage(item)) CardFlight.start(item)
         if (screen != Screen.Title) { titleFrom = screen; titleStack.clear() }
         titleStack.add(item)
         onScreen(Screen.Title)
@@ -762,7 +762,11 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 RowPage(app, s, ask, active = screen == Screen.Home, onTitle = openTitle) { RowHere.open.value = null; scope.launch { delay(if (motionOff) 60 else 450); runCatching { (RowHere.back ?: heroFocus).requestFocus() } } }
             }
             PageLayer(if (screen == Screen.Title) titleStack.lastOrNull() else null, motionOff, origin = titleOrigin) { t ->
-                androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
+                androidx.compose.runtime.key(t.key) {
+                    // A genre's or a person's page goes on the same stack (Back and the titles opened from it work the same).
+                    if (com.glasslauncher.tv.data.Browse.isPage(t)) BrowsePage(app, t, s, onClose = closeTitle, onOpen = openTitle)
+                    else TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it })
+                }
             }
             // The card's picture growing into the page (Apple TV's), over the page as it settles in.
             CardFlightHost()

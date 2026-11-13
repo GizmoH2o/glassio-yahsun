@@ -1525,6 +1525,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Toggle("Hold Back for Home", "Holding Back goes to Home from anywhere, Live TV included", { st.holdBackHome }, { st.holdBackHome = it }))
                 add(Toggle("No connection banner", "One banner at the top while the TV is offline, in Glassio and Live TV, instead of each page failing on its own", { st.offlineBanner }, { st.offlineBanner = it }))
                 add(Toggle("Now playing in the top bar", "A small badge while Live TV's small window or music plays", { st.nowBadge }, { st.nowBadge = it }))
+                add(Toggle("People's pages", "OK on someone in a title's cast or in Search opens their page (who they are, what they're known for). Off: their titles in a row", { st.personPages }, { st.personPages = it }))
+                add(Toggle("Browse by genre", "A row of genres in Search, each opening its own page of popular films and series and yours", { st.searchGenres }, { st.searchGenres = it }))
                 add(Toggle("Mic opens Glassio's search", "The remote's microphone opens Search and listens, from anywhere in Glassio and from Live TV (\"watch\" and a channel still tunes it)", { st.micSearch }, { st.micSearch = it }))
                 add(Toggle("Navigation sounds", "A soft tick as the selection moves, a click on OK, as on Apple TV (Live TV too)", { st.navSounds }, { st.navSounds = it; com.glasslauncher.tv.live.NavSound.set(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))

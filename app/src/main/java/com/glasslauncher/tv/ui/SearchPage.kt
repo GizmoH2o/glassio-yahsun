@@ -225,14 +225,16 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     // A title opened from the results: the words kept as a recent search.
     val openTitle: (HeroItem) -> Unit = { h -> if (q.trim().length >= 2) RecentSearches.add(ctx, q); onTitle(h) }
     val timeRow = remember { RowEntry() }
+    val genreRow = remember { RowEntry() }
+    val genresOn = app.settings.searchGenres
     val chips = moods && q.length < 2
     val hasTitles = if (filtering) fitting.isNotEmpty() else if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
     val hasChannels = q.length >= 2 && channels.isNotEmpty()
     // Settings too (as the streaming apps' search finds their settings): a card that opens them searched for the words.
     val settingsCard = q.trim().length >= 3 && on("settings")
     val hasApps = q.length >= 2 && apps.isNotEmpty() || settingsCard
-    val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, likeRow.takeIf { q.length >= 2 && like != null && on("titles") }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
-        peopleRow.takeIf { q.length >= 2 && people.isNotEmpty() }, epRow.takeIf { episodesFound.isNotEmpty() }, theirsRow.takeIf { q.length >= 2 && person != null && theirs.isNotEmpty() },
+    val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, genreRow.takeIf { chips && genresOn && q.length < 2 && !filtering }, likeRow.takeIf { q.length >= 2 && like != null && on("titles") }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
+        epRow.takeIf { episodesFound.isNotEmpty() }, peopleRow.takeIf { q.length >= 2 && people.isNotEmpty() }, theirsRow.takeIf { q.length >= 2 && person != null && theirs.isNotEmpty() },
         showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
         channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
     fun above(r: RowEntry) = order.getOrNull(order.indexOf(r) - 1)?.req
@@ -305,7 +307,8 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                 Spacer(Modifier.height((10 * s).dp))
                 Text(if (q.isEmpty()) "Recent searches" else "Suggestions", color = Text2, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.height((3 * s).dp))
-                side.forEach { w -> SideLine(w, s, Modifier.nav(right = toResults)) { query.value = w.take(60) } }
+                // Hold OK on a recent search: it's forgotten (just that one).
+                side.forEach { w -> SideLine(w, s, Modifier.nav(right = toResults), onLong = if (q.isEmpty()) ({ RecentSearches.remove(ctx, w); recentRev++; toast(ctx, Lang.tr("Removed from recent searches")) }) else null) { query.value = w.take(60) } }
                 if (q.isEmpty()) SideLine(Lang.tr("Clear recent searches"), s, Modifier.nav(right = toResults), dim = true) { RecentSearches.clear(ctx); recentRev++ }
             }
         }
@@ -330,13 +333,24 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                             Chip(it.second, maxMinutes == it.first, s, timeRow.of(i).nav(up = moodRow.req, down = below(timeRow), left = if (i == 0) keyFocus else null, right = edge(i == Moods.TIMES.lastIndex))) { maxMinutes = if (maxMinutes == it.first) 0 else it.first }
                         }
                     }
+                    // Browse by genre: each opens its own page (popular films and series, and yours).
+                    if (genresOn && !filtering) {
+                        val gl = com.glasslauncher.tv.data.Browse.genres(kids)
+                        Spacer(Modifier.height((4 * s).dp))
+                        Text("Browse by genre", color = Text2, fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold)
+                        LazyRow(state = genreRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (3 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                            itemsIndexed(gl, key = { _, it -> it.name }) { i, g ->
+                                Chip(g.name, false, s, genreRow.of(i).nav(up = timeRow.req, down = below(genreRow), left = if (i == 0) keyFocus else null, right = edge(i == gl.lastIndex))) { onTitle(com.glasslauncher.tv.data.Browse.genrePage(g.name)) }
+                            }
+                        }
+                    }
                     Spacer(Modifier.height((8 * s).dp))
                 }
                 if (filtering) {
                     val heading = listOfNotNull(mood?.label?.let { Lang.tr(it) }, Moods.TIMES.firstOrNull { it.first == maxMinutes }?.second?.let { Lang.tr(it) }).joinToString("  ·  ")
                     if (fitting.isNotEmpty()) TitlesRow(heading, fitting, s, titleRow, FocusRequester.Cancel, keyFocus, timeRow.req, lastTitle, lastFocus, onTitle)
                     else Text(if (looking) "Looking through your titles…" else if (mood != null && maxMinutes > 0) "Nothing fits both yet. Try one filter." else "Nothing fits this yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
-                } else if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, if (chips) timeRow.req else toTabs, lastTitle, lastFocus, onTitle)
+                } else if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, if (chips) above(titleRow) ?: timeRow.req else toTabs, lastTitle, lastFocus, onTitle)
             } else {
                 // The filters: one search for everything, each kind on its own when wanted (Live TV's search opens on Live TV).
                 Row(Modifier.padding(bottom = (8 * s).dp), horizontalArrangement = Arrangement.spacedBy((5 * s).dp)) {
@@ -382,7 +396,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     DsHeading("People", s)
                     LazyRow(state = peopleRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                         itemsIndexed(people, key = { _, p -> p.id }) { i, p ->
-                            PersonCard(p, person?.id == p.id, s, peopleRow.of(i).nav(up = above(peopleRow), down = below(peopleRow), left = if (i == 0) keyFocus else null, right = edge(i == people.lastIndex))) { person = p }
+                            PersonCard(p, person?.id == p.id, s, peopleRow.of(i).nav(up = above(peopleRow), down = below(peopleRow), left = if (i == 0) keyFocus else null, right = edge(i == people.lastIndex))) { if (app.settings.personPages) { RecentSearches.add(ctx, q); onTitle(com.glasslauncher.tv.data.Browse.personPage(p)) } else person = p }
                         }
                     }
                 }
@@ -522,11 +536,11 @@ object SearchFilter {
 
 /** A line under the keyboard (a suggestion, a recent search): OK puts it in the box. */
 @Composable
-private fun SideLine(text: String, s: Float, modifier: Modifier, dim: Boolean = false, onClick: () -> Unit) {
+private fun SideLine(text: String, s: Float, modifier: Modifier, dim: Boolean = false, onLong: (() -> Unit)? = null, onClick: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     RawText(text, color = if (focused) Ds.Ink else if (dim) Text2 else Color.White, fontSize = (9.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
+        modifier = modifier.fillMaxWidth().onFocusChanged { focused = it.isFocused }.tvPress(onLong = onLong, onKey = backKey(), onClick = onClick)
             .clip(RoundedCornerShape((Ds.R_CONTROL * s).dp)).background(if (focused) Color.White else Color.Transparent)
             .padding(horizontal = (8 * s).dp, vertical = (4 * s).dp))
 }
@@ -562,6 +576,7 @@ object RecentSearches {
         sp(c).edit().putString("recent", (listOf(t) + all(c).filterNot { it.equals(t, true) }).take(8).joinToString("\n")).apply()
     }
     fun clear(c: android.content.Context) = sp(c).edit().remove("recent").apply()
+    fun remove(c: android.content.Context, q: String) = sp(c).edit().putString("recent", all(c).filterNot { it.equals(q, true) }.joinToString("\n")).apply()
 }
 
 /** A voice command: a page to open (requestSettings' code), a channel, or a title to play. */

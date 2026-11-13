@@ -31,6 +31,14 @@ data class TitlePeople(val makers: List<String>, val cast: List<Person>) {
             return TitlePeople(makers.filter { it.isNotEmpty() }.distinct().take(2), cast)
         }
 
+        /** What a person made (directed, wrote, created) from their combined credits, the best known first. */
+        fun made(root: JSONObject): List<JSONObject> = objects(root, "crew").filter { o ->
+            val kind = o.optString("media_type")
+            (kind == "movie" || kind == "tv") && o.optString("job") in MAKER_JOBS
+        }.distinctBy { it.optString("media_type") + it.optInt("id") }.sortedByDescending { it.optInt("vote_count") }.take(TITLES)
+
+        private val MAKER_JOBS = setOf("Director", "Writer", "Screenplay", "Creator", "Novel", "Story")
+
         /** A person's real roles from their combined credits, the best known first (each still a list result of TMDB's). */
         fun known(root: JSONObject): List<JSONObject> = objects(root, "cast").filter { o ->
             val kind = o.optString("media_type")
