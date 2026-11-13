@@ -162,7 +162,15 @@ class ScreensaverActivity : ComponentActivity() {
 internal fun Slideshow(app: GlassApp, posters: Boolean = true) {
     val raw by app.catalogs.items.collectAsState()
     val enriched by app.catalogs.enrichedItems.collectAsState()
-    val items = remember(raw) { raw.filter { it.background.isNotBlank() } }
+    val cw by app.cw.items.collectAsState()
+    val films by app.shelf.movies.collectAsState()
+    val shows by app.shelf.series.collectAsState()
+    // Your own titles first (what you're watching, then your library, mixed), then the catalogs'; each once.
+    val mineFirst = posters && app.settings.saverMineFirst
+    val mine = remember(cw, films, shows, mineFirst) {
+        if (!mineFirst) emptyList() else cw.filter { it.progress >= 0f || it.upNext } + (films + shows).shuffled()
+    }
+    val items = remember(raw, mine) { (mine + raw).filter { it.background.isNotBlank() }.distinctBy { it.key } }
     var index by remember { mutableIntStateOf(0) }
     // The drift is for the Posters screensaver only; the posters standing in for the TV's own screensaver keep the zoom.
     val pan = posters && app.settings.saverMotion != "zoom"

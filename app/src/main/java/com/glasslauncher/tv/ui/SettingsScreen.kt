@@ -824,6 +824,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 if (st.saverMode == "slideshow") add(Adjust("Poster motion", "How each picture moves", {
                     if (st.saverMotion == "zoom") "Slow zoom" else "Pan, left then right"
                 }, { st.saverMotion = cycle(listOf("pan", "zoom"), st.saverMotion, it) }))
+                if (st.saverMode == "slideshow") add(Toggle("Your titles first", "What you're watching and what's in your library, before what's trending", { st.saverMineFirst }, { st.saverMineFirst = it }))
                 if (st.saverMode == "system") add(Note("Starts the screensaver chosen in Google TV settings (Aerial Views). The first time, the TV asks to allow USB debugging for Glassio: choose Always allow."))
                 add(Toggle("Apple aerial videos", "Streams Apple's public aerial feed", { st.useAppleAerials }, { st.useAppleAerials = it }))
                 add(Toggle("Show clock", "", { st.saverClock }, { st.saverClock = it }))
