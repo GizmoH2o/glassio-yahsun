@@ -1180,7 +1180,7 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
     val req = remember(item.logo, attempt) { ImageRequest.Builder(ctx).data(item.logo).size(1000, 400).allowHardware(false).build() }
     var dark by remember(item.logo) { mutableStateOf(darkLogos[item.logo] == true) }
     var ratio by remember(item.logo) { mutableStateOf<Float?>(null) }
-    var failed by remember(item.logo) { mutableStateOf(false) }
+    var failed by remember(item.logo) { mutableStateOf(item.logo in emptyLogos) }
     var retryAt by remember(item.logo) { mutableIntStateOf(0) }
     LaunchedEffect(retryAt) { if (retryAt > 0) { delay(900L * retryAt); attempt = retryAt } }
     if (failed) { asText(); return }
@@ -1201,6 +1201,10 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
         Image(pinnedLogo, item.name, contentScale = ContentScale.Fit, alignment = Alignment.CenterStart, modifier = Modifier.size(pw.dp, ph.dp))
         return
     }
+    // A logo that hasn't come after a moment (a slow or stuck logo service): the name meanwhile, the logo once it comes.
+    var slow by remember(item.logo) { mutableStateOf(false) }
+    LaunchedEffect(item.logo) { delay(2_500); slow = true }
+    if (slow && ratio == null) asText()
     AsyncImage(
         model = req, contentDescription = item.name, contentScale = ContentScale.Fit, alignment = Alignment.CenterStart,
         onSuccess = { st ->
@@ -1212,6 +1216,8 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
                 small.getPixels(px, 0, 48, 0, 0, 48, 24)
                 darkLogos[item.logo] = logoIsDark(px)
                 dark = darkLogos[item.logo] == true
+                // An empty picture (a logo service's stand-in for one it hasn't got): the name instead.
+                if (logoIsEmpty(px)) { emptyLogos += item.logo; failed = true }
             }
         },
         colorFilter = if (dark) ColorFilter.tint(Color.White) else null,
@@ -1219,7 +1225,7 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
             if (retryAt < 2) retryAt++ else failed = true
             com.glasslauncher.tv.data.Glog.w("Logo ${item.logo} failed", e.result.throwable)
         },
-        modifier = Modifier.size(w.dp, h.dp).alpha(if (ratio == null) 0f else 1f),
+        modifier = Modifier.size(if (slow && ratio == null) 0.dp else w.dp, if (slow && ratio == null) 0.dp else h.dp).alpha(if (ratio == null) 0f else 1f),
     )
 }
 

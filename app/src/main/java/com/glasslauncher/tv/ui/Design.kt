@@ -81,6 +81,12 @@ val Text2: Color @Composable @ReadOnlyComposable get() = if (LocalHighContrast.c
  * A title's logo that is nearly all black on its see-through ground (some studios' are), which can't be read on a dark
  * page: it's drawn white instead. A solid rectangle isn't one: its black is its background. Pure. [pixels]: ARGB.
  */
+/** Logos found to be empty pictures (see [logoIsEmpty]): shown as the name from then on. */
+internal val emptyLogos: MutableSet<String> = java.util.Collections.synchronizedSet(HashSet())
+
+/** A logo with next to nothing in it (under 1% of it not see-through): there is no logo to show. Pure. [pixels]: ARGB. */
+internal fun logoIsEmpty(pixels: IntArray): Boolean = pixels.count { (it ushr 24) >= 64 } < pixels.size / 100 + 1
+
 internal fun logoIsDark(pixels: IntArray): Boolean {
     var seen = 0
     var bright = 0.0

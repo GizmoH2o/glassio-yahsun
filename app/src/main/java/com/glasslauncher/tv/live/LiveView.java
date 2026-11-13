@@ -3561,6 +3561,22 @@ final class LiveView extends View {
 
     /** A show's own page; another airing on it opens that one's choices (on now: watched). */
     private void openShowPage(Xtream.Channel channel, Xtream.Program p, List<String> labels, List<String> icons, List<Runnable> actions) {
+        // The same title page as the home screen's (More info): its seasons, cast, where else to watch it.
+        labels = new java.util.ArrayList<>(labels); icons = new java.util.ArrayList<>(icons); actions = new java.util.ArrayList<>(actions);
+        labels.add(Ui.tr("Mais informações", "More info"));
+        icons.add("info");
+        actions.add(() -> {
+            LiveTmdb.Info info = LiveTmdb.known(getContext(), p.title);
+            if (info == null || info.id == 0) { flash(Ui.tr("Sem página para este programa", "No title page for this programme")); return; }
+            try {
+                getContext().startActivity(new android.content.Intent(getContext(), com.glasslauncher.tv.MainActivity.class)
+                        .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        .putExtra("open_tmdb", info.id).putExtra("open_tmdb_tv", info.tv)
+                        .putExtra("open_tmdb_name", p.title).putExtra("open_tmdb_year", info.year));
+            } catch (RuntimeException e) {
+                AppLog.w("live: couldn't open the title page: " + e.getMessage());
+            }
+        });
         LiveShowPage.Names names = new LiveShowPage.Names() {
             @Override public String name(Xtream.Channel ch) { return nameOf(ch); }
             @Override public String tag(Xtream.Channel ch) { return tagOf(ch); }

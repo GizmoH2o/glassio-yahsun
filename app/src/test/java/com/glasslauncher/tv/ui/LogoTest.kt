@@ -15,4 +15,9 @@ class LogoTest {
     @Test fun `white and coloured logos aren't`() { assertFalse(logoIsDark(logo(white, 30))); assertFalse(logoIsDark(logo(red, 30))) }
     @Test fun `a solid black rectangle isn't, its black is its background`() = assertFalse(logoIsDark(logo(black, 100)))
     @Test fun `an empty picture isn't`() = assertFalse(logoIsDark(logo(black, 0)))
+
+    @Test fun `an empty picture is no logo`() {
+        org.junit.Assert.assertTrue(logoIsEmpty(IntArray(1152)))
+        org.junit.Assert.assertFalse(logoIsEmpty(IntArray(1152) { if (it % 10 == 0) 0xFFFFFFFF.toInt() else 0 }))
+    }
 }

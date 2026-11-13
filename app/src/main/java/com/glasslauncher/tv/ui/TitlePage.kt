@@ -55,6 +55,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
+import coil3.request.allowHardware
+import coil3.toBitmap
 import com.glasslauncher.tv.GlassApp
 import com.glasslauncher.tv.data.HeroItem
 import com.glasslauncher.tv.data.HeroPicks
@@ -224,7 +226,9 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val top = stops.first()
     val nextAiring = onNow.firstOrNull() ?: later.firstOrNull()
 
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg).focusProperties { exit = { FocusRequester.Cancel } }.focusGroup()
+    var pageTint by remember(item.key) { mutableStateOf<Color?>(null) }
+    val pageBg by androidx.compose.animation.animateColorAsState(pageTint ?: Ds.Bg, androidx.compose.animation.core.tween(600), label = "pageTint")
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(pageBg).focusProperties { exit = { FocusRequester.Cancel } }.focusGroup()
         .onPreviewKeyEvent { ev ->
             val down = ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown
             when {
@@ -243,18 +247,22 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         }
         val pic = shown.background.ifBlank { shown.poster }
         if (pic.isNotBlank()) AsyncImage(
-            remember(pic) { ImageRequest.Builder(ctx).data(pic).size(1920, 1080).build() }, null, contentScale = ContentScale.Crop,
+            remember(pic) { ImageRequest.Builder(ctx).data(pic).size(1920, 1080).allowHardware(false).build() }, null, contentScale = ContentScale.Crop,
+            // The page takes a little of the picture's colour, as Home does (Settings › Look & motion › Colour from the picture).
+            onSuccess = { r -> if (st.backdropTint && !st.highContrast) scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                BackdropTint.of(r.result.image.toBitmap())?.let { pageTint = Color(it) }
+            } },
             modifier = Modifier.fillMaxSize().graphicsLayer { alpha = (1f - inlineShown.value) * (enter.value * 2.5f).coerceAtMost(1f) },
         )
         // The shades the words need: a band along the bottom, a little at the left.
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.horizontalGradient(0f to Ds.Bg.copy(alpha = 0.7f), 0.35f to Ds.Bg.copy(alpha = 0.2f), 0.6f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.verticalGradient(0.3f to Color.Transparent, 0.6f to Ds.Bg.copy(alpha = 0.72f), 1f to Ds.Bg)))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.horizontalGradient(0f to pageBg.copy(alpha = 0.7f), 0.35f to pageBg.copy(alpha = 0.2f), 0.6f to Color.Transparent)))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.verticalGradient(0.3f to Color.Transparent, 0.6f to pageBg.copy(alpha = 0.72f), 1f to pageBg)))
         // Cinematic: only a soft corner behind Play.
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - uiA }.background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent),
             center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
         // Cinematic: how far through the trailer is, and that it plays with sound.
         CinematicChrome({ trailerAt.floatValue }, { 1f - uiA }, s)
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = dimA }.background(Ds.Bg))
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = dimA }.background(pageBg))
         val rise = with(androidx.compose.ui.platform.LocalDensity.current) { 40.dp.toPx() }
         val screenPx = with(androidx.compose.ui.platform.LocalDensity.current) { screenH.toPx() }
 

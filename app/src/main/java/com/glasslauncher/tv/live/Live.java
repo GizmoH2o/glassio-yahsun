@@ -587,6 +587,10 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.getBooleanExtra("about", false)) {     // the page of what's on (its buttons, More info among them)
+                view.aboutPlaying();
+                return;
+            }
             if (i.hasExtra("theme_keep")) {      // the design file copied aside (true), or put back from there (false)
                 java.io.File here = new java.io.File(getFilesDir(), "live-theme.txt"), aside = new java.io.File(getExternalFilesDir(null), "theme-kept.txt");
                 try {

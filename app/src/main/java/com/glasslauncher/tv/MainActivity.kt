@@ -262,6 +262,15 @@ class MainActivity : ComponentActivity() {
         i?.getStringExtra("hero_hidden")?.let { if (it == "clear") app.settings.heroHidden = emptyList() }
         if (i?.hasExtra("season_month") == true) app.settings.seasonMonth = i.getIntExtra("season_month", 0)
         i?.getStringExtra("menu_mode")?.let { app.settings.menuMode = it }
+        // Live TV's More info on a programme: the home screen's own title page for it (its TMDB title).
+        if ((i?.getIntExtra("open_tmdb", 0) ?: 0) > 0) {
+            val id = i!!.getIntExtra("open_tmdb", 0); val tv = i.getBooleanExtra("open_tmdb_tv", false)
+            val name = i.getStringExtra("open_tmdb_name").orEmpty(); val year = i.getStringExtra("open_tmdb_year").orEmpty()
+            app.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val t = com.glasslauncher.tv.data.TitleFromTmdb.of(app, id, tv, name, year) ?: return@launch
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { app.requestTitle.value = t }
+            }
+        }
         i?.getStringExtra("bg_mode")?.let { if (it in setOf("carousel", "image", "video", "aerial")) app.settings.bgMode = it }
         if (i?.hasExtra("menu_city") == true) app.settings.menuCity = i.getBooleanExtra("menu_city", true)
         if (i?.hasExtra("focus_color") == true) app.settings.focusColor = i.getBooleanExtra("focus_color", false)
