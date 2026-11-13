@@ -43,6 +43,17 @@ public class ReminderActivity extends Activity {
         else finish();
     };
 
+    /** A soft two-note chime as a reminder or match alert comes (Settings › Look & motion › Alert chime), its own sound. */
+    private void chime() {
+        if (!getApplicationContext().getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getBoolean("alertChime", true)) return;
+        try {
+            android.media.ToneGenerator t = new android.media.ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 35);
+            t.startTone(android.media.ToneGenerator.TONE_PROP_BEEP2, 260);
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(t::release, 600);
+        } catch (RuntimeException ignored) {
+        }
+    }
+
     static Intent intent(Context c, LiveSchedule.Item it) {
         Intent i = new Intent(c, ReminderActivity.class);
         try {
@@ -66,6 +77,7 @@ public class ReminderActivity extends Activity {
     }
 
     private void show(Intent intent) {
+        chime();
         LiveSchedule.Item it;
         try {
             it = LiveSchedule.Item.of(new JSONObject(intent.getStringExtra(EXTRA_ITEM)));

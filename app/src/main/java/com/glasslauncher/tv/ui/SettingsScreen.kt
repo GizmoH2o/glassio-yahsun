@@ -272,7 +272,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
             listOf(
                 Adjust("Mode", when (st.perfMode) {
                     "auto" -> "Picked for this TV from its memory and graphics chip"
-                    "performance" -> "Smoothest: lighter pictures, quick fades, flat glass"
+                    "performance" -> "Smoothest: lighter pictures, quick fades, flat glass, and no parallax, tilt or trailers by themselves"
                     "quality" -> "Sharpest: original pictures, slow fades, full glass"
                     "balanced" -> "Sharp pictures, smooth navigation"
                     else -> "Your own mix of the settings below"
@@ -1516,6 +1516,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { LiveLook.on.value ?: com.glasslauncher.tv.live.LiveHome.matchesGlassio(ctx).also { LiveLook.on.value = it } },
                     { com.glasslauncher.tv.live.LiveHome.setMatchGlassio(ctx, it); LiveLook.on.value = it }))
                 add(Toggle("Opening", "Glassio's name for a moment as it starts, then Welcome back when there's more than one profile", { st.openingAnim }, { st.openingAnim = it }))
+                add(Toggle("Alert chime", "A soft chime as a reminder or a match alert comes up (its own sound, not the navigation sounds)", { st.alertChime }, { st.alertChime = it }))
                 add(Toggle("Big picture parallax", "The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV", { st.heroParallax }, { st.heroParallax = it }))
                 add(Toggle("Poster tilt", "The selected poster leans toward where you came from and settles, as on Apple TV", { st.posterTilt }, { st.posterTilt = it }))
                 add(Toggle("Bounce at a row's end", "The card nudges and springs back when there's nothing further, as on Apple TV", { st.rowBounce }, { st.rowBounce = it }))

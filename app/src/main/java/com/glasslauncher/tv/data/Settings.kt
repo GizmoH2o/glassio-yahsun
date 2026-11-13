@@ -134,7 +134,10 @@ class Settings(private val ctx: Context) {
             // Performance: pictures at 1280 px and drawn at 2/3 resolution, no rim refraction (no GPU effects at
             // all), a plain crossfade and small caches: for 2 GB TVs and older graphics chips.
             "performance" -> { imageQuality = "high"; prefetchDepth = 2; transitionMs = 300; refraction = 0; heroGallery = false; glassRes = 480
-                pageScale = 0.667f; slideAnim = "fade"; memTier = 0; saverQuality = "1080-H264"; cacheMb = 1024 }
+                pageScale = 0.667f; slideAnim = "fade"; memTier = 0; saverQuality = "1080-H264"; cacheMb = 1024
+                // Chosen (not Auto picking it at each start): every effect off together for a slower TV, the picture's
+                // parallax, poster tilt and trailers playing by themselves.
+                if (m == "performance") { heroParallax = false; posterTilt = false; trailerMode = "off"; titleTrailer = false; cardTrailerSec = 0 } }
             "balanced" -> { imageQuality = "high"; prefetchDepth = 3; transitionMs = 450; refraction = 6; heroGallery = true; galleryShots = 2; glassRes = 480
                 pageScale = 1f; memTier = 1 }
             "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3; glassRes = 720
@@ -452,6 +455,8 @@ class Settings(private val ctx: Context) {
     /** A small bounce at a row's end (tvOS's). */
     /** tvOS's lean on the selected poster (it tilts toward where you came from and settles). */
     /** The big picture shifts a little against each move left or right (depth, as on Apple TV). */
+    /** A soft chime as a reminder or a match alert comes up. */
+    var alertChime: Boolean get() = b("alertChime", true); set(v) = putB("alertChime", v)
     var heroParallax: Boolean get() = b("heroParallax", true); set(v) = putB("heroParallax", v)
     var posterTilt: Boolean get() = b("posterTilt", false); set(v) = putB("posterTilt", v)
     var rowBounce: Boolean get() = b("rowBounce", true); set(v) = putB("rowBounce", v)
