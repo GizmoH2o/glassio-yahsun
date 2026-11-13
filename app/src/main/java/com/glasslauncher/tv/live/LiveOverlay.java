@@ -1,6 +1,7 @@
 package com.glasslauncher.tv.live;
 
 import android.app.AlertDialog;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
@@ -532,7 +533,7 @@ final class LiveOverlay {
         if (later != null) pill = Ui.tr("DEPOIS", "LATER");
         else if (live.paused() && peek == null) pill = Ui.tr("PAUSADO", "PAUSED");
         boolean lit = past == null && !behind && later == null && !live.paused();
-        x = drawPill(c, pill, x, y, lit ? RED : past != null ? LiveTheme.tile : (LiveTheme.text & 0x00FFFFFF) | 0x59000000,
+        x = drawPill(c, pill, x, y, lit ? LiveTheme.accent : past != null ? LiveTheme.tile : (LiveTheme.text & 0x00FFFFFF) | 0x59000000,
                 past != null && !lit ? LiveTheme.ink : 0xFFFFFFFF, true) + 16 * k;
         if (past != null) {        // when it was, and where
             String when = LiveCatchup.dayName(past.start, now) + "  ·  " + view.nameWithCountry(ch);
@@ -602,9 +603,46 @@ final class LiveOverlay {
             }
         }
 
-        // The show's title, big; a long one scrolls across.
+        // What TMDB knows of the show: its title's logo, IMDb's rating, a picture (asked for once; a redraw when it comes).
+        LiveTmdb.Info known = shown == null ? null : LiveTmdb.of(live, shown, view::postInvalidate);
+        // Peeking at another channel (Up / Down): its show's picture as a card at the right, as the streaming apps'
+        // mini guides have it; the words beside it make room.
+        float textR = R;
+        if (peek != null && shown != null) {
+            String pic = !shown.icon.isEmpty() ? shown.icon : known != null ? known.backdrop : "";
+            Bitmap art = pic.isEmpty() ? null : LiveLogos.get(live, pic, view::postInvalidate);
+            if (art != null && art.getWidth() > 0) {
+                float cw = 400 * k, chh = 225 * k, cr = R * k, cl = cr - cw, ct = (TOP_Y - raise - 70) * k;
+                r.set(cl, ct, cr, ct + chh);
+                float rr = LiveTheme.panelRound(16 * k);
+                float sc = Math.max(r.width() / art.getWidth(), r.height() / art.getHeight());
+                float sw = r.width() / sc, sh = r.height() / sc;
+                artSrc.set(Math.round((art.getWidth() - sw) / 2), Math.round((art.getHeight() - sh) / 2), Math.round((art.getWidth() + sw) / 2), Math.round((art.getHeight() + sh) / 2));
+                int keep = c.save();
+                artClip.reset();
+                artClip.addRoundRect(r, rr, rr, android.graphics.Path.Direction.CW);
+                c.clipPath(artClip);
+                c.drawBitmap(art, artSrc, r, artPaint);
+                if (later == null && onNow != null) {      // how far it is, at the card's foot
+                    float pf = Ui.clamp((now - onNow.start) / (float) Math.max(1, onNow.end - onNow.start));
+                    fill.setColor(0x40FFFFFF);
+                    c.drawRect(r.left, r.bottom - 6 * k, r.right, r.bottom, fill);
+                    fill.setColor(LiveTheme.accent);
+                    c.drawRect(r.left, r.bottom - 6 * k, r.left + r.width() * pf, r.bottom, fill);
+                }
+                c.restoreToCount(keep);
+                textR = (cl / k) - 40;
+            }
+        }
+        // The show's title, big: its logo when TMDB has one (as Glassio's pages show it), else the words; a long one scrolls.
         String head = shown == null || shown.title.isEmpty() ? ch.name : shown.title;
-        titleMarquee.draw(c, head, X * k, (TITLE_Y - raise) * k, (R - X) * k, title, k);
+        Bitmap logo = known == null || known.logo.isEmpty() ? null : LiveLogos.get(live, known.logo, view::postInvalidate);
+        if (logo != null && logo.getWidth() > 0 && logo.getHeight() > 0) {
+            float maxW = Math.min(760, textR - X) * k, maxH = 76 * k, ls = Math.min(maxW / logo.getWidth(), maxH / logo.getHeight());
+            float lw = logo.getWidth() * ls, lh = logo.getHeight() * ls, base = (TITLE_Y - raise + 19) * k;
+            r.set(X * k, base - lh, X * k + lw, base);
+            c.drawBitmap(logo, null, r, artPaint);
+        } else titleMarquee.draw(c, head, X * k, (TITLE_Y - raise) * k, (textR - X) * k, title, k);
 
         // How far it is: the show on now, or the past show's position.
         float f = 0;
@@ -640,7 +678,9 @@ final class LiveOverlay {
         if (ep != null && !ep.label().isEmpty()) sub.append(ep.label());
         if (shown != null && past == null) sub.append(sub.length() > 0 ? "  ·  " : "").append(Ui.time(shown.start)).append(" – ").append(Ui.time(shown.end));
         if (!rightText.isEmpty()) sub.append(sub.length() > 0 ? "  ·  " : "").append(rightText);
-        c.drawText(ellipsize(sub.toString(), meta, (R - X) * k), X * k, (SUB_Y - raise) * k, meta);
+        float subX = X * k;
+        if (known != null && !known.imdb.isEmpty()) subX = LiveShowPage.drawImdb(c, known.imdb, subX, (SUB_Y - raise) * k, meta.getTextSize() * 0.9f, k) + 18 * k;
+        c.drawText(ellipsize(sub.toString(), meta, textR * k - subX), subX, (SUB_Y - raise) * k, meta);
 
         // The bar, its marks, the place in it, and where stacked skips will land.
         long target = peek == null ? live.skipTarget() : -1;
@@ -765,6 +805,10 @@ final class LiveOverlay {
     }
 
     /** The peek has no tabs: its two lines about the show go there. */
+    private final android.graphics.Rect artSrc = new android.graphics.Rect();
+    private final android.graphics.Path artClip = new android.graphics.Path();
+    private final Paint artPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+
     private void drawAbout(Canvas c, Xtream.Program shown, LiveEpisode ep) {
         String text = shown == null ? "" : ep == null ? shown.about : LiveEpisode.aboutWithout(shown.about, shown.sub);
         if (shown != null) text = LiveNames.about(live, shown.title, text);
@@ -973,8 +1017,13 @@ final class LiveOverlay {
         Xtream.Program next = list.get(at + 1);
         shade(c, cardShade, 0, 480 * k, w, h);
         drawAlso(c, next);
+        // Its picture (the guide's, else TMDB's), across the card's top as Glassio's Up next card has one.
+        LiveTmdb.Info nextInfo = LiveTmdb.of(live, next, view::postInvalidate);
+        String nextPic = !next.icon.isEmpty() ? next.icon : nextInfo != null ? nextInfo.backdrop : "";
+        Bitmap nextArt = nextPic.isEmpty() ? null : LiveLogos.get(live, nextPic, view::postInvalidate);
+        float picH = nextArt != null && nextArt.getWidth() > 0 ? 200 * k : 0;
         // The card: 600 wide, its bottom at 1008.
-        float wd = 600 * k, pad = 32 * k, ht = 312 * k, right = R * k, bottom = 1008 * k, left = right - wd, top = bottom - ht;
+        float wd = 600 * k, pad = 32 * k, ht = 312 * k + (picH > 0 ? picH + 20 * k : 0), right = R * k, bottom = 1008 * k, left = right - wd, top = bottom - ht;
         r.set(left, top, right, bottom);
         float rr = LiveTheme.panelRound(28 * k);
         fill.setColor(LiveTheme.sheet());
@@ -987,9 +1036,26 @@ final class LiveOverlay {
             c.drawRoundRect(r, rr, rr, stroke);
         }
         float room = wd - 2 * pad, x = left + pad, y = top + 56 * k;
+        if (picH > 0) {
+            r.set(left + 14 * k, top + 14 * k, right - 14 * k, top + 14 * k + picH);
+            float pr = LiveTheme.panelRound(18 * k);
+            float sc = Math.max(r.width() / nextArt.getWidth(), r.height() / nextArt.getHeight());
+            float sw = r.width() / sc, sh = r.height() / sc;
+            artSrc.set(Math.round((nextArt.getWidth() - sw) / 2), Math.round((nextArt.getHeight() - sh) / 2), Math.round((nextArt.getWidth() + sw) / 2), Math.round((nextArt.getHeight() + sh) / 2));
+            int keep = c.save();
+            artClip.reset();
+            artClip.addRoundRect(r, pr, pr, android.graphics.Path.Direction.CW);
+            c.clipPath(artClip);
+            c.drawBitmap(nextArt, artSrc, r, artPaint);
+            c.restoreToCount(keep);
+            y += picH + 20 * k;
+        }
         long seconds = Math.max(0, cardFor.end - now) / 1000;
         String in = Ui.tr("em ", "in ") + seconds / 60 + ":" + (seconds % 60 < 10 ? "0" : "") + seconds % 60;
-        c.drawText(ellipsize(Ui.tr("A seguir em ", "Next on ") + view.nameWithCountry(ch), cardMeta, room - cardMeta.measureText(in) - 20 * k), x, y, cardMeta);
+        int metaColor = cardMeta.getColor();
+        cardMeta.setColor(LiveTheme.accent);        // its line in the profile's colour, as Glassio's Up next card
+        c.drawText(ellipsize((Ui.tr("A seguir em ", "Next on ") + view.nameWithCountry(ch)).toUpperCase(Ui.locale()), cardMeta, room - cardMeta.measureText(in) - 20 * k), x, y, cardMeta);
+        cardMeta.setColor(metaColor);
         cardMeta.setTextAlign(Paint.Align.RIGHT);
         c.drawText(in, right - pad, y, cardMeta);
         cardMeta.setTextAlign(Paint.Align.LEFT);
