@@ -322,6 +322,10 @@ class MainActivity : ComponentActivity() {
     }
 
 
+    private var backDownAt = 0L
+    private var backHeldHome = false
+    private val BACK_HOLD_MS = 500L
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleExtras(intent)
@@ -351,6 +355,19 @@ class MainActivity : ComponentActivity() {
         com.glasslauncher.tv.live.NavSound.onKey(this, event)
         // The shuffle button and "press the button you want" (also caught by the Home button service first).
         if (KeyHub.handle(application as GlassApp, event.keyCode, event.action == KeyEvent.ACTION_DOWN)) return true
+        // Hold Back: Home, from any page (as the Home button), the Back let go after it doing nothing more.
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && (application as GlassApp).settings.holdBackHome) {
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) { backDownAt = android.os.SystemClock.uptimeMillis(); backHeldHome = false }
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) {
+                if (!backHeldHome && (event.isLongPress || android.os.SystemClock.uptimeMillis() - backDownAt >= BACK_HOLD_MS)) {
+                    backHeldHome = true
+                    screen = Screen.Home
+                    (application as GlassApp).homeRev.intValue++
+                }
+                return true
+            }
+            if (event.action == KeyEvent.ACTION_UP && backHeldHome) { backHeldHome = false; return true }
+        }
         // The remote's microphone (or Search key): Glassio's Search, listening (Settings › Look & motion).
         if ((event.keyCode == KeyEvent.KEYCODE_VOICE_ASSIST || event.keyCode == KeyEvent.KEYCODE_SEARCH) && (application as GlassApp).settings.micSearch) {
             if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) (application as GlassApp).requestVoice.intValue++

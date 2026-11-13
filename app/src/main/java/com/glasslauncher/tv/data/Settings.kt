@@ -448,6 +448,8 @@ class Settings(private val ctx: Context) {
     /** A small badge in the top bar while Live TV's small window or music plays. */
     /** One "No connection" banner at the top while the TV is offline (Glassio and Live TV). */
     var offlineBanner: Boolean get() = b("offlineBanner", true); set(v) = putB("offlineBanner", v)
+    /** Holding Back goes to Home from anywhere (Live TV included), as the Home button does. */
+    var holdBackHome: Boolean get() = b("holdBackHome", true); set(v) = putB("holdBackHome", v)
     var nowBadge: Boolean get() = b("nowBadge", true); set(v) = putB("nowBadge", v)
     var micSearch: Boolean get() = b("micSearch", true); set(v) = putB("micSearch", v)
     /** Back on Home's first press explained itself (it starts the screensaver). */

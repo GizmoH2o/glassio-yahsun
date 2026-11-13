@@ -805,8 +805,28 @@ public class Live extends Activity {
         super.onDestroy();
     }
 
+    private long backDownAt;
+    private boolean backHeldHome;
+
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
         NavSound.onKey(this, event);
+        // Hold Back: Glassio's Home (Settings › Hold Back for Home), Live TV closing.
+        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && getApplicationContext().getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getBoolean("holdBackHome", true)) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) { backDownAt = android.os.SystemClock.uptimeMillis(); backHeldHome = false; }
+            if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() > 0) {
+                if (!backHeldHome && (event.isLongPress() || android.os.SystemClock.uptimeMillis() - backDownAt >= 500)) {
+                    backHeldHome = true;
+                    try {
+                        startActivity(new Intent(this, com.glasslauncher.tv.MainActivity.class).setAction(Intent.ACTION_MAIN)
+                                .addCategory(Intent.CATEGORY_HOME).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (RuntimeException ignored) {
+                    }
+                    finish();
+                }
+                return true;
+            }
+            if (event.getAction() == KeyEvent.ACTION_UP && backHeldHome) { backHeldHome = false; return true; }
+        }
         if (view.onKey(event)) return true;
         return super.dispatchKeyEvent(event);
     }
