@@ -1526,6 +1526,26 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         page("Apps & icons"),
         page("Catalogs"),
         page("Continue Watching"),
+        // Live TV's own settings, by section: each opens them there, and Back comes back here.
+        Category("Live TV") {
+            fun open(section: Int) {
+                try { ctx.startActivity(com.glasslauncher.tv.live.LiveHome.openSettings(ctx, section)) }
+                catch (_: Exception) { toast(ctx, "Live TV isn't set up yet") }
+            }
+            listOf(
+                Note("Live TV's own settings. Each opens in Live TV, and Back brings you back here."),
+                Act("Watching", "The stream, sound and subtitles, and how Live TV starts", onClick = { open(0) }),
+                Act("Channels", "Their order, numbers, logos and badges", onClick = { open(1) }),
+                Act("Guide", "How far it goes, catch-up, and its sources", onClick = { open(2) }),
+                Act("Look", "Live TV's design, morning and night looks, text size", onClick = { open(3) }),
+                Act("Alerts", "Reminders, followed shows and teams, match alerts", onClick = { open(4) }),
+                Act("Recordings", "Before and after, where they go, recorded shows", onClick = { open(5) }),
+                Act("Family", "PIN, locked channels, ages, profiles, time limits", onClick = { open(6) }),
+                Act("Remote", "What the remote's coloured and extra buttons do", onClick = { open(7) }),
+                Act("Account", "Your subscription, playlists, backups, signing out", onClick = { open(8) }),
+                Act("All of Live TV's settings", "", onClick = { open(-1) }),
+            )
+        },
         Category("Accounts & Home Assistant") {
             page("Nuvio, Stremio & Home Assistant").rows() + page("Library").rows().filterNot { it is Act && (it.title == "Nuvio account" || it.title == "Stremio account") }
         },

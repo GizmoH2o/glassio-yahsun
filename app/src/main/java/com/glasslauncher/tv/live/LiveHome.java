@@ -1022,6 +1022,11 @@ public final class LiveHome {
     }
 
     /** Live TV playing a finished recording (from its card). */
+    /** Live TV's settings, on [section] (-1: the first screen); Back from them comes back. */
+    public static Intent openSettings(Context c, int section) {
+        return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_SETTINGS, section);
+    }
+
     public static Intent openRecording(Context c, String id) {
         return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_RECORDING, id);
     }

@@ -3757,6 +3757,17 @@ final class LiveView extends View {
     }
 
     /** Live TV's settings, over the video; closing them goes back to where they were opened from. */
+    /** Opened from Glassio's Settings: closing them goes back there (Live TV closes). */
+    private boolean settingsFromHome;
+
+    /** Glassio's Settings › Live TV: the settings ([section]; -1 the first screen), Back going back to Glassio. */
+    void openSettingsFromHome(int section) {
+        settingsFromHome = true;
+        if (mode == SETTINGS) settings.open(); else openSettings();
+        if (section >= 0) settings.openAt(section);
+        invalidate();
+    }
+
     private void openSettings() {
         if (mode == SETTINGS) return;
         settingsFrom = mode;
@@ -3769,6 +3780,12 @@ final class LiveView extends View {
     /** From the settings back where they were opened: watching, the guide, or the categories (on the playing channel's). */
     void closeSettings() {
         if (mode != SETTINGS) return;
+        if (settingsFromHome && getContext() instanceof android.app.Activity) {     // back to Glassio's Settings
+            settingsFromHome = false;
+            settings.closed();
+            ((android.app.Activity) getContext()).finish();
+            return;
+        }
         settings.closed();      // where it was, for next time
         if (settingsFrom == WATCH && live.playing() != null) {
             leave(WATCH);

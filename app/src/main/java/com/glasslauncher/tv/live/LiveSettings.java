@@ -216,7 +216,17 @@ final class LiveSettings {
     }
 
     /** Opening: where it was left last time (its section, and inside one the row), else the first list's first row. */
+    /** Opened right on a section (from Glassio's Settings): Back from it closes the settings. */
+    private boolean direct;
+
+    /** Straight to section [s] (Glassio's Settings › Live TV). */
+    void openAt(int s) {
+        direct = true;
+        openSection(Math.max(0, Math.min(SECTION_ROWS.length - 1, s)), 0);
+    }
+
     void open() {
+        direct = false;
         screen = MAIN;
         focus = top = 0;
         carrying = false;
@@ -1814,7 +1824,8 @@ final class LiveSettings {
 
     /** Back: from a list to the first one (putting down a channel being moved), from the first to the categories. */
     void back() {
-        if (screen == MAIN) {
+        if (screen == MAIN || (direct && !onRail && (screen == ROWS || screen == KEYS))) {
+            direct = false;
             view.closeSettings();
             return;
         }

@@ -62,6 +62,8 @@ public class Live extends Activity {
             EXTRA_RESUME_AT = "com.glasslauncher.tv.live.extra.RESUME_AT";
     /** From the home screen's Continue Watching: a finished recording to play (its id). */
     static final String EXTRA_RECORDING = "com.glasslauncher.tv.live.extra.RECORDING";
+    /** Glassio's Settings › Live TV: its settings (that section; -1 the first screen), Back going back there. */
+    static final String EXTRA_SETTINGS = "com.glasslauncher.tv.live.extra.SETTINGS";
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -1231,6 +1233,11 @@ public class Live extends Activity {
             if (!view.voiceCommand(askSearch)) view.searchFor(askSearch);       // "what's on tonight?" from Google's voice
             askSearch = null;
         }
+        if (askSettings >= -1) {     // Glassio's Settings › Live TV
+            int s = askSettings;
+            askSettings = -2;
+            view.openSettingsFromHome(s);
+        }
         if (askRecording != null) {      // the home screen's Continue Watching: a recording
             LiveRecordings.Rec r = LiveRecordings.find(this, askRecording);
             askRecording = null;
@@ -1256,6 +1263,7 @@ public class Live extends Activity {
         askSearch = intent == null ? null : intent.getStringExtra(EXTRA_SEARCH);
         askResume = intent == null ? -1 : intent.getIntExtra(EXTRA_RESUME_CHANNEL, -1);
         askRecording = intent == null ? null : intent.getStringExtra(EXTRA_RECORDING);
+        askSettings = intent == null ? -2 : intent.getIntExtra(EXTRA_SETTINGS, -2);
         if (askResume >= 0) {
             resumeProgram = new Xtream.Program();
             resumeProgram.start = intent.getLongExtra(EXTRA_RESUME_START, 0);
@@ -2390,6 +2398,7 @@ public class Live extends Activity {
     }
 
     private String askRecording;
+    private int askSettings = -2;
 
     /**
      * Watch on Home: the channel goes on in a small window on Glassio's home screen while you browse. Its address is
