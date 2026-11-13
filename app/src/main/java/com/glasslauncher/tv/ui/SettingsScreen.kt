@@ -594,6 +594,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Toggle("City in the menu", "", { st.menuCity }, { st.menuCity = it }),
                 Toggle("Live TV tab and Following", "Your IPTV channels with a full guide, and the teams and shows you follow (in the menu)", { st.menuLive }, { st.menuLive = it }),
                 Toggle("Following tab", "The teams and shows you follow, in the top bar. Off, it's in the menu.", { st.menuFollowing }, { st.menuFollowing = it }),
+                Toggle("Sport page", "Following shows what's live now and today's matches on the page itself, as a sport page", { st.sportPage }, { st.sportPage = it }),
+                Toggle("Sport tab", "The Sport page in the top bar while you follow a team or a show", { st.sportTab }, { st.sportTab = it }),
                 Toggle("My List tab", "", { st.menuLibrary }, { st.menuLibrary = it }),
                 Toggle("Search everything", "Search also looks through the TV guide, your recordings and your library", { st.searchEverything }, { st.searchEverything = it }),
                 Toggle("Mood and time filters", "Search shows Funny, Scary, Under 30 min and more, across your library, catalogs and charts", { st.moodFilters }, { st.moodFilters = it }),

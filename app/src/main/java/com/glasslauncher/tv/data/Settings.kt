@@ -286,6 +286,10 @@ class Settings(private val ctx: Context) {
     /** Live TV and Following in the menu. */
     var menuLive: Boolean get() = b("menuLive", true); set(v) = putB("menuLive", v)
     var menuFollowing: Boolean get() = b("menuFollowing", true); set(v) = putB("menuFollowing", v)
+    /** Following as the Sport page: live matches and today's on the page itself. */
+    var sportPage: Boolean get() = b("sportPage", true); set(v) = putB("sportPage", v)
+    /** The Sport page as a tab in the top bar (while you follow a team or a show). */
+    var sportTab: Boolean get() = b("sportTab", true); set(v) = putB("sportTab", v)
     var searchEverything: Boolean get() = b("searchEverything", true); set(v) = putB("searchEverything", v)
     /** Search, with nothing typed: mood and time filters across everything the app knows of. */
     var moodFilters: Boolean get() = b("moodFilters", true); set(v) = putB("moodFilters", v)

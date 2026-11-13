@@ -260,6 +260,17 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
     /** The team whose page was just left: back on Following, the focus goes to its chip. */
     var cameFrom by remember { mutableStateOf<String?>(null) }
     val leaveTeam = { cameFrom = team; team = null; teamData = null }
+    // The Sport page (Settings): what's live and today's matches on this page itself, not behind Today in sport.
+    val sport = app.settings.sportPage && !embedded
+    var sportToday by remember { mutableStateOf<List<LiveHome.Airing>>(emptyList()) }
+    LaunchedEffect(sport, team) {
+        if (!sport || team != null) return@LaunchedEffect
+        while (true) {
+            sportToday = withContext(Dispatchers.IO) { runCatching { LiveHome.todayInSport(app) }.getOrDefault(emptyList()) }
+            rev++
+            delay(120_000)
+        }
+    }
     var todayShown by remember { mutableStateOf(false) }
     var crests by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val todayFocus = remember { FocusRequester() }
@@ -342,7 +353,8 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
             return@LivePage
         }
         if (t == null) {
-            if (!embedded) header("Following", if (!r) "Sign in to Live TV to see when your teams and shows are on" else "The teams and shows you follow, from the TV guide", s)
+            if (!embedded) header(if (sport) "Sport" else "Following", if (!r) "Sign in to Live TV to see when your teams and shows are on"
+                else if (sport) "Your teams, today's matches, what's live" else "The teams and shows you follow, from the TV guide", s)
             if (d == null) return@LivePage
             val spot = d.spot
             item(key = "spot") {
@@ -370,13 +382,26 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
                         }, onClick = { stopArmedAt = 0; team = term })
                     }
                     item(key = "more") { ChipView("+  Follow a team or show", s, if (d.terms.isEmpty()) first else Modifier, null, follow) }
-                    if (r) item(key = "today") { ChipView("Today in sport", s, Modifier, null) { todayShown = true } }
+                    if (r && !sport) item(key = "today") { ChipView("Today in sport", s, Modifier, null) { todayShown = true } }
                     if (r) item(key = "search") { ChipView("Search in Live TV", s, Modifier, null) { open(ctx, LiveHome.search(ctx)) } }
                 }
             }
+            if (sport) {
+                // Live now: every match on air (yours first), as cards; then what's yours later, the rest of today's, the replays.
+                val now = System.currentTimeMillis()
+                val taken = HashSet<String>().apply { spot?.let { add(it.key()) } }
+                val live = (d.also + d.next + sportToday).filter { it.onNow(now) && taken.add(it.key()) }
+                cardRow("Live now", live, s, true, shown, watch)
+                eventRows("Also on", d.also.filter { taken.add(it.key()) }, s, false, shown, toggle, watch)
+                val later = d.next.filter { taken.add(it.key()) }
+                eventRows("Coming up", later, s, false, shown, toggle, watch)
+                eventRows("Today in sport", sportToday.filter { taken.add(it.key()) }, s, true, shown, toggle, watch)
+                eventRows("Replays and shows", d.shows, s, false, shown, toggle, watch)
+            } else {
             eventRows("Also on", d.also, s, false, shown, toggle, watch)
             eventRows("Coming up", d.next, s, false, shown, toggle, watch)
             eventRows("Replays and shows", d.shows, s, false, shown, toggle, watch)
+            }
         } else {
             header(t, "The next 7 days in the guide · Remind and Record at the right", s)
             item(key = "teamChips") {

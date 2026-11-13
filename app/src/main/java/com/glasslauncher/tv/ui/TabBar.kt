@@ -50,7 +50,10 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
         // My List (Netflix's): the saved titles, their lists, and what you follow, one page with filters.
         if (st.menuLibrary) add("My List" to Screen.Library)
         // Following lives in My List now; its own tab only while you're on its page (from the menu).
-        if (st.menuLive && st.menuFollowing && current == Screen.Following) add("Following" to Screen.Following)
+        // Sport (Settings): its own tab while you follow a team or a show; Following, only while you're on its page.
+        val follows = androidx.compose.runtime.remember(current) { runCatching { com.glasslauncher.tv.live.LiveHome.followed(app).isNotEmpty() }.getOrDefault(false) }
+        if (st.menuLive && st.sportPage && st.sportTab && follows) add("Sport" to Screen.Following)
+        else if (st.menuLive && st.menuFollowing && current == Screen.Following) add((if (st.sportPage) "Sport" else "Following") to Screen.Following)
         add("Search" to Screen.Search)
     }
     // One pill that slides from tab to tab (as tvOS's top bar does), rather than each tab lighting up on its own:
