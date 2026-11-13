@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.glasslauncher.tv.GlassApp
 import com.glasslauncher.tv.data.HeroItem
+import com.glasslauncher.tv.data.NuvioLaunch
 import com.glasslauncher.tv.data.Moods
 import com.glasslauncher.tv.live.LiveHome
 import kotlinx.coroutines.Dispatchers
@@ -185,6 +186,20 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
             }?.let { base -> base to app.recs.similar(base).filter { it.key != base.key }.take(16) }?.takeIf { it.second.isNotEmpty() }
         }
     }
+    // Episodes by their name, across the series in your library (what Home knows of them).
+    val shelfInfo by app.shelf.info.collectAsState()
+    val shelfSeries by app.shelf.series.collectAsState()
+    val episodesFound = remember(q, shelfInfo, shelfSeries) {
+        val t = q.trim()
+        if (t.length < 3 || !on("titles")) emptyList() else shelfSeries.flatMap { sr ->
+            shelfInfo[sr.key]?.episodes.orEmpty().filter { it.title.contains(t, ignoreCase = true) }.map { sr to it }
+        }.take(12)
+    }
+    // Misspelled? The nearest name you have or the catalogs have.
+    val didYouMean = remember(q, catalog, rows, saved, nuvio, stremio, going) {
+        val t = q.trim()
+        if (t.length < 4) null else closestName(t, (going + saved + watch + nuvio + stremio + catalog + rows.trending + rows.films + rows.series).map { it.name })
+    }
     val lastTitle = remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }
     LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { keyFocus.requestFocus() } }     // Down from the tabs
@@ -204,6 +219,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val appRow = remember { RowEntry() }
     val moodRow = remember { RowEntry() }
     val likeRow = remember { RowEntry() }
+    val epRow = remember { RowEntry() }
     val peopleRow = remember { RowEntry() }
     val theirsRow = remember { RowEntry() }
     // A title opened from the results: the words kept as a recent search.
@@ -216,7 +232,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val settingsCard = q.trim().length >= 3 && on("settings")
     val hasApps = q.length >= 2 && apps.isNotEmpty() || settingsCard
     val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, likeRow.takeIf { q.length >= 2 && like != null && on("titles") }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
-        peopleRow.takeIf { q.length >= 2 && people.isNotEmpty() }, theirsRow.takeIf { q.length >= 2 && person != null && theirs.isNotEmpty() },
+        peopleRow.takeIf { q.length >= 2 && people.isNotEmpty() }, epRow.takeIf { episodesFound.isNotEmpty() }, theirsRow.takeIf { q.length >= 2 && person != null && theirs.isNotEmpty() },
         showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
         channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
     fun above(r: RowEntry) = order.getOrNull(order.indexOf(r) - 1)?.req
@@ -225,7 +241,21 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
 
     // Voice, where the TV has a recogniser: what's said goes in the box, and it searches as if typed.
     val voice = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { r ->
-        r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let { query.value = it.trim().take(60) }
+        r.data?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)?.firstOrNull()?.let { said ->
+            when (val cmd = voiceCommand(said)) {
+                null -> query.value = said.trim().take(60)
+                is VoiceCommand.Page -> { app.requestSettings.intValue = cmd.code; app.requestSettingsRev.intValue++ }
+                is VoiceCommand.Channel -> runCatching { ctx.startActivity(LiveHome.search(ctx, said)) }
+                is VoiceCommand.Play -> scope.launch {
+                    // The title it names: yours first (Continue watching, My List), else the first found.
+                    val mineNow = (app.cw.items.value + app.library.saved.value + app.library.nuvioList.value + app.library.stremioList.value)
+                    val t = mineNow.firstOrNull { it.name.equals(cmd.title, true) } ?: withContext(Dispatchers.IO) { app.recs.search(cmd.title).firstOrNull() }
+                    if (t == null) { query.value = cmd.title; return@launch }
+                    val cwOne = app.cw.items.value.firstOrNull { it.key == t.key }
+                    if (NuvioLaunch.playable(ctx, app.settings)) NuvioLaunch.play(ctx, app.settings, app.http, cwOne ?: t) else onTitle(t)
+                }
+            }
+        }
     }
     val voiceAsk = remember(Lang.code.value) {
         android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -316,7 +346,10 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     // Nothing: say so, and offer the way on (fewer words, or what's trending).
                     Text("Nothing found for “${q.trim()}” yet. Try fewer words, or a person's name.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
                     Spacer(Modifier.height((8 * s).dp))
-                    Row { DsButton("Clear the search", s, Modifier.nav(left = keyFocus)) { query.value = "" } }
+                    Row(horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                        didYouMean?.let { m -> DsButton(Lang.tr("Did you mean") + " " + m + "?", s, Modifier.nav(left = keyFocus), primary = true) { query.value = m.take(60) } }
+                        DsButton("Clear the search", s, Modifier.nav(left = if (didYouMean == null) keyFocus else null)) { query.value = "" }
+                    }
                 }
                 like?.takeIf { on("titles") }?.let { (base, list) ->
                     TitlesRow(Lang.tr("More like") + " " + base.name, list, s, likeRow, below(likeRow), keyFocus, resultsTop, lastTitle, lastFocus, openTitle)
@@ -326,6 +359,18 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                 if (titles.isNotEmpty()) {
                     if (mine.isNotEmpty()) Spacer(Modifier.height((10 * s).dp))
                     TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, above(titleRow) ?: resultsTop, lastTitle, lastFocus, openTitle)
+                }
+                if (episodesFound.isNotEmpty()) {
+                    Spacer(Modifier.height((10 * s).dp))
+                    DsHeading("Episodes", s)
+                    LazyRow(state = epRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+                        itemsIndexed(episodesFound, key = { _, (sr, e) -> "${sr.key}:${e.season}:${e.episode}" }) { i, (sr, e) ->
+                            TextCard(e.title, "${sr.name} · S${e.season} · E${e.episode}", s, epRow.of(i).nav(up = above(epRow), down = below(epRow), left = if (i == 0) keyFocus else null, right = edge(i == episodesFound.lastIndex))) {
+                                RecentSearches.add(ctx, q)
+                                if (NuvioLaunch.playable(ctx, app.settings)) NuvioLaunch.openEpisode(ctx, app.settings, app.http, sr, e.season, e.episode) else onTitle(sr)
+                            }
+                        }
+                    }
                 }
                 if (people.isNotEmpty()) {
                     Spacer(Modifier.height((10 * s).dp))
@@ -512,4 +557,51 @@ object RecentSearches {
         sp(c).edit().putString("recent", (listOf(t) + all(c).filterNot { it.equals(t, true) }).take(8).joinToString("\n")).apply()
     }
     fun clear(c: android.content.Context) = sp(c).edit().remove("recent").apply()
+}
+
+/** A voice command: a page to open (requestSettings' code), a channel, or a title to play. */
+sealed class VoiceCommand {
+    class Page(val code: Int) : VoiceCommand()
+    object Channel : VoiceCommand()
+    class Play(val title: String) : VoiceCommand()
+}
+
+/** What was said, as a command; null for words to search for. Pure. */
+internal fun voiceCommand(said: String): VoiceCommand? {
+    val t = said.trim().lowercase().removePrefix("please ").removePrefix("go to ").removePrefix("open ").removePrefix("show ").trim()
+    return when {
+        t == "my list" || t == "my library" -> VoiceCommand.Page(101)
+        t == "live tv" || t == "the guide" || t == "tv guide" -> VoiceCommand.Page(102)
+        t == "settings" -> VoiceCommand.Page(0)
+        Regex("""^(channel|watch channel)\s+\d{1,5}$""").matches(t) -> VoiceCommand.Channel
+        t.startsWith("play ") && t.length > 6 -> VoiceCommand.Play(said.trim().substringAfter(' ').trim())
+        else -> null
+    }
+}
+
+/** The name closest to [q] (a few letters off, as a slip of the keys), or null when none is near enough. Pure. */
+internal fun closestName(q: String, names: List<String>): String? {
+    val t = q.lowercase()
+    var best: String? = null
+    var bestD = Int.MAX_VALUE
+    for (n in names.distinct()) {
+        val m = n.lowercase()
+        if (m == t || m.length < 3) continue
+        val d = editDistance(t, if (m.length > t.length + 3) m.take(t.length) else m)
+        if (d < bestD) { bestD = d; best = n }
+    }
+    return best.takeIf { bestD in 1..maxOf(1, t.length / 4) }
+}
+
+private fun editDistance(a: String, b: String): Int {
+    val dp = IntArray(b.length + 1) { it }
+    for (i in 1..a.length) {
+        var prev = dp[0]; dp[0] = i
+        for (j in 1..b.length) {
+            val cur = dp[j]
+            dp[j] = minOf(dp[j] + 1, dp[j - 1] + 1, prev + if (a[i - 1] == b[j - 1]) 0 else 1)
+            prev = cur
+        }
+    }
+    return dp[b.length]
 }
