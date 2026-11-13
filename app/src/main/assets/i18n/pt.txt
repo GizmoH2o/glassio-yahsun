@@ -992,3 +992,40 @@ Follow the TV's animation speed	Seguir a velocidade de animação da TV
 Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Desligado: as páginas, os menus, a troca de título da imagem grande e os cartões se movem no próprio ritmo, como nos apps de streaming. Ligado: no ritmo da TV (Opções do desenvolvedor), mais rápido em algumas TVs
 My List	Minha lista
 Films	Filmes
+In My List	Na minha lista
+Opening in	Abrindo no
+CONTINUE	CONTINUAR
+Inbox	Novidades
+Nothing new. Matches and shows you follow, new episodes and updates show here.	Nada de novo. Jogos e programas que você segue, episódios novos e atualizações aparecem aqui.
+STARTING NOW	COMEÇANDO AGORA
+COMING UP	EM BREVE
+REMINDER	LEMBRETE
+OK to watch	OK para assistir
+OK to install	OK para instalar
+Settings for this page	Configurações desta página
+Welcome back,	Bem-vindo de volta,
+Switch profile	Trocar de perfil
+Opening	Abertura
+Your titles first	Seus títulos primeiro
+What you're watching and what's in your library, before what's trending	O que você está assistindo e o que está na sua biblioteca, antes das tendências
+Every screen of Glassio's own, and Live TV's (unless it has its own in Live TV's settings)	Todas as telas do Glassio e da TV ao vivo (a não ser que ela tenha o próprio nas configurações dela)
+Live TV's own settings. Each opens in Live TV, and Back brings you back here.	As configurações da TV ao vivo. Cada uma abre na TV ao vivo, e Voltar traz você de volta aqui.
+Watching	Assistindo
+The stream, sound and subtitles, and how Live TV starts	O sinal, o som e as legendas, e como começa
+Channels	Canais
+Their order, numbers, logos and badges	Ordem, números, logos e selos
+Guide	Guia
+How far it goes, catch-up, and its sources	Até onde vai, catch-up e fontes
+Look	Aparência
+Live TV's design, morning and night looks, text size	O design, os visuais de manhã e de noite, o tamanho do texto
+Alerts	Alertas
+Reminders, followed shows and teams, match alerts	Lembretes, programas e times seguidos, alertas de jogos
+Before and after, where they go, recorded shows	Antes e depois, onde ficam, programas gravados
+Family	Família
+PIN, locked channels, ages, profiles, time limits	PIN, canais bloqueados, idades, perfis, limites de tempo
+Remote	Controle
+What the remote's coloured and extra buttons do	O que fazem os botões coloridos e extras
+Account	Conta
+Your subscription, playlists, backups, signing out	Assinatura, listas, backups, sair
+All of Live TV's settings	Todas as configurações da TV ao vivo
+Live TV isn't set up yet	A TV ao vivo ainda não está configurada

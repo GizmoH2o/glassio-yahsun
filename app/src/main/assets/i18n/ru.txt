@@ -993,3 +993,40 @@ Follow the TV's animation speed	Следовать скорости анимац
 Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Выкл.: страницы, меню, смена названия в большой картинке и карточки движутся в своём темпе, как в стриминговых приложениях. Вкл.: в темпе ТВ (Параметры разработчика), на некоторых ТВ быстрее
 My List	Мой список
 Films	Фильмы
+In My List	В моём списке
+Opening in	Открывается в
+CONTINUE	ПРОДОЛЖИТЬ
+Inbox	Входящие
+Nothing new. Matches and shows you follow, new episodes and updates show here.	Ничего нового. Здесь появляются матчи и передачи, на которые вы подписаны, новые серии и обновления.
+STARTING NOW	НАЧИНАЕТСЯ
+COMING UP	СКОРО
+REMINDER	НАПОМИНАНИЕ
+OK to watch	OK — смотреть
+OK to install	OK — установить
+Settings for this page	Настройки этой страницы
+Welcome back,	С возвращением,
+Switch profile	Сменить профиль
+Opening	Заставка
+Your titles first	Сначала ваши
+What you're watching and what's in your library, before what's trending	То, что вы смотрите, и ваша библиотека — раньше популярного
+Every screen of Glassio's own, and Live TV's (unless it has its own in Live TV's settings)	Все экраны Glassio и ТВ (если в настройках ТВ не выбран свой)
+Live TV's own settings. Each opens in Live TV, and Back brings you back here.	Настройки ТВ. Каждая открывается в ТВ, а «Назад» возвращает сюда.
+Watching	Просмотр
+The stream, sound and subtitles, and how Live TV starts	Поток, звук и субтитры, запуск ТВ
+Channels	Каналы
+Their order, numbers, logos and badges	Порядок, номера, логотипы и значки
+Guide	Программа
+How far it goes, catch-up, and its sources	Глубина, архив и источники
+Look	Вид
+Live TV's design, morning and night looks, text size	Дизайн, утренний и ночной вид, размер текста
+Alerts	Оповещения
+Reminders, followed shows and teams, match alerts	Напоминания, подписки на передачи и команды, матчи
+Before and after, where they go, recorded shows	До и после, куда сохранять, записи
+Family	Семья
+PIN, locked channels, ages, profiles, time limits	PIN, заблокированные каналы, возраст, профили, лимиты
+Remote	Пульт
+What the remote's coloured and extra buttons do	Что делают цветные и дополнительные кнопки
+Account	Аккаунт
+Your subscription, playlists, backups, signing out	Подписка, плейлисты, резервные копии, выход
+All of Live TV's settings	Все настройки ТВ
+Live TV isn't set up yet	ТВ ещё не настроено

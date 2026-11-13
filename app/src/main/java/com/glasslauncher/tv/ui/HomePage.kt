@@ -546,7 +546,7 @@ internal fun HomePage(
                             onPlay = { if (NuvioLaunch.playable(ctx, settings)) NuvioLaunch.open(ctx, settings, app.http, shown) else toTitle(shown) },
                             onSave = {
                                 val now = app.library.toggle(shown)
-                                toast(ctx, if (now) "Saved to Library · ${shown.name}" else "Removed from Library · ${shown.name}")
+                                toast(ctx, if (now) "Added to My List · ${shown.name}" else "Removed from My List · ${shown.name}")
                             },
                             // Hold OK: Not interested (it leaves the big picture), or another picture for it.
                             onArt = hold@{
@@ -880,7 +880,7 @@ private fun HeroText(
                         }), info = true, iconPkg = svc.pkg)
             }
             Spacer(Modifier.width((8 * s).dp))
-            HeroButton(if (saved) "In Library" else "My Library", false, s, onSaveBtn,
+            HeroButton(if (saved) "In My List" else "My List", false, s, onSaveBtn,
                 Modifier.focusRequester(saveFocus).focusProperties { this.down = down; this.up = up; left = if (svc != null) svcFocus else moreFocus }
                     .onFocusChanged { onSaveBtn = it.isFocused }
                     .tvPress(onKey = { ev -> if (ev.key == Key.DirectionRight && ev.type == KeyEventType.KeyDown) { onNext(); true } else back(ev) }, onClick = onSave),

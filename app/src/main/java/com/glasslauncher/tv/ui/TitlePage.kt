@@ -317,7 +317,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                             })
                         }
                         val icons = buildList<Triple<String, String, () -> Unit>> {
-                            add(Triple(if (inLibrary) "check" else "plus", if (inLibrary) "In Library" else "My Library") {
+                            add(Triple(if (inLibrary) "check" else "plus", if (inLibrary) "In My List" else "My List") {
                                 val now = app.library.toggle(item)
                                 toast(ctx, if (now) "Saved to Library · ${item.name}" else "Removed from Library · ${item.name}")
                             })
