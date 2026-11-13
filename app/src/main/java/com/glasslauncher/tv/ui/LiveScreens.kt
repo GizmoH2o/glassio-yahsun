@@ -813,6 +813,10 @@ internal fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, m
             if (picture && a.logo.isNotEmpty()) Logo(a.logo, Modifier.align(Alignment.BottomStart)
                 .padding(start = (8 * s).dp, bottom = (9 * s).dp).size(width = (52 * s).dp, height = (20 * s).dp), Alignment.BottomStart)
             if (a.badge.isNotEmpty()) ResBadge(a.badge, s, Modifier.align(Alignment.TopEnd).padding((6 * s).dp))
+            // A reminder or a recording already set for it (OK on a Starting soon card sets or cancels one).
+            if (!a.live && (a.remind || a.record)) Text(Lang.tr(if (a.record) "Recording" else "Reminder set"), color = Color.White, fontSize = (6.5f * s).sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((3 * s).dp)).background(LocalAccent.current)
+                    .padding(horizontal = (4 * s).dp, vertical = (1 * s).dp))
             val pill = m?.pill().orEmpty()
             if (pill.isNotEmpty()) Text(pill, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = (8 * s).dp).clip(RoundedCornerShape(50))

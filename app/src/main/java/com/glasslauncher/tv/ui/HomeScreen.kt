@@ -619,7 +619,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     // Another page coming over it: Home sinks back a little as it fades (none with Reduce motion).
                     if (!motionOff) { val k = 0.96f + 0.04f * homeAlphaState.value; scaleX = k; scaleY = k }
                 }
-                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn && !Handoff.cardOn.value }
+                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn && !Handoff.cardOn.value && RowHere.open.value == null }
                     .onPreviewKeyEvent { ev ->
                         when {
                             // OK plays the title (as on its page); any other button brings the page back, and does nothing else.
@@ -757,6 +757,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 if (onTop) Box(Modifier.fillMaxWidth().height((58 * s).dp).background(Brush.verticalGradient(0.72f to Ds.Bg, 1f to Color.Transparent)))
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> if (to == Screen.Search) SearchFilter.now.value = "all"; onScreen(to) }
             } }
+            // A row opened as a page (the card sheet's See all), over Home; a title opens over it, and Back from that comes back here.
+            PageLayer(if (screen == Screen.Home || screen == Screen.Title && titleFrom == Screen.Home) RowHere.open.value else null, motionOff) { ask ->
+                RowPage(app, s, ask, active = screen == Screen.Home, onTitle = openTitle) { RowHere.open.value = null; scope.launch { delay(if (motionOff) 60 else 450); runCatching { (RowHere.back ?: heroFocus).requestFocus() } } }
+            }
             PageLayer(if (screen == Screen.Title) titleStack.lastOrNull() else null, motionOff, origin = titleOrigin) { t ->
                 androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
             }

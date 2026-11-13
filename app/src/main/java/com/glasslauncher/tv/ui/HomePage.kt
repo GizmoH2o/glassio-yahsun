@@ -347,7 +347,12 @@ internal fun HomePage(
     fun below(p: Part) = parts.getOrNull(parts.indexOf(p) + 1)?.let { req(it) } ?: FocusRequester.Cancel
     var inPart by remember { mutableStateOf(Part.Hero) }
     // Which row the selection is in, for its cards' sheets (move or hide the row from there).
-    androidx.compose.runtime.SideEffect { RowHere.name = if (inPart == Part.Hero) "" else inPart.name; RowHere.back = req(inPart) }
+    // Each row of titles, by its part: what See all opens.
+    val rowLists = remember { HashMap<Part, Pair<String, List<HeroItem>>>() }
+    androidx.compose.runtime.SideEffect {
+        RowHere.name = if (inPart == Part.Hero) "" else inPart.name; RowHere.back = req(inPart)
+        val l = rowLists[inPart]; RowHere.title = l?.first.orEmpty(); RowHere.items = l?.second.orEmpty()
+    }
     // Back from a title's page: where it was opened from.
     var titleFromPart by remember { mutableStateOf(Part.Hero) }
     val heroMore = remember { FocusRequester() }
@@ -707,6 +712,7 @@ internal fun HomePage(
                 }
                 // ── recommendations
                 @Composable fun recs(part: Part, title: String, list: List<HeroItem>, note: String = "") = section(part, title, note) {
+                    rowLists[part] = title to list
                     val row = remember { RowOpen() }.takeIf { settings.cardKeepOpen }
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
@@ -772,7 +778,7 @@ internal fun HomePage(
                                             if (a.onNow(System.currentTimeMillis())) Handoff.goLive(a.title.ifBlank { a.channelName }, (if (a.number > 0) "${a.number} " else "") + a.channelName, a.art) {
                                                 runCatching { ctx.startActivity(com.glasslauncher.tv.live.LiveHome.open(ctx, a.channel, false)) }
                                             }
-                                            else scope.launch { toast(ctx, withContext(Dispatchers.IO) { com.glasslauncher.tv.live.LiveHome.toggle(ctx, a, true) }) }
+                                            else scope.launch { toast(ctx, withContext(Dispatchers.IO) { com.glasslauncher.tv.live.LiveHome.toggle(ctx, a, true) }); liveRev++ }
                                         }
                                     }
                                 }
@@ -1641,6 +1647,11 @@ internal fun sheetSub(item: HeroItem): String = listOfNotNull(
 /** The Home row the selection is in ("" on the big picture): a card's sheet can move or hide it. */
 object RowHere {
     @Volatile var name = ""
+    /** The selected row's name and titles (rows of titles only), for See all. */
+    @Volatile var title = ""
+    @Volatile var items: List<HeroItem> = emptyList()
+    /** The row page asked for (See all), drawn over Home. */
+    val open = androidx.compose.runtime.mutableStateOf<RowPageAsk?>(null)
     /** Where the selection goes back to on Home (the row it was in, on the card it was on), e.g. after the Up next card. */
     @Volatile var back: androidx.compose.ui.focus.FocusRequester? = null
 }

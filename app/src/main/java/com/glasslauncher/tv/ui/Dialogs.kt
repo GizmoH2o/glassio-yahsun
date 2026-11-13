@@ -455,6 +455,9 @@ private fun CommonLines(onDismiss: () -> Unit, row: String = "") {
     if (row.isNotEmpty() && row != "Apps") {
         val st = app.settings
         androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+        // The whole row as a page (filters, sort), for a row of titles.
+        val all = RowHere.items
+        if (all.size > 1) SheetButton(Lang.tr("See all in this row") + "   ·   ${all.size}") { onDismiss(); RowHere.open.value = RowPageAsk(RowHere.title, all) }
         SheetButton(Lang.tr("Move this row up")) { st.homeOrder = com.glasslauncher.tv.data.HomeRows.move(st.homeOrder, row, -1); onDismiss() }
         SheetButton(Lang.tr("Move this row down")) { st.homeOrder = com.glasslauncher.tv.data.HomeRows.move(st.homeOrder, row, 1); onDismiss() }
         SheetButton(Lang.tr("Hide this row")) {
