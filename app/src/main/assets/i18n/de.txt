@@ -1030,3 +1030,11 @@ Account	Konto
 Your subscription, playlists, backups, signing out	Abo, Playlists, Sicherungen, Abmelden
 All of Live TV's settings	Alle Einstellungen von Live-TV
 Live TV isn't set up yet	Live-TV ist noch nicht eingerichtet
+No connection	Keine Verbindung
+What's saved still works	Gespeichertes funktioniert weiter
+Back online	Wieder online
+No connection banner	Hinweis bei fehlender Verbindung
+One banner at the top while the TV is offline, in Glassio and Live TV, instead of each page failing on its own	Ein Hinweis oben, solange der Fernseher offline ist, in Glassio und Live-TV, statt Fehlern auf jeder Seite
+Now playing in the top bar	Läuft gerade in der oberen Leiste
+A small badge while Live TV's small window or music plays	Ein kleines Abzeichen, solange das kleine Live-TV-Fenster oder Musik läuft
+Mic opens Glassio's search	Mikrofon öffnet die Glassio-Suche

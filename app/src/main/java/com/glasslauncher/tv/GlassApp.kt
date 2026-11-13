@@ -159,6 +159,10 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        // Online or not, watched once for the whole app (the No connection banner); Back online said as a notice.
+        com.glasslauncher.tv.data.Online.watch(this) { on ->
+            if (on && settings.offlineBanner && com.glasslauncher.tv.ui.Notice.front) com.glasslauncher.tv.ui.Notice.show(com.glasslauncher.tv.ui.Lang.tr("Back online"))
+        }
         // A launcher must never vanish silently: keep the last crash for Settings → About.
         val previous = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { t, e ->

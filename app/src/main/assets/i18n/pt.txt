@@ -1029,3 +1029,11 @@ Account	Conta
 Your subscription, playlists, backups, signing out	Assinatura, listas, backups, sair
 All of Live TV's settings	Todas as configurações da TV ao vivo
 Live TV isn't set up yet	A TV ao vivo ainda não está configurada
+No connection	Sem conexão
+What's saved still works	O que está salvo continua funcionando
+Back online	De volta online
+No connection banner	Aviso sem conexão
+One banner at the top while the TV is offline, in Glassio and Live TV, instead of each page failing on its own	Um aviso no topo enquanto a TV está sem internet, no Glassio e na TV ao vivo, em vez de cada página falhar
+Now playing in the top bar	Tocando agora na barra superior
+A small badge while Live TV's small window or music plays	Um pequeno selo enquanto a janelinha da TV ao vivo ou música toca
+Mic opens Glassio's search	O microfone abre a busca do Glassio

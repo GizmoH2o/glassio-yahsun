@@ -93,6 +93,7 @@ class MainActivity : ComponentActivity() {
             } }
             // Watch on Home and the kick-off alert: over everything, last.
             com.glasslauncher.tv.ui.NoticeHost()
+            com.glasslauncher.tv.ui.OfflineBanner(application as GlassApp)
             com.glasslauncher.tv.ui.NightDim()
             com.glasslauncher.tv.ui.MiniLiveWindow()
             com.glasslauncher.tv.ui.KickOffCard()
@@ -274,6 +275,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        // Test: as if offline (true) or back (false), for the No connection banner.
+        if (i?.hasExtra("offline_test") == true) com.glasslauncher.tv.data.Online.up.value = !i.getBooleanExtra("offline_test", false)
         // Live TV's More info on a programme TMDB doesn't know: Search, on Titles, for its name.
         i?.getStringExtra("open_search")?.takeIf { it.isNotBlank() }?.let {
             app.requestSearchFilter = i.getStringExtra("open_search_filter") ?: "titles"

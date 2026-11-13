@@ -337,3 +337,32 @@ fun NoticeHost() {
                 .padding(horizontal = 22.dp, vertical = 11.dp))
     }
 }
+
+/**
+ * The one "No connection" banner for the whole app, under the top bar: after a few seconds offline (not for a blip),
+ * until the TV is back online (then a "Back online" notice). Settings › Look & motion › No connection banner.
+ */
+@Composable
+fun OfflineBanner(app: com.glasslauncher.tv.GlassApp) {
+    val up = com.glasslauncher.tv.data.Online.up.value
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(up) {
+        if (up) { shown = false; return@LaunchedEffect }
+        delay(3_000)
+        shown = true
+    }
+    val a by androidx.compose.animation.core.animateFloatAsState(if (shown && app.settings.offlineBanner) 1f else 0f, tween(280, easing = Motion.EaseOut), label = "offline")
+    if (a <= 0.001f) return
+    Box(Modifier.fillMaxSize().padding(top = 84.dp), contentAlignment = Alignment.TopCenter) {
+        Row(
+            Modifier.graphicsLayer { alpha = a; translationY = -(1f - a) * 22 * density }
+                .clip(RoundedCornerShape(50)).background(SheetFill).border(0.6.dp, SheetRim, RoundedCornerShape(50))
+                .padding(horizontal = 20.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp),
+        ) {
+            Box(Modifier.size(8.dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFFFF6B5E)))
+            Text("No connection", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text("What's saved still works", color = Color(0xFF9C9CA3), fontSize = 12.sp)
+        }
+    }
+}

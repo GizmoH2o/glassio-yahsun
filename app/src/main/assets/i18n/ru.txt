@@ -1030,3 +1030,11 @@ Account	Аккаунт
 Your subscription, playlists, backups, signing out	Подписка, плейлисты, резервные копии, выход
 All of Live TV's settings	Все настройки ТВ
 Live TV isn't set up yet	ТВ ещё не настроено
+No connection	Нет подключения
+What's saved still works	Сохранённое по-прежнему работает
+Back online	Снова в сети
+No connection banner	Баннер «Нет подключения»
+One banner at the top while the TV is offline, in Glassio and Live TV, instead of each page failing on its own	Один баннер сверху, пока ТВ без сети, в Glassio и ТВ, вместо ошибок на каждой странице
+Now playing in the top bar	Сейчас играет в верхней панели
+A small badge while Live TV's small window or music plays	Небольшой значок, пока идёт мини-окно ТВ или музыка
+Mic opens Glassio's search	Микрофон открывает поиск Glassio

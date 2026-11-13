@@ -339,6 +339,12 @@ public class Live extends Activity {
         root.addView(surface, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER));
         view = new LiveView(this);
+        // The whole app's No connection banner, here as a notice (Settings › No connection banner).
+        com.glasslauncher.tv.data.Online.watch(this, on -> {
+            boolean banner = getApplicationContext().getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getBoolean("offlineBanner", true);
+            if (banner && view != null) view.flash(on ? Ui.tr("De volta online", "Back online") : Ui.tr("Sem conexão · o que está salvo continua funcionando", "No connection · What's saved still works"));
+            return kotlin.Unit.INSTANCE;
+        });
         root.addView(view, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         nightDim = new android.view.View(this);
         nightDim.setBackgroundColor(android.graphics.Color.argb(NightMode.DIM_PERCENT * 255 / 100, 0, 0, 0));

@@ -446,6 +446,8 @@ class Settings(private val ctx: Context) {
     var navSounds: Boolean get() = b("navSounds", false); set(v) = putB("navSounds", v)
     /** The remote's microphone (and Search key) opens Glassio's Search, listening: from Home, its pages and Live TV. */
     /** A small badge in the top bar while Live TV's small window or music plays. */
+    /** One "No connection" banner at the top while the TV is offline (Glassio and Live TV). */
+    var offlineBanner: Boolean get() = b("offlineBanner", true); set(v) = putB("offlineBanner", v)
     var nowBadge: Boolean get() = b("nowBadge", true); set(v) = putB("nowBadge", v)
     var micSearch: Boolean get() = b("micSearch", true); set(v) = putB("micSearch", v)
     /** Back on Home's first press explained itself (it starts the screensaver). */
