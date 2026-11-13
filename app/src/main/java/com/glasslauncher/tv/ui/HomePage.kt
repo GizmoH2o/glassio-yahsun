@@ -123,7 +123,7 @@ internal val CARD = Color(0xFF1C1C1F)
 private val CARD_LIGHT = Color(0xFF2A2A2D)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Quick, Apps, Inputs, Widgets }
+private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Added, Season, Quick, Apps, Inputs, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -269,6 +269,19 @@ internal fun HomePage(
         val seen = lastSeen
         value = if (!auto || seen == null) emptyList() else withContext(Dispatchers.IO) { runCatching { app.recs.similar(seen) }.getOrDefault(emptyList()) }
     }
+    // Because you added: titles like the one you added to My List last (not one you've watched lately).
+    val savedNow by app.library.saved.collectAsState()
+    val lastAdded = savedNow.firstOrNull { it.id.startsWith("tt") && it.key != lastSeen?.key }
+    val addedList by androidx.compose.runtime.produceState(emptyList<HeroItem>(), auto, lastAdded?.key) {
+        val a = lastAdded
+        value = if (!auto || a == null) emptyList() else withContext(Dispatchers.IO) { runCatching { app.recs.similar(a) }.getOrDefault(emptyList()) }
+            .filter { it.key != a?.key }.take(16).takeIf { it.size >= 4 }.orEmpty()
+    }
+    // For the season: Christmas films in December, Halloween in October, Valentine's, summer blockbusters.
+    val seasonRow by androidx.compose.runtime.produceState<Pair<String, List<HeroItem>>?>(null, auto, settings.seasonMonth) {
+        val m = settings.seasonMonth.takeIf { it in 1..12 } ?: (java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1)
+        value = if (!auto) null else withContext(Dispatchers.IO) { runCatching { app.recs.seasonal(m) }.getOrNull() }
+    }
     // For You: from the titles already here, worked out on the TV.
     val forYouOn = settings.homeForYou && !kids
     val forYouList = remember(forYouOn, cwItems, catalogItems, recRows, movies, series, settings.heroHidden, infoRev) {
@@ -296,6 +309,8 @@ internal fun HomePage(
         collections.indices.forEach { if (it < colParts.size) add(colParts[it]) }
         for (c in mineList) if (forKids(c.titles).isNotEmpty()) add(Part.valueOf(Collections.row(c.slot)))
         if (becauseList.isNotEmpty()) add(Part.Because)
+        if (addedList.isNotEmpty()) add(Part.Added)
+        if (seasonRow != null) add(Part.Season)
         if (quickList.isNotEmpty()) add(Part.Quick)
         if (anyApps) add(Part.Apps)
         if (anyInputs) add(Part.Inputs)
@@ -727,6 +742,8 @@ internal fun HomePage(
                             Part.Col1, Part.Col2, Part.Col3 -> collections.getOrNull(colParts.indexOf(p))?.let { (name, list) -> recs(p, name, forKids(list)) }
                             Part.Mine1, Part.Mine2, Part.Mine3, Part.Mine4, Part.Mine5, Part.Mine6 -> mineList.firstOrNull { Collections.row(it.slot) == p.name }?.let { mine(p, it) }
                             Part.Because -> recs(p, Lang.tr("Because you watched") + " " + lastSeen?.name.orEmpty(), becauseList)
+                            Part.Added -> recs(p, Lang.tr("Because you added") + " " + lastAdded?.name.orEmpty(), addedList)
+                            Part.Season -> seasonRow?.let { (t, l) -> recs(p, Lang.tr(t), l) }
                             Part.Quick -> recs(p, "Quick watches", quickList)
                             Part.ForYou -> recs(p, "For You", forYouList, "Picked on this TV from what you watch")
                             Part.Apps -> appsRow()
@@ -1138,7 +1155,13 @@ private fun WatchPicture(item: HeroItem, newer: Int, s: Float, focused: Boolean,
         if (logoOnly) AsyncImage(remember(item.logo) { req(ctx, item.logo, 300, 170) }, null, contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize().padding(horizontal = (34 * s).dp, vertical = (20 * s).dp))
         else {
-            val pic = item.background.ifBlank { item.poster }
+            // A series' episode: its own picture (Settings › Continue Watching › Episode pictures), else the show's.
+            val app = ctx.applicationContext as GlassApp
+            val ep = if (!live && app.settings.cwStills && !item.type.equals("movie", true)) com.glasslauncher.tv.data.HomeShelf.episodeOf(item.sub) else null
+            val still by produceState("", item.key, ep) {
+                value = if (ep == null) "" else withContext(Dispatchers.IO) { app.recs.episodeStill(item, ep.first, ep.second) }
+            }
+            val pic = still.ifBlank { item.background.ifBlank { item.poster } }
             if (pic.isNotBlank()) AsyncImage(remember(pic) { req(ctx, pic, 640, 360) }, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         }
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.45f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.75f))))

@@ -124,6 +124,43 @@ class Recs(private val settings: Settings, private val http: Http) {
         }.onFailure { Glog.w("TMDB credits", it) }.getOrDefault(TitlePeople.NONE)
     }
 
+    /** The row for the time of year (its title, its films), or null for a month that has none. Needs a TMDB token. */
+    suspend fun seasonal(m: Int): Pair<String, List<HeroItem>>? {
+        if (token.isBlank()) return null
+        val (title, part) = seasonQuery(m) ?: return null
+        val lang = "&language=" + (TMDB_LANGS[settings.descLang] ?: "en-US")
+        val with = if (part.startsWith("keyword:")) {
+            val word = part.removePrefix("keyword:")
+            val k = runCatching {
+                val a = http.json("https://api.themoviedb.org/3/search/keyword?query=" + java.net.URLEncoder.encode(word, "UTF-8"), month, token)
+                    .optJSONArray("results") ?: JSONArray()
+                (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("name").equals(word, true) }?.optInt("id")
+            }.getOrNull() ?: return null
+            "&with_keywords=$k&without_genres=27"     // not the horror films with Christmas in them
+        } else "&with_genres=$part"
+        val list = runCatching {
+            tmdbList("https://api.themoviedb.org/3/discover/movie?sort_by=popularity.desc&vote_count.gte=250$with$lang", "movie", genreNames())
+        }.getOrDefault(emptyList())
+        return if (list.size >= 4) title to list.take(20) else null
+    }
+
+    private val stills = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** Blocking: the episode's own picture (TMDB's still) for a series at [season] · [episode]; "" when there's none. */
+    fun episodeStill(item: HeroItem, season: Int, episode: Int): String {
+        if (token.isBlank() || !item.id.matches(Regex("tt\\d{6,10}"))) return ""
+        val key = "${item.id}:$season:$episode"
+        stills[key]?.let { return it }
+        val url = runCatching {
+            val tv = http.json("https://api.themoviedb.org/3/find/${item.id}?external_source=imdb_id", month, token)
+                .optJSONArray("tv_results")?.optJSONObject(0)?.optInt("id") ?: return@runCatching ""
+            val path = http.json("https://api.themoviedb.org/3/tv/$tv/season/$season/episode/$episode", month, token).optString("still_path")
+            if (path.startsWith("/")) "https://image.tmdb.org/t/p/w780$path" else ""
+        }.getOrDefault("")
+        stills[key] = url
+        return url
+    }
+
     /** Blocking: the people TMDB knows by [query] (actors, directors), the better known first; none without a token. */
     fun searchPeople(query: String): List<TitlePeople.Person> {
         if (token.isBlank() || query.trim().length < 3) return emptyList()
@@ -169,6 +206,15 @@ class Recs(private val settings: Settings, private val http: Http) {
 
     companion object {
         private const val IMG = "https://image.tmdb.org/t/p/"
+
+        /** The season's row for [month] (1..12): its title and what to find (a TMDB keyword, or genre ids); null if none. Pure. */
+        internal fun seasonQuery(month: Int): Pair<String, String>? = when (month) {
+            12 -> "Christmas films" to "keyword:christmas"
+            10 -> "Halloween" to "27"
+            2 -> "Valentine's" to "10749"
+            6, 7, 8 -> "Summer blockbusters" to "28,12"
+            else -> null
+        }
 
         internal fun interleave(a: List<HeroItem>, b: List<HeroItem>): List<HeroItem> {
             val out = ArrayList<HeroItem>()

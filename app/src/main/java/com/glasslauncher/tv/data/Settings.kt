@@ -518,6 +518,8 @@ class Settings(private val ctx: Context) {
     var textSize: String get() = s("textSize", "normal"); set(v) = putS("textSize", v)
     /** Continue Watching: series with a new episode out since you watched go first (after Live TV's cards). */
     var cwNewFirst: Boolean get() = b("cwNewFirst", true); set(v) = putB("cwNewFirst", v)
+    /** Continue watching's series cards show the episode's own picture (TMDB's still), not the show's. */
+    var cwStills: Boolean get() = b("cwStills", true); set(v) = putB("cwStills", v)
     /** Continue Watching: the next episode takes the place of one you finished. */
     var cwUpNext: Boolean get() = b("cwUpNext", true); set(v) = putB("cwUpNext", v)
     /** Continue Watching: Live TV's past shows you left partway join the row. */
