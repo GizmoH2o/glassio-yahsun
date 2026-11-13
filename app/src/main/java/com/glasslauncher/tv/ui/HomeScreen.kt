@@ -744,6 +744,8 @@ internal fun profileMenu(app: GlassApp, ctx: android.content.Context, askPin: ((
     val now = p.current()
     fun switch(to: com.glasslauncher.tv.data.HomeProfiles.Profile) {
         p.switchTo(to.id)
+        // Live TV follows: its profile of that name (favorites, history) comes on too.
+        Thread { com.glasslauncher.tv.live.LiveHome.followProfile(ctx, to.name, to.kids) }.start()
         app.cw.rebuild(); app.cw.syncNuvioNow(); app.cw.syncStremioNow(); app.cw.syncTraktNow()
         app.shelf.rebuild()
         app.homeRev.intValue++      // back to the top of Home

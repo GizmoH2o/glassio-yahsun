@@ -189,6 +189,21 @@ public final class LiveHome {
     }
 
     /** Reduce motion, for Live TV's process too: a file, as it can't see the preferences change. */
+    /**
+     * The home screen's profile changed to `name`: Live TV's profile of the same name (its favorites, history and
+     * design) comes on too; with none of that name, a Kids profile for a kids one. Otherwise Live TV's stays.
+     */
+    public static void followProfile(Context c, String name, boolean kids) {
+        try {
+            LiveProfiles.Profile pick = null;
+            for (LiveProfiles.Profile p : LiveProfiles.all(c)) if (p.name != null && p.name.trim().equalsIgnoreCase(name.trim())) { pick = p; break; }
+            if (pick == null && kids) for (LiveProfiles.Profile p : LiveProfiles.all(c)) if (p.kids) { pick = p; break; }
+            if (pick != null) LiveProfiles.switchTo(c, pick.id);
+        } catch (RuntimeException e) {
+            AppLog.w("live: couldn't follow the home screen's profile: " + e.getMessage());
+        }
+    }
+
     /** Live TV in the home screen's own design (Settings › Look & motion), or back to the design it had. */
     public static void setMatchGlassio(Context c, boolean on) { LiveTheme.matchGlassio(c, on); }
     public static boolean matchesGlassio(Context c) { return LiveTheme.matchesGlassio(c); }

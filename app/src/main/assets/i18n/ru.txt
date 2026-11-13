@@ -961,3 +961,33 @@ OK on Continue watching	OK на «Продолжить просмотр»
 Resume in its app: Stremio plays it where you left off; Nuvio opens on it (its links can't start a stream). As other cards: as OK on a card	Продолжить в приложении: Stremio включит с того места, где вы остановились; Nuvio откроет его (его ссылки не запускают поток). Как другие карточки: как OK на карточке
 Resume in its app	Продолжить в приложении
 As other cards	Как другие карточки
+Any other button: back to the page	Любая другая кнопка: назад к странице
+OK · More info	OK · Подробнее
+Back on Home starts the screensaver. Press it again, or change it in Settings › Screensaver	«Назад» на главном экране запускает заставку. Нажмите ещё раз или измените в Настройки › Заставка
+Navigation sounds	Звуки навигации
+A soft tick as the selection moves, a click on OK, as on Apple TV (Live TV too)	Тихий щелчок при перемещении выбора и клик на OK, как на Apple TV (и в Прямом эфире)
+Live TV matches Glassio	Прямой эфир как Glassio
+Live TV in the home screen's own design (Glassio 3): near-black, white selection, round corners, the same lettering. Off: the design it had	Прямой эфир в оформлении главного экрана (Glassio 3): почти чёрный фон, белый выбор, скруглённые углы, тот же шрифт. Выкл.: прежнее оформление
+Trailer player	Плеер трейлеров
+Glassio's own player plays YouTube's video straight, light on memory (as NuvioTV does). Web: YouTube's page in a web view, as before	Собственный плеер Glassio играет видео YouTube напрямую и бережёт память (как NuvioTV). Веб: страница YouTube в веб-окне, как раньше
+Glassio's own	Собственный Glassio
+Web	Веб
+Poster motion	Движение постеров
+How each picture moves	Как движется каждая картинка
+Pan, left then right	Панорама: влево, потом вправо
+Slow zoom	Медленное приближение
+Opens Settings, searched	Открывает Настройки с поиском
+Apps and settings	Приложения и настройки
+Trailer on More info	Трейлер в «Подробнее»
+On a title's page its trailer plays with sound after a few seconds, then takes over the screen with Play at the bottom left; any button brings the page back	На странице фильма или сериала через несколько секунд со звуком начинается трейлер, затем он занимает весь экран с кнопкой «Смотреть» внизу слева; любая кнопка возвращает страницу
+ON NOW	СЕЙЧАС В ЭФИРЕ
+ON LIVE TV	В ПРЯМОМ ЭФИРЕ
+IN YOUR LIBRARY	В ВАШЕЙ МЕДИАТЕКЕ
+Trailer mode	Режим трейлера
+Normal: muted, behind the title and the rows. Cinematic: with sound, and after a few seconds it takes over the screen; any button brings the page back	Обычный: без звука, за названием и рядами. Кино: со звуком, и через несколько секунд занимает весь экран; любая кнопка возвращает страницу
+Cinematic	Кино
+Normal	Обычный
+Starring	В ролях
+Created by	Создатель
+Follow the TV's animation speed	Следовать скорости анимации ТВ
+Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Выкл.: страницы, меню, смена названия в большой картинке и карточки движутся в своём темпе, как в стриминговых приложениях. Вкл.: в темпе ТВ (Параметры разработчика), на некоторых ТВ быстрее

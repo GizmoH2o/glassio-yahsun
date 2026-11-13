@@ -960,3 +960,33 @@ OK on Continue watching	OK su Continua a guardare
 Resume in its app: Stremio plays it where you left off; Nuvio opens on it (its links can't start a stream). As other cards: as OK on a card	Riprendi nella sua app: Stremio lo riproduce da dove eri; Nuvio lo apre (i suoi link non possono avviare uno stream). Come le altre schede: come OK su una scheda
 Resume in its app	Riprendi nella sua app
 As other cards	Come le altre schede
+Any other button: back to the page	Qualsiasi altro tasto: torna alla pagina
+OK · More info	OK · Altre info
+Back on Home starts the screensaver. Press it again, or change it in Settings › Screensaver	Indietro nella Home avvia il salvaschermo. Premilo di nuovo o cambialo in Impostazioni › Salvaschermo
+Navigation sounds	Suoni di navigazione
+A soft tick as the selection moves, a click on OK, as on Apple TV (Live TV too)	Un leggero tic quando la selezione si sposta e un clic su OK, come su Apple TV (anche nella TV in diretta)
+Live TV matches Glassio	TV in diretta come Glassio
+Live TV in the home screen's own design (Glassio 3): near-black, white selection, round corners, the same lettering. Off: the design it had	La TV in diretta con il design della schermata Home (Glassio 3): quasi nero, selezione bianca, angoli arrotondati, lo stesso carattere. Disattivato: il design di prima
+Trailer player	Lettore dei trailer
+Glassio's own player plays YouTube's video straight, light on memory (as NuvioTV does). Web: YouTube's page in a web view, as before	Il lettore di Glassio riproduce direttamente il video di YouTube, leggero sulla memoria (come NuvioTV). Web: la pagina di YouTube in una vista web, come prima
+Glassio's own	Quello di Glassio
+Web	Web
+Poster motion	Movimento delle locandine
+How each picture moves	Come si muove ogni immagine
+Pan, left then right	Panoramica, a sinistra poi a destra
+Slow zoom	Zoom lento
+Opens Settings, searched	Apre le Impostazioni già cercate
+Apps and settings	App e impostazioni
+Trailer on More info	Trailer in Altre info
+On a title's page its trailer plays with sound after a few seconds, then takes over the screen with Play at the bottom left; any button brings the page back	Nella pagina di un titolo il trailer parte con l'audio dopo qualche secondo, poi occupa lo schermo con Riproduci in basso a sinistra; qualsiasi tasto riporta la pagina
+ON NOW	IN ONDA ORA
+ON LIVE TV	NELLA TV IN DIRETTA
+IN YOUR LIBRARY	NELLA TUA LIBRERIA
+Trailer mode	Modalità trailer
+Normal: muted, behind the title and the rows. Cinematic: with sound, and after a few seconds it takes over the screen; any button brings the page back	Normale: senza audio, dietro il titolo e le righe. Cinema: con l'audio, e dopo qualche secondo occupa lo schermo; qualsiasi tasto riporta la pagina
+Cinematic	Cinema
+Normal	Normale
+Starring	Con
+Created by	Creata da
+Follow the TV's animation speed	Segui la velocità di animazione della TV
+Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Disattivato: le pagine, i menu, il cambio di titolo dell'immagine grande e le schede si muovono al loro ritmo, come nelle app di streaming. Attivato: al ritmo della TV (Opzioni sviluppatore), più veloce su alcune TV
