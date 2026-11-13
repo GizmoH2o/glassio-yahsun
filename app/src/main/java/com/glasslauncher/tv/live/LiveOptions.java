@@ -1176,10 +1176,34 @@ final class LiveOptions {
     }
 
     /** Live TV's text size, percent: Normal, Large, Larger. */
-    static final int[] TEXT_SCALES = {100, 115, 130};
+    static final int[] TEXT_SCALES = {0, 100, 115, 130};      // 0: like Glassio's
 
+    /** Live TV's text size: its own once chosen here, else Glassio's (Settings › Home › Text size), as High contrast does. */
     static int textScale(Context c) {
-        return sp(c).getInt("textScale", 100);
+        int own = textChoice(c);
+        if (own > 0) return own;
+        return fromHomeSize(c.getApplicationContext().getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getString("textSize", "normal"));      // read again: Glassio may have changed it
+    }
+
+    /**
+     * What Live TV's own Text size is set to: 0 like Glassio's (the default), else 100, 115 or 130. 100 was the old
+     * default, so a kept 100 from before becomes "like Glassio" once.
+     */
+    static int textChoice(Context c) {
+        SharedPreferences p = sp(c);
+        if (!p.getBoolean("textScaleFollows", false)) {
+            SharedPreferences.Editor e = p.edit().putBoolean("textScaleFollows", true);
+            if (p.getInt("textScale", 0) == 100) e.remove("textScale");
+            e.apply();
+        }
+        return p.getInt("textScale", 0);
+    }
+
+    /** Glassio's text size as Live TV's (which only grows): Large 115%, Larger 130%, else 100%. Pure. */
+    static int fromHomeSize(String size) {
+        if ("larger".equals(size)) return 130;
+        if ("large".equals(size)) return 115;
+        return 100;
     }
 
     static void setTextScale(Context c, int pct) {

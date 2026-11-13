@@ -297,7 +297,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 Adjust("Accent colour", "LIVE, NEW, the progress bars and the FILM / SERIES line, on Home and the Live TV page", {
                     (ACCENTS.firstOrNull { it.first == st.accent } ?: ACCENTS[0]).second.first
                 }, { st.accent = cycle(ACCENTS.map { it.first }, st.accent, it) }),
-                Adjust("Text size", "Every screen of Glassio's own (Live TV's player keeps its own)", {
+                Adjust("Text size", "Every screen of Glassio's own, and Live TV's (unless it has its own in Live TV's settings)", {
                     (TEXT_SIZES.firstOrNull { it.first == st.textSize } ?: TEXT_SIZES[1]).second.first
                 }, { st.textSize = cycle(TEXT_SIZES.map { it.first }, st.textSize, it) }),
                 Adjust("Library on Home", "Airing this week, Movies and Series: from your Nuvio library, your Stremio library or both, with what you saved here", {

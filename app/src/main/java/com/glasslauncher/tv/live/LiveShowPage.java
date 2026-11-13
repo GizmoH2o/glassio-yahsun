@@ -515,15 +515,17 @@ final class LiveShowPage extends LiveDialog {
             if (!tag.isEmpty()) kx = LiveCountry.drawTag(c, tag, kx + 12 * k, 72 * k, g3Ch, tagPaint, k);
             LiveBadge.drawInline(c, badge, kx + 12 * k, 72 * k, g3Ch, k);
             String name = show.title.isEmpty() ? channel.name : show.title;
+            // The lines below the top one spaced by the text size (Live TV's, or Glassio's it follows), so none overlap.
+            float ts = Math.max(1f, Ui.textScale / 100f), titleBase = 72 * k + 75 * k * ts;
             // Its title's logo, as Glassio's pages have it (the name until it has come, or when there's none).
             Bitmap logo = info == null || info.logo.isEmpty() ? null : LiveLogos.get(getContext(), info.logo, this::postInvalidate);
             if (logo != null && logo.getWidth() > 0 && logo.getHeight() > 0) {
                 float maxW = 560 * k, maxH = 78 * k, sc = Math.min(maxW / logo.getWidth(), maxH / logo.getHeight());
-                float lw = logo.getWidth() * sc, lh = logo.getHeight() * sc, bottom = 168 * k;
+                float lw = logo.getWidth() * sc, lh = logo.getHeight() * sc, bottom = titleBase + 21 * k;
                 box.set(x, bottom - lh, x + lw, bottom);
                 image.setAlpha(Math.round(255 * a));
                 c.drawBitmap(logo, null, box, image);
-            } else c.drawText(ellipsize(name, g3Title, 1500 * k), x, 147 * k, g3Title);
+            } else c.drawText(ellipsize(name, g3Title, 1500 * k), x, titleBase, g3Title);
             // Year, genres, the episode, how long, the age, the score.
             LiveEpisode ep = LiveEpisode.of(getContext(), show, true, this::postInvalidate);
             StringBuilder m = new StringBuilder();
@@ -538,7 +540,7 @@ final class LiveShowPage extends LiveDialog {
             if (age > 0) m.append("  ·  ").append(age).append("+");
             boolean imdb = info != null && !info.imdb.isEmpty();
             if (!imdb && info != null && info.votes >= 5 && info.score > 0) m.append("  ·  ★ ").append(String.format(Locale.ROOT, "%.1f", info.score));
-            float y = 197 * k;
+            float y = titleBase + 50 * k * ts;
             // IMDb's rating first, as Glassio's pages have it (its yellow badge, the figure after).
             float mx = imdb ? drawImdb(c, info.imdb, x, y, g3Meta.getTextSize(), k) + 16 * k : x;
             if (m.length() > 0) c.drawText(ellipsize(m.toString(), g3Meta, tw - (mx - x)), mx, y, g3Meta);
@@ -558,7 +560,7 @@ final class LiveShowPage extends LiveDialog {
                 y += g3AboutLayout.getHeight();
             }
             // The buttons, the one in focus white; along the row when they don't fit.
-            float by = y + 20 * k, bh = 68 * k, gap = 15 * k;
+            float by = y + 20 * k, bh = 68 * k * ts, gap = 15 * k;
             float focusEnd = 0, bx = 0;
             for (int i = 0; i < labels.size(); i++) {
                 float bw = g3Button.measureText(labels.get(i)) + 66 * k;
@@ -579,7 +581,7 @@ final class LiveShowPage extends LiveDialog {
                 c.drawText(l, bx + 33 * k, by + bh / 2 + Ui.halfCap(g3Button), on ? g3ButtonOn : g3Button);
                 bx += bw + gap;
             }
-            float sy = 450 * k, focusBottom = 0;
+            float sy = Math.max(450 * k, by + bh + 34 * k), focusBottom = 0;
             // On now: the same show on other channels at this moment.
             if (!nowShows.isEmpty()) {
                 c.drawText(Ui.tr("Passando agora", "On now"), x, sy + 22 * k, g3Head);

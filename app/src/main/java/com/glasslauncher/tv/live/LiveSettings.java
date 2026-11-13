@@ -736,7 +736,7 @@ final class LiveSettings {
                 int pct = LiveOptions.panelOpacity(c);
                 return pct >= 100 ? Ui.tr("Sólido", "Solid") : pct + "%";
             }
-            case TEXT_SCALE_ROW: return numberName(TEXT_SCALE_ROW, LiveOptions.textScale(c));
+            case TEXT_SCALE_ROW: return numberName(TEXT_SCALE_ROW, LiveOptions.textChoice(c));
             case HIGH_CONTRAST_ROW: return onOff(LiveOptions.highContrast(c));
             case HEALTH_ROW: {
                 int n = LiveHealth.week(c).size();
@@ -955,9 +955,11 @@ final class LiveSettings {
     /** Live TV's text at `pct` percent: Live TV opens again, every paint made at the new size. */
     private void textScale(int pct) {
         android.content.Context c = context();
-        if (pct == LiveOptions.textScale(c)) return;
+        if (pct == LiveOptions.textChoice(c)) return;
+        int was = LiveOptions.textScale(c);
         LiveOptions.setTextScale(c, pct);
-        Ui.textScale = pct;
+        Ui.textScale = LiveOptions.textScale(c);
+        if (Ui.textScale == was) { view.invalidate(); return; }     // the same size (Like Glassio, already at it)
         view.flash(Ui.tr("A TV ao vivo abre de novo com o novo tamanho", "Live TV opens again at the new size"));
         view.postDelayed(live::recreate, 900);
     }
@@ -1175,8 +1177,8 @@ final class LiveSettings {
                     case CC_STYLE_ROW:
                     case CC_COLOR_ROW: return Ui.tr("← → para trocar; o exemplo acima mostra como ficam.",
                             "← → to change it; the sample above shows how they look.");
-                    case TEXT_SCALE_ROW: return Ui.tr("O texto de toda a TV ao vivo, maior: a TV ao vivo abre de novo com ele.",
-                            "All of Live TV's text, larger: Live TV opens again with it.");
+                    case TEXT_SCALE_ROW: return Ui.tr("O texto de toda a TV ao vivo: como o Tamanho do texto do Glassio, ou o seu próprio. A TV ao vivo abre de novo com ele.",
+                            "All of Live TV's text: like Glassio's Text size, or its own. Live TV opens again with it.");
                     case HIGH_CONTRAST_ROW: return Ui.tr("Sobre qualquer design: preto e sólido, bordas brancas, foco amarelo. Como o do Início, até ser escolhido aqui.",
                             "Over any design: black and solid, white edges, a yellow focus. As Home's until it's chosen here.");
                     case OPACITY_ROW: return Ui.tr("Quanto o canal aparece atrás: menos é mais transparente (← → para trocar).",
@@ -2198,7 +2200,7 @@ final class LiveSettings {
             case KEEP_SHOW_ROW: values = LiveOptions.KEEP_SHOW; now = LiveOptions.keepPerShow(c); labels = null; break;
             case HISTORY_ROW: values = LiveOptions.HISTORY_MAX; now = LiveOptions.historyMax(c); labels = null; break;
             case OPACITY_ROW: values = LiveOptions.PANEL_OPACITY; now = LiveOptions.panelOpacity(c); labels = null; break;
-            case TEXT_SCALE_ROW: values = LiveOptions.TEXT_SCALES; now = LiveOptions.textScale(c); labels = null; break;
+            case TEXT_SCALE_ROW: values = LiveOptions.TEXT_SCALES; now = LiveOptions.textChoice(c); labels = null; break;
             case AGE_ROW: values = LiveOptions.AGE_LOCKS; now = LiveOptions.ageLock(c); labels = null; break;
             case KIDS_LIMIT_ROW: values = LiveFamily.LIMITS; now = LiveFamily.limit(c); labels = null; break;
             case KIDS_BEDTIME_ROW: values = LiveFamily.BEDTIMES; now = LiveFamily.bedtime(c); labels = null; break;
@@ -2326,7 +2328,7 @@ final class LiveSettings {
             case KEEP_DAYS_ROW: return v == 0 ? Ui.tr("Desligado", "Off") : v + " " + Ui.tr("dias", "days");
             case KEEP_SHOW_ROW: return v == 0 ? Ui.tr("Todas", "All") : String.valueOf(v);
             case OPACITY_ROW: return v >= 100 ? Ui.tr("Sólido", "Solid") : v + "%";
-            case TEXT_SCALE_ROW: return v >= 130 ? Ui.tr("Maior", "Larger") : v >= 115 ? Ui.tr("Grande", "Large") : Ui.tr("Normal", "Normal");
+            case TEXT_SCALE_ROW: return v <= 0 ? Ui.tr("Como no Glassio", "Like Glassio") : v >= 130 ? Ui.tr("Maior", "Larger") : v >= 115 ? Ui.tr("Grande", "Large") : Ui.tr("Normal", "Normal");
             case AGE_ROW: return v <= 0 ? Ui.tr("Desligado", "Off") : v + "+";
             case KIDS_LIMIT_ROW:
                 if (v <= 0) return Ui.tr("Sem limite", "No limit");
@@ -2639,7 +2641,7 @@ final class LiveSettings {
                 announce();
                 return;
             }
-            case TEXT_SCALE_ROW: textScale(LiveOptions.step(LiveOptions.TEXT_SCALES, LiveOptions.textScale(c), dir)); return;
+            case TEXT_SCALE_ROW: textScale(LiveOptions.step(LiveOptions.TEXT_SCALES, LiveOptions.textChoice(c), dir)); return;
             case HIGH_CONTRAST_ROW: {
                 boolean on = !LiveOptions.highContrast(c);
                 LiveOptions.setHighContrast(c, on);
