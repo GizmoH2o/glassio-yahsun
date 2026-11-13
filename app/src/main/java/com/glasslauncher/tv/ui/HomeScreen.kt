@@ -1505,7 +1505,10 @@ private fun BellButton(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit
 @Composable
 private fun ProfileButton(app: GlassApp, s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit) = TopCircle(s, onClick, onFocus) { focused ->
     val name = app.profiles.current().name
-    Text(name.take(1).uppercase(), color = if (focused) Color.Black else Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.Bold)
+    // On the profile's own colour (its accent), as a streaming app's profile picture.
+    Box(Modifier.size((15 * s).dp).clip(CircleShape).background(LocalAccent.current), contentAlignment = Alignment.Center) {
+        Text(name.take(1).uppercase(), color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold)
+    }
 }
 
 /** Settings glyph: three sliders in a rounded square. */

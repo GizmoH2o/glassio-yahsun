@@ -23,6 +23,8 @@ import java.io.IOException;
 final class LiveTheme {
     /** How much a selected card grows: Glassio's own (its cards and buttons, 6%), so a selection feels the same in both. */
     static final float LIFT = 1.06f;
+    /** Glassio's accent, the profile's own colour: LIVE and what's on now (read as Live TV opens). */
+    static volatile int accent = 0xFFE50914;
 
     private LiveTheme() {}
 
@@ -792,6 +794,8 @@ final class LiveTheme {
         tick(c);
         highContrast = LiveOptions.highContrast(c);
         Ui.textScale = LiveOptions.textScale(c);
+        accent = com.glasslauncher.tv.ui.TypeKt.accentArgb(c.getApplicationContext()
+                .getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getString("accent", "red"));
         use(i);
     }
 

@@ -440,7 +440,7 @@ final class LiveShowPage extends LiveDialog {
 
         private void g3Paints(float w) {
             g3Shades(w, LiveTheme.bg);
-            g3Kicker = Ui.text(Ui.semibold, 18 * k, 0xFFE50914);
+            g3Kicker = Ui.text(Ui.semibold, 18 * k, LiveTheme.accent);
             g3Kicker.setLetterSpacing(0.08f);
             g3Where = Ui.text(Ui.semibold, 20 * k, 0xFFFFFFFF);
             g3Title = Ui.text(Ui.displaySemibold, 66 * k, 0xFFFFFFFF);
@@ -743,7 +743,7 @@ final class LiveShowPage extends LiveDialog {
             y += 62 * k;
             float px = x;
             px = drawPill(c, onNow ? Ui.tr("AO VIVO", "LIVE") : past ? Ui.tr("REPRISE", "CATCH-UP") : Ui.tr("DEPOIS", "LATER"), px, y,
-                    onNow ? 0xFFE50914 : past ? 0xFF2F6FED : 0x40FFFFFF) + 14 * k;
+                    onNow ? LiveTheme.accent : past ? 0xFF2F6FED : 0x40FFFFFF) + 14 * k;
             int age = LiveTmdb.age(getContext(), show);
             if (age > 0) px = drawPill(c, age + "+", px, y, LiveTheme.chip()) + 14 * k;
             if (show.fresh) px = drawPill(c, Ui.tr("NOVO", "NEW"), px, y, LiveTheme.chip()) + 14 * k;
@@ -895,7 +895,7 @@ final class LiveShowPage extends LiveDialog {
 
     /** Glassio's LIVE pill (red, white lettering), its text on [baseline]. Returns where it ends. */
     static float drawLivePill(android.graphics.Canvas c, float x, float baseline, float k) {
-        LIVE_FILL.setColor(0xFFE50914);
+        LIVE_FILL.setColor(LiveTheme.accent);
         LIVE_WORD.setTypeface(Ui.semibold);
         LIVE_WORD.setFakeBoldText(true);
         LIVE_WORD.setTextSize(15 * k);

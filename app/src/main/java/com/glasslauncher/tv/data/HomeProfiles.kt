@@ -58,6 +58,9 @@ class HomeProfiles(ctx: Context, private val settings: Settings) {
         val p = Profile("p" + System.currentTimeMillis().toString(36), name.trim().ifBlank { if (kids) "Kids" else "Profile" }, kids)
         val d = settings.snapshot(KEYS)
         d.put("kidsMode", JSONObject().put("b", kids))
+        // Its own colour (its accent): the first no other profile has, so each one's letter and LIVE look its own.
+        val taken = all().map { accentOf(it) }.toSet()
+        com.glasslauncher.tv.ui.ACCENTS.map { it.first }.firstOrNull { it !in taken }?.let { d.put("accent", JSONObject().put("s", it)) }
         if (kids) {
             d.remove("heroHidden")
             d.put("continueMode", JSONObject().put("s", "off"))
@@ -66,6 +69,11 @@ class HomeProfiles(ctx: Context, private val settings: Settings) {
         save(all() + p)
         return p
     }
+
+    /** A profile's colour (its accent's key): the one on reads Settings, the others what's kept for them. */
+    fun accentOf(p: Profile): String =
+        if (p.id == current().id) settings.accent
+        else data(p.id).optJSONObject("accent")?.optString("s")?.takeIf { it.isNotBlank() } ?: "red"
 
     fun rename(id: String, name: String) {
         if (name.isBlank()) return

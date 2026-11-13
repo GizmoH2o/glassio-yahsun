@@ -38,6 +38,9 @@ val ACCENTS = listOf(
     "orange" to ("Orange" to 0xFFFF8A00), "pink" to ("Pink" to 0xFFFF3D7F),
 )
 
+/** An accent's colour (ARGB) by its key; Netflix red for one not known. For Live TV too (Java). */
+fun accentArgb(key: String?): Int = (ACCENTS.firstOrNull { it.first == key }?.second?.second ?: 0xFFE50914).toInt()
+
 /** Text sizes (Settings › Home › Text size): their names and how much larger than normal. */
 val TEXT_SIZES = listOf("small" to ("Small" to 0.9f), "normal" to ("Normal" to 1f), "large" to ("Large" to 1.12f), "larger" to ("Larger" to 1.25f))
 
