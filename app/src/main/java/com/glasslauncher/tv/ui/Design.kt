@@ -313,7 +313,10 @@ fun becauseYouWatched(except: String = ""): Pair<com.glasslauncher.tv.data.HeroI
 object Tilt {
     @Volatile var dx = 0
     @Volatile var dy = 0
+    /** Bumped on each arrow pressed (the big picture's parallax follows). */
+    val moves = androidx.compose.runtime.mutableIntStateOf(0)
     fun cameFrom(code: Int) {
+        if (code in android.view.KeyEvent.KEYCODE_DPAD_UP..android.view.KeyEvent.KEYCODE_DPAD_RIGHT) moves.intValue++
         when (code) {
             android.view.KeyEvent.KEYCODE_DPAD_LEFT -> { dx = -1; dy = 0 }
             android.view.KeyEvent.KEYCODE_DPAD_RIGHT -> { dx = 1; dy = 0 }

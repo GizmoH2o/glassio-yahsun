@@ -451,6 +451,8 @@ class Settings(private val ctx: Context) {
     /** Holding Back goes to Home from anywhere (Live TV included), as the Home button does. */
     /** A small bounce at a row's end (tvOS's). */
     /** tvOS's lean on the selected poster (it tilts toward where you came from and settles). */
+    /** The big picture shifts a little against each move left or right (depth, as on Apple TV). */
+    var heroParallax: Boolean get() = b("heroParallax", true); set(v) = putB("heroParallax", v)
     var posterTilt: Boolean get() = b("posterTilt", false); set(v) = putB("posterTilt", v)
     var rowBounce: Boolean get() = b("rowBounce", true); set(v) = putB("rowBounce", v)
     var holdBackHome: Boolean get() = b("holdBackHome", true); set(v) = putB("holdBackHome", v)

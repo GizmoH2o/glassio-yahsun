@@ -581,9 +581,20 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             val motionOff = LocalReduceMotion.current
             val onHome = screen == Screen.Home
+            // Parallax (Settings › Look & motion › Big picture parallax): the picture behind shifts a little against
+            // each move left or right, then settles, while the words over it stay: depth, as on Apple TV.
+            val heroDrift = remember { androidx.compose.animation.core.Animatable(0f) }
+            val driftPx = with(LocalDensity.current) { 7.dp.toPx() }
+            LaunchedEffect(motionOff) {
+                androidx.compose.runtime.snapshotFlow { Tilt.moves.intValue }.collect {
+                    if (motionOff || !settings.heroParallax || screen != Screen.Home || Tilt.dx == 0) return@collect
+                    heroDrift.animateTo(-Tilt.dx * driftPx, tween(140, easing = Motion.EaseOut))
+                    heroDrift.animateTo(0f, androidx.compose.animation.core.spring(0.7f, 120f))
+                }
+            }
             if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade", backdropSlide,
                 slowZoom = !motionOff && settings.slowZoom in setOf("hero", "both"),
-                lift = { if (onHome && settings.heroScroll == "away") pageOffset.floatValue else 0f }) {
+                lift = { if (onHome && settings.heroScroll == "away") pageOffset.floatValue else 0f }, drift = { heroDrift.value }) {
                 if (trailerDrawn) 1f - trailerShown.value else 1f
             }
 
@@ -999,9 +1010,11 @@ private fun PageBackdrop(
     slowZoom: Boolean = false,
     /** How far up the page has gone, px: the picture goes up with it (0: it stays). */
     lift: () -> Float = { 0f },
+    /** Sideways, px: the parallax as the selection moves (0: none). */
+    drift: () -> Float = { 0f },
     opacity: () -> Float,
 ) {
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity(); translationY = -lift() }) {
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = opacity(); translationY = -lift(); val d = drift(); translationX = d; if (d != 0f) { val k = 1f + 2f * kotlin.math.abs(d) / size.width; scaleX = k; scaleY = k } }) {
         if (anim != "fade") SlideBackdrop(prev.value, cur.value, mix, dir.value, if (anim == "apple") SLIDE_APPLE else SLIDE_PUSH)
         else FadeBackdrop(prev.value, cur.value, mix, slide.value, slowZoom)
     }
