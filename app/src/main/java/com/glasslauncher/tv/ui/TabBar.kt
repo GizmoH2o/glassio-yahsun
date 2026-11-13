@@ -47,8 +47,10 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
     val tabs = buildList {
         add("Home" to Screen.Home)
         if (st.menuLive) add("Live TV" to Screen.LiveTv)
-        if (st.menuLive && st.menuFollowing) add("Following" to Screen.Following)
-        if (st.menuLibrary) add("Library" to Screen.Library)
+        // My List (Netflix's): the saved titles, their lists, and what you follow, one page with filters.
+        if (st.menuLibrary) add("My List" to Screen.Library)
+        // Following lives in My List now; its own tab only while you're on its page (from the menu).
+        if (st.menuLive && st.menuFollowing && current == Screen.Following) add("Following" to Screen.Following)
         add("Search" to Screen.Search)
     }
     // One pill that slides from tab to tab (as tvOS's top bar does), rather than each tab lighting up on its own:

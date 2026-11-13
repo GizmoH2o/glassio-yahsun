@@ -990,3 +990,5 @@ Starring	Con
 Created by	Creata da
 Follow the TV's animation speed	Segui la velocità di animazione della TV
 Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Disattivato: le pagine, i menu, il cambio di titolo dell'immagine grande e le schede si muovono al loro ritmo, come nelle app di streaming. Attivato: al ritmo della TV (Opzioni sviluppatore), più veloce su alcune TV
+My List	La mia lista
+Films	Film

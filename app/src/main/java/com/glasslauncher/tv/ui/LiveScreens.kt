@@ -229,7 +229,9 @@ private fun scoresChoice(ctx: Context, term: String, ask: (DialogState) -> Unit,
 
 /** Following: the next match of what you follow in a spotlight, then what you follow, then what's coming up. */
 @Composable
-fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null, onClose: () -> Unit) {
+fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null,
+    /** On My List's page, under its filters: no heading of its own. */
+    embedded: Boolean = false, onClose: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -288,7 +290,9 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
     LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { first.requestFocus() } }     // Down from the tabs
     LaunchedEffect(team, data != null, teamData != null) {
         val back = cameFrom
-        if (team == null && back != null && data?.terms?.contains(back) == true) focusFirst(chip) else focusFirst(first)
+        if (team == null && back != null && data?.terms?.contains(back) == true) focusFirst(chip)
+        // On My List the focus stays on its filters as it opens (Down goes in); a team's page still takes it.
+        else if (!embedded || team != null) focusFirst(first)
     }
     val follow: () -> Unit = {
         dialog = TextEntry("Follow a team or a show", "", "Every match and episode in the guide shows here, with reminders when it starts.") { name ->
@@ -324,7 +328,7 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
             return@LivePage
         }
         if (t == null) {
-            header("Following", if (!r) "Sign in to Live TV to see when your teams and shows are on" else "The teams and shows you follow, from the TV guide", s)
+            if (!embedded) header("Following", if (!r) "Sign in to Live TV to see when your teams and shows are on" else "The teams and shows you follow, from the TV guide", s)
             if (d == null) return@LivePage
             val spot = d.spot
             item(key = "spot") {

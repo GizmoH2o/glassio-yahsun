@@ -990,3 +990,5 @@ Starring	Com
 Created by	Criada por
 Follow the TV's animation speed	Seguir a velocidade de animação da TV
 Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Desligado: as páginas, os menus, a troca de título da imagem grande e os cartões se movem no próprio ritmo, como nos apps de streaming. Ligado: no ritmo da TV (Opções do desenvolvedor), mais rápido em algumas TVs
+My List	Minha lista
+Films	Filmes

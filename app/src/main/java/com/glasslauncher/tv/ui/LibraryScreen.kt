@@ -110,8 +110,20 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                 toast(ctx, "Remove it from its own tab · ${it.name}")
             })
         }
+        // My List's filters, as Netflix's: films and series of the whole list, then the lists, then what you follow.
+        val everything = firstOrNull()?.items.orEmpty()
+        val films = everything.filter { it.type.equals("movie", true) }
+        val series = everything.filter { !it.type.equals("movie", true) }
+        if (films.isNotEmpty() && series.isNotEmpty()) {
+            add(1.coerceAtMost(size), LibraryTab("series", "Series", series, "") { it: HeroItem -> toast(ctx, "Remove it from its own tab · ${it.name}") })
+            add(1.coerceAtMost(size), LibraryTab("films", "Films", films, "") { it: HeroItem -> toast(ctx, "Remove it from its own tab · ${it.name}") })
+        }
+        if (st.menuLive && st.menuFollowing) add(LibraryTab(FOLLOWING, "Following", emptyList(), "") { })
     }
     var tabKey by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    /** A filter has the focus (set as one takes it), so a change of page under them keeps it there. */
+    var pillsFocused by remember { mutableStateOf(false) }
+    var followDown by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.firstOrNull()
     val shown = tab?.items.orEmpty()
     val hasAny = tabs.any { it.items.isNotEmpty() }
@@ -126,6 +138,25 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     }
     LaunchedEffect(active) { if (active && !wasActive) { delay(60); runCatching { lastFocus.requestFocus() } }; wasActive = active }
 
+    // Moving onto Following (or off it) changes the page under the filters: the focus stays on the filter.
+    val selPill = remember { FocusRequester() }
+    LaunchedEffect(tab?.key == FOLLOWING) { delay(30); if (pillsFocused) runCatching { selPill.requestFocus() } }
+    if (tab?.key == FOLLOWING) {
+        Column(Modifier.fillMaxSize().background(Ds.Bg)) {
+            Column(Modifier.padding(start = (64 * s).dp, top = (34 * s).dp)) {
+                Text("My List", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height((14 * s).dp))
+                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+                    // Down from a filter: into what's followed (asked of it: a list found by the arrows takes the focus whole).
+                    val down = Modifier.onPreviewKeyEvent { e -> if (e.key == Key.DirectionDown) { if (e.type == KeyEventType.KeyDown) followDown++; true } else false }
+                    tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab.key, i == 0, i == tabs.lastIndex, s, toTabs,
+                        down.then(if (t.key == tab.key) Modifier.focusRequester(selPill) else Modifier)) { tabKey = t.key; pillsFocused = true } }
+                }
+            }
+            Box(Modifier.fillMaxSize().paneEnter(FOLLOWING)) { FollowingScreen(app, downAsk = downAsk + followDown, toTabs = selPill, embedded = true) { onClose() } }
+        }
+        return
+    }
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
         // TV scrolling: the selected row always sits at the same height. Moving left / right inside a row never
         // scrolls (the default "just bring it into view" nudged the page up and down with every poster).
@@ -139,7 +170,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column {
-                    Text("Library", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
+                    Text("My List", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height((4 * s).dp))
                     Text(
                         if (hasAny) "OK opens · hold OK to remove" else "Nothing here yet. On the home screen, press + next to Play to save a title.",
@@ -149,7 +180,8 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                     if (shown.isNotEmpty() || tabs.size > 1) {
                         Spacer(Modifier.height((14 * s).dp))
                         androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            if (tabs.size > 1) tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, false, s, toTabs) { tabKey = t.key } }
+                            if (tabs.size > 1) tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, false, s, toTabs,
+                                if (t.key == tab?.key) Modifier.focusRequester(selPill) else Modifier) { tabKey = t.key; pillsFocused = true } }
                             if (shown.isNotEmpty()) DsButton("Surprise me", s, Modifier.nav(up = toTabs)) { onTitle(shown.random()) }
                         }
                     }
@@ -165,7 +197,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                     Poster(it, it.id in newIds, s, st.libraryTitles, Modifier.animateItem(fadeInSpec = androidx.compose.animation.core.tween(260, delayMillis = (i % 10) * 18),
                         placementSpec = androidx.compose.animation.core.spring(stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow), fadeOutSpec = androidx.compose.animation.core.tween(140))
                         .then(if (i == 0) Modifier.focusRequester(first) else Modifier).then(if (i < 5 && tabs.size <= 1) Modifier.nav(up = toTabs) else Modifier).then(if (it.key == lastKey) Modifier.focusRequester(lastFocus) else Modifier),
-                        onFocused = { lastKey = it.key },
+                        onFocused = { lastKey = it.key; pillsFocused = false },
                         onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })
                 }
@@ -183,10 +215,10 @@ private class LibraryTab(val key: String, val label: String, val items: List<Her
  * Left on the first and Right on the last stay put (the TV would otherwise drop into the posters below).
  */
 @Composable
-private fun TabPill(label: String, selected: Boolean, first: Boolean, last: Boolean, s: Float, toTabs: FocusRequester?, onFocused: () -> Unit) {
+private fun TabPill(label: String, selected: Boolean, first: Boolean, last: Boolean, s: Float, toTabs: FocusRequester?, modifier: Modifier = Modifier, onFocused: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
     Box(
-        Modifier
+        modifier
             .nav(up = toTabs)
             .onPreviewKeyEvent { e ->
                 e.type == KeyEventType.KeyDown && (first && e.key == Key.DirectionLeft || last && e.key == Key.DirectionRight)
@@ -294,3 +326,6 @@ private fun sharpPoster(u: String): String = when {
     "images.metahub.space/poster/" in u -> u.replace(Regex("/poster/(small|medium)/"), "/poster/large/")
     else -> u
 }
+
+/** My List's Following filter: the teams and shows followed (Live TV's Following), on My List's page. */
+private const val FOLLOWING = "following"

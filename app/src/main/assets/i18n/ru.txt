@@ -991,3 +991,5 @@ Starring	В ролях
 Created by	Создатель
 Follow the TV's animation speed	Следовать скорости анимации ТВ
 Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Выкл.: страницы, меню, смена названия в большой картинке и карточки движутся в своём темпе, как в стриминговых приложениях. Вкл.: в темпе ТВ (Параметры разработчика), на некоторых ТВ быстрее
+My List	Мой список
+Films	Фильмы

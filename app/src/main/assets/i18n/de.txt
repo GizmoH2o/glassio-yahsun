@@ -991,3 +991,5 @@ Starring	Mit
 Created by	Erstellt von
 Follow the TV's animation speed	Animationstempo des Fernsehers folgen
 Off: pages, menus, the big picture's title change and the cards move at their own speed, as on the streaming apps. On: at the TV's speed (Developer options), faster on some TVs	Aus: Seiten, Menüs, der Titelwechsel im großen Bild und die Karten bewegen sich in ihrem eigenen Tempo, wie bei den Streaming-Apps. An: im Tempo des Fernsehers (Entwickleroptionen), bei manchen Fernsehern schneller
+My List	Meine Liste
+Films	Filme
