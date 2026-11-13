@@ -1089,3 +1089,66 @@ Alert chime	Звук оповещения
 What's new as a pop-up	Новое во всплывающем окне
 WHAT'S NEW	ЧТО НОВОГО
 OK to see what's new	OK — посмотреть новое
+See all in this row	Весь ряд
+Not started	Не начатые
+Sort	Сортировка
+As in the row	Как в ряду
+A–Z	А–Я
+Rating	Рейтинг
+Newest	Новые
+Nothing here with this filter.	С этим фильтром ничего нет.
+Home  ›	Главная  ›
+Reminder set	Напоминание
+Recording	Запись
+Browse by genre	По жанрам
+in your lists	в ваших списках
+In your lists	В ваших списках
+From your lists and what's popular now.	Из ваших списков и популярное сейчас.
+Nothing here yet. Popular titles need the internet and a TMDB key (Settings › Home).	Пока пусто. Для популярного нужны интернет и ключ TMDB (Настройки › Главная).
+Known for	Известен по
+titles	названий
+Born	Родился в
+in	в
+Nothing found for them. This needs the internet and a TMDB key (Settings › Home).	Ничего не найдено. Нужны интернет и ключ TMDB (Настройки › Главная).
+Acting	Актёр
+Directing	Режиссёр
+Writing	Сценарист
+Production	Продюсер
+Action	Боевики
+Comedy	Комедии
+Drama	Драмы
+Animation	Анимация
+Sci-Fi	Фантастика
+Crime	Криминал
+Documentary	Документальные
+Horror	Ужасы
+Romance	Мелодрамы
+Chases, fights and big set pieces	Погони, драки и масштабные сцены
+Feel-good and laugh-out-loud	Хорошее настроение и смех
+Stories that stay with you	Истории, которые остаются с вами
+Animated films and series, anime too	Мультфильмы и сериалы, аниме тоже
+Other worlds, other times	Другие миры, другие времена
+Heists, detectives and cold cases	Ограбления, детективы и нераскрытые дела
+Real people, real stories	Реальные люди, реальные истории
+Something everyone can watch	То, что можно смотреть всем
+Lights off	Свет выключен
+Love stories	Истории любви
+Removed from recent searches	Удалено из недавних поисков
+People's pages	Страницы людей
+OK on someone in a title's cast or in Search opens their page (who they are, what they're known for). Off: their titles in a row	OK на человеке из актёров или поиска открывает его страницу (кто это, чем известен). Выкл.: его фильмы рядом
+A row of genres in Search, each opening its own page of popular films and series and yours	Ряд жанров в поиске, у каждого своя страница популярного и вашего
+Sport page	Страница спорта
+Following shows what's live now and today's matches on the page itself, as a sport page	«Подписки» показывают прямые эфиры и сегодняшние матчи прямо на странице
+Sport tab	Вкладка «Спорт»
+The Sport page in the top bar while you follow a team or a show	Спорт в верхней панели, пока вы подписаны на команду или передачу
+Kids Home	Детская главная
+A kids profile's own Home: a hello, big Keep watching cards, cartoons and their apps, rounder and bigger. Off: Home with family titles only	Своя главная для детского профиля: приветствие, большие карточки «Продолжить», мультфильмы и приложения. Выкл.: главная только с семейным
+Sport	Спорт
+Your teams, today's matches, what's live	Ваши команды, матчи сегодня, прямой эфир
+Live now	Сейчас в эфире
+Hi	Привет
+Grown-ups	Взрослым
+Your favourites	Твоё любимое
+Cartoons	Мультфильмы
+Family films	Семейные фильмы
+Your apps	Твои приложения

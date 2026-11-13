@@ -1089,3 +1089,66 @@ Alert chime	Hinweiston
 What's new as a pop-up	Neuigkeiten als Fenster
 WHAT'S NEW	NEU
 OK to see what's new	OK für die Neuigkeiten
+See all in this row	Alles in dieser Reihe
+Not started	Nicht begonnen
+Sort	Sortieren
+As in the row	Wie in der Reihe
+A–Z	A–Z
+Rating	Bewertung
+Newest	Neueste
+Nothing here with this filter.	Mit diesem Filter ist hier nichts.
+Home  ›	Startseite  ›
+Reminder set	Erinnerung an
+Recording	Aufnahme
+Browse by genre	Nach Genre stöbern
+in your lists	in deinen Listen
+In your lists	In deinen Listen
+From your lists and what's popular now.	Aus deinen Listen und was gerade beliebt ist.
+Nothing here yet. Popular titles need the internet and a TMDB key (Settings › Home).	Noch nichts hier. Beliebte Titel brauchen Internet und einen TMDB-Schlüssel (Einstellungen › Startseite).
+Known for	Bekannt für
+titles	Titel
+Born	Geboren
+in	in
+Nothing found for them. This needs the internet and a TMDB key (Settings › Home).	Nichts gefunden. Dafür braucht es Internet und einen TMDB-Schlüssel (Einstellungen › Startseite).
+Acting	Schauspiel
+Directing	Regie
+Writing	Drehbuch
+Production	Produktion
+Action	Action
+Comedy	Komödie
+Drama	Drama
+Animation	Animation
+Sci-Fi	Sci-Fi
+Crime	Krimi
+Documentary	Doku
+Horror	Horror
+Romance	Romantik
+Chases, fights and big set pieces	Verfolgungsjagden, Kämpfe und große Szenen
+Feel-good and laugh-out-loud	Gute Laune und lautes Lachen
+Stories that stay with you	Geschichten, die bleiben
+Animated films and series, anime too	Animationsfilme und -serien, auch Anime
+Other worlds, other times	Andere Welten, andere Zeiten
+Heists, detectives and cold cases	Coups, Ermittler und ungelöste Fälle
+Real people, real stories	Echte Menschen, echte Geschichten
+Something everyone can watch	Etwas für alle
+Lights off	Licht aus
+Love stories	Liebesgeschichten
+Removed from recent searches	Aus den letzten Suchen entfernt
+People's pages	Personenseiten
+OK on someone in a title's cast or in Search opens their page (who they are, what they're known for). Off: their titles in a row	OK auf eine Person in der Besetzung oder Suche öffnet ihre Seite (wer sie ist, wofür bekannt). Aus: ihre Titel in einer Reihe
+A row of genres in Search, each opening its own page of popular films and series and yours	Eine Genre-Reihe in der Suche, jedes mit eigener Seite: beliebte Filme, Serien und deine
+Sport page	Sportseite
+Following shows what's live now and today's matches on the page itself, as a sport page	„Gefolgt“ zeigt, was gerade live läuft, und die heutigen Spiele direkt auf der Seite
+Sport tab	Sport-Tab
+The Sport page in the top bar while you follow a team or a show	Die Sportseite oben in der Leiste, solange du einem Team oder einer Sendung folgst
+Kids Home	Kinder-Startseite
+A kids profile's own Home: a hello, big Keep watching cards, cartoons and their apps, rounder and bigger. Off: Home with family titles only	Eigene Startseite für Kinderprofile: ein Hallo, große Weiterschauen-Karten, Cartoons und ihre Apps, runder und größer. Aus: Startseite nur mit Familientiteln
+Sport	Sport
+Your teams, today's matches, what's live	Deine Teams, heutige Spiele, was live läuft
+Live now	Jetzt live
+Hi	Hallo
+Grown-ups	Erwachsene
+Your favourites	Deine Lieblinge
+Cartoons	Cartoons
+Family films	Familienfilme
+Your apps	Deine Apps

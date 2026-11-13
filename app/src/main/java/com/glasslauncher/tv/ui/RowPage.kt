@@ -65,7 +65,7 @@ fun RowPage(app: GlassApp, s: Float, ask: RowPageAsk, active: Boolean, onTitle: 
     val items = remember(ask) { ask.items.map { app.shelf.filled(it) } }
     val started = remember(ask) { app.cw.items.value.map { it.key }.toSet() + app.cw.finishedKeys() }
     val genres = remember(items) { items.flatMap { it.genres }.groupingBy { it }.eachCount().entries.sortedByDescending { it.value }.take(3).map { it.key } }
-    val filters = listOf("all" to "All ${items.size}", "new" to "Not started") + genres.map { it to it } + ("short" to "Under 2 hours")
+    val filters = listOf("all" to Lang.tr("All") + " ${items.size}", "new" to "Not started") + genres.map { it to it } + ("short" to "Under 2 hours")
     var filter by remember(ask) { mutableStateOf("all") }
     var sort by remember(ask) { mutableStateOf(RowSort.Row) }
     val shown = remember(items, filter, sort) { rowShown(items, filter, sort, started) }

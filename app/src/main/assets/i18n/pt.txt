@@ -1088,3 +1088,66 @@ Alert chime	Som de alerta
 What's new as a pop-up	Novidades em janela
 WHAT'S NEW	NOVIDADES
 OK to see what's new	OK para ver as novidades
+See all in this row	Ver toda a fileira
+Not started	Não iniciados
+Sort	Ordenar
+As in the row	Como na fileira
+A–Z	A–Z
+Rating	Avaliação
+Newest	Mais recentes
+Nothing here with this filter.	Nada com este filtro.
+Home  ›	Início  ›
+Reminder set	Lembrete ativo
+Recording	Gravação
+Browse by genre	Explorar por gênero
+in your lists	nas suas listas
+In your lists	Nas suas listas
+From your lists and what's popular now.	Das suas listas e o que está em alta.
+Nothing here yet. Popular titles need the internet and a TMDB key (Settings › Home).	Nada ainda. Títulos populares precisam de internet e de uma chave TMDB (Configurações › Início).
+Known for	Conhecido por
+titles	títulos
+Born	Nascido em
+in	em
+Nothing found for them. This needs the internet and a TMDB key (Settings › Home).	Nada encontrado. Precisa de internet e de uma chave TMDB (Configurações › Início).
+Acting	Atuação
+Directing	Direção
+Writing	Roteiro
+Production	Produção
+Action	Ação
+Comedy	Comédia
+Drama	Drama
+Animation	Animação
+Sci-Fi	Ficção científica
+Crime	Crime
+Documentary	Documentário
+Horror	Terror
+Romance	Romance
+Chases, fights and big set pieces	Perseguições, lutas e grandes cenas
+Feel-good and laugh-out-loud	Para rir alto e se sentir bem
+Stories that stay with you	Histórias que ficam com você
+Animated films and series, anime too	Filmes e séries animados, anime também
+Other worlds, other times	Outros mundos, outros tempos
+Heists, detectives and cold cases	Assaltos, detetives e casos arquivados
+Real people, real stories	Pessoas reais, histórias reais
+Something everyone can watch	Algo para todos assistirem
+Lights off	Luzes apagadas
+Love stories	Histórias de amor
+Removed from recent searches	Removido das buscas recentes
+People's pages	Páginas de pessoas
+OK on someone in a title's cast or in Search opens their page (who they are, what they're known for). Off: their titles in a row	OK em alguém do elenco ou da busca abre a página da pessoa (quem é, pelo que é conhecida). Desligado: os títulos dela em uma fileira
+A row of genres in Search, each opening its own page of popular films and series and yours	Uma fileira de gêneros na Busca, cada um com sua página de filmes e séries populares e os seus
+Sport page	Página de esporte
+Following shows what's live now and today's matches on the page itself, as a sport page	Seguindo mostra o que está ao vivo e as partidas de hoje na própria página
+Sport tab	Aba Esporte
+The Sport page in the top bar while you follow a team or a show	A página de esporte na barra superior enquanto você segue um time ou programa
+Kids Home	Início infantil
+A kids profile's own Home: a hello, big Keep watching cards, cartoons and their apps, rounder and bigger. Off: Home with family titles only	O início próprio de um perfil infantil: um olá, cartões grandes de Continuar assistindo, desenhos e os apps, maior e mais arredondado. Desligado: Início só com títulos para a família
+Sport	Esporte
+Your teams, today's matches, what's live	Seus times, as partidas de hoje, o que está ao vivo
+Live now	Ao vivo agora
+Hi	Oi
+Grown-ups	Adultos
+Your favourites	Seus favoritos
+Cartoons	Desenhos animados
+Family films	Filmes para a família
+Your apps	Seus apps

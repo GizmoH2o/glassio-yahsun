@@ -1088,3 +1088,66 @@ Alert chime	Suono di avviso
 What's new as a pop-up	Novità in una finestra
 WHAT'S NEW	NOVITÀ
 OK to see what's new	OK per vedere le novità
+See all in this row	Vedi tutta la riga
+Not started	Non iniziati
+Sort	Ordina
+As in the row	Come nella riga
+A–Z	A–Z
+Rating	Voto
+Newest	Più recenti
+Nothing here with this filter.	Niente con questo filtro.
+Home  ›	Home  ›
+Reminder set	Promemoria attivo
+Recording	Registrazione
+Browse by genre	Sfoglia per genere
+in your lists	nelle tue liste
+In your lists	Nelle tue liste
+From your lists and what's popular now.	Dalle tue liste e ciò che è popolare ora.
+Nothing here yet. Popular titles need the internet and a TMDB key (Settings › Home).	Ancora niente. I titoli popolari richiedono internet e una chiave TMDB (Impostazioni › Home).
+Known for	Noto per
+titles	titoli
+Born	Nato nel
+in	a
+Nothing found for them. This needs the internet and a TMDB key (Settings › Home).	Nessun risultato. Servono internet e una chiave TMDB (Impostazioni › Home).
+Acting	Recitazione
+Directing	Regia
+Writing	Sceneggiatura
+Production	Produzione
+Action	Azione
+Comedy	Commedia
+Drama	Dramma
+Animation	Animazione
+Sci-Fi	Fantascienza
+Crime	Crime
+Documentary	Documentario
+Horror	Horror
+Romance	Romantici
+Chases, fights and big set pieces	Inseguimenti, lotte e grandi scene
+Feel-good and laugh-out-loud	Buonumore e risate
+Stories that stay with you	Storie che restano
+Animated films and series, anime too	Film e serie animate, anche anime
+Other worlds, other times	Altri mondi, altri tempi
+Heists, detectives and cold cases	Colpi, detective e casi irrisolti
+Real people, real stories	Persone vere, storie vere
+Something everyone can watch	Qualcosa per tutti
+Lights off	Luci spente
+Love stories	Storie d'amore
+Removed from recent searches	Rimosso dalle ricerche recenti
+People's pages	Pagine delle persone
+OK on someone in a title's cast or in Search opens their page (who they are, what they're known for). Off: their titles in a row	OK su qualcuno del cast o della ricerca apre la sua pagina (chi è, per cosa è noto). Disattivato: i suoi titoli in una riga
+A row of genres in Search, each opening its own page of popular films and series and yours	Una riga di generi in Cerca, ognuno con la sua pagina di film e serie popolari e i tuoi
+Sport page	Pagina Sport
+Following shows what's live now and today's matches on the page itself, as a sport page	Seguiti mostra cosa c'è in diretta e le partite di oggi nella pagina stessa
+Sport tab	Scheda Sport
+The Sport page in the top bar while you follow a team or a show	La pagina Sport nella barra in alto finché segui una squadra o un programma
+Kids Home	Home bambini
+A kids profile's own Home: a hello, big Keep watching cards, cartoons and their apps, rounder and bigger. Off: Home with family titles only	La Home propria di un profilo bambini: un saluto, grandi schede Continua a guardare, cartoni e le loro app, più grande e arrotondata. Disattivato: Home con soli titoli per famiglie
+Sport	Sport
+Your teams, today's matches, what's live	Le tue squadre, le partite di oggi, la diretta
+Live now	In diretta
+Hi	Ciao
+Grown-ups	Adulti
+Your favourites	I tuoi preferiti
+Cartoons	Cartoni animati
+Family films	Film per famiglie
+Your apps	Le tue app

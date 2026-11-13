@@ -1088,3 +1088,66 @@ Alert chime	Carillon d'alerte
 What's new as a pop-up	Nouveautés en fenêtre
 WHAT'S NEW	NOUVEAUTÉS
 OK to see what's new	OK pour voir les nouveautés
+See all in this row	Tout voir dans cette rangée
+Not started	Pas commencés
+Sort	Trier
+As in the row	Comme dans la rangée
+A–Z	A–Z
+Rating	Note
+Newest	Plus récents
+Nothing here with this filter.	Rien avec ce filtre.
+Home  ›	Accueil  ›
+Reminder set	Rappel activé
+Recording	Enregistrement
+Browse by genre	Parcourir par genre
+in your lists	dans vos listes
+In your lists	Dans vos listes
+From your lists and what's popular now.	De vos listes et ce qui est populaire.
+Nothing here yet. Popular titles need the internet and a TMDB key (Settings › Home).	Rien pour l'instant. Les titres populaires demandent internet et une clé TMDB (Réglages › Accueil).
+Known for	Connu pour
+titles	titres
+Born	Né en
+in	à
+Nothing found for them. This needs the internet and a TMDB key (Settings › Home).	Rien trouvé. Il faut internet et une clé TMDB (Réglages › Accueil).
+Acting	Acteur
+Directing	Réalisation
+Writing	Scénario
+Production	Production
+Action	Action
+Comedy	Comédie
+Drama	Drame
+Animation	Animation
+Sci-Fi	Science-fiction
+Crime	Policier
+Documentary	Documentaire
+Horror	Horreur
+Romance	Romance
+Chases, fights and big set pieces	Poursuites, combats et grandes scènes
+Feel-good and laugh-out-loud	Bonne humeur et éclats de rire
+Stories that stay with you	Des histoires qui restent
+Animated films and series, anime too	Films et séries d'animation, anime aussi
+Other worlds, other times	D'autres mondes, d'autres temps
+Heists, detectives and cold cases	Braquages, détectives et affaires non élucidées
+Real people, real stories	De vraies personnes, de vraies histoires
+Something everyone can watch	Pour toute la famille
+Lights off	Lumières éteintes
+Love stories	Histoires d'amour
+Removed from recent searches	Retiré des recherches récentes
+People's pages	Pages des personnes
+OK on someone in a title's cast or in Search opens their page (who they are, what they're known for). Off: their titles in a row	OK sur quelqu'un de la distribution ou de la recherche ouvre sa page (qui c'est, pour quoi on le connaît). Désactivé : ses titres en rangée
+A row of genres in Search, each opening its own page of popular films and series and yours	Une rangée de genres dans Rechercher, chacun avec sa page de films et séries populaires et les vôtres
+Sport page	Page Sport
+Following shows what's live now and today's matches on the page itself, as a sport page	Suivis montre le direct et les matchs du jour sur la page même
+Sport tab	Onglet Sport
+The Sport page in the top bar while you follow a team or a show	La page Sport dans la barre du haut tant que vous suivez une équipe ou une émission
+Kids Home	Accueil enfants
+A kids profile's own Home: a hello, big Keep watching cards, cartoons and their apps, rounder and bigger. Off: Home with family titles only	L'accueil propre à un profil enfant : un bonjour, de grandes cartes Reprendre, des dessins animés et leurs apps, plus grand et plus rond. Désactivé : l'accueil avec les titres familiaux seulement
+Sport	Sport
+Your teams, today's matches, what's live	Vos équipes, les matchs du jour, le direct
+Live now	En direct
+Hi	Salut
+Grown-ups	Les grands
+Your favourites	Tes préférés
+Cartoons	Dessins animés
+Family films	Films en famille
+Your apps	Tes applis
