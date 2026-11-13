@@ -1538,7 +1538,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     )
     catTitles[0] = categories.map { it.title }
     // Search: what you typed (Settings' first row); the rows of every page that match, while there's something typed.
-    var query by remember { mutableStateOf("") }
+    var query by remember { mutableStateOf(SettingsAsk.take()) }
     val results = remember { FocusRequester() }
     LaunchedEffect(query) { if (query.isNotBlank()) { kotlinx.coroutines.delay(200); runCatching { results.requestFocus() } } }
 
@@ -1572,7 +1572,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                                 .background(if (f) Color.White else if (cat == i && query.isBlank()) Color.White.copy(alpha = 0.14f) else Color.Transparent)
                                 .focusRequester(catFocus[i])
                                 .then(if (i == initialCat) Modifier.focusRequester(firstCat) else Modifier)
-                                .onFocusChanged { f = it.isFocused; if (it.isFocused) { cat = i; query = "" } }
+                                .onFocusChanged { f = it.isFocused; if (it.isFocused) { if (cat != i) query = ""; cat = i } }
                                 .clickable { cat = i }
                                 .padding(horizontal = (11 * s).dp, vertical = (6.5f * s).dp),
                         )
@@ -1841,3 +1841,9 @@ private fun videoName(u: String): String = runCatching {
 
 /** Whether Live TV is in Glassio's design (read once from Live TV's file; a state, so the switch shows a change at once). */
 private object LiveLook { val on = androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
+
+/** Words to open Settings searched for (Search's "Settings for …"), taken once. */
+object SettingsAsk {
+    @Volatile var query = ""
+    fun take(): String = query.also { query = "" }
+}

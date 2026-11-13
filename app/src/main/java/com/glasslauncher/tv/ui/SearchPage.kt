@@ -151,7 +151,9 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val chips = moods && q.length < 2
     val hasTitles = if (filtering) fitting.isNotEmpty() else if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
     val hasChannels = q.length >= 2 && channels.isNotEmpty()
-    val hasApps = q.length >= 2 && apps.isNotEmpty()
+    // Settings too (as the streaming apps' search finds their settings): a card that opens them searched for the words.
+    val settingsCard = q.trim().length >= 3
+    val hasApps = q.length >= 2 && apps.isNotEmpty() || settingsCard
     val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
         showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
         channelRow.takeIf { hasChannels }, appRow.takeIf { hasApps })
@@ -256,11 +258,18 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                         itemsIndexed(channels, key = { _, a -> a.channel }) { i, a -> ChannelCard(a, s, channelRow.of(i).nav(up = above(channelRow), down = below(channelRow), left = if (i == 0) keyFocus else null, right = edge(i == channels.lastIndex))) { runCatching { ctx.startActivity(LiveHome.open(ctx, a.channel, false)) } } }
                     }
                 }
-                if (apps.isNotEmpty()) {
+                if (hasApps) {
                     Spacer(Modifier.height((10 * s).dp))
-                    DsHeading("Apps", s)
+                    DsHeading(if (apps.isNotEmpty()) "Apps and settings" else "Settings", s)
                     LazyRow(state = appRow.state, contentPadding = PaddingValues(end = (EDGE * s).dp, top = (4 * s).dp, bottom = (4 * s).dp), horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                        itemsIndexed(apps, key = { _, e -> e.pkg }) { i, e -> TextCard(e.label, "", s, appRow.of(i).nav(up = above(appRow), down = FocusRequester.Cancel, left = if (i == 0) keyFocus else null, right = edge(i == apps.lastIndex))) { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) } }
+                        itemsIndexed(apps, key = { _, e -> e.pkg }) { i, e -> TextCard(e.label, "", s, appRow.of(i).nav(up = above(appRow), down = FocusRequester.Cancel, left = if (i == 0) keyFocus else null, right = edge(i == apps.lastIndex && !settingsCard))) { com.glasslauncher.tv.ui.AppLock.open(app, ctx, e) } }
+                        if (settingsCard) item(key = "settings") {
+                            TextCard("Settings for “${q.trim()}”", "Opens Settings, searched", s, appRow.of(apps.size).nav(up = above(appRow), down = FocusRequester.Cancel,
+                                left = if (apps.isEmpty()) keyFocus else null, right = FocusRequester.Cancel)) {
+                                SettingsAsk.query = q.trim()
+                                app.requestSettings.intValue = 0; app.requestSettingsRev.intValue++
+                            }
+                        }
                     }
                 }
             }
