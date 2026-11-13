@@ -521,7 +521,9 @@ class Settings(private val ctx: Context) {
     var seenVersion: String get() = s("seenVersion", ""); set(v) = putS("seenVersion", v)
     var welcomeDone: Boolean get() = b("welcomeDone", false); set(v) = putB("welcomeDone", v)
     /** Kids mode (a kids profile, HomeProfiles): family titles only, these apps only, the PIN to leave. */
-    var kidsMode: Boolean get() = b("kidsMode", false); set(v) = putB("kidsMode", v)
+    var kidsMode: Boolean get() = KidsTest.on.value || b("kidsMode", false); set(v) = putB("kidsMode", v)
+    /** Kids mode's own Home: a hello, big Keep watching cards, rounded posters, their apps. Off: Home, family titles only. */
+    var kidsHome: Boolean get() = b("kidsHome", true); set(v) = putB("kidsHome", v)
     var kidsApps: List<String> get() = list("kidsApps"); set(v) = putList("kidsApps", v)
     /** Home's PIN (4 digits; "" none): leaving Kids mode, and Settings while in it. */
     var homePin: String get() = s("homePin", ""); set(v) = putS("homePin", v)
@@ -834,3 +836,6 @@ class Settings(private val ctx: Context) {
     /** The What's new tour last seen (WhatsNew.ID). */
     var tourSeen: Int get() = i("tourSeen", 0); set(v) = putI("tourSeen", v)
 }
+
+/** Testing (adb's kids_test extra): Kids mode for now, in memory only; nothing of the profile's changes. */
+object KidsTest { val on = androidx.compose.runtime.mutableStateOf(false) }

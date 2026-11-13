@@ -633,7 +633,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                         }
                     }
             ) {
-                HomePage(
+                // A kids profile: its own Home (mockup 34); the grown-ups' way out is the profile menu, behind the PIN.
+                if (settings.kidsMode && settings.kidsHome) {
+                    LaunchedEffect(Unit) { backdrop = null }
+                    KidsHome(app, s, heroFocus, active = screen == Screen.Home && !folderOpen && !menuOpen && dialog == null, onTitle = openTitle,
+                        onGrownUps = { dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } } })
+                } else HomePage(
                     app, s, screenHdp, visible = screen == Screen.Home && !folderOpen, paused = screen != Screen.Home,
                     heroFocus = heroFocus, appsFocus = appsFocus, folderFocus = folderFocus, tileFocus = tileFocus,
                     movingPkg = movingPkg, onMoveKey = onMoveKey, shownUrl = shownUrl, tint = pageTint, onBackdrop = { backdrop = it },

@@ -501,6 +501,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         else toast(ctx, "The PIN must be 4 digits")
                     }
                 })
+                add(Toggle("Kids Home", "A kids profile's own Home: a hello, big Keep watching cards, cartoons and their apps, rounder and bigger. Off: Home with family titles only", { st.kidsHome }, { st.kidsHome = it }))
                 // In Kids mode (here after the PIN): which apps it shows.
                 if (st.kidsMode) add(Act("Apps in Kids mode", "${st.kidsApps.size} chosen", "Choose") {
                     fun menu(): MenuDialog = MenuDialog("Apps in Kids mode", app.apps.ordered(includeHidden = true).map { e ->
