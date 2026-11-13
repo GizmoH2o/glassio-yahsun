@@ -436,7 +436,7 @@ private fun LazyListScope.teamInfoRows(info: com.glasslauncher.tv.live.LiveTeamI
     }
 }
 
-private fun day(at: Long): String = java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(at))
+private fun day(at: Long): String = Dates.shortDay(at)
 
 @Composable
 private fun InfoRow(s: Float, left: String, middle: String, right: String) {

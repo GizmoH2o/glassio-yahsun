@@ -579,7 +579,8 @@ class Settings(private val ctx: Context) {
     /** The selected icon rises a little, like tvOS. */
     var tileLift: Boolean get() = b("tileLift", false); set(v) = putB("tileLift", v)
     var showClock: Boolean get() = b("showClock", false); set(v) = putB("showClock", v)
-    var clock24h: Boolean get() = b("clock24h", false); set(v) = putB("clock24h", v)
+    var clock24h: Boolean get() = b("clock24h", false).also { com.glasslauncher.tv.ui.Dates.h24 = it }
+        set(v) { putB("clock24h", v); com.glasslauncher.tv.ui.Dates.h24 = v }
     var blurRadius: Int get() = i("blurRadius", 32); set(v) = putI("blurRadius", v.coerceIn(0, 80))
     var glassTint: Int get() = i("glassTint", 0); set(v) = putI("glassTint", v.coerceIn(0, 40))
     var showMobileApps: Boolean get() = b("showMobileApps", true); set(v) = putB("showMobileApps", v)

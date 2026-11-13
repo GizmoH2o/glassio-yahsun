@@ -162,6 +162,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
     var phoneDialog by remember { mutableStateOf(false) }
     var cat by remember { mutableIntStateOf(initialCat) }
     var shownCat by remember { mutableIntStateOf(initialCat) }
+    // Settings opens again where you left it (the category), as the streaming apps' settings do.
+    LaunchedEffect(cat) { SettingsAsk.lastCat = cat }
     LaunchedEffect(cat) { if (cat != shownCat) { kotlinx.coroutines.delay(120); shownCat = cat } }
     val packList = remember { listOf("") + app.packs.installed().map { it.pkg } }
     val packLabels = remember { app.packs.installed().associate { it.pkg to it.label } }
@@ -1845,5 +1847,7 @@ private object LiveLook { val on = androidx.compose.runtime.mutableStateOf<Boole
 /** Words to open Settings searched for (Search's "Settings for …"), taken once. */
 object SettingsAsk {
     @Volatile var query = ""
+    /** The category Settings was last on: opened without one asked for, it opens there. */
+    @Volatile var lastCat = 0
     fun take(): String = query.also { query = "" }
 }

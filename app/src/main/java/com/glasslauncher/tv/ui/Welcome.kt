@@ -64,7 +64,8 @@ fun Welcome(app: GlassApp, s: Float, stepState: MutableIntState, onSettings: (ca
     val first = remember { FocusRequester() }
     LaunchedEffect(step) { delay(150); runCatching { first.requestFocus() } }
     Row(Modifier.fillMaxSize().background(Ds.Bg).focusGroup().padding(horizontal = (54 * s).dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((30 * s).dp)) {
-        Column(Modifier.weight(0.42f)) {
+        // Each step's words and choices come in as a pane does elsewhere (a fade, settling from the side).
+        Column(Modifier.weight(0.42f).paneEnter(step)) {
             when (step) {
                 0 -> Intro("Welcome to Glassio", "Your films, series, live TV and apps, together on one home screen.", s)
                 1 -> Intro("Bring in what you watch", "Sign in to fill Home with your library and Continue Watching. No account? Home shows what's trending, and you can still save titles.", s)
@@ -76,7 +77,7 @@ fun Welcome(app: GlassApp, s: Float, stepState: MutableIntState, onSettings: (ca
                 repeat(4) { i -> Box(Modifier.width((24 * s).dp).height((2.5f * s).dp).clip(RoundedCornerShape(50)).background(if (i <= step) Color.White else Color.White.copy(alpha = 0.25f))) }
             }
         }
-        Column(Modifier.weight(0.58f), verticalArrangement = Arrangement.spacedBy((6 * s).dp)) {
+        Column(Modifier.weight(0.58f).paneEnter(step), verticalArrangement = Arrangement.spacedBy((6 * s).dp)) {
             when (step) {
                 0 -> Row { DsButton("Get started", s, Modifier.focusRequester(first), primary = true) { step = 1 } }
                 1 -> {

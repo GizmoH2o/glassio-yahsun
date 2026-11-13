@@ -389,4 +389,4 @@ private fun ThemedNumerals(text: String, style: TextStyle, look: String, blurOn:
     }
 }
 
-private fun bigDate(): String = java.text.SimpleDateFormat("EEEE d MMMM", java.util.Locale.ENGLISH).format(java.util.Date())
+private fun bigDate(): String = Dates.longDay(System.currentTimeMillis())

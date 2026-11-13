@@ -1022,14 +1022,14 @@ private fun daysBetween(now: Long, at: Long): Int {
 
 /** "Today 01:40", "Tomorrow 23:30", "Friday 11:15", "Mon 3 Nov 20:00". */
 private fun airDay(at: Long, now: Long): String {
-    val time = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date(at))
+    val time = Dates.time(at)
     val d = daysBetween(now, at)
     val day = when {
         d == 0 -> "Today"
         d == 1 -> "Tomorrow"
         d == -1 -> "Yesterday"
-        d in 2..6 -> java.text.SimpleDateFormat("EEEE", java.util.Locale.getDefault()).format(java.util.Date(at))
-        else -> java.text.SimpleDateFormat("EEE d MMM", java.util.Locale.getDefault()).format(java.util.Date(at))
+        d in 2..6 -> Dates.weekday(at)
+        else -> Dates.shortDay(at)
     }
     return "$day $time"
 }

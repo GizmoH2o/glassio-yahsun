@@ -681,7 +681,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             )
             }
             PageLayer(if (screen == Screen.Settings) Screen.Settings else null, motionOff) {
-                SettingsScreen(app, settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
+                SettingsScreen(app, if (settingsCat == 0) SettingsAsk.lastCat else settingsCat) { settingsCat = 0; onScreen(Screen.Home) }
             }
             PageLayer(if (screen == Screen.Today || screen == Screen.Title && titleFrom == Screen.Today) Screen.Today else null, motionOff) {
                 Box(Modifier.fillMaxSize().focusProperties { canFocus = screen != Screen.Title }) {
