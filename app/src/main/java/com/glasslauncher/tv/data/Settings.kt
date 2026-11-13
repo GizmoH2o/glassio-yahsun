@@ -137,7 +137,7 @@ class Settings(private val ctx: Context) {
                 pageScale = 0.667f; slideAnim = "fade"; memTier = 0; saverQuality = "1080-H264"; cacheMb = 1024
                 // Chosen (not Auto picking it at each start): every effect off together for a slower TV, the picture's
                 // parallax, poster tilt and trailers playing by themselves.
-                if (m == "performance") { heroParallax = false; posterTilt = false; trailerMode = "off"; titleTrailer = false; cardTrailerSec = 0 } }
+                if (m == "performance") { posterTilt = false; trailerMode = "off"; titleTrailer = false; cardTrailerSec = 0 } }
             "balanced" -> { imageQuality = "high"; prefetchDepth = 3; transitionMs = 450; refraction = 6; heroGallery = true; galleryShots = 2; glassRes = 480
                 pageScale = 1f; memTier = 1 }
             "quality" -> { imageQuality = "max"; prefetchDepth = 6; transitionMs = 700; refraction = 14; heroGallery = true; galleryShots = 3; glassRes = 720
@@ -467,7 +467,6 @@ class Settings(private val ctx: Context) {
     /** When Glassio was last updated (ms), for the Inbox's What's new line. */
     var whatsNewAt: Long get() = sp.getLong("whatsNewAt", 0L); set(v) { sp.edit().putLong("whatsNewAt", v).apply() }
     var alertChime: Boolean get() = b("alertChime", true); set(v) = putB("alertChime", v)
-    var heroParallax: Boolean get() = b("heroParallax", true); set(v) = putB("heroParallax", v)
     var posterTilt: Boolean get() = b("posterTilt", false); set(v) = putB("posterTilt", v)
     var rowBounce: Boolean get() = b("rowBounce", true); set(v) = putB("rowBounce", v)
     var holdBackHome: Boolean get() = b("holdBackHome", true); set(v) = putB("holdBackHome", v)

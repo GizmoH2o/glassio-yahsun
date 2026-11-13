@@ -1052,8 +1052,6 @@ Clear recent searches	Очистить недавние запросы
 People	Люди
 With	С участием
 More like	Похожее на
-Big picture parallax	Параллакс большой картинки
-The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV	Картинка позади слегка сдвигается при движении влево или вправо, а текст остаётся на месте, как на Apple TV
 My List tab	Вкладка «Мой список»
 My List on Home	Мой список на главной
 Sync My List and Continue Watching	Синхронизировать «Мой список» и «Продолжить»

@@ -1522,7 +1522,6 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                 add(Toggle("Opening", "Glassio's name for a moment as it starts, then Welcome back when there's more than one profile", { st.openingAnim }, { st.openingAnim = it }))
                 add(Toggle("What's new as a pop-up", "After an update. Off: a line in the Inbox for a week, the bell showing a dot", { st.whatsNewPopup }, { st.whatsNewPopup = it }))
                 add(Toggle("Alert chime", "A soft chime as a reminder or a match alert comes up (its own sound, not the navigation sounds)", { st.alertChime }, { st.alertChime = it }))
-                add(Toggle("Big picture parallax", "The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV", { st.heroParallax }, { st.heroParallax = it }))
                 add(Toggle("Poster tilt", "The selected poster leans toward where you came from and settles, as on Apple TV", { st.posterTilt }, { st.posterTilt = it }))
                 add(Toggle("Bounce at a row's end", "The card nudges and springs back when there's nothing further, as on Apple TV", { st.rowBounce }, { st.rowBounce = it }))
                 add(Toggle("Hold Back for Home", "Holding Back goes to Home from anywhere, Live TV included", { st.holdBackHome }, { st.holdBackHome = it }))

@@ -1051,8 +1051,6 @@ Clear recent searches	Limpar buscas recentes
 People	Pessoas
 With	Com
 More like	Mais como
-Big picture parallax	Paralaxe da imagem grande
-The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV	A imagem de fundo se move um pouco ao ir para a esquerda ou direita, o texto fica parado, como na Apple TV
 My List tab	Aba Minha lista
 My List on Home	Minha lista no início
 Sync My List and Continue Watching	Sincronizar Minha lista e Continuar assistindo
