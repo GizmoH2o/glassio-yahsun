@@ -31,6 +31,8 @@ final class LiveTmdb {
         int id, age = -1, votes;
         boolean tv;
         double score;
+        /** IMDb's rating ("7.2", from Cinemeta by the IMDb id TMDB gives), as Glassio's pages show it; "" when none. */
+        String imdb = "";
         String year = "", genres = "", overview = "", cast = "", backdrop = "", poster = "";
     }
 
@@ -151,13 +153,36 @@ final class LiveTmdb {
                 if (!a.equalsIgnoreCase(name) && !b.equalsIgnoreCase(name)) continue;
                 if (!LiveTmdbMatch.plausible(name, o.optInt("vote_count"), o.optString("overview"), about)) continue;
                 JSONObject d = LiveArt.get(key, "/" + kind + "/" + o.optInt("id") + "?append_to_response="
-                        + (tv ? "content_ratings,aggregate_credits" : "release_dates,credits") + lang);
+                        + (tv ? "content_ratings,aggregate_credits,external_ids" : "release_dates,credits,external_ids") + lang);
                 if (!LiveTmdbMatch.fitsSeason(tv, season, d.optInt("number_of_seasons"))) continue;
                 if (!tv && !LiveTmdbMatch.fitsSlot(d.optInt("runtime"), minutes)) continue;
-                return info(d, tv);
+                Info i = info(d, tv);
+                JSONObject ids = d.optJSONObject("external_ids");
+                i.imdb = imdbRating(tv, ids != null ? ids.optString("imdb_id") : d.optString("imdb_id"));
+                return i;
             }
         }
         return null;
+    }
+
+    /** IMDb's rating for that IMDb id, from Cinemeta (as Glassio's own pages get it); "" when it has none. */
+    private static String imdbRating(boolean tv, String imdbId) {
+        if (imdbId == null || !imdbId.startsWith("tt")) return "";
+        java.net.HttpURLConnection conn = null;
+        try {
+            conn = (java.net.HttpURLConnection) new java.net.URL("https://v3-cinemeta.strem.io/meta/" + (tv ? "series" : "movie") + "/" + imdbId + ".json").openConnection();
+            conn.setConnectTimeout(6000);
+            conn.setReadTimeout(8000);
+            try (java.io.InputStream in = conn.getInputStream()) {
+                JSONObject meta = new JSONObject(Xtream.read(in)).optJSONObject("meta");
+                double r = meta == null ? 0 : Double.parseDouble(meta.optString("imdbRating", "0").trim().isEmpty() ? "0" : meta.optString("imdbRating", "0"));
+                return r > 0 ? String.format(Locale.ROOT, "%.1f", r) : "";
+            }
+        } catch (IOException | JSONException | RuntimeException e) {
+            return "";
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
     }
 
     private static Info info(JSONObject d, boolean tv) {
@@ -250,12 +275,15 @@ final class LiveTmdb {
                 }
                 // Found with no rating before more countries were asked (RATINGS): asked again.
                 if (o.optInt("age", -1) < 0 && o.optInt("r") < RATINGS) continue;
+                // From before IMDb's rating was asked for: asked again (once), for the IMDb badge.
+                if (!o.has("imdb")) continue;
                 Info i = new Info();
                 i.id = o.optInt("id");
                 i.tv = o.optBoolean("tv");
                 i.age = o.optInt("age", -1);
                 i.score = o.optDouble("score", 0);
                 i.votes = o.optInt("votes");
+                i.imdb = o.optString("imdb");
                 i.year = o.optString("year");
                 i.genres = o.optString("genres");
                 i.overview = o.optString("overview");
@@ -278,7 +306,7 @@ final class LiveTmdb {
                 Info i = e.getValue();
                 Long at = AT.get(e.getKey());
                 all.put(e.getKey(), new JSONObject().put("id", i.id).put("tv", i.tv).put("age", i.age).put("score", i.score)
-                        .put("votes", i.votes).put("year", i.year).put("genres", i.genres).put("overview", i.overview)
+                        .put("votes", i.votes).put("imdb", i.imdb).put("year", i.year).put("genres", i.genres).put("overview", i.overview)
                         .put("cast", i.cast).put("backdrop", i.backdrop).put("poster", i.poster).put("at", at == null ? 0 : at)
                         .put("r", RATINGS));
             }

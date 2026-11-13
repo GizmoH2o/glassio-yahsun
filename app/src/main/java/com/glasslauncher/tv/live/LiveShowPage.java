@@ -517,9 +517,12 @@ final class LiveShowPage extends LiveDialog {
             if (mins > 0) m.append(m.length() > 0 ? "  ·  " : "").append(mins).append(" min");
             int age = LiveTmdb.age(getContext(), show);
             if (age > 0) m.append("  ·  ").append(age).append("+");
-            if (info != null && info.votes >= 5 && info.score > 0) m.append("  ·  ★ ").append(String.format(Locale.ROOT, "%.1f", info.score));
+            boolean imdb = info != null && !info.imdb.isEmpty();
+            if (!imdb && info != null && info.votes >= 5 && info.score > 0) m.append("  ·  ★ ").append(String.format(Locale.ROOT, "%.1f", info.score));
             float y = 197 * k;
-            if (m.length() > 0) c.drawText(ellipsize(m.toString(), g3Meta, tw), x, y, g3Meta);
+            // IMDb's rating first, as Glassio's pages have it (its yellow badge, the figure after).
+            float mx = imdb ? drawImdb(c, info.imdb, x, y, g3Meta.getTextSize(), k) + 16 * k : x;
+            if (m.length() > 0) c.drawText(ellipsize(m.toString(), g3Meta, tw - (mx - x)), mx, y, g3Meta);
             y += 21 * k;
             String own = LiveNames.about(getContext(), show.title, ep == null ? show.about : LiveEpisode.aboutWithout(show.about, show.sub));
             String text = !own.isEmpty() ? own : info != null ? info.overview : "";
@@ -702,7 +705,9 @@ final class LiveShowPage extends LiveDialog {
                 c.drawText(ellipsize(f, meta, 760 * k), px + 4 * k, y + 15 * k + Ui.halfCap(meta), meta);
                 px += Math.min(760 * k, meta.measureText(f)) + 28 * k;
             }
-            if (info != null && info.votes >= 5 && info.score > 0) {
+            if (info != null && !info.imdb.isEmpty()) {
+                drawImdb(c, info.imdb, px, y + 15 * k + Ui.halfCap(star), star.getTextSize(), k);
+            } else if (info != null && info.votes >= 5 && info.score > 0) {
                 String s = "★ " + String.format(Locale.ROOT, "%.1f", info.score);
                 c.drawText(s, px, y + 15 * k + Ui.halfCap(star), star);
                 px += star.measureText(s) + 10 * k;
@@ -810,5 +815,29 @@ final class LiveShowPage extends LiveDialog {
             fit.set(p);
             return TextUtils.ellipsize(s, fit, Math.max(1, width), TextUtils.TruncateAt.END).toString();
         }
+    }
+
+    private static final Paint IMDB_BOX = new Paint(Paint.ANTI_ALIAS_FLAG), IMDB_WORD = new Paint(Paint.ANTI_ALIAS_FLAG),
+            IMDB_SCORE = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /**
+     * IMDb's badge as Glassio draws it (a yellow "IMDb" box, the rating after it in white), its text on [baseline] at the
+     * size of the line it sits in. Returns where it ends.
+     */
+    static float drawImdb(android.graphics.Canvas c, String score, float x, float baseline, float size, float k) {
+        IMDB_WORD.setTypeface(Ui.semibold); IMDB_WORD.setFakeBoldText(true);
+        IMDB_WORD.setTextSize(size * 0.68f);
+        IMDB_WORD.setColor(0xFF000000);
+        IMDB_BOX.setColor(0xFFF5C518);
+        IMDB_SCORE.setTypeface(Ui.semibold);
+        IMDB_SCORE.setTextSize(size);
+        IMDB_SCORE.setColor(0xFFFFFFFF);
+        float padX = 6 * k, w = IMDB_WORD.measureText("IMDb") + padX * 2, cap = size * 0.72f, h = cap + 8 * k;
+        float top = baseline - cap - (h - cap) / 2;
+        c.drawRoundRect(x, top, x + w, top + h, 5 * k, 5 * k, IMDB_BOX);
+        c.drawText("IMDb", x + padX, top + h / 2 + Ui.halfCap(IMDB_WORD), IMDB_WORD);
+        float sx = x + w + 8 * k;
+        c.drawText(score, sx, baseline, IMDB_SCORE);
+        return sx + IMDB_SCORE.measureText(score);
     }
 }
