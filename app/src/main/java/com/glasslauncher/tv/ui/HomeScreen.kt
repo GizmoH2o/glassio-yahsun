@@ -233,6 +233,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     var titleOrigin by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
     val openTitle: (com.glasslauncher.tv.data.HeroItem) -> Unit = { item ->
         titleOrigin = CardOrigin.fraction()
+        if (!settings.reduceMotion) CardFlight.start(item)
         if (screen != Screen.Title) { titleFrom = screen; titleStack.clear() }
         titleStack.add(item)
         onScreen(Screen.Title)
@@ -737,6 +738,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             PageLayer(if (screen == Screen.Title) titleStack.lastOrNull() else null, motionOff, origin = titleOrigin) { t ->
                 androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }
             }
+            // The card's picture growing into the page (Apple TV's), over the page as it settles in.
+            CardFlightHost()
             // The icon picker and the welcome: they settle in and leave like the other pages.
             Presence(pickerFor, if (motionOff) Motion.PLAIN_MS else 300, if (motionOff) Motion.PLAIN_MS else 200, Modifier.fillMaxSize(),
                 transform = { k, _ -> alpha = k; if (!motionOff) { val sc = 0.97f + 0.03f * k; scaleX = sc; scaleY = sc } }) { e ->

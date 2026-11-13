@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.drawBehind
@@ -161,4 +162,56 @@ internal fun Modifier.paneEnter(key: Any?): Modifier {
     }
     val shift = with(LocalDensity.current) { 14.dp.toPx() }
     return graphicsLayer { val v = p.value; alpha = v; if (!reduce) translationX = (1f - v) * shift }
+}
+
+/**
+ * Opening a title from a card: the card's picture flies out of the card to fill the screen (its poster turning into
+ * the title's wide picture as it grows), then fades as the page under it settles, so the card becomes the page as on
+ * Apple TV. Not with Reduce motion (the caller doesn't start it), nor without a card it came from.
+ */
+object CardFlight {
+    class Flight(val from: androidx.compose.ui.geometry.Rect, val poster: String, val wide: String, val at: Long)
+    val now = mutableStateOf<Flight?>(null)
+
+    fun start(item: com.glasslauncher.tv.data.HeroItem) {
+        val c = CardOrigin.coords?.takeIf { it.isAttached } ?: run { now.value = null; return }
+        val b = c.boundsInRoot()
+        if (b.width <= 1f || b.height <= 1f) return
+        val poster = item.poster.ifBlank { item.background }
+        val wide = item.background.ifBlank { item.poster }
+        if (poster.isBlank()) return
+        now.value = Flight(b, poster, wide, android.os.SystemClock.uptimeMillis())
+    }
+}
+
+@Composable
+fun CardFlightHost() {
+    val f = CardFlight.now.value ?: return
+    val p = remember(f) { Animatable(0f) }
+    val follow = LocalFollowTvSpeed.current
+    LaunchedEffect(f) {
+        // At its own speed (the TV's animation scale would halve it), as Glassio's pages run.
+        atOwnSpeed(follow) { p.animateTo(1f, tween(Motion.ENTER_MS + 120, easing = Motion.EaseOut)) }
+        if (CardFlight.now.value === f) CardFlight.now.value = null
+    }
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
+        val d = LocalDensity.current
+        val wPx = with(d) { maxWidth.toPx() }; val hPx = with(d) { maxHeight.toPx() }
+        val k = p.value
+        // Grows over the first two thirds; fades over the last half, the page showing through.
+        val g = (k / 0.66f).coerceIn(0f, 1f)
+        val left = f.from.left * (1 - g); val top = f.from.top * (1 - g)
+        val right = f.from.right + (wPx - f.from.right) * g; val bottom = f.from.bottom + (hPx - f.from.bottom) * g
+        val alpha = (1f - ((k - 0.5f) / 0.5f).coerceIn(0f, 1f))
+        val corner = with(d) { (10.dp * (1 - g)) }
+        Box(
+            Modifier.graphicsLayer { translationX = left; translationY = top; this.alpha = alpha }
+                .size(with(d) { (right - left).toDp() }, with(d) { (bottom - top).toDp() })
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(corner))
+        ) {
+            coil3.compose.AsyncImage(sized(f.poster, "w342"), null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (f.wide != f.poster) coil3.compose.AsyncImage(sized(f.wide, "w1280"), null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().graphicsLayer { this.alpha = g })
+        }
+    }
 }
