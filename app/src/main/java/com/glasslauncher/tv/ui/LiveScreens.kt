@@ -794,7 +794,7 @@ internal fun ResBadge(t: String, s: Float, modifier: Modifier) {
  * channel or the time.
  */
 @Composable
-private fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, modifier: Modifier, onClick: () -> Unit) {
+internal fun ProgramCard(a: LiveHome.Airing, s: Float, rev: Int, now: Boolean, modifier: Modifier, onClick: () -> Unit) {
     rev.hashCode()
     var focused by remember { mutableStateOf(false) }
     Column(Modifier.width((168 * s).dp).onFocusChanged { focused = it.hasFocus }) {

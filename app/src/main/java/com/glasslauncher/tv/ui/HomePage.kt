@@ -123,7 +123,7 @@ internal val CARD = Color(0xFF1C1C1F)
 private val CARD_LIGHT = Color(0xFF2A2A2D)
 
 /** Which part of the page holds the focus: the big picture, or a row (in page order). */
-private enum class Part { Hero, Airing, Watch, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Added, Season, Quick, Apps, Inputs, Widgets }
+private enum class Part { Hero, Airing, Watch, LiveNow, LiveSoon, ForYou, Movies, Series, Trending, RecFilms, RecSeries, Col1, Col2, Col3, Mine1, Mine2, Mine3, Mine4, Mine5, Mine6, Because, Added, Season, Quick, Apps, Inputs, Widgets }
 
 /**
  * The home screen: the big picture (a title's backdrop, logo, details, Play and + Library) over the whole page, then
@@ -282,6 +282,22 @@ internal fun HomePage(
         val m = settings.seasonMonth.takeIf { it in 1..12 } ?: (java.util.Calendar.getInstance().get(java.util.Calendar.MONTH) + 1)
         value = if (!auto) null else withContext(Dispatchers.IO) { runCatching { app.recs.seasonal(m) }.getOrNull() }
     }
+    // Live TV on Home: what's on your favourites now and what starts soon, as Live TV's tab has them (every minute).
+    var liveRev by remember { mutableIntStateOf(0) }
+    val livePage by androidx.compose.runtime.produceState<com.glasslauncher.tv.live.LiveHome.Page?>(null, settings.homeLive, settings.menuLive, kids) {
+        if (!settings.homeLive || !settings.menuLive || kids) { value = null; return@produceState }
+        while (true) {
+            val p = withContext(Dispatchers.IO) {
+                runCatching { if (com.glasslauncher.tv.live.LiveHome.ready(app)) com.glasslauncher.tv.live.LiveHome.page(app) else null }.getOrNull()
+            }
+            value = p
+            if (p != null) {
+                if (withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveHome.fillFromProvider(app, p) }.getOrDefault(false) }) liveRev++
+                if (withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveHome.fillArt(app, p) }.getOrDefault(false) }) liveRev++
+            }
+            delay(60_000)
+        }
+    }
     // For You: from the titles already here, worked out on the TV.
     val forYouOn = settings.homeForYou && !kids
     val forYouList = remember(forYouOn, cwItems, catalogItems, recRows, movies, series, settings.heroHidden, infoRev) {
@@ -300,6 +316,8 @@ internal fun HomePage(
     val parts = buildList {
         if (showAiring) add(Part.Airing)
         if (watchItems.isNotEmpty()) add(Part.Watch)
+        if (livePage?.onNow?.isNotEmpty() == true) add(Part.LiveNow)
+        if (livePage?.soon?.isNotEmpty() == true) add(Part.LiveSoon)
         if (forYouList.isNotEmpty()) add(Part.ForYou)
         if (showMovies) add(Part.Movies)
         if (showSeries) add(Part.Series)
@@ -744,6 +762,21 @@ internal fun HomePage(
                             Part.Col1, Part.Col2, Part.Col3 -> collections.getOrNull(colParts.indexOf(p))?.let { (name, list) -> recs(p, name, forKids(list)) }
                             Part.Mine1, Part.Mine2, Part.Mine3, Part.Mine4, Part.Mine5, Part.Mine6 -> mineList.firstOrNull { Collections.row(it.slot) == p.name }?.let { mine(p, it) }
                             Part.Because -> recs(p, Lang.tr("Because you watched") + " " + lastSeen?.name.orEmpty(), becauseList)
+                            Part.LiveNow, Part.LiveSoon -> livePage?.let { lp ->
+                                val now = p == Part.LiveNow
+                                val list = if (now) lp.onNow.toList() else lp.soon.toList()
+                                section(p, if (now) Lang.tr("On now on your channels") else Lang.tr("Starting soon"), if (now) "Live TV" else Lang.tr("OK sets a reminder")) {
+                                    CardRow(s, req(p), above(p), below(p), list.map { "${it.channel}:${it.start}" }) { i, mod ->
+                                        val a = list[i]
+                                        ProgramCard(a, s, liveRev, now, mod) {
+                                            if (a.onNow(System.currentTimeMillis())) Handoff.goLive(a.title.ifBlank { a.channelName }, (if (a.number > 0) "${a.number} " else "") + a.channelName, a.art) {
+                                                runCatching { ctx.startActivity(com.glasslauncher.tv.live.LiveHome.open(ctx, a.channel, false)) }
+                                            }
+                                            else scope.launch { toast(ctx, withContext(Dispatchers.IO) { com.glasslauncher.tv.live.LiveHome.toggle(ctx, a, true) }) }
+                                        }
+                                    }
+                                }
+                            }
                             Part.Added -> recs(p, Lang.tr("Because you added") + " " + lastAdded?.name.orEmpty(), addedList)
                             Part.Season -> seasonRow?.let { (t, l) -> recs(p, Lang.tr(t), l) }
                             Part.Quick -> recs(p, "Quick watches", quickList)
