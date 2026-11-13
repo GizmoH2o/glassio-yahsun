@@ -317,7 +317,9 @@ internal fun HomePage(
         if (showWidgets) add(Part.Widgets)
     }.let { present ->
         // As Settings › Home › Home rows arranges them: the big picture first, the rows in your order, without those off.
-        val off = settings.homeHidden.split(',').toSet()
+        // Offline: only what works without the internet (your rows, apps, inputs), not the rows it would fill.
+        val off = settings.homeHidden.split(',').toSet() + if (com.glasslauncher.tv.data.Online.up.value) emptySet()
+            else setOf("Trending", "RecFilms", "RecSeries", "ForYou", "Because", "Added", "Season", "Col1", "Col2", "Col3")
         listOf(Part.Hero) + com.glasslauncher.tv.data.HomeRows.order(settings.homeOrder)
             .mapNotNull { n -> present.firstOrNull { it.name == n } }.filter { it.name !in off }
     }

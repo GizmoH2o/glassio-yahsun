@@ -311,6 +311,11 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         }
         Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(androidx.compose.foundation.rememberScrollState()).onFocusChanged { inResults = it.hasFocus }) {
             // Nothing typed: what's trending, so the page is never empty.
+            // Offline: what still works, said once at the top (My List's titles and recordings are found as usual).
+            if (!com.glasslauncher.tv.data.Online.up.value) {
+                Text("You're offline. Your lists, recordings and apps are still searched; titles from the internet come back with the connection.",
+                    color = Text2, fontSize = (9 * s).sp, modifier = Modifier.padding(bottom = (6 * s).dp))
+            }
             if (q.length < 2) {
                 if (chips) {
                     DsHeading("In the mood for", s)

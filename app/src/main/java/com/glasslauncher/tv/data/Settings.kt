@@ -456,6 +456,10 @@ class Settings(private val ctx: Context) {
     /** tvOS's lean on the selected poster (it tilts toward where you came from and settles). */
     /** The big picture shifts a little against each move left or right (depth, as on Apple TV). */
     /** A soft chime as a reminder or a match alert comes up. */
+    /** What's new after an update: a pop-up (true), else a line in the Inbox for a week. */
+    var whatsNewPopup: Boolean get() = b("whatsNewPopup", false); set(v) = putB("whatsNewPopup", v)
+    /** When Glassio was last updated (ms), for the Inbox's What's new line. */
+    var whatsNewAt: Long get() = sp.getLong("whatsNewAt", 0L); set(v) { sp.edit().putLong("whatsNewAt", v).apply() }
     var alertChime: Boolean get() = b("alertChime", true); set(v) = putB("alertChime", v)
     var heroParallax: Boolean get() = b("heroParallax", true); set(v) = putB("heroParallax", v)
     var posterTilt: Boolean get() = b("posterTilt", false); set(v) = putB("posterTilt", v)

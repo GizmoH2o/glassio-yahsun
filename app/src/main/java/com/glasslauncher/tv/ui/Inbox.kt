@@ -50,7 +50,10 @@ import kotlinx.coroutines.withContext
 object Inbox {
     /** One line: its kind (STARTING NOW…), what, the line under it, a picture, its id (for seen), what OK does. */
     class Entry(val kind: String, val title: String, val sub: String, val picture: String, val id: String, val red: Boolean,
-                val title2: HeroItem? = null, val channel: Int = -1, val update: Boolean = false)
+                val title2: HeroItem? = null, val channel: Int = -1, val update: Boolean = false, val whatsNew: Boolean = false)
+
+    /** OK on the What's new line: Home shows the sheet. */
+    val openWhatsNew = mutableStateOf(false)
 
     val entries = mutableStateOf<List<Entry>>(emptyList())
     /** A line not seen yet (the bell's dot). */
@@ -77,6 +80,11 @@ object Inbox {
             if (at > now || now - at > 2 * 24 * 3_600_000L) continue
             out += Entry("NEW EPISODE", a.item.name, "S${a.episode.season} · E${a.episode.episode}" + a.episode.title.takeIf { it.isNotBlank() }?.let { " · $it" }.orEmpty(),
                 a.item.background.ifBlank { a.item.poster }, "ep:${a.item.key}:${a.episode.season}:${a.episode.episode}", false, title2 = a.item)
+        }
+        // This version's news, for a week after the update.
+        if (now - app.settings.whatsNewAt < 7 * 24 * 3_600_000L && !app.settings.whatsNewPopup) {
+            val v = app.updater.current
+            out += Entry("WHAT'S NEW", "Glassio $v", "OK to see what's new", "", "whatsnew:$v", false, whatsNew = true)
         }
         app.updater.available.value?.let { r ->
             out += Entry("GLASSIO", "${r.version} is ready to install", "OK to install", "", "update:${r.version}", false, update = true)
@@ -138,6 +146,7 @@ fun InboxPanel(app: GlassApp, s: Float, onTitle: (HeroItem) -> Unit, onClose: ()
                         .tvPress(onClick = {
                             when {
                                 e.update -> app.updater.install()
+                                e.whatsNew -> { onClose(); Inbox.openWhatsNew.value = true }
                                 e.title2 != null -> { onClose(); onTitle(e.title2) }
                                 e.channel >= 0 -> runCatching { ctx.startActivity(com.glasslauncher.tv.live.LiveHome.open(ctx, e.channel, false)) }
                             }

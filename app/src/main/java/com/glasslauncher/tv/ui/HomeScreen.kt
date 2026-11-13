@@ -285,6 +285,15 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     /** The welcome, on a first run; What's new, after an update. */
     var welcomeOn by remember { mutableStateOf(false) }
     val welcomeStep = remember { mutableIntStateOf(0) }
+    // The Inbox's What's new line: the sheet, as after an update.
+    LaunchedEffect(Inbox.openWhatsNew.value) {
+        if (!Inbox.openWhatsNew.value) return@LaunchedEffect
+        Inbox.openWhatsNew.value = false
+        val v = app.updater.current
+        val lines = withContext(Dispatchers.IO) { com.glasslauncher.tv.data.Changelog.forVersion(ctx, v) }
+        delay(150)
+        if (lines.isNotEmpty()) dialog = WhatsNew(v, lines)
+    }
     // Settings › System › Show the welcome tour.
     LaunchedEffect(WelcomeAsk.show.value) { if (WelcomeAsk.show.value) { WelcomeAsk.show.value = false; welcomeStep.intValue = 0; onScreen(Screen.Home); welcomeOn = true } }
     LaunchedEffect(Unit) {
@@ -295,7 +304,9 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
         st.welcomeDone = true
         if (st.seenVersion != current) {
             val lines = com.glasslauncher.tv.data.Changelog.forVersion(ctx, current)
-            if (lines.isNotEmpty()) { delay(2000); if (dialog == null) dialog = WhatsNew(current, lines) }
+            // In the Inbox for a week (the bell's dot says so), unless it's wanted as a pop-up as before.
+            if (lines.isNotEmpty() && st.whatsNewPopup) { delay(2000); if (dialog == null) dialog = WhatsNew(current, lines) }
+            if (lines.isNotEmpty()) st.whatsNewAt = System.currentTimeMillis()
             st.seenVersion = current
         }
     }
