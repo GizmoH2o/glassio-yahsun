@@ -38,6 +38,10 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.composed
+import kotlinx.coroutines.launch
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.text.font.FontWeight
@@ -140,7 +144,33 @@ fun Modifier.nav(up: FocusRequester? = null, down: FocusRequester? = null, left:
         if (down != null) this.down = down
         if (left != null) this.left = left
         if (right != null) this.right = right
-    }
+    }.then(if (left == FocusRequester.Cancel || right == FocusRequester.Cancel) endBounce(left == FocusRequester.Cancel, right == FocusRequester.Cancel) else Modifier)
+
+/**
+ * At a row's end (Left on its first, Right on its last): the card gives a small nudge that way and springs back, as
+ * tvOS does, so you know the row ends. Not with Reduce motion; Settings › Look & motion › Bounce at a row's end.
+ */
+private fun endBounce(atStart: Boolean, atEnd: Boolean): Modifier = Modifier.composed {
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as? com.glasslauncher.tv.GlassApp
+    if (app?.settings?.rowBounce == false || LocalReduceMotion.current) return@composed Modifier
+    val off = remember { androidx.compose.animation.core.Animatable(0f) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val px = with(androidx.compose.ui.platform.LocalDensity.current) { 7.dp.toPx() }
+    Modifier.onPreviewKeyEvent { ev ->
+        if (ev.type == androidx.compose.ui.input.key.KeyEventType.KeyDown) {
+            val dir = when {
+                atEnd && ev.key == androidx.compose.ui.input.key.Key.DirectionRight -> 1f
+                atStart && ev.key == androidx.compose.ui.input.key.Key.DirectionLeft -> -1f
+                else -> 0f
+            }
+            if (dir != 0f && !off.isRunning) scope.launch {
+                off.animateTo(dir * px, androidx.compose.animation.core.tween(90, easing = Motion.EaseOut))
+                off.animateTo(0f, androidx.compose.animation.core.spring(0.45f, 700f))
+            }
+        }
+        false
+    }.graphicsLayer { translationX = off.value }
+}
 
 /** Night mode: everything dimmed from its hour until the morning. */
 @Composable

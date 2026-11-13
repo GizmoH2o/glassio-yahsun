@@ -775,6 +775,8 @@ private fun CardRow(s: Float, entry: FocusRequester, up: FocusRequester, down: F
             card(i, Modifier.animateItem(fadeInSpec = tween(260), placementSpec = null, fadeOutSpec = tween(160))
                 .then(if (k == entryKey) Modifier.focusRequester(entry) else Modifier)
                 .focusProperties { this.up = up; this.down = down }
+                // The last card: Right stays (the row's end), with the small bounce that says so.
+                .then(if (i == keys.lastIndex) Modifier.nav(right = FocusRequester.Cancel) else Modifier)
                 .onFocusChanged { if (it.isFocused) last = k })
         }
     }

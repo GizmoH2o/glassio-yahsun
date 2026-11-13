@@ -1037,3 +1037,7 @@ One banner at the top while the TV is offline, in Glassio and Live TV, instead o
 Now playing in the top bar	In riproduzione nella barra in alto
 A small badge while Live TV's small window or music plays	Un piccolo badge mentre è attiva la finestrella della TV in diretta o la musica
 Mic opens Glassio's search	Il microfono apre la ricerca di Glassio
+Hold Back for Home	Tieni premuto Indietro per la Home
+Holding Back goes to Home from anywhere, Live TV included	Tenere premuto Indietro porta alla Home da ovunque, anche dalla TV in diretta
+Bounce at a row's end	Rimbalzo a fine riga
+The card nudges and springs back when there's nothing further, as on Apple TV	La scheda si sposta e torna indietro quando non c'è altro, come su Apple TV
