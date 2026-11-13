@@ -100,6 +100,11 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
                     .tvPress(onKey = { ev ->
                         if (onDown != null && ev.key == Key.DirectionDown) { if (ev.type == KeyEventType.KeyDown) onDown(); true } else false
                     }, onClick = { onTab(to) })
+                    // The page you're on: a small dot under its name too (tvOS), seen while the selection is elsewhere.
+                    .drawBehind {
+                        if (on && focusedTab != null && focusedTab != to) drawCircle(Color.White.copy(alpha = 0.85f), radius = 1.5f * s * density,
+                            center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height - 2.2f * s * density))
+                    }
                     .padding(horizontal = (13 * s).dp, vertical = (5.5f * s).dp),
             )
         }

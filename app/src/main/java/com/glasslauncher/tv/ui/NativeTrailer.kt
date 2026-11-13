@@ -85,7 +85,7 @@ class NativeTrailer(
                 if (played) return
                 played = true
                 player.videoFormat?.let { f -> Glog.w("Trailer playing ${list.getOrNull(at)}: ${f.sampleMimeType} ${f.width}x${f.height} ${f.codecs ?: ""}") }
-                if (!muted) ramp(1f, 1200)
+                if (!muted) ramp(TRAILER_VOLUME, 1200)
                 onPlaying()
                 main.postDelayed({ if (!released) TrailerGuard.playedWell(context) }, 30_000)
             }
@@ -274,3 +274,6 @@ private class YouTubeChunks(private val chunk: Long = 10L * 1024 * 1024) : DataS
         override fun close() { up.close(); spec = null }
     }
 }
+
+/** Trailers come in a little below full volume: YouTube's are mastered loud next to TV channels. */
+private const val TRAILER_VOLUME = 0.8f

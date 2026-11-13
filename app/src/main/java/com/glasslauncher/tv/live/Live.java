@@ -790,6 +790,7 @@ public class Live extends Activity {
     }
 
     @Override public boolean dispatchKeyEvent(KeyEvent event) {
+        NavSound.onKey(this, event);
         if (view.onKey(event)) return true;
         return super.dispatchKeyEvent(event);
     }

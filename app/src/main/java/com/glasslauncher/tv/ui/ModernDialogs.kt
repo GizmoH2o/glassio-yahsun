@@ -324,15 +324,15 @@ fun NoticeHost() {
     LaunchedEffect(n) {
         if (n == null) return@LaunchedEffect
         shown = n.first
-        a.animateTo(1f, tween(180))
+        a.animateTo(1f, tween(260, easing = Motion.EaseOut))
         delay(3_600)
-        a.animateTo(0f, tween(260))
+        a.animateTo(0f, tween(220, easing = Motion.EaseIn))
         if (Notice.now.value === n) Notice.now.value = null
     }
     val msg = shown ?: return
-    Box(Modifier.fillMaxSize().padding(bottom = 40.dp), contentAlignment = Alignment.BottomCenter) {
+    Box(Modifier.fillMaxSize().padding(top = 84.dp), contentAlignment = Alignment.TopCenter) {
         Text(msg, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium, textAlign = TextAlign.Center, maxLines = 3,
-            modifier = Modifier.graphicsLayer { alpha = a.value; translationY = (1f - a.value) * 18 * density }
+            modifier = Modifier.graphicsLayer { alpha = a.value; translationY = -(1f - a.value) * 22 * density }
                 .clip(RoundedCornerShape(50)).background(SheetFill).border(0.6.dp, SheetRim, RoundedCornerShape(50))
                 .padding(horizontal = 22.dp, vertical = 11.dp))
     }

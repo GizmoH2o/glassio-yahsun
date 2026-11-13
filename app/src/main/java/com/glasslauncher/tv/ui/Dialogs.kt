@@ -58,8 +58,8 @@ import androidx.compose.ui.window.Dialog
 
 fun toast(ctx: Context, msg: String) {
     val words = Lang.tr(msg)
-    // Glassio in front and Modern dialogs: its own glass notice at the bottom; else Android's.
-    if (Notice.front && dialogsModern(ctx)) { Notice.show(words); return }
+    // Glassio in front: its own notice, sliding down from the top (as Apple TV's); else (behind another app) Android's.
+    if (Notice.front) { Notice.show(words); return }
     Handler(Looper.getMainLooper()).post { Toast.makeText(ctx, words, Toast.LENGTH_LONG).show() }
 }
 
@@ -105,7 +105,7 @@ private fun WhatsNewView(d: WhatsNew, onDismiss: () -> Unit) {
     val scroll = androidx.compose.foundation.rememberScrollState()
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-        DialogSurface(width = 560) {
+        DialogSurface(width = 560, modern = true) {
             Text("What's new in ${d.version}", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Column(Modifier.height(300.dp).verticalScroll(scroll)) {
@@ -128,9 +128,9 @@ private fun WhatsNewView(d: WhatsNew, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+private fun DialogSurface(width: Int = 420, modifier: Modifier = Modifier, modern: Boolean = false, content: @Composable () -> Unit) {
     // Modern (Settings › Look & motion › Dialog style): the glass sheet over the dimmed, blurred page.
-    if (rememberDialogsModern()) { ModernSheet(width + 40, modifier, center = false) { content() }; return }
+    if (modern || rememberDialogsModern()) { ModernSheet(width + 40, modifier, center = false) { content() }; return }
     // Classic too settles in, as the modern sheet does: a little scale and a fade.
     val enter = remember { androidx.compose.animation.core.Animatable(0f) }
     val still = LocalReduceMotion.current

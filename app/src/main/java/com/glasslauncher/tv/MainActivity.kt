@@ -328,6 +328,7 @@ class MainActivity : ComponentActivity() {
     @android.annotation.SuppressLint("RestrictedApi") // normal Activity override; lint misreads the androidx stub
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (com.glasslauncher.tv.ui.NavGate.blocks(event.keyCode)) return true
+        com.glasslauncher.tv.live.NavSound.onKey(this, event)
         // The shuffle button and "press the button you want" (also caught by the Home button service first).
         if (KeyHub.handle(application as GlassApp, event.keyCode, event.action == KeyEvent.ACTION_DOWN)) return true
         if (event.keyCode == KeyEvent.KEYCODE_BACK && com.glasslauncher.tv.ui.KickOff.now.value != null) {

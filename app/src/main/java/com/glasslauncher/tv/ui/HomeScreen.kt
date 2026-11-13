@@ -469,7 +469,11 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     BackHandler(enabled = screen == Screen.Home && (tabFocused || topBarFocused) && !menuOpen) { runCatching { heroFocus.requestFocus() } }
     BackHandler(enabled = screen == Screen.Home && movingPkg != null) { movingPkg = null }
     BackHandler(enabled = settings.backSaver && screen == Screen.Home && movingPkg == null && !folderOpen && pickerFor == null && onHero) {
-        runCatching { ctx.startActivity(android.content.Intent(ctx, com.glasslauncher.tv.saver.ScreensaverActivity::class.java)) }
+        // The first time it says what Back does here (and where to change it), and does nothing else.
+        if (!settings.backSaverHinted) {
+            settings.backSaverHinted = true
+            toast(ctx, "Back on Home starts the screensaver. Press it again, or change it in Settings › Screensaver")
+        } else runCatching { ctx.startActivity(android.content.Intent(ctx, com.glasslauncher.tv.saver.ScreensaverActivity::class.java)) }
     }
 
     // Moving an app in the grid: ◀ ▶ one place, ▲ ▼ a row; OK puts it down.

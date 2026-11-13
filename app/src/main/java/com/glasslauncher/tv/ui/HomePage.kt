@@ -526,6 +526,11 @@ internal fun HomePage(
                 Box(Modifier.fillMaxWidth().height(heroH.dp).onGloballyPositioned { tops[Part.Hero] = it.positionInParent().y to it.positionInParent().y + it.size.height }) { Isolated {
                     // Its own scope: a new title's words recompose this, not the whole page under it.
                     val shown = textItem
+                    LaunchedEffect(shown?.key) {
+                        val t = shown ?: return@LaunchedEffect
+                        delay(700)
+                        withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.glasslauncher.tv.data.TitleDetails.load(app.http, t) } }
+                    }
                     // Scrolling away, the words go up with the picture as they are; staying, they fade over it.
                     val fade = { if (scrollAway) 1f else (1f - offset.value / (heroH * density * 0.55f)).coerceIn(0f, 1f) }
                     if (shown != null && !app.showSetup.value) {

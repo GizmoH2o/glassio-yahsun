@@ -440,6 +440,10 @@ class Settings(private val ctx: Context) {
     }
     /** Look & motion: no lift, slide or zoom; a stronger selection and solid backing behind text. */
     var reduceMotion: Boolean get() = b("reduceMotion", false); set(v) = putB("reduceMotion", v)
+    /** A soft tick as the selection moves and a click on OK (the TV's own sounds), as Apple TV has. */
+    var navSounds: Boolean get() = b("navSounds", false); set(v) = putB("navSounds", v)
+    /** Back on Home's first press explained itself (it starts the screensaver). */
+    var backSaverHinted: Boolean get() = b("backSaverHinted", false); set(v) = putB("backSaverHinted", v)
     /** Look & motion › Dialog style: "modern" (glass sheets, Glassio's keyboard, glass notices) | "classic". */
     var dialogStyle: String get() = s("dialogStyle", "modern"); set(v) { putS("dialogStyle", v); writeDialogFile() }
     /** Live TV runs in its own process (it doesn't see a change made here): the style in a small file it reads. */

@@ -1507,6 +1507,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     ).map { (k, v) -> (Lang.tr(k) + "  ·  " + Lang.tr(v)) to {} })
                 })
                 add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it; com.glasslauncher.tv.live.LiveHome.setReduceMotion(ctx, it) }))
+                add(Toggle("Navigation sounds", "A soft tick as the selection moves, a click on OK, as on Apple TV (Live TV too)", { st.navSounds }, { st.navSounds = it; com.glasslauncher.tv.live.NavSound.set(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
                 add(Adjust("Dialog style", "Pop-ups, text boxes and notices, here and in Live TV. Modern: glass sheets, Glassio's own keyboard. Classic: as before",
                     { if (st.dialogStyle == "classic") "Classic" else "Modern" }, { st.dialogStyle = if (st.dialogStyle == "classic") "modern" else "classic" }))
