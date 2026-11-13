@@ -72,23 +72,23 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         }
     }
     val q = query.value
-    val titles by produceState(emptyList<HeroItem>(), q) {
+    val titlesAll by produceState(emptyList<HeroItem>(), q) {
         if (q.length < 2) { value = emptyList(); return@produceState }
         delay(350)      // not at every key
         value = withContext(Dispatchers.IO) { app.recs.search(q) }.take(20)
     }
-    val channels by produceState(emptyList<LiveHome.Airing>(), q) {
+    val channelsAll by produceState(emptyList<LiveHome.Airing>(), q) {
         if (q.length < 2) { value = emptyList(); return@produceState }
         delay(350)
         value = withContext(Dispatchers.IO) { runCatching { LiveHome.findChannels(ctx, q, 12) }.getOrDefault(emptyList()) }
     }
     val everything = app.settings.searchEverything
-    val shows by produceState(emptyList<LiveHome.Airing>(), q, everything) {
+    val showsAll by produceState(emptyList<LiveHome.Airing>(), q, everything) {
         if (q.length < 2 || !everything) { value = emptyList(); return@produceState }
         delay(350)
         value = withContext(Dispatchers.IO) { runCatching { LiveHome.findShows(ctx, q, 12) }.getOrDefault(emptyList()) }
     }
-    val recordings by produceState(emptyList<LiveHome.Airing>(), q, everything) {
+    val recordingsAll by produceState(emptyList<LiveHome.Airing>(), q, everything) {
         if (q.length < 2 || !everything) { value = emptyList(); return@produceState }
         delay(350)
         value = withContext(Dispatchers.IO) { runCatching { LiveHome.findRecordings(ctx, q, 12) }.getOrDefault(emptyList()) }
@@ -97,13 +97,23 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val watch by app.library.watchlist.collectAsState()
     val nuvio by app.library.nuvioList.collectAsState()
     val stremio by app.library.stremioList.collectAsState()
-    val mine = remember(q, everything, saved, watch, nuvio, stremio) {
+    val mineAll = remember(q, everything, saved, watch, nuvio, stremio) {
         if (q.length < 2 || !everything) emptyList()
         else (saved + watch + nuvio + stremio).distinctBy { it.key }.filter { it.name.contains(q.trim(), ignoreCase = true) }.take(20)
     }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val allApps by app.apps.apps.collectAsState()
-    val apps = remember(q, allApps) { if (q.length < 2) emptyList() else app.apps.ordered(includeHidden = true).filter { it.label.contains(q, ignoreCase = true) }.take(8) }
+    val appsAll = remember(q, allApps) { if (q.length < 2) emptyList() else app.apps.ordered(includeHidden = true).filter { it.label.contains(q, ignoreCase = true) }.take(8) }
+    // The filters along the top (one search for everything, as the streaming apps' search): each list only under its own.
+    val filter = SearchFilter.now.value
+    fun on(vararg f: String) = filter == "all" || filter in f
+    val resultsTop = remember { FocusRequester() }
+    val mine = if (on("titles")) mineAll else emptyList()
+    val titles = if (on("titles")) titlesAll else emptyList()
+    val shows = if (on("live", "onnow")) showsAll.filter { filter != "onnow" || it.start <= System.currentTimeMillis() } else emptyList()
+    val recordings = if (on("live")) recordingsAll else emptyList()
+    val channels = if (on("live", "onnow")) channelsAll else emptyList()
+    val apps = if (on("apps")) appsAll else emptyList()
     val rows by app.recs.rows.collectAsState()
     LaunchedEffect(Unit) { if (rows.trending.isEmpty()) withContext(Dispatchers.IO) { runCatching { app.recs.refresh() } } }
     // Nothing typed: the mood and time filters, across your library, the catalogs and the charts.
@@ -152,7 +162,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val hasTitles = if (filtering) fitting.isNotEmpty() else if (q.length < 2) rows.trending.isNotEmpty() else titles.isNotEmpty()
     val hasChannels = q.length >= 2 && channels.isNotEmpty()
     // Settings too (as the streaming apps' search finds their settings): a card that opens them searched for the words.
-    val settingsCard = q.trim().length >= 3
+    val settingsCard = q.trim().length >= 3 && on("settings")
     val hasApps = q.length >= 2 && apps.isNotEmpty() || settingsCard
     val order = listOfNotNull(moodRow.takeIf { chips }, timeRow.takeIf { chips }, mineRow.takeIf { q.length >= 2 && mine.isNotEmpty() }, titleRow.takeIf { hasTitles },
         showRow.takeIf { q.length >= 2 && shows.isNotEmpty() }, recordRow.takeIf { q.length >= 2 && recordings.isNotEmpty() },
@@ -222,11 +232,18 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                     else Text(if (looking) "Looking through your titles…" else if (mood != null && maxMinutes > 0) "Nothing fits both yet. Try one filter." else "Nothing fits this yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
                 } else if (rows.trending.isNotEmpty()) TitlesRow("Trending now", rows.trending, s, titleRow, FocusRequester.Cancel, keyFocus, if (chips) timeRow.req else toTabs, lastTitle, lastFocus, onTitle)
             } else {
+                // The filters: one search for everything, each kind on its own when wanted (Live TV's search opens on Live TV).
+                Row(Modifier.padding(bottom = (8 * s).dp), horizontalArrangement = Arrangement.spacedBy((5 * s).dp)) {
+                    SEARCH_FILTERS.forEachIndexed { i, (key, label) ->
+                        Chip(label, filter == key, s, (if (i == 0) Modifier.focusRequester(resultsTop) else Modifier).nav(up = toTabs, left = if (i == 0) keyFocus else null,
+                            right = edge(i == SEARCH_FILTERS.lastIndex))) { SearchFilter.now.value = key }
+                    }
+                }
                 if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) Text("Nothing found for “${q.trim()}” yet.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
-                if (mine.isNotEmpty()) TitlesRow("In your library", mine, s, mineRow, below(mineRow), keyFocus, toTabs, lastTitle, lastFocus, onTitle)
+                if (mine.isNotEmpty()) TitlesRow("In your library", mine, s, mineRow, below(mineRow), keyFocus, resultsTop, lastTitle, lastFocus, onTitle)
                 if (titles.isNotEmpty()) {
                     if (mine.isNotEmpty()) Spacer(Modifier.height((10 * s).dp))
-                    TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, if (mine.isNotEmpty()) mineRow.req else toTabs, lastTitle, lastFocus, onTitle)
+                    TitlesRow("Titles", titles, s, titleRow, below(titleRow), keyFocus, if (mine.isNotEmpty()) mineRow.req else resultsTop, lastTitle, lastFocus, onTitle)
                 }
                 if (shows.isNotEmpty()) {
                     Spacer(Modifier.height((10 * s).dp))
@@ -346,3 +363,9 @@ internal fun TextCard(title: String, sub: String, s: Float, modifier: Modifier,
         }
     }
 }
+
+/** Search's filters: the key, its label. */
+private val SEARCH_FILTERS = listOf("all" to "All", "titles" to "Titles", "live" to "Live TV", "onnow" to "On now", "apps" to "Apps", "settings" to "Settings")
+
+/** The filter Search is on ("all", "titles", "live", "onnow", "apps", "settings"); Live TV's Search sets "live". */
+object SearchFilter { val now = androidx.compose.runtime.mutableStateOf("all") }

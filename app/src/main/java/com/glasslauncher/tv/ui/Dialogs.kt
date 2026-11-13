@@ -68,7 +68,12 @@ sealed interface DialogState
 class TextEntry(val title: String, val initial: String, val hint: String, val secret: Boolean = false, val action: String = "Save",
     /** 4: a PIN, typed on the round code pad (Modern dialogs). */
     val digits: Int = 0, val onDone: (String) -> Unit) : DialogState
-class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>) : DialogState
+/**
+ * A menu. [picture] and [sub]: what it's about at its top (a title's poster, its kind and year); [common]: the lines
+ * every thing's menu ends with (Sleep timer, this page's settings), as one options sheet everywhere (hold OK or Menu).
+ */
+class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>, val picture: String = "", val sub: String = "",
+    val common: Boolean = false) : DialogState
 /** A list with a small picture next to each choice (pictures, videos, screensaver videos). */
 class ThumbDialog(val title: String, val items: List<ThumbItem>) : DialogState
 /** "Press the button you want": the next key (not the arrows, OK or Back) goes to [onKey]. */
@@ -219,8 +224,16 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
         }
         val confirm = isConfirmation(d.options.map { it.first })
         Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-            ModernSheet(if (confirm) 380 else if (d.options.any { it.first.length > 30 }) 460 else 340, guard) {
-                SheetTitle(d.title)
+            ModernSheet(if (confirm) 380 else if (d.common || d.options.any { it.first.length > 30 }) 460 else 340, guard) {
+                if (d.picture.isNotBlank()) Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    coil3.compose.AsyncImage(sized(d.picture, "w342"), null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.width(40.dp).height(60.dp).clip(RoundedCornerShape(6.dp)))
+                    Column {
+                        RawText(d.title, color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2)
+                        if (d.sub.isNotBlank()) Text(d.sub, color = Color(0xFF9C9CA3), fontSize = 12.sp)
+                    }
+                } else SheetTitle(d.title, d.sub)
                 if (confirm) {
                     // A question with a way out: the action, then Cancel, which is selected first (nothing happens by accident).
                     val (label, action) = d.options[0]
@@ -230,6 +243,7 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
                     d.options.forEachIndexed { i, (label, action) ->
                         SheetButton(label, if (i == 0) Modifier.focusRequester(fr) else Modifier, destructive = destructiveChoice(label)) { onDismiss(); action() }
                     }
+                    if (d.common) CommonLines(onDismiss)
                 }
             }
         }
@@ -425,3 +439,29 @@ private fun ThumbDialogView(d: ThumbDialog, onDismiss: () -> Unit) {
 }
 
 private suspend fun delay100() = kotlinx.coroutines.delay(100)
+
+/** The sleep timer's steps (minutes; 0: off), as the quick panel has them. */
+private val SLEEP_STEPS = listOf(0, 30, 60, 90, 120)
+
+/**
+ * What every thing's options end with: Sleep timer (OK steps it on, Off, 30 min … 2 h, the sheet staying) and the
+ * settings of the page it's on.
+ */
+@Composable
+private fun CommonLines(onDismiss: () -> Unit) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val app = ctx.applicationContext as? com.glasslauncher.tv.GlassApp ?: return
+    var at by remember { mutableStateOf(com.glasslauncher.tv.data.HomeSleep.at(ctx)) }
+    androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+    val left = if (at == 0L) "" else "${((at - System.currentTimeMillis()) / 60_000L + 1)} min"
+    SheetButton(Lang.tr("Sleep timer") + "   ·   " + (if (left.isEmpty()) Lang.tr("Off") else left)) {
+        val minsLeft = if (at == 0L) 0 else ((at - System.currentTimeMillis()) / 60_000L).toInt()
+        val next = SLEEP_STEPS.firstOrNull { it > minsLeft + 1 } ?: 0
+        com.glasslauncher.tv.data.HomeSleep.set(ctx, next)
+        at = com.glasslauncher.tv.data.HomeSleep.at(ctx)
+    }
+    SheetButton(Lang.tr("Settings for this page")) {
+        onDismiss()
+        app.requestSettings.intValue = 0; app.requestSettingsRev.intValue++
+    }
+}

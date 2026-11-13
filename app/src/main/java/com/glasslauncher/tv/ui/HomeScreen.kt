@@ -619,7 +619,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                         onQuick = { dialog = QuickPanelState }, keepShown = tabFocused)
                     val tabsShown = !settings.topAutoHide || tabFocused
                     TabBar(app, Screen.Home, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (17 * s).dp).graphicsLayer { alpha = if (tabsShown) 1f else 0f },
-                        onFocus = { tabFocused = it }) { to -> if (to == Screen.Home) runCatching { heroFocus.requestFocus() } else onScreen(to) }
+                        onFocus = { tabFocused = it }) { to -> if (to == Screen.Search) SearchFilter.now.value = "all"; if (to == Screen.Home) runCatching { heroFocus.requestFocus() } else onScreen(to) }
                     // A followed team playing now: its score under the tabs, going with them as the page scrolls
                     // (Settings › Home › Live match ticker).
                     if (settings.homeTicker) MatchTicker(app, s, Modifier.align(Alignment.TopCenter).padding(top = (50 * s).dp))
@@ -698,13 +698,14 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 // Live TV's picture runs up behind the tabs; the others start under them.
                 Box(Modifier.fillMaxSize().padding(top = if (tabPage == Screen.LiveTv) 0.dp else (48 * s).dp)) {
                     if (tabPage == Screen.Library) LibraryScreen(app, active = onTop, downAsk = tabDown, toTabs = tabFocus, onTitle = openTitle) { if (onTop) onScreen(Screen.Home) }
-                    if (tabPage == Screen.LiveTv) LiveTvScreen(app, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) })
+                    if (tabPage == Screen.LiveTv) LiveTvScreen(app, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onFollowing = { onScreen(Screen.Following) },
+                        onSearch = { onScreen(Screen.Search) })
                     if (tabPage == Screen.Following) FollowingScreen(app, downAsk = tabDown, toTabs = tabFocus) { onScreen(Screen.Home) }
                     if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
                 }
                 // What scrolls up goes dark behind the tabs, so nothing reads through them.
                 if (onTop) Box(Modifier.fillMaxWidth().height((58 * s).dp).background(Brush.verticalGradient(0.72f to Ds.Bg, 1f to Color.Transparent)))
-                if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> onScreen(to) }
+                if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> if (to == Screen.Search) SearchFilter.now.value = "all"; onScreen(to) }
             } }
             PageLayer(if (screen == Screen.Title) titleStack.lastOrNull() else null, motionOff, origin = titleOrigin) { t ->
                 androidx.compose.runtime.key(t.key) { TitlePage(app, t, s, onClose = closeTitle, onOpen = openTitle, onDialog = { dialog = it }) }

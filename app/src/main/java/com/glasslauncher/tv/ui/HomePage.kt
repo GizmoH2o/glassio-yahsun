@@ -1491,8 +1491,8 @@ private fun titleMenu(app: GlassApp, ctx: android.content.Context, item: HeroIte
         options += "Open in ${NuvioLaunch.shortName(t)}" to { NuvioLaunch.open(ctx, settings, app.http, item, t) }
     val inNuvio = app.library.nuvioList.value.any { it.key == item.key }
     val inStremio = app.library.stremioList.value.any { it.key == item.key }
-    if (app.library.has(item.key)) options += "Remove from Library" to { app.library.toggle(item); toast(ctx, "Removed from Library · ${item.name}") }
-    else options += "Save to Library" to { app.library.toggle(item); toast(ctx, "Saved to Library · ${item.name}") }
+    if (app.library.has(item.key)) options += "Remove from My List" to { app.library.toggle(item); toast(ctx, "Removed from My List · ${item.name}") }
+    else options += "Add to My List" to { app.library.toggle(item); toast(ctx, "Added to My List · ${item.name}") }
     if (inNuvio) options += "Remove from my Nuvio library" to {
         app.library.removeFromNuvio(item) { ok -> toast(ctx.applicationContext, if (ok) "Removed from your Nuvio library · ${item.name}" else "Nuvio: couldn't remove ${item.name}") }
     }
@@ -1507,7 +1507,7 @@ private fun titleMenu(app: GlassApp, ctx: android.content.Context, item: HeroIte
         settings.myCollections = Collections.write(Collections.toggle(Collections.parse(settings.myCollections), from.slot, item))
         toast(ctx, "Removed from ${from.name} · ${item.name}")
     }
-    return MenuDialog(item.name, options)
+    return MenuDialog(item.name, options, picture = item.poster.ifBlank { item.background }, sub = sheetSub(item), common = true)
 }
 
 /** Hold OK on Continue watching: a title's menu (other app, mark watched, remove), a channel's (record, remove). */
@@ -1529,7 +1529,7 @@ private fun watchMenu(app: GlassApp, ctx: android.content.Context, scope: kotlin
             }
         }
         options += "Remove from Continue Watching" to { remove() }
-        onDialog(MenuDialog(item.name, options))
+        onDialog(MenuDialog(item.name, options, picture = item.poster.ifBlank { item.background }, sub = sheetSub(item), common = true))
     } else if (item.type == cards.TYPE_RECORDING || channel == null) remove()
     else scope.launch {
         // A channel on now (the last one, a followed match): record what's on, or take the card out.
@@ -1550,3 +1550,10 @@ private fun watchMenu(app: GlassApp, ctx: android.content.Context, scope: kotlin
         )))
     }
 }
+
+/** A title's line under its name in its options sheet: Series · 2025 · Resume S1 · E3. Pure. */
+internal fun sheetSub(item: HeroItem): String = listOfNotNull(
+    if (item.type.equals("movie", true)) "Film" else if (item.type.isNotBlank()) "Series" else null,
+    item.year.takeIf { it.isNotBlank() },
+    item.sub.takeIf { it.isNotBlank() }?.let { (if (item.upNext) "Next " else "Resume ") + it },
+).joinToString(" · ")
