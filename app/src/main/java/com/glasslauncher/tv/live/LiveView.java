@@ -693,6 +693,7 @@ final class LiveView extends View {
             if (drawDigits(c, up)) moving = true;
             if (drawGoal(c, up)) moving = true;
         }
+        if (drawNotice(c)) moving = true;
         if (moving || Marquee.moving) postInvalidateOnAnimation();     // a long title scrolling
     }
 
@@ -2472,9 +2473,50 @@ final class LiveView extends View {
 
     /** A message for two seconds. */
     void flash(String message) {
-        setStatus(message);
-        postDelayed(() -> { if (status.equals(message)) setStatus(""); }, 2000);
+        // As Glassio's notice: a pill at the top that slides down, then goes (not a box in the middle of the picture).
+        notice = message == null ? "" : message;
+        noticeAt = android.os.SystemClock.uptimeMillis();
+        if (!notice.isEmpty()) LiveSpeech.say(this, notice);
+        invalidate();
     }
+
+    private String notice = "";
+    private long noticeAt;
+    private static final long NOTICE_IN = 260, NOTICE_HOLD = 2600, NOTICE_OUT = 220;
+    private final Paint noticeFill = new Paint(Paint.ANTI_ALIAS_FLAG), noticeRim = new Paint(Paint.ANTI_ALIAS_FLAG),
+            noticeText = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF noticeBox = new RectF();
+
+    /** The flash message, as Glassio's notice (its look, place and motion). True while it's moving or up. */
+    private boolean drawNotice(Canvas c) {
+        if (notice.isEmpty()) return false;
+        long t = android.os.SystemClock.uptimeMillis() - noticeAt;
+        if (t > NOTICE_IN + NOTICE_HOLD + NOTICE_OUT) { notice = ""; return false; }
+        float a = t < NOTICE_IN ? easeOut(t / (float) NOTICE_IN)
+                : t < NOTICE_IN + NOTICE_HOLD ? 1f : 1f - easeIn((t - NOTICE_IN - NOTICE_HOLD) / (float) NOTICE_OUT);
+        noticeText.setTypeface(Ui.medium);
+        noticeText.setTextSize(26 * k);
+        noticeText.setColor(0xFFFFFFFF);
+        String s = ellipsize(notice, noticeText, 1200 * k);
+        float tw = noticeText.measureText(s), padX = 44 * k, hh = 26 * k * 0.72f + 44 * k;
+        float top = 168 * k - (1f - a) * 44 * k;
+        noticeBox.set(w / 2f - tw / 2 - padX, top, w / 2f + tw / 2 + padX, top + hh);
+        int alpha = Math.round(255 * a);
+        noticeFill.setColor(0xFF232327);
+        noticeFill.setAlpha(alpha);
+        c.drawRoundRect(noticeBox, hh / 2, hh / 2, noticeFill);
+        noticeRim.setStyle(Paint.Style.STROKE);
+        noticeRim.setStrokeWidth(1.2f * k);
+        noticeRim.setColor(0x1AFFFFFF);
+        noticeRim.setAlpha(Math.round(0x1A * a));
+        c.drawRoundRect(noticeBox, hh / 2, hh / 2, noticeRim);
+        noticeText.setAlpha(alpha);
+        c.drawText(s, w / 2f - tw / 2, noticeBox.centerY() + Ui.halfCap(noticeText), noticeText);
+        return true;
+    }
+
+    private static float easeOut(float x) { x = Math.max(0, Math.min(1, x)); return 1 - (1 - x) * (1 - x) * (1 - x); }
+    private static float easeIn(float x) { x = Math.max(0, Math.min(1, x)); return x * x * x; }
 
     // MARK: - The parental PIN
 

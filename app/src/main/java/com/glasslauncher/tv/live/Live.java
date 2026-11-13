@@ -587,6 +587,10 @@ public class Live extends Activity {
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
                 return;
             }
+            if (i.hasExtra("flash")) {      // a flash message (its look)
+                view.flash(i.getStringExtra("flash"));
+                return;
+            }
             if (i.getBooleanExtra("about", false)) {     // the page of what's on (its buttons, More info among them)
                 view.aboutPlaying();
                 return;
