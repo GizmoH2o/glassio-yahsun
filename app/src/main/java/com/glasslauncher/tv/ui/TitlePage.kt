@@ -625,6 +625,7 @@ private fun SectionBar(sections: List<String>, current: String, s: Float, modifi
 internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float = 84f, onFocused: () -> Unit = {}, onClick: () -> Unit) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
+    var loaded by remember(h.poster) { mutableStateOf(h.poster.isBlank()) }
     Column(modifier.width((width * s).dp)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f)
@@ -633,11 +634,13 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
                 .posterTilt(focused)
                 .cardFocus(s, focused)
                 .background(Ds.Surface)
+                .loadingSweep(!loaded)
                 .watchedBar(h.key, s),
             contentAlignment = Alignment.Center,
         ) {
             RawText(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))
-            if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+                onSuccess = { loaded = true }, onError = { loaded = true })
             if (isNewOut(h)) Text("NEW", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
                 modifier = Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(LocalAccent.current).padding(horizontal = (3 * s).dp))
         }

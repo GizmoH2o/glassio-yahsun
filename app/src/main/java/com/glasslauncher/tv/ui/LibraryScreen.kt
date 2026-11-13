@@ -280,6 +280,7 @@ private fun Section(title: String, s: Float) {
 
 @Composable
 private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, modifier: Modifier, onFocused: () -> Unit = {}, onOpen: () -> Unit, onRemove: () -> Unit) {
+    var loaded by remember(item.key) { mutableStateOf(false) }
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     // No overshoot: a bouncy grow made the posters wobble while you moved along a row.
@@ -301,6 +302,7 @@ private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, mo
                 }
                 .clip(shape)
                 .background(Ds.Surface)
+                .loadingSweep(!loaded)
                 .watchedBar(item.key, s)
                 .border(if (focused) (1.8f * s).dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
                 .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
@@ -311,7 +313,7 @@ private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, mo
         ) {
             RawText(item.name, color = Color.White.copy(alpha = 0.6f), fontSize = (10 * s).sp, textAlign = TextAlign.Center,
                 modifier = Modifier.padding((8 * s).dp))
-            AsyncImage(req, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            AsyncImage(req, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true }, onError = { loaded = true })
             if (isNew) Text("NEW", color = Color.White, fontSize = (7 * s).sp, fontWeight = FontWeight.Black,
                 modifier = Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(RED).padding(horizontal = (4 * s).dp))
         }

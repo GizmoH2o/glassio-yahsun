@@ -3,6 +3,7 @@ package com.glasslauncher.tv.ui
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Arrangement
@@ -344,4 +345,21 @@ fun Modifier.posterTilt(focused: Boolean): Modifier {
         ry.animateTo(0f, androidx.compose.animation.core.spring(0.42f, 260f))
     }
     return this.graphicsLayer { rotationX = rx.value; rotationY = ry.value; cameraDistance = 14f * density }
+}
+
+/**
+ * A card waiting for its picture: a soft light sweeping across it (as the streaming apps' loading cards), in place of
+ * a flat grey box; nothing once it's [loading] no more, nor with Reduce motion.
+ */
+fun Modifier.loadingSweep(loading: Boolean): Modifier = if (!loading) this else composed {
+    if (LocalReduceMotion.current) return@composed Modifier
+    val t = androidx.compose.animation.core.rememberInfiniteTransition(label = "sweep")
+    val x by t.animateFloat(-1f, 2f, androidx.compose.animation.core.infiniteRepeatable(tween(1_400, easing = androidx.compose.animation.core.LinearEasing)), label = "sweepX")
+    Modifier.drawWithContent {
+        drawContent()
+        val w = size.width
+        drawRect(androidx.compose.ui.graphics.Brush.linearGradient(
+            listOf(Color.Transparent, Color.White.copy(alpha = 0.07f), Color.Transparent),
+            start = androidx.compose.ui.geometry.Offset(w * (x - 0.5f), 0f), end = androidx.compose.ui.geometry.Offset(w * x, size.height)))
+    }
 }
