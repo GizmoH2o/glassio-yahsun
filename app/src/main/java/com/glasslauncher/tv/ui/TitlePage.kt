@@ -607,7 +607,8 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
                 .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
                 .tvPress(onKey = backKey(), onClick = onClick)
                 .cardFocus(s, focused)
-                .background(Ds.Surface),
+                .background(Ds.Surface)
+                .watchedBar(h.key, s),
             contentAlignment = Alignment.Center,
         ) {
             RawText(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))

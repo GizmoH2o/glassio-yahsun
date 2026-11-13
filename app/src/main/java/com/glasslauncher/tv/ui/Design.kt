@@ -19,6 +19,8 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -223,3 +225,22 @@ fun DsHeading(text: String, s: Float, modifier: Modifier = Modifier) {
 
 /** Space between a row of controls. */
 fun dsGap(s: Float) = Arrangement.spacedBy((8 * s).dp)
+
+/**
+ * Over any poster: how far you are in it (Continue watching's red bar at its foot), so every card of a title you've
+ * started says so, not only the Continue watching row's. Nothing when it isn't started.
+ */
+@Composable
+fun Modifier.watchedBar(key: String, s: Float): Modifier {
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as? com.glasslauncher.tv.GlassApp ?: return this
+    val cw by app.cw.items.collectAsState()
+    val p = remember(cw, key) { cw.firstOrNull { it.key == key }?.progress ?: -1f }
+    if (p < 0f) return this
+    val accent = LocalAccent.current
+    return this.drawWithContent {
+        drawContent()
+        val h = 2.5f * s * density
+        drawRect(Color.White.copy(alpha = 0.25f), topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - h), size = androidx.compose.ui.geometry.Size(size.width, h))
+        drawRect(accent, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - h), size = androidx.compose.ui.geometry.Size(size.width * p.coerceIn(0.03f, 1f), h))
+    }
+}

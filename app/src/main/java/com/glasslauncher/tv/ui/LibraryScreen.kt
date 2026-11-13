@@ -274,6 +274,7 @@ private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, mo
                 }
                 .clip(shape)
                 .background(Ds.Surface)
+                .watchedBar(item.key, s)
                 .border(if (focused) (1.8f * s).dp else 0.dp, if (focused) Color.White else Color.Transparent, shape)
                 .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
                 .tvPress(onLong = onRemove, onKey = { ev ->

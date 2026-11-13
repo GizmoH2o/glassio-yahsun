@@ -1242,7 +1242,8 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
             .onFocusChanged { focused = it.isFocused; if (it.isFocused) onFocused() }
             .tvPress(onLong = onHold, onKey = backKey(), onClick = onOpen)
             .cardFocus(s, focused, 5f, if (open) 1.03f else 1.06f)
-            .background(cardBg),
+            .background(cardBg)
+            .watchedBar(item.key, s),
     ) {
         // Its wide picture loads (unseen) as soon as it's selected: the poster fades into it once it's there, never into an empty card.
         val shownOpen = open && picReady
