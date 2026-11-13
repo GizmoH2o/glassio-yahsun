@@ -77,7 +77,12 @@ object Handoff {
         if (away < 20_000) return
         p.edit().clear().apply()
         if (away < 6 * 3_600_000L) returnedKey.value = key
+        (c.applicationContext as? com.glasslauncher.tv.GlassApp)?.cw?.let { it.syncNuvioNow(); it.syncStremioNow(); it.syncTraktNow() }
     }
+
+    /** Episodes played one after another from the Up next card (reset after a long break): the third asks first. */
+    var inARow = 0
+    var inARowAt = 0L
 
     /** The key of the title just watched, for Home's Up next card (taken by it). */
     val returnedKey = mutableStateOf<String?>(null)
@@ -87,6 +92,16 @@ object Handoff {
 
     /** The Up next card is up (Home then takes no focus, so it can't pull the selection back to its big picture). */
     val cardOn = mutableStateOf(false)
+
+    /** Watch on Live TV from Glassio: the same cover (the show's picture, its name, "Opening Live TV"), then Live TV. */
+    fun goLive(name: String, sub: String, picture: String, start: () -> Unit) {
+        val item = HeroItem("live:" + name, "", "live", name, "", picture, "", "", "", "", emptyList(), "", sub = sub)
+        val g = Going(item, LIVE, SystemClock.uptimeMillis())
+        now.value = g
+        main.postDelayed({ start() }, SHOW_MS)
+        main.postDelayed({ if (now.value === g) now.value = null }, 6_000)
+    }
+    const val LIVE = "live"
 
     /** "Nuvio" for Nuvio Legacy / (official) / Arc, "Stremio". Pure. */
     fun shortName(target: String): String = (NuvioLaunch.NAMES[target] ?: "").substringBefore(' ')
@@ -108,15 +123,16 @@ fun HandoffHost(s: Float) {
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0.5f to Color.Transparent, 1f to Ds.Bg)))
         Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy((9 * s).dp)) {
             Box(Modifier.width((300 * s).dp), contentAlignment = Alignment.Center) { Title(item, "logo", 1.0f, s) }
-            val what = item.sub.takeIf { it.isNotBlank() }?.let { (if (item.upNext) Lang.tr("Play") else Lang.tr("Resume")) + " " + it } ?: Lang.tr("Play")
+            val what = if (g.target == Handoff.LIVE) item.sub else item.sub.takeIf { it.isNotBlank() }?.let { (if (item.upNext) Lang.tr("Play") else Lang.tr("Resume")) + " " + it } ?: Lang.tr("Play")
             Text(what, color = Color(0xFFE0E0E4), fontSize = (9 * s).sp, fontWeight = FontWeight.SemiBold)
-            val app = Handoff.shortName(g.target)
+            val app = if (g.target == Handoff.LIVE) "Live TV" else Handoff.shortName(g.target)
             if (app.isNotBlank()) Row(
                 Modifier.padding(top = (5 * s).dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.14f))
                     .padding(start = (6 * s).dp, end = (10 * s).dp, top = (4.5f * s).dp, bottom = (4.5f * s).dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((5 * s).dp),
             ) {
-                ServiceIcon(NuvioLaunch.TARGETS[g.target] ?: "", s)
+                if (g.target == Handoff.LIVE) Box(Modifier.width((6 * s).dp).height((6 * s).dp).clip(RoundedCornerShape(50)).background(LocalAccent.current))
+                else ServiceIcon(NuvioLaunch.TARGETS[g.target] ?: "", s)
                 Text(Lang.tr("Opening in") + " " + app, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.Bold)
             }
             Box(Modifier.width((110 * s).dp).height((1.6f * s).dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.2f))) {
@@ -187,14 +203,18 @@ fun UpNextHost(app: com.glasslauncher.tv.GlassApp, s: Float, restore: androidx.c
                 if (pic.isNotBlank()) AsyncImage(sized(pic, "w780"), null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
             }
             Column(verticalArrangement = Arrangement.spacedBy((3 * s).dp)) {
-                Text(if (c.upNext) Lang.tr("UP NEXT") else Lang.tr("CONTINUE"), color = Color(0xFFFF6B5E), fontSize = (6.5f * s).sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (0.6f * s).sp)
+                val still = c.upNext && Handoff.inARow >= 2 && System.currentTimeMillis() - Handoff.inARowAt < 3 * 3_600_000L
+                Text(if (still) Lang.tr("STILL WATCHING?") else if (c.upNext) Lang.tr("UP NEXT") else Lang.tr("CONTINUE"), color = Color(0xFFFF6B5E), fontSize = (6.5f * s).sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (0.6f * s).sp)
                 RawText(c.name, color = Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1)
                 if (c.sub.isNotBlank()) RawText(c.sub, color = Text2, fontSize = (7.5f * s).sp, maxLines = 1)
                 Row(Modifier.padding(top = (3 * s).dp), horizontalArrangement = Arrangement.spacedBy((5 * s).dp)) {
-                    DsButton(if (c.upNext) "Play" else "Resume", s, Modifier.focusRequester(play), primary = true) {
+                    DsButton(if (still) "Keep watching" else if (c.upNext) "Play" else "Resume", s, Modifier.focusRequester(play), primary = true) {
+                        val now = System.currentTimeMillis()
+                        Handoff.inARow = if (c.upNext && now - Handoff.inARowAt < 3 * 3_600_000L) Handoff.inARow + 1 else if (c.upNext) 1 else 0
+                        Handoff.inARowAt = now
                         card = null; NuvioLaunch.play(ctx, app.settings, app.http, c)
                     }
-                    DsButton("Not now", s) { card = null; backTo++ }
+                    DsButton(if (still) "Done for now" else "Not now", s) { if (still) Handoff.inARow = 0; card = null; backTo++ }
                 }
             }
         }

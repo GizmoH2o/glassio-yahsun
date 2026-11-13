@@ -195,7 +195,11 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
         item(key = "top") {
             Box(Modifier.onFocusChanged { topHasFocus = it.hasFocus }) {
             LiveHero(p.last, s, shown, first, toTabs,
-                onWatch = { open(ctx, LiveHome.open(ctx, p.last?.channel ?: -1, false)) },
+                onWatch = {
+                    val l = p.last
+                    if (l == null) open(ctx, LiveHome.open(ctx, -1, false))
+                    else Handoff.goLive(l.title.ifBlank { l.channelName }, listOf((if (l.number > 0) "${l.number} " else "") + l.channelName).joinToString(), l.art) { open(ctx, LiveHome.open(ctx, l.channel, false)) }
+                },
                 onGuide = { open(ctx, LiveHome.open(ctx, -1, true)) },
                 // One search: Glassio's own, on its Live TV filter (Live TV's own search only without a way to it).
                 onSearch = { if (onSearch != null) { SearchFilter.now.value = "live"; onSearch() } else open(ctx, LiveHome.search(ctx)) },
