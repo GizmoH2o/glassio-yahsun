@@ -209,6 +209,25 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
     load()
 }
 
+/** Glassio's own player (the default), or YouTube's page in a web view (Settings › Home › Trailer player). */
+private fun nativeTrailers(ctx: android.content.Context): Boolean =
+    (ctx.applicationContext as? GlassApp)?.settings?.trailerEngine != "web"
+
+/** A trailer's view as the setting has it: Glassio's player ([texture]: one that fades with its window) or the web view. */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+private fun trailerViewOf(ctx: android.content.Context, ids: String, muted: Boolean, texture: Boolean, onPlaying: () -> Unit, onWaiting: () -> Unit,
+                          onEnded: () -> Unit, onProgress: (Float) -> Unit = {}): android.view.View =
+    if (nativeTrailers(ctx)) NativeTrailer(ctx, ids, muted, texture, onPlaying, onWaiting, onEnded, onProgress)
+    else trailerView(ctx, ids, muted, onPlaying, onWaiting, onEnded, onProgress)
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+private fun releaseAny(v: android.view.View) {
+    when (v) {
+        is NativeTrailer -> v.release()
+        is WebView -> releaseTrailer(v)
+    }
+}
+
 private fun releaseTrailer(v: WebView) {
     TrailerMemory.playing.remove(v)
     TrailerGuard.disarm(v.context)
@@ -224,13 +243,13 @@ fun TrailerPlayer(ids: String, onClose: () -> Unit) {
     AndroidView(
         factory = { ctx ->
             var played = false
-            trailerView(ctx, ids, muted = false, onPlaying = { played = true }, onWaiting = {}, onEnded = {
+            trailerViewOf(ctx, ids, muted = false, texture = false, onPlaying = { played = true }, onWaiting = {}, onEnded = {
                 // None of its trailers would play (their owners keep them on YouTube, say): say so, not just back again.
                 if (!played) toast(ctx, "This trailer won't play on the TV")
                 onClose()
             })
         },
-        onRelease = { releaseTrailer(it) },
+        onRelease = { releaseAny(it) },
         modifier = Modifier.fillMaxSize(),
     )
 }
@@ -265,7 +284,7 @@ private class CardTrailerWindow(private val host: android.view.View, ids: String
     private val ctx = host.context
     // Unseen until it plays (the web view is black while it loads), then faded in.
     private val frame = android.widget.FrameLayout(ctx).apply { alpha = 0f }
-    private val web = trailerView(ctx, ids, muted = true, onPlaying = {
+    private val web = trailerViewOf(ctx, ids, muted = true, texture = true, onPlaying = {
         // The picture (its title logo with it) gives way to the video in 300 ms, as on the streaming apps.
         frame.animate().alpha(1f).setDuration(if (followTv) 300 else ownViewDuration(300, tvAnimationScale(ctx))).start()
         onPlaying()
@@ -304,7 +323,7 @@ private class CardTrailerWindow(private val host: android.view.View, ids: String
         if (closed) return
         closed = true
         runCatching { popup.dismiss() }
-        releaseTrailer(web)
+        releaseAny(web)
     }
 }
 
@@ -323,8 +342,8 @@ fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaitin
     key(ids, muted) {
         Box(Modifier.fillMaxSize()) {
             AndroidView(
-                factory = { ctx -> trailerView(ctx, ids, muted, onPlaying, onWaiting, onEnded, onProgress) },
-                onRelease = { releaseTrailer(it) },
+                factory = { ctx -> trailerViewOf(ctx, ids, muted, false, onPlaying, onWaiting, onEnded, onProgress) },
+                onRelease = { releaseAny(it) },
                 modifier = Modifier.fillMaxSize(),
             )
             // The backdrops' own shades (baked into them, so gone as they fade): dark at the left (the text) and the bottom.
@@ -370,8 +389,8 @@ fun CinematicChrome(progress: () -> Float, alpha: () -> Float, s: Float, modifie
  * trailers end first: about 200 MB back, the picture again where the trailer was, Glassio still up.
  */
 object TrailerMemory {
-    /** Each trailer's web view, with how to end it (taken out as it's released). Main thread only. */
-    val playing = java.util.WeakHashMap<WebView, Runnable>()
+    /** Each trailer's view (web view or Glassio's player), with how to end it (taken out as it's released). Main thread only. */
+    val playing = java.util.WeakHashMap<Any, Runnable>()
 
     /** Ends every trailer playing; true when there was one. On the main thread. */
     fun endAll(): Boolean {
