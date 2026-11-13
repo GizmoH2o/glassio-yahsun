@@ -179,7 +179,7 @@ final class LiveRail {
         c.save();
         if (on) {
             c.translate(0, -8 * k);
-            c.scale(1.06f, 1.06f, left + wd / 2, top + ht / 2);
+            c.scale(LiveTheme.LIFT, LiveTheme.LIFT, left + wd / 2, top + ht / 2);
         }
         r.set(left, top, left + wd, top + ht);
         float rr = LiveTheme.panelRound(20 * k);

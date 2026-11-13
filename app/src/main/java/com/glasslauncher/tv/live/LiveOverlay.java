@@ -1038,7 +1038,7 @@ final class LiveOverlay {
             r.set(left, top, left + width, bottom);
             int save = c.save();
             if (on) {
-                c.scale(1.05f, 1.05f, r.centerX(), r.centerY());
+                c.scale(LiveTheme.LIFT, LiveTheme.LIFT, r.centerX(), r.centerY());
                 glow.setColor(LiveTheme.tile);
                 c.drawRoundRect(r, round, round, glow);
             } else {

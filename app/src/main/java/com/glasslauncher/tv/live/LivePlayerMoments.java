@@ -183,7 +183,7 @@ final class LivePlayerMoments {
         int save = c.save();
         r.set(left, TOP * k, left + width * k, (TOP + TILE_H) * k);
         if (on) {
-            float scale = 1 + 0.05f * Ui.clamp(grow.value);
+            float scale = 1 + (LiveTheme.LIFT - 1) * Ui.clamp(grow.value);
             c.scale(scale, scale, r.centerX(), r.centerY());
             lift.setColor(LiveTheme.tile);
             c.drawRoundRect(r, round, round, lift);

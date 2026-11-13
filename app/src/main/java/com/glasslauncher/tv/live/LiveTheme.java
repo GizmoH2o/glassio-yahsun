@@ -21,6 +21,9 @@ import java.io.IOException;
  * In a file ("color,style,…"), not the preferences: Live TV sets it, the main process (the reminder card) reads it too.
  */
 final class LiveTheme {
+    /** How much a selected card grows: Glassio's own (its cards and buttons, 6%), so a selection feels the same in both. */
+    static final float LIFT = 1.06f;
+
     private LiveTheme() {}
 
     /** Each theme: the tile (dark enough for white text on it) and its text color (on the dark background). */

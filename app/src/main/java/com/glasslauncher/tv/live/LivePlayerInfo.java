@@ -352,7 +352,7 @@ final class LivePlayerInfo {
         r.set(lefts[i] * k, top * k, (lefts[i] + widths[i]) * k, (top + CHIP_H) * k);
         int save = c.save();
         if (on) {
-            c.scale(1.06f, 1.06f, r.centerX(), r.centerY());
+            c.scale(LiveTheme.LIFT, LiveTheme.LIFT, r.centerX(), r.centerY());
             focusFill(c, round);
         } else {
             card(c, round);
