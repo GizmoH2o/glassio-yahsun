@@ -743,6 +743,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             if (screen == Screen.Home) UpNextHost(app, s, heroFocus)
             // Play: "Opening in Nuvio" over everything until the app is up.
             HandoffHost(s)
+            // As Glassio starts: its name, then Welcome back.
+            OpeningHost(app, s) { dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } } }
         }
     }
 }

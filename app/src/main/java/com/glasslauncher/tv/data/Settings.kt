@@ -440,6 +440,8 @@ class Settings(private val ctx: Context) {
     }
     /** Look & motion: no lift, slide or zoom; a stronger selection and solid backing behind text. */
     var reduceMotion: Boolean get() = b("reduceMotion", false); set(v) = putB("reduceMotion", v)
+    /** Glassio's name for a moment as it starts, then Welcome back with more than one profile. */
+    var openingAnim: Boolean get() = b("openingAnim", true); set(v) = putB("openingAnim", v)
     /** A soft tick as the selection moves and a click on OK (the TV's own sounds), as Apple TV has. */
     var navSounds: Boolean get() = b("navSounds", false); set(v) = putB("navSounds", v)
     /** Back on Home's first press explained itself (it starts the screensaver). */
