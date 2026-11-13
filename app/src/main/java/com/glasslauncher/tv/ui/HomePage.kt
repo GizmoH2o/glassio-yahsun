@@ -342,8 +342,19 @@ internal fun HomePage(
         HeroPicks.pick(catalogItems, emptyMap(), settings.heroHidden.toSet(), kids, cwItems, settings.heroBecause, settings.heroSeasonal, month)
     }
     val slides = picks.slides
+    // The big picture keeps its title when the slides are picked again (Continue watching changed while you watched,
+    // say), and comes back on the title you opened (More info), never on another that took its place.
+    var shownKey by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(slides) {
+        val k = shownKey ?: return@LaunchedEffect
+        val at = slides.indexOfFirst { it.key == k }
+        if (at >= 0 && at != index.mod(slides.size.coerceAtLeast(1))) index = at
+    }
     val slide = slides.getOrNull(index.mod(slides.size.coerceAtLeast(1)))
         ?.let { r -> (enriched[r.key] ?: r) }?.let { withArtwork(it, settings.artChoice, settings.artPick(it.key)) }
+    // Which title is shown: kept as the index moves (not when the slides change under it: that's what's restored above).
+    val slidesNow by androidx.compose.runtime.rememberUpdatedState(slides)
+    LaunchedEffect(index, slides.isEmpty()) { slidesNow.getOrNull(index.mod(slidesNow.size.coerceAtLeast(1)))?.key?.let { shownKey = it } }
     var selected by remember { mutableStateOf<HeroItem?>(null) }
     // The selected title takes over the picture once you stop on it (not on every step along a row).
     var picked by remember { mutableStateOf<HeroItem?>(null) }
@@ -541,7 +552,7 @@ internal fun HomePage(
                             onPrev = { app.navAt = System.currentTimeMillis(); SlideDir.dir = -1; index-- },
                             onNext = { app.navAt = System.currentTimeMillis(); SlideDir.dir = 1; index++ },
                             moreFocus = heroMore,
-                            onMore = { fromMore = true; toTitle(shown) },
+                            onMore = { fromMore = true; shownKey = shown.key; toTitle(shown) },
                             // No app that plays titles on this TV: its page (its trailer, any streaming app it's on).
                             onPlay = { if (NuvioLaunch.playable(ctx, settings)) NuvioLaunch.open(ctx, settings, app.http, shown) else toTitle(shown) },
                             onSave = {
