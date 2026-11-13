@@ -570,7 +570,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     // Another page coming over it: Home sinks back a little as it fades (none with Reduce motion).
                     if (!motionOff) { val k = 0.96f + 0.04f * homeAlphaState.value; scaleX = k; scaleY = k }
                 }
-                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn }
+                    .focusProperties { canFocus = screen == Screen.Home && pickerFor == null && !folderOpen && !menuOpen && !welcomeOn && !Handoff.cardOn.value }
                     .onPreviewKeyEvent { ev ->
                         when {
                             // OK plays the title (as on its page); any other button brings the page back, and does nothing else.

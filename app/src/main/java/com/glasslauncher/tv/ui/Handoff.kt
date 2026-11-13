@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import coil3.compose.AsyncImage
@@ -56,6 +57,7 @@ object Handoff {
 
     fun go(item: HeroItem, target: String, start: () -> Unit) {
         val g = Going(item, target, SystemClock.uptimeMillis())
+        last = item
         now.value = g
         ctx?.getSharedPreferences("handoff", 0)?.edit()?.putString("key", item.key)?.putLong("at", System.currentTimeMillis())?.apply()
         main.postDelayed({ start() }, SHOW_MS)
@@ -79,8 +81,11 @@ object Handoff {
     /** The key of the title just watched, for Home's Up next card (taken by it). */
     val returnedKey = mutableStateOf<String?>(null)
 
-    /** The title just watched, for Home's Up next card (taken by it). */
-    val returned = mutableStateOf<HeroItem?>(null)
+    /** The title last sent to be watched (while Glassio stayed open), if Continue watching has nothing for it. */
+    @Volatile var last: HeroItem? = null
+
+    /** The Up next card is up (Home then takes no focus, so it can't pull the selection back to its big picture). */
+    val cardOn = mutableStateOf(false)
 
     /** "Nuvio" for Nuvio Legacy / (official) / Arc, "Stremio". Pure. */
     fun shortName(target: String): String = (NuvioLaunch.NAMES[target] ?: "").substringBefore(' ')
@@ -128,10 +133,11 @@ fun HandoffHost(s: Float) {
 @Composable
 fun UpNextHost(app: com.glasslauncher.tv.GlassApp, s: Float, restore: androidx.compose.ui.focus.FocusRequester) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
-    val back = Handoff.returnedKey.value
     var card by androidx.compose.runtime.remember { mutableStateOf<HeroItem?>(null) }
-    LaunchedEffect(back) {
-        val key = back ?: return@LaunchedEffect
+    var backTo by androidx.compose.runtime.remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    // Watched through snapshotFlow: clearing the key mustn't restart (cancel) this wait, as keying on it did.
+    LaunchedEffect(Unit) { androidx.compose.runtime.snapshotFlow { Handoff.returnedKey.value }.collect { key ->
+        if (key == null) return@collect
         Handoff.returnedKey.value = null
         val b = app.cw.items.value.firstOrNull { it.key == key }
         // Continue Watching catches up after watching (a few seconds): its entry for the title, with the next episode.
@@ -141,19 +147,31 @@ fun UpNextHost(app: com.glasslauncher.tv.GlassApp, s: Float, restore: androidx.c
             if (entry != null && (b == null || entry.sub != b.sub || entry.upNext)) break
             kotlinx.coroutines.delay(500)
         }
-        card = entry ?: return@LaunchedEffect
+        card = entry ?: Handoff.last?.takeIf { it.key == key } ?: return@collect
         kotlinx.coroutines.delay(12_000)
-        if (card != null) { card = null; runCatching { restore.requestFocus() } }
-    }
+        if (card != null) { card = null; backTo++ }
+    } }
+    // The card gone: the selection back on Home once Home can take it again (a frame later).
+    LaunchedEffect(backTo) { if (backTo > 0) { androidx.compose.runtime.withFrameNanos { }; kotlinx.coroutines.delay(30); runCatching { restore.requestFocus() } } }
+    androidx.compose.runtime.DisposableEffect(card != null) { Handoff.cardOn.value = card != null; onDispose { Handoff.cardOn.value = false } }
     val c = card ?: return
     val play = androidx.compose.runtime.remember(c) { androidx.compose.ui.focus.FocusRequester() }
-    LaunchedEffect(c) { kotlinx.coroutines.delay(80); runCatching { play.requestFocus() } }
-    androidx.activity.compose.BackHandler { card = null; runCatching { restore.requestFocus() } }
+    var has by androidx.compose.runtime.remember(c) { mutableStateOf(false) }
+    // Home puts its selection back on the big picture as Glassio comes back: asked again until the card has kept it.
+    LaunchedEffect(c) {
+        kotlinx.coroutines.delay(80)
+        var held = 0
+        repeat(30) {
+            if (has) { if (++held >= 4) return@LaunchedEffect } else { held = 0; runCatching { play.requestFocus() } }
+            kotlinx.coroutines.delay(100)
+        }
+    }
+    androidx.activity.compose.BackHandler { card = null; backTo++ }
     val a = androidx.compose.runtime.remember(c) { Animatable(0f) }
     LaunchedEffect(c) { a.animateTo(1f, tween(320, easing = Motion.EaseOut)) }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomEnd) {
         Row(
-            Modifier.padding(end = (EDGE * s).dp, bottom = (30 * s).dp).graphicsLayer { alpha = a.value; translationY = (1f - a.value) * 24 * density }
+            Modifier.padding(end = (EDGE * s).dp, bottom = (30 * s).dp).onFocusChanged { has = it.hasFocus }.graphicsLayer { alpha = a.value; translationY = (1f - a.value) * 24 * density }
                 .clip(RoundedCornerShape((Ds.R_PANEL * s).dp)).background(Ds.Surface.copy(alpha = 0.96f)).padding((8 * s).dp),
             horizontalArrangement = Arrangement.spacedBy((10 * s).dp), verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -169,7 +187,7 @@ fun UpNextHost(app: com.glasslauncher.tv.GlassApp, s: Float, restore: androidx.c
                     DsButton(if (c.upNext) "Play" else "Resume", s, Modifier.focusRequester(play), primary = true) {
                         card = null; NuvioLaunch.play(ctx, app.settings, app.http, c)
                     }
-                    DsButton("Not now", s) { card = null; runCatching { restore.requestFocus() } }
+                    DsButton("Not now", s) { card = null; backTo++ }
                 }
             }
         }
