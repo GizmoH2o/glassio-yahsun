@@ -603,7 +603,7 @@ final class LiveOverlay {
             }
         }
 
-        // What TMDB knows of the show: its title's logo, IMDb's rating, a picture (asked for once; a redraw when it comes).
+        // What TMDB knows of the show: IMDb's rating, a picture (asked for once; a redraw when it comes).
         LiveTmdb.Info known = shown == null ? null : LiveTmdb.of(live, shown, view::postInvalidate);
         // Peeking at another channel (Up / Down): its show's picture as a card at the right, as the streaming apps'
         // mini guides have it; the words beside it make room.
@@ -634,15 +634,9 @@ final class LiveOverlay {
                 textR = (cl / k) - 40;
             }
         }
-        // The show's title, big: its logo when TMDB has one (as Glassio's pages show it), else the words; a long one scrolls.
+        // The show's title, big (its words, not its logo); a long one scrolls across.
         String head = shown == null || shown.title.isEmpty() ? ch.name : shown.title;
-        Bitmap logo = known == null || known.logo.isEmpty() ? null : LiveLogos.get(live, known.logo, view::postInvalidate);
-        if (logo != null && logo.getWidth() > 0 && logo.getHeight() > 0) {
-            float maxW = Math.min(760, textR - X) * k, maxH = 76 * k, ls = Math.min(maxW / logo.getWidth(), maxH / logo.getHeight());
-            float lw = logo.getWidth() * ls, lh = logo.getHeight() * ls, base = (TITLE_Y - raise + 19) * k;
-            r.set(X * k, base - lh, X * k + lw, base);
-            c.drawBitmap(logo, null, r, artPaint);
-        } else titleMarquee.draw(c, head, X * k, (TITLE_Y - raise) * k, (textR - X) * k, title, k);
+        titleMarquee.draw(c, head, X * k, (TITLE_Y - raise) * k, (textR - X) * k, title, k);
 
         // How far it is: the show on now, or the past show's position.
         float f = 0;
