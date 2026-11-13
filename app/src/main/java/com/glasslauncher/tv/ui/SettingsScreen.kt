@@ -1507,6 +1507,9 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     ).map { (k, v) -> (Lang.tr(k) + "  ·  " + Lang.tr(v)) to {} })
                 })
                 add(Toggle("Reduce motion", "No lift, slide or zoom; simple fades only", { st.reduceMotion }, { st.reduceMotion = it; com.glasslauncher.tv.live.LiveHome.setReduceMotion(ctx, it) }))
+                add(Toggle("Live TV matches Glassio", "Live TV in the home screen's own design (Glassio 3): near-black, white selection, round corners, the same lettering. Off: the design it had",
+                    { LiveLook.on.value ?: com.glasslauncher.tv.live.LiveHome.matchesGlassio(ctx).also { LiveLook.on.value = it } },
+                    { com.glasslauncher.tv.live.LiveHome.setMatchGlassio(ctx, it); LiveLook.on.value = it }))
                 add(Toggle("Navigation sounds", "A soft tick as the selection moves, a click on OK, as on Apple TV (Live TV too)", { st.navSounds }, { st.navSounds = it; com.glasslauncher.tv.live.NavSound.set(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
                 add(Adjust("Dialog style", "Pop-ups, text boxes and notices, here and in Live TV. Modern: glass sheets, Glassio's own keyboard. Classic: as before",
@@ -1835,3 +1838,6 @@ private fun AboutPane(app: GlassApp, s: Float, onApp: (com.glasslauncher.tv.data
 private fun videoName(u: String): String = runCatching {
     java.net.URLDecoder.decode(u.substringBefore('?').trimEnd('/').substringAfterLast('/'), "UTF-8").substringBeforeLast('.').replace('_', ' ').replace('-', ' ').trim()
 }.getOrNull().orEmpty().ifBlank { "Video link" }
+
+/** Whether Live TV is in Glassio's design (read once from Live TV's file; a state, so the switch shows a change at once). */
+private object LiveLook { val on = androidx.compose.runtime.mutableStateOf<Boolean?>(null) }

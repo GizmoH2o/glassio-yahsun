@@ -134,6 +134,8 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
     val s = LocalScale.current
     val ctx = LocalContext.current
     BackHandler { onClose() }
+    // Live TV's own process gets ready meanwhile (its channels read), so Watch opens it at once.
+    LaunchedEffect(Unit) { com.glasslauncher.tv.live.LiveWarm.ask(ctx) }
     var ready by remember { mutableStateOf(LiveMemory.ready) }
     var page by remember { mutableStateOf(LiveMemory.page) }
     var sports by remember { mutableStateOf(LiveMemory.sports) }

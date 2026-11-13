@@ -797,6 +797,42 @@ final class LiveTheme {
         save(c);
     }
 
+    /**
+     * Settings › Look & motion › Live TV matches Glassio: Live TV in the home screen's own design (Glassio 3) at every
+     * hour, the design it had kept to come back to; off, that one again. From either process (the file is shared).
+     */
+    static void matchGlassio(Context c, boolean on) {
+        File before = new File(c.getApplicationContext().getFilesDir(), "live-theme-before.txt");
+        load(c);
+        if (on) {
+            if (style == CINEMA && night == -1 && morning == -1 && late == -1) return;
+            if (file(c).exists()) {
+                try (FileInputStream in = new FileInputStream(file(c))) {
+                    Xtream.write(before, Xtream.read(in));
+                } catch (IOException ignored) {
+                }
+            }
+            style = CINEMA;
+            night = morning = late = -1;
+            use(current);
+            save(c);
+        } else if (before.exists()) {
+            try (FileInputStream in = new FileInputStream(before)) {
+                Xtream.write(file(c), Xtream.read(in));
+            } catch (IOException ignored) {
+            }
+            //noinspection ResultOfMethodCallIgnored
+            before.delete();
+            load(c);
+        }
+    }
+
+    /** Whether Live TV is in the home screen's design at every hour. */
+    static boolean matchesGlassio(Context c) {
+        load(c);
+        return style == CINEMA && night == -1 && morning == -1 && late == -1;
+    }
+
     static void setStyle(Context c, int s) {
         style = s < 0 || s >= STYLES ? ZERO : s;
         use(current);

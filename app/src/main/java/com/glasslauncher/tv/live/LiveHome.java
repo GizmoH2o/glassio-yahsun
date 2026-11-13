@@ -189,6 +189,10 @@ public final class LiveHome {
     }
 
     /** Reduce motion, for Live TV's process too: a file, as it can't see the preferences change. */
+    /** Live TV in the home screen's own design (Settings › Look & motion), or back to the design it had. */
+    public static void setMatchGlassio(Context c, boolean on) { LiveTheme.matchGlassio(c, on); }
+    public static boolean matchesGlassio(Context c) { return LiveTheme.matchesGlassio(c); }
+
     public static void setReduceMotion(Context c, boolean on) {
         java.io.File f = new java.io.File(c.getFilesDir(), "ui_still");
         try {

@@ -434,11 +434,26 @@ final class Xtream {
     }
 
     /** The saved lineup, or null. Background thread (the list can hold thousands of channels). */
+    /** The saved list (its JSON, read only), kept in this process for the same file (its time and size): read once, not every opening. */
+    private static JSONObject savedJson;
+    private static long savedStamp = -1;
+
     static Lineup saved(Context c) {
         File f = listFile(c);
         if (!f.exists()) return null;
-        try (FileInputStream in = new FileInputStream(f)) {
-            return parse(new JSONObject(read(in)), login(c).format, favorites(c), mergeKeeping(c));
+        long stamp = f.lastModified() * 31 + f.length();
+        try {
+            JSONObject json;
+            synchronized (Xtream.class) {
+                if (savedJson == null || savedStamp != stamp) {
+                    try (FileInputStream in = new FileInputStream(f)) {
+                        savedJson = new JSONObject(read(in));
+                    }
+                    savedStamp = stamp;
+                }
+                json = savedJson;
+            }
+            return parse(json, login(c).format, favorites(c), mergeKeeping(c));
         } catch (IOException | JSONException | RuntimeException e) {
             AppLog.w("live: saved list unreadable: " + e.getMessage());
             return null;
