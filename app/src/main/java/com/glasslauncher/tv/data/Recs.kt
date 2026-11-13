@@ -144,6 +144,50 @@ class Recs(private val settings: Settings, private val http: Http) {
         return if (list.size >= 4) title to list.take(20) else null
     }
 
+    /** What TMDB adds to a title's page: its users' score (0-100, -1 none), its age rating, its videos, its film series. */
+    class Extras(val score: Int = -1, val cert: String = "", val videos: List<Pair<String, String>> = emptyList(), val collection: Int = 0, val collectionName: String = "")
+
+    /** Blocking: [item]'s extras; none without a token or an IMDb id. */
+    fun extras(item: HeroItem): Extras {
+        if (token.isBlank() || !item.id.matches(Regex("tt\\d{6,10}"))) return Extras()
+        return runCatching {
+            val movie = item.type.equals("movie", true)
+            val k = if (movie) "movie" else "tv"
+            val found = http.json("https://api.themoviedb.org/3/find/${item.id}?external_source=imdb_id", month, token)
+                .optJSONArray(if (movie) "movie_results" else "tv_results")?.optJSONObject(0) ?: return Extras()
+            val d = http.json("https://api.themoviedb.org/3/$k/${found.optInt("id")}?append_to_response=videos," + (if (movie) "release_dates" else "content_ratings"), 7 * day, token)
+            val votes = d.optInt("vote_count")
+            val score = if (votes >= 50) Math.round(d.optDouble("vote_average", 0.0) * 10).toInt() else -1
+            val cert = if (movie) {
+                val a = d.optJSONObject("release_dates")?.optJSONArray("results") ?: JSONArray()
+                (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("iso_3166_1") == "US" }
+                    ?.optJSONArray("release_dates")?.let { r -> (0 until r.length()).mapNotNull { r.optJSONObject(it)?.optString("certification") }.firstOrNull { it.isNotBlank() } }.orEmpty()
+            } else {
+                val a = d.optJSONObject("content_ratings")?.optJSONArray("results") ?: JSONArray()
+                (0 until a.length()).mapNotNull { a.optJSONObject(it) }.firstOrNull { it.optString("iso_3166_1") == "US" }?.optString("rating").orEmpty()
+            }
+            val v = d.optJSONObject("videos")?.optJSONArray("results") ?: JSONArray()
+            val order = listOf("Trailer", "Teaser", "Clip", "Featurette", "Behind the Scenes")
+            val videos = (0 until v.length()).mapNotNull { v.optJSONObject(it) }
+                .filter { it.optString("site") == "YouTube" && it.optString("type") in order && it.optString("key").isNotBlank() }
+                .sortedBy { order.indexOf(it.optString("type")) }.take(12)
+                .map { it.optString("name").ifBlank { it.optString("type") } to it.optString("key") }
+            val col = d.optJSONObject("belongs_to_collection")
+            Extras(score, cert, videos, col?.optInt("id") ?: 0, col?.optString("name").orEmpty())
+        }.onFailure { Glog.w("TMDB extras", it) }.getOrDefault(Extras())
+    }
+
+    /** Blocking: a film series' films in the order they came out (TMDB's collection). */
+    suspend fun collection(id: Int): List<HeroItem> {
+        if (token.isBlank() || id <= 0) return emptyList()
+        return runCatching {
+            val parts = http.json("https://api.themoviedb.org/3/collection/$id", 7 * day, token).optJSONArray("parts") ?: JSONArray()
+            val genres = genreNames()
+            (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }.sortedBy { it.optString("release_date").ifBlank { "9999" } }
+                .mapNotNull { runCatching { tmdbItem(it, "movie", genres) }.getOrNull() }
+        }.getOrDefault(emptyList())
+    }
+
     private val stills = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /** Blocking: the episode's own picture (TMDB's still) for a series at [season] · [episode]; "" when there's none. */

@@ -74,10 +74,13 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         }
     }
     val q = query.value
+    // What the titles' search last finished for: until it has, "Searching…", not "Nothing found".
+    var searchedFor by remember { mutableStateOf("") }
     val titlesAll by produceState(emptyList<HeroItem>(), q) {
-        if (q.length < 2) { value = emptyList(); return@produceState }
+        if (q.length < 2) { value = emptyList(); searchedFor = q; return@produceState }
         delay(350)      // not at every key
         value = withContext(Dispatchers.IO) { app.recs.search(likeTarget(q) ?: q) }.take(20)
+        searchedFor = q
     }
     val channelsAll by produceState(emptyList<LiveHome.Airing>(), q) {
         if (q.length < 2) { value = emptyList(); return@produceState }
@@ -307,7 +310,9 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
                             right = edge(i == SEARCH_FILTERS.lastIndex))) { SearchFilter.now.value = key }
                     }
                 }
-                if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) {
+                if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty() && searchedFor != q) {
+                    Text("Searching…", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
+                } else if (mine.isEmpty() && titles.isEmpty() && shows.isEmpty() && recordings.isEmpty() && channels.isEmpty() && apps.isEmpty()) {
                     // Nothing: say so, and offer the way on (fewer words, or what's trending).
                     Text("Nothing found for “${q.trim()}” yet. Try fewer words, or a person's name.", color = Text2, fontSize = (11 * s).sp, modifier = Modifier.padding(top = (2 * s).dp))
                     Spacer(Modifier.height((8 * s).dp))

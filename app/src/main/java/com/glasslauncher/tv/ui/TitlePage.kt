@@ -3,6 +3,7 @@ package com.glasslauncher.tv.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -95,6 +96,15 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val resume = cw.firstOrNull { it.key == item.key }
     val canPlay = remember(item.key) { NuvioLaunch.playable(ctx, st) }
     val trailerIds by produceState<String?>(null, item.key) { value = withContext(Dispatchers.IO) { trailerOf(app, item) } }
+    val extras by produceState(com.glasslauncher.tv.data.Recs.Extras(), item.key) { value = withContext(Dispatchers.IO) { app.recs.extras(item) } }
+    // The film series it's part of, in order (Toy Story 1-4).
+    val series by produceState(emptyList<HeroItem>(), extras.collection) {
+        value = if (extras.collection <= 0) emptyList() else withContext(Dispatchers.IO) { app.recs.collection(extras.collection) }
+    }
+    // A video from Trailers & more, playing full screen.
+    var videoOn by remember(item.key) { mutableStateOf<String?>(null) }
+    val videosEntry = remember { RowEntry() }
+    val seriesEntry = remember { RowEntry() }
     val links by produceState(emptyList<StreamLinks.Link>(), item.key) {
         value = withContext(Dispatchers.IO) { runCatching { StreamLinks.forTitle(ctx, app.http, item.id, item.name, shown.platform) }.getOrDefault(emptyList()) }
     }
@@ -218,6 +228,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val sections = buildList {
         if (hasSeasons) add("Episodes")
         if (anywhere > 0) add("Where to watch")
+        if (extras.videos.isNotEmpty()) add("Trailers & more")
+        if (series.size > 1) add("Collection")
         if (people.cast.isNotEmpty()) add("Cast")
         if (theirs.isNotEmpty() || more.isNotEmpty()) add("More like this")
     }
@@ -227,6 +239,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         add(if (primary) first else iconsReq)
         if (hasSeasons) add(epEntry.req)
         if (anywhere > 0) add(watchEntry.req)
+        if (extras.videos.isNotEmpty()) add(videosEntry.req)
+        if (series.size > 1) add(seriesEntry.req)
         if (people.cast.isNotEmpty()) add(castEntry.req)
         if (theirs.isNotEmpty()) add(withEntry.req)
         if (more.isNotEmpty()) add(moreEntry.req)
@@ -294,6 +308,11 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 val facts = listOf(shown.year, shown.runtime).filter { it.isNotBlank() } + shown.genres.take(3).joinToString(", ").let { listOfNotNull(it.takeIf { g -> g.isNotBlank() }) }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((6 * s).dp)) {
                     if (shown.rating.isNotBlank()) ImdbBadge(shown.rating, s)
+                    // TMDB's users' score and the age rating, as the streaming apps' rating line.
+                    if (extras.score >= 0) Text("TMDB ${extras.score}%", color = Color.White, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(RoundedCornerShape((2.5f * s).dp)).background(Color(0xFF0D253F)).padding(horizontal = (4 * s).dp, vertical = (1 * s).dp))
+                    if (extras.cert.isNotBlank()) Text(extras.cert, color = Color(0xFFE0E0E4), fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.border((0.8f * s).dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape((2.5f * s).dp)).padding(horizontal = (4 * s).dp, vertical = (0.5f * s).dp))
                     Text(facts.joinToString("   |   "), color = Color(0xFFE0E0E4), fontSize = (8.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -437,9 +456,13 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         eps.forEachIndexed { i, e ->
                             androidx.compose.runtime.key("$seasonOn:${e.number}") {
                                 val current = resume != null && seasonOn == fromResume && e.number == epNow
+                                // Before the one you're on (an earlier season, or earlier in this one): watched.
+                                val seen = resume != null && fromResume != null && epNow != null && seasonOn > 0 &&
+                                    (seasonOn < fromResume || seasonOn == fromResume && (e.number < epNow || e.number == epNow && resume.upNext))
                                 EpisodeLine(e, item, s, now, if (current) resume?.progress ?: -1f else -1f,
                                     (if (i == 0) Modifier.focusRequester(epEntry.req) else Modifier)
-                                        .nav(up = if (i == 0) above(epEntry.req) else null, down = if (i == eps.lastIndex) below(epEntry.req) else null, left = toSeason, right = FocusRequester.Cancel)) {
+                                        .nav(up = if (i == 0) above(epEntry.req) else null, down = if (i == eps.lastIndex) below(epEntry.req) else null, left = toSeason, right = FocusRequester.Cancel),
+                                    watched = seen && !current) {
                                     if (canPlay) NuvioLaunch.openEpisode(ctx, st, app.http, item, e.season, e.number)
                                     else toast(ctx, "No app for titles on this TV: Nuvio or Stremio plays them")
                                 }
@@ -476,6 +499,32 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     }
                     itemsIndexed(later, key = { _, a -> "later:${a.channel}:${a.start}" }) { i, a ->
                         TextCard(a.channelName, LiveHome.whenLine(a), s, place(onNow.size + recorded.size + otherApps.size + i), titleTag = a.country) { airing(a) }
+                    }
+                }
+                }
+            }
+
+            if (extras.videos.isNotEmpty()) {
+                Column(Modifier.onFocusChanged { if (it.hasFocus) section = "Trailers & more" }) {
+                Spacer(Modifier.height((12 * s).dp))
+                DsHeading("Trailers & more", s, Modifier.padding(start = (EDGE * s).dp))
+                LazyRow(state = videosEntry.state, contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
+                    horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
+                    itemsIndexed(extras.videos, key = { _, v -> v.second }) { i, (name, key) ->
+                        VideoCard(name, key, s, videosEntry.of(i).nav(up = above(videosEntry.req), down = below(videosEntry.req), left = edge(i == 0), right = edge(i == extras.videos.lastIndex))) { videoOn = key }
+                    }
+                }
+                }
+            }
+
+            if (series.size > 1) {
+                Column(Modifier.onFocusChanged { if (it.hasFocus) section = "Collection" }) {
+                Spacer(Modifier.height((12 * s).dp))
+                DsHeading(extras.collectionName.ifBlank { Lang.tr("The whole series") }, s, Modifier.padding(start = (EDGE * s).dp))
+                LazyRow(state = seriesEntry.state, contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
+                    horizontalArrangement = Arrangement.spacedBy((9 * s).dp)) {
+                    itemsIndexed(series, key = { _, h -> h.key }) { i, h ->
+                        SmallPoster(h, s, seriesEntry.of(i).nav(up = above(seriesEntry.req), down = below(seriesEntry.req), left = edge(i == 0), right = edge(i == series.lastIndex))) { if (h.key != item.key) onOpen(h) }
                     }
                 }
                 }
@@ -546,6 +595,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
             }
         }
         if (trailerOn) trailerIds?.let { ids -> TrailerPlayer(ids) { trailerOn = false } }
+        videoOn?.let { key -> TrailerPlayer(key) { videoOn = null } }
     }
 }
 
@@ -573,7 +623,7 @@ private fun PersonCard(p: TitlePeople.Person, s: Float, modifier: Modifier, onCl
  * picture (and what's left of it), its date and its story.
  */
 @Composable
-private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now: Long, progress: Float, modifier: Modifier, onClick: () -> Unit) {
+private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now: Long, progress: Float, modifier: Modifier, watched: Boolean = false, onClick: () -> Unit) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val name = e.name.ifBlank { "Episode ${e.number}" }
@@ -589,7 +639,8 @@ private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now
     ) {
         if (!focused) Row(verticalAlignment = Alignment.CenterVertically) {
             RawText("${e.number}", color = Text2, fontSize = (10 * s).sp, fontWeight = FontWeight.Bold, modifier = Modifier.width((20 * s).dp))
-            RawText(name, color = if (progress >= 0.99f) Text2 else Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            if (watched) Text("✓", color = Text2, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = (5 * s).dp))
+            RawText(name, color = if (watched || progress >= 0.99f) Text2 else Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (upcoming) Text(Lang.tr("Out") + " " + java.text.SimpleDateFormat("d MMM", Lang.locale()).format(java.util.Date(e.released)), color = Text2, fontSize = (8 * s).sp)
         } else Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             RawText("${e.number}", color = Ds.Ink, fontSize = (12 * s).sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width((14 * s).dp))
@@ -723,4 +774,18 @@ private class KeepInView(private val before: Float, private val after: Float) : 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 private class PinAt(private val at: Float) : androidx.compose.foundation.gestures.BringIntoViewSpec {
     override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float = offset - at
+}
+
+/** A video in Trailers & more: its YouTube picture, its name under it; OK plays it full screen. */
+@Composable
+private fun VideoCard(name: String, key: String, s: Float, modifier: Modifier, onClick: () -> Unit) {
+    var focused by remember { mutableStateOf(false) }
+    Column(Modifier.width((150 * s).dp), verticalArrangement = Arrangement.spacedBy((4 * s).dp)) {
+        Box(modifier.fillMaxWidth().aspectRatio(16f / 9f).onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
+            .cardFocus(s, focused).background(Ds.Surface), contentAlignment = Alignment.Center) {
+            AsyncImage("https://img.youtube.com/vi/$key/hqdefault.jpg", name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            Box(Modifier.size((20 * s).dp).clip(CircleShape).background(Color.White.copy(alpha = 0.9f)), contentAlignment = Alignment.Center) { PlayGlyph(Modifier.size((7 * s).dp), Ds.Ink) }
+        }
+        RawText(name, color = if (focused) Color.White else Text2, fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
 }
