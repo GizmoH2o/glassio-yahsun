@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.glasslauncher.tv.GlassApp
 import kotlinx.coroutines.Dispatchers
+import androidx.compose.runtime.collectAsState
+import androidx.compose.animation.core.tween
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
@@ -63,7 +65,9 @@ fun Welcome(app: GlassApp, s: Float, stepState: MutableIntState, onSettings: (ca
     }
     val first = remember { FocusRequester() }
     LaunchedEffect(step) { delay(150); runCatching { first.requestFocus() } }
-    Row(Modifier.fillMaxSize().background(Ds.Bg).focusGroup().padding(horizontal = (54 * s).dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((30 * s).dp)) {
+    Box(Modifier.fillMaxSize().background(Ds.Bg)) {
+    WelcomeBackdrop(app, step)
+    Row(Modifier.fillMaxSize().focusGroup().padding(horizontal = (54 * s).dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((30 * s).dp)) {
         // Each step's words and choices come in as a pane does elsewhere (a fade, settling from the side).
         Column(Modifier.weight(0.42f).paneEnter(step)) {
             when (step) {
@@ -97,6 +101,38 @@ fun Welcome(app: GlassApp, s: Float, stepState: MutableIntState, onSettings: (ca
             }
         }
     }
+    }
+}
+
+/** Settings › System › Show the welcome tour: Home shows it again (nothing it set is undone). */
+object WelcomeAsk { val show = androidx.compose.runtime.mutableStateOf(false) }
+
+/**
+ * Behind the tour: real pictures from your catalogs, one after another (every few seconds and with each step), each
+ * drifting slowly as the screensaver's do, under a shade that keeps the words readable. Plain with none loaded yet.
+ */
+@Composable
+private fun WelcomeBackdrop(app: GlassApp, step: Int) {
+    val items by app.catalogs.items.collectAsState()
+    val pics = remember(items.size > 0) { items.filter { it.background.isNotBlank() }.shuffled().take(12).map { it.background } }
+    if (pics.isEmpty()) return
+    var at by remember { mutableStateOf(0) }
+    LaunchedEffect(pics) { while (true) { delay(7_000); at++ } }
+    LaunchedEffect(step) { if (step > 0) at++ }
+    val reduce = LocalReduceMotion.current
+    androidx.compose.animation.Crossfade(pics[at.mod(pics.size)], animationSpec = tween(900), label = "welcomePic") { url ->
+        val drift = remember(url) { androidx.compose.animation.core.Animatable(0f) }
+        LaunchedEffect(url) { if (!reduce) drift.animateTo(1f, tween(9_000, easing = androidx.compose.animation.core.LinearEasing)) }
+        coil3.compose.AsyncImage(sized(url, "w1280"), null, contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                val k = 1.08f; scaleX = k; scaleY = k
+                translationX = (0.5f - drift.value) * size.width * 0.05f
+            })
+    }
+    // The shade: dark at the left where the words are, the picture showing at the right; darker at the foot.
+    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.horizontalGradient(
+        0f to Ds.Bg.copy(alpha = 0.96f), 0.45f to Ds.Bg.copy(alpha = 0.82f), 1f to Ds.Bg.copy(alpha = 0.35f))))
+    Box(Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Brush.verticalGradient(0.6f to Color.Transparent, 1f to Ds.Bg.copy(alpha = 0.8f))))
 }
 
 private data class WelcomeStatus(val nuvio: Boolean = false, val stremio: Boolean = false, val home: Boolean = false, val adb: Boolean = false)

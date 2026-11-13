@@ -1043,3 +1043,5 @@ Bounce at a row's end	Balanço no fim da fileira
 The card nudges and springs back when there's nothing further, as on Apple TV	O cartão se mexe e volta quando não há mais nada, como na Apple TV
 Poster tilt	Inclinação do pôster
 The selected poster leans toward where you came from and settles, as on Apple TV	O pôster selecionado se inclina para o lado de onde você veio e se acomoda, como na Apple TV
+Show the welcome tour	Mostrar o tour de boas-vindas
+The first-run tour again: signing in, making Glassio the TV's home	O tour do primeiro uso de novo: entrar, fazer do Glassio o início da TV

@@ -284,6 +284,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     /** The welcome, on a first run; What's new, after an update. */
     var welcomeOn by remember { mutableStateOf(false) }
     val welcomeStep = remember { mutableIntStateOf(0) }
+    // Settings › System › Show the welcome tour.
+    LaunchedEffect(WelcomeAsk.show.value) { if (WelcomeAsk.show.value) { WelcomeAsk.show.value = false; welcomeStep.intValue = 0; onScreen(Screen.Home); welcomeOn = true } }
     LaunchedEffect(Unit) {
         val st = settings
         val current = app.updater.current

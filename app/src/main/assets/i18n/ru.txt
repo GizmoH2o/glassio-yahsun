@@ -1044,3 +1044,5 @@ Bounce at a row's end	Отскок в конце ряда
 The card nudges and springs back when there's nothing further, as on Apple TV	Карточка сдвигается и пружинит назад, когда дальше ничего нет, как на Apple TV
 Poster tilt	Наклон постера
 The selected poster leans toward where you came from and settles, as on Apple TV	Выбранный постер наклоняется в сторону, откуда вы пришли, и выравнивается, как на Apple TV
+Show the welcome tour	Показать приветственный тур
+The first-run tour again: signing in, making Glassio the TV's home	Тур первого запуска заново: вход, Glassio как главный экран ТВ

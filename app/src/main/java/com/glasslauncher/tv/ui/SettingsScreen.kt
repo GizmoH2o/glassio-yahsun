@@ -1016,6 +1016,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         }
                     }
                 },
+                Act("Show the welcome tour", "The first-run tour again: signing in, making Glassio the TV's home", "") { WelcomeAsk.show.value = true },
                 Act("Restore a backup", "From the phone page or Downloads (after a reinstall, Downloads needs TV access). Glassio restarts after", "") {
                     scope.launch(Dispatchers.IO) {
                         val file = runCatching { Backup.findOnTv(ctx) }.getOrNull()
