@@ -214,6 +214,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
     // The title whose trailer plays: its logo and Play over the trailer in Cinematic.
     var trailerItem by remember { mutableStateOf<HeroItem?>(null) }
     var cineSwallowUp by remember { mutableStateOf(false) }
+    var inboxOpen by remember { mutableStateOf(false) }
     /** How far through the trailer is (0 to 1), for the line along the bottom in Cinematic. */
     val trailerAt = remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
     val cineAlpha = animateFloatAsState(if (cineHidden) 0f else 1f, tween(if (cineHidden) 900 else 250), label = "cinematic")
@@ -616,7 +617,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                         else if (!menuOpen && (pressed || android.os.SystemClock.uptimeMillis() - menuClosedAt > 400)) menuOpen = true
                     }, modifier = Modifier.fillMaxWidth().onFocusChanged { topBarFocused = it.hasFocus },
                         onProfile = { dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } } },
-                        onQuick = { dialog = QuickPanelState }, keepShown = tabFocused)
+                        onQuick = { dialog = QuickPanelState }, keepShown = tabFocused, onInbox = { inboxOpen = true })
                     val tabsShown = !settings.topAutoHide || tabFocused
                     TabBar(app, Screen.Home, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (17 * s).dp).graphicsLayer { alpha = if (tabsShown) 1f else 0f },
                         onFocus = { tabFocused = it }) { to -> if (to == Screen.Search) SearchFilter.now.value = "all"; if (to == Screen.Home) runCatching { heroFocus.requestFocus() } else onScreen(to) }
@@ -732,6 +733,12 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             if (screen == Screen.Home && settings.musicOn && settings.islandHome && !MusicUi.forced.value) MusicIsland(app, s)
             // A locked app's code window, over everything.
             AppLockHost(app, s, settings.menuStyle)
+            // The inbox: it slides in at the right, the page dimmed.
+            InboxWatch(app)
+            Presence(if (inboxOpen && screen == Screen.Home) true else null, if (motionOff) Motion.PLAIN_MS else 280, if (motionOff) Motion.PLAIN_MS else 200, Modifier.fillMaxSize(),
+                transform = { k, _ -> alpha = k; if (!motionOff) translationX = (1f - k) * 40 * this.density }) {
+                InboxPanel(app, s, onTitle = openTitle) { inboxOpen = false; scope.launch { delay(60); runCatching { gearReq.requestFocus() } } }
+            }
             // Back from watching: what's next for it.
             if (screen == Screen.Home) UpNextHost(app, s, heroFocus)
             // Play: "Opening in Nuvio" over everything until the app is up.
@@ -1240,7 +1247,7 @@ internal fun Title(item: HeroItem, mode: String, scale: Float, s: Float) {
 
 @Composable
 private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings: () -> Unit, onMenu: (pressed: Boolean) -> Unit, modifier: Modifier,
-                   onProfile: () -> Unit = {}, onQuick: () -> Unit = {}, keepShown: Boolean = false) {
+                   onProfile: () -> Unit = {}, onQuick: () -> Unit = {}, keepShown: Boolean = false, onInbox: () -> Unit = {}) {
     val settings = app.settings
     // The settings button opens the menu (as soon as it is selected, or with OK), or Settings when the menu is off.
     // A key pressed on it (OK, or Up again when it is already selected) always opens it: that is never by accident.
@@ -1319,6 +1326,7 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
                 UpdateDot(app, s) { barFocused = it }
+                BellButton(s, onInbox) { barFocused = it }
                 QuickButton(s, onQuick) { barFocused = it }
                 ProfileButton(app, s, onProfile) { barFocused = it }
                 GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
@@ -1329,6 +1337,7 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
             Row(Modifier.onGloballyPositioned { weatherEnd = it.boundsInWindow().left - with(density) { (10 * s).dp.toPx() } },
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
                 UpdateDot(app, s) { barFocused = it }
+                BellButton(s, onInbox) { barFocused = it }
                 QuickButton(s, onQuick) { barFocused = it }
                 ProfileButton(app, s, onProfile) { barFocused = it }
                 GearButton(s, gearClick, gearReq, gearUp) { barFocused = it; gearFocus(it) }
@@ -1453,6 +1462,29 @@ private fun QuickButton(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Uni
         drawRoundRect(c, topLeft = androidx.compose.ui.geometry.Offset(0f, top), size = track,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(track.height / 2), style = androidx.compose.ui.graphics.drawscope.Stroke(sw))
         drawCircle(c, radius = track.height / 2 - sw * 1.3f, center = androidx.compose.ui.geometry.Offset(w - track.height / 2, h / 2))
+    }
+}
+
+/** The inbox (Inbox): a bell, with a red dot while there's something not seen. */
+@Composable
+private fun BellButton(s: Float, onClick: () -> Unit, onFocus: (Boolean) -> Unit) = TopCircle(s, onClick, onFocus) { focused ->
+    val c = if (focused) Color.Black else Color.White
+    Box {
+        androidx.compose.foundation.Canvas(Modifier.size((11 * s).dp)) {
+            val w = size.width; val h = size.height
+            val st = androidx.compose.ui.graphics.drawscope.Stroke(width = w * 0.11f, cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+            val p = androidx.compose.ui.graphics.Path().apply {
+                moveTo(w * 0.18f, h * 0.74f); lineTo(w * 0.82f, h * 0.74f)
+                cubicTo(w * 0.72f, h * 0.62f, w * 0.74f, h * 0.5f, w * 0.74f, h * 0.4f)
+                cubicTo(w * 0.74f, h * 0.2f, w * 0.62f, h * 0.1f, w * 0.5f, h * 0.1f)
+                cubicTo(w * 0.38f, h * 0.1f, w * 0.26f, h * 0.2f, w * 0.26f, h * 0.4f)
+                cubicTo(w * 0.26f, h * 0.5f, w * 0.28f, h * 0.62f, w * 0.18f, h * 0.74f); close()
+            }
+            drawPath(p, c, style = st)
+            drawLine(c, androidx.compose.ui.geometry.Offset(w * 0.42f, h * 0.9f), androidx.compose.ui.geometry.Offset(w * 0.58f, h * 0.9f), strokeWidth = w * 0.11f,
+                cap = androidx.compose.ui.graphics.StrokeCap.Round)
+        }
+        if (Inbox.unseen.value) Box(Modifier.align(Alignment.TopEnd).size((4 * s).dp).clip(androidx.compose.foundation.shape.CircleShape).background(Color(0xFFFF453A)))
     }
 }
 

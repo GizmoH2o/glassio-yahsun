@@ -1547,7 +1547,7 @@ private fun watchMenu(app: GlassApp, ctx: android.content.Context, scope: kotlin
                 Unit
             },
             "Remove from Continue Watching" to { remove() },
-        )))
+        ), picture = item.background.ifBlank { item.poster }, sub = item.sub.ifBlank { "Live TV" }, common = true))
     }
 }
 
