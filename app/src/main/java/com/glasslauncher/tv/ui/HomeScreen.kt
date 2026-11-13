@@ -257,6 +257,17 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             openTitleNow(t)
         }
     }
+    // Search asked for from elsewhere (Live TV's More info with no title page): its words, on Titles.
+    val onScreenNow by androidx.compose.runtime.rememberUpdatedState(onScreen)
+    LaunchedEffect(Unit) {
+        androidx.compose.runtime.snapshotFlow { app.requestSearch.value }.collect { q ->
+            if (q == null) return@collect
+            app.requestSearch.value = null
+            searchQuery.value = q
+            SearchFilter.now.value = "titles"
+            onScreenNow(Screen.Search)
+        }
+    }
     /** The welcome, on a first run; What's new, after an update. */
     var welcomeOn by remember { mutableStateOf(false) }
     val welcomeStep = remember { mutableIntStateOf(0) }

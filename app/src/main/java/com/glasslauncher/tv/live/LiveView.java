@@ -3602,6 +3602,15 @@ final class LiveView extends View {
     }
 
     /** A show's own page; another airing on it opens that one's choices (on now: watched). */
+    /** A guide title as words to search for: without "New:" / "Live:" in front, or a year or episode after it. Pure. */
+    static String searchName(String title) {
+        String t = title == null ? "" : title.trim();
+        t = t.replaceFirst("(?i)^(new|live|premiere|movie|film)\\s*[:\\-]\\s*", "");
+        t = t.replaceFirst("\\s*\\((19|20)\\d\\d\\)\\s*$", "");
+        t = t.replaceFirst("(?i)\\s+[\\-:]?\\s*S\\d{1,2}\\s*\\.?\\s*E\\d{1,4}\\b.*$", "");
+        return t.trim().isEmpty() ? (title == null ? "" : title.trim()) : t.trim();
+    }
+
     private void openShowPage(Xtream.Channel channel, Xtream.Program p, List<String> labels, List<String> icons, List<Runnable> actions) {
         // The same title page as the home screen's (More info): its seasons, cast, where else to watch it.
         labels = new java.util.ArrayList<>(labels); icons = new java.util.ArrayList<>(icons); actions = new java.util.ArrayList<>(actions);
@@ -3609,7 +3618,17 @@ final class LiveView extends View {
         icons.add("info");
         actions.add(() -> {
             LiveTmdb.Info info = LiveTmdb.known(getContext(), p.title);
-            if (info == null || info.id == 0) { flash(Ui.tr("Sem página para este programa", "No title page for this programme")); return; }
+            if (info == null || info.id == 0) {
+                // No title page of its own: Glassio's Search for its name (Titles), where it may be found all the same.
+                String name = searchName(p.title);
+                try {
+                    getContext().startActivity(new android.content.Intent(getContext(), com.glasslauncher.tv.MainActivity.class)
+                            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("open_search", name));
+                } catch (RuntimeException e) {
+                    flash(Ui.tr("Sem página para este programa", "No title page for this programme"));
+                }
+                return;
+            }
             try {
                 getContext().startActivity(new android.content.Intent(getContext(), com.glasslauncher.tv.MainActivity.class)
                         .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)

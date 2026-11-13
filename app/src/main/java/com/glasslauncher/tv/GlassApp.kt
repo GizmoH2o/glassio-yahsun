@@ -132,6 +132,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     val requestSettings = androidx.compose.runtime.mutableIntStateOf(-1)
     /** A title to open on Home (OK on the Posters screensaver): its More info page, then cleared. */
     val requestTitle = androidx.compose.runtime.mutableStateOf<com.glasslauncher.tv.data.HeroItem?>(null)
+    /** Words to look for in Search (on Titles): Live TV's More info on a programme with no title page of its own. */
+    val requestSearch = androidx.compose.runtime.mutableStateOf<String?>(null)
     /** Bumped with every request, so asking for the same tab twice (or while the screen was asleep) still works. */
     val requestSettingsRev = androidx.compose.runtime.mutableIntStateOf(0)
     /** Bumped to show the first-run setup again (System → Run setup again). */

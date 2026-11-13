@@ -268,10 +268,14 @@ class MainActivity : ComponentActivity() {
             val id = i!!.getIntExtra("open_tmdb", 0); val tv = i.getBooleanExtra("open_tmdb_tv", false)
             val name = i.getStringExtra("open_tmdb_name").orEmpty(); val year = i.getStringExtra("open_tmdb_year").orEmpty()
             app.scope.launch(kotlinx.coroutines.Dispatchers.IO) {
-                val t = com.glasslauncher.tv.data.TitleFromTmdb.of(app, id, tv, name, year) ?: return@launch
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { app.requestTitle.value = t }
+                val t = com.glasslauncher.tv.data.TitleFromTmdb.of(app, id, tv, name, year)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (t != null) app.requestTitle.value = t else if (name.isNotBlank()) app.requestSearch.value = name
+                }
             }
         }
+        // Live TV's More info on a programme TMDB doesn't know: Search, on Titles, for its name.
+        i?.getStringExtra("open_search")?.takeIf { it.isNotBlank() }?.let { app.requestSearch.value = it }
         i?.getStringExtra("bg_mode")?.let { if (it in setOf("carousel", "image", "video", "aerial")) app.settings.bgMode = it }
         if (i?.hasExtra("menu_city") == true) app.settings.menuCity = i.getBooleanExtra("menu_city", true)
         if (i?.hasExtra("focus_color") == true) app.settings.focusColor = i.getBooleanExtra("focus_color", false)
