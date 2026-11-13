@@ -98,6 +98,10 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
             level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> {
                 com.glasslauncher.tv.data.Glog.w("Low memory (level $level): halving the picture cache")
                 runCatching { coil3.SingletonImageLoader.get(this).memoryCache?.let { it.trimToSize(it.maxSize / 2) } }
+                // Critical: a trailer playing ends (its web view is about 200 MB), before Android closes Glassio itself.
+                if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL) android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    if (com.glasslauncher.tv.ui.TrailerMemory.endAll()) com.glasslauncher.tv.data.Glog.w("Memory critical: trailer stopped")
+                }
             }
         }
     }

@@ -64,10 +64,20 @@ private class TrailerBridge(val onPlaying: () -> Unit, val onEnded: () -> Unit, 
  * half as tall again (a step up from just filling it), at most 1080p. YouTube would pick from the page's size in CSS
  * pixels, half the real ones on a TV, so a full-screen trailer came in well below the screen. Pure.
  */
-internal fun youTubeQuality(heightPx: Int): String {
+internal fun youTubeQuality(heightPx: Int, smallTv: Boolean = false): String {
     val need = heightPx * 1.5f
-    return listOf(240 to "small", 360 to "medium", 480 to "large", 720 to "hd720").firstOrNull { it.first >= need }?.second ?: "hd1080"
+    val q = listOf(240 to "small", 360 to "medium", 480 to "large", 720 to "hd720").firstOrNull { it.first >= need }?.second ?: "hd1080"
+    // A TV with little memory (under 2.5 GB): 720p at most. A 1080p trailer's web view (about 200 MB) left a 1.8 GB TV
+    // without memory, and Android closed Glassio with it.
+    return if (smallTv && q == "hd1080") "hd720" else q
 }
+
+/** Under 2.5 GB of memory in all: trailers come at 720p (youTubeQuality). */
+internal fun smallMemoryTv(ctx: android.content.Context): Boolean = runCatching {
+    val am = ctx.getSystemService(android.content.Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+    val mi = android.app.ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+    mi.totalMem < 2_500L * 1024 * 1024
+}.getOrDefault(false)
 
 /** Everything of YouTube's over its video: hidden from the page's start, and again once it has loaded (it builds its head afresh). */
 private const val HIDE_CSS = "*{visibility:hidden!important}video{visibility:visible!important}html,body{background:#000!important}"
@@ -161,6 +171,11 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
     layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
     setBackgroundColor(AColor.BLACK)
     isFocusable = false; isFocusableInTouchMode = false
+    // The trailer's web view process may be closed on its own when the TV runs short of memory (it then just ends, see
+    // onRenderProcessGone). Bound to Glassio's priority, as it was, Android closed Glassio with it: a crash to the eye.
+    // (The web view raises it again while its video plays, so TrailerMemory stops it first when memory is critical.)
+    setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_WAIVED, true)
+    TrailerMemory.playing[this] = Runnable { onEnded() }
     settings.javaScriptEnabled = true
     settings.domStorageEnabled = true
     settings.mediaPlaybackRequiresUserGesture = false
@@ -168,7 +183,7 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
     webViewClient = object : WebViewClient() {
         override fun onPageFinished(view: WebView, url: String) {
             // Its quality asked for by the player's size on the screen (youTubeQuality), not the page's CSS one.
-            val watch = WATCH.replace("%QUALITY%", youTubeQuality(view.height.takeIf { it > 0 } ?: view.resources.displayMetrics.heightPixels))
+            val watch = WATCH.replace("%QUALITY%", youTubeQuality(view.height.takeIf { it > 0 } ?: view.resources.displayMetrics.heightPixels, smallMemoryTv(view.context)))
             if (url.contains("youtube.com/embed/")) view.evaluateJavascript(if (muted) watch else watch.replace("v.muted=true;", "v.muted=false;"), null)
         }
         // Its renderer gone (out of memory, a driver): this trailer is over, Glassio stays up. Unhandled, it takes the app down.
@@ -195,6 +210,7 @@ private fun trailerView(ctx: android.content.Context, ids: String, muted: Boolea
 }
 
 private fun releaseTrailer(v: WebView) {
+    TrailerMemory.playing.remove(v)
     TrailerGuard.disarm(v.context)
     // Its sound fades away (a quarter of a second) rather than cutting off, then it goes.
     runCatching { v.evaluateJavascript("window.glassioQuiet&&glassioQuiet()", null) }
@@ -345,5 +361,24 @@ fun CinematicChrome(progress: () -> Float, alpha: () -> Float, s: Float, modifie
         Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height((1.6f * s).dp).graphicsLayer {
             scaleX = progress().coerceIn(0f, 1f); transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
         }.background(Color.White.copy(alpha = 0.75f)))
+    }
+}
+
+/**
+ * The trailers on screen, each with how to end it. A small TV (1.8 GB) ran out of memory with a trailer playing, and
+ * Android closed Glassio with it (a crash to the eye). When Android says memory is critical (GlassApp.onTrimMemory), the
+ * trailers end first: about 200 MB back, the picture again where the trailer was, Glassio still up.
+ */
+object TrailerMemory {
+    /** Each trailer's web view, with how to end it (taken out as it's released). Main thread only. */
+    val playing = java.util.WeakHashMap<WebView, Runnable>()
+
+    /** Ends every trailer playing; true when there was one. On the main thread. */
+    fun endAll(): Boolean {
+        if (playing.isEmpty()) return false
+        val all = playing.values.toList()
+        playing.clear()
+        all.forEach { runCatching { it.run() } }
+        return true
     }
 }
