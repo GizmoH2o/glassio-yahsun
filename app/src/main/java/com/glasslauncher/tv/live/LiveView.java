@@ -528,12 +528,15 @@ final class LiveView extends View {
     /** A channel starts: the video goes to black until its first frame (tuned), so nothing half-decoded shows. */
     void tuning() {
         dip.snap(1);
+        tunedAt = 0;
+        tuningAt = android.os.SystemClock.uptimeMillis();
         invalidate();
     }
 
     /** The new channel's first frame is on screen: it fades in. */
     void tuned() {
         dip.target = 0;
+        if (dip.value > 0.5f) tunedAt = android.os.SystemClock.uptimeMillis();
         invalidate();
     }
 
@@ -640,7 +643,7 @@ final class LiveView extends View {
         long gap = now - lastFrame;
         float dt = lastFrame == 0 || gap > 100 ? 1 / 60f : gap / 1000f;    // after a pause, no jump
         lastFrame = now;
-        boolean moving = appear.step(dt) | dip.step(dt) | sField.step(dt);
+        boolean moving = appear.step(dt) | dip.step(dt) | sField.step(dt) | tunedAt > 0 | (dip.value > 0.5f && android.os.SystemClock.uptimeMillis() - tuningAt < 400);
         moving |= lCat.step(dt) | lCh.step(dt) | lCol.step(dt) | lCatTop.step(dt) | lChTop.step(dt);
         moving |= fRow.step(dt) | fA.step(dt) | fB.step(dt) | fCol.step(dt) | gRowsTop.step(dt) | gTimeOff.step(dt) | info.step(dt);
         gRailOpen.target = gGroups && gRail ? 1 : 0;
@@ -699,11 +702,53 @@ final class LiveView extends View {
 
     /** Black over the video while a channel starts, fading out on its first frame (only the window in the guide). */
     private void drawDip(Canvas c) {
-        if (dip.value <= 0.004f) return;
+        // Glassio's page change (380 ms, its ease-out): the black goes as the new channel comes, its number and name
+        // rising 20 dp and fading in over it, as a Glassio page does. With Reduce motion: the plain spring fade.
+        float cover;
+        if (tunedAt > 0 && !Spring.still) {
+            float t = Math.min(1f, (android.os.SystemClock.uptimeMillis() - tunedAt) / 380f);
+            cover = 1f - pageEase(t);
+            if (t >= 1f) { tunedAt = 0; dip.snap(0); }
+        } else cover = Ui.clamp(dip.value);
+        if (cover <= 0.004f) return;
         fill.setShader(null);
-        fill.setColor(Ui.alpha(0xFF000000, Ui.clamp(dip.value)));
-        if (mode == GUIDE) c.drawRect((P_X + gShift()) * k, P_Y * k, (P_X + P_W + gShift()) * k, (P_Y + P_H) * k, fill);
-        else c.drawRect(0, 0, w, h, fill);
+        fill.setColor(Ui.alpha(0xFF000000, cover));
+        if (mode == GUIDE) { c.drawRect((P_X + gShift()) * k, P_Y * k, (P_X + P_W + gShift()) * k, (P_Y + P_H) * k, fill); return; }
+        c.drawRect(0, 0, w, h, fill);
+        // The channel, centred: in while the picture is coming, out with the black.
+        Xtream.Channel ch = live.playing();
+        if (mode != WATCH || ch == null) return;
+        float in = Spring.still ? 1f : Math.min(1f, (android.os.SystemClock.uptimeMillis() - tuningAt) / 380f);
+        float a = Math.min(cover * 1.4f, 1f) * pageEase(in);
+        identName.setTypeface(Ui.semibold);
+        identName.setTextSize(44 * k);
+        identName.setColor(Ui.alpha(0xFFFFFFFF, a));
+        identNum.setTypeface(Ui.medium);
+        identNum.setTextSize(26 * k);
+        identNum.setColor(Ui.alpha(0xFFB3B3B8, a));
+        float rise = (1f - pageEase(in)) * 20 * k;
+        String name = ellipsize(nameOf(ch), identName, 1200 * k), num = ch.num > 0 ? String.valueOf(ch.num) : "";
+        // Above the spinner (which sits at the middle while it loads).
+        float base = (overlay.tall() ? 380 * k : h / 2f) - 80 * k;
+        c.drawText(name, w / 2f - identName.measureText(name) / 2, base + rise, identName);
+        if (!num.isEmpty()) c.drawText(num, w / 2f - identNum.measureText(num) / 2, base - 56 * k + rise, identNum);
+    }
+
+    private final Paint identName = new Paint(Paint.ANTI_ALIAS_FLAG), identNum = new Paint(Paint.ANTI_ALIAS_FLAG);
+    /** When the new channel's first frame came (uptime ms; 0: not fading in). */
+    private long tunedAt, tuningAt;
+
+    /** Glassio's ease-out (cubic-bezier 0.2, 0.8, 0.2, 1), for its page change's timing. Pure. */
+    static float pageEase(float t) {
+        if (t <= 0f) return 0f;
+        if (t >= 1f) return 1f;
+        float lo = 0f, hi = 1f, u = t;
+        for (int i = 0; i < 18; i++) {      // the curve's u for x = t
+            u = (lo + hi) / 2f;
+            float x = 3 * (1 - u) * (1 - u) * u * 0.2f + 3 * (1 - u) * u * u * 0.2f + u * u * u;
+            if (x < t) lo = u; else hi = u;
+        }
+        return 3 * (1 - u) * (1 - u) * u * 0.8f + 3 * (1 - u) * u * u * 1f + u * u * u;
     }
 
     private void drawSignIn(Canvas c) {
