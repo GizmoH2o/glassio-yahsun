@@ -1054,3 +1054,38 @@ With	Mit
 More like	Mehr wie
 Big picture parallax	Parallaxe des großen Bildes
 The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV	Das Bild dahinter verschiebt sich etwas, wenn du nach links oder rechts gehst, der Text bleibt, wie bei Apple TV
+My List tab	Tab Meine Liste
+My List on Home	Meine Liste auf der Startseite
+Sync My List and Continue Watching	Meine Liste und Weiterschauen synchronisieren
+Adding to My List saves to Simkl too	Zu Meiner Liste Hinzugefügtes landet auch bei Simkl
+Trakt watchlist in My List	Trakt-Merkliste in Meiner Liste
+The selected poster in My List	Das ausgewählte Poster in Meiner Liste
+in My List	in Meiner Liste
+Browse what's trending	Trends ansehen
+Clear the search	Suche leeren
+Searching…	Suche…
+Move this row up	Diese Reihe nach oben
+Move this row down	Diese Reihe nach unten
+Hide this row	Diese Reihe ausblenden
+Row hidden. Settings › Home › Home rows brings it back	Reihe ausgeblendet. Einstellungen › Startseite › Reihen holt sie zurück
+STILL WATCHING?	SCHAUST DU NOCH?
+Keep watching	Weiterschauen
+Done for now	Genug für jetzt
+Episode pictures	Episodenbilder
+Because you added	Weil du hinzugefügt hast:
+Christmas films	Weihnachtsfilme
+Halloween	Halloween
+Valentine's	Valentinstag
+Summer blockbusters	Sommer-Blockbuster
+Trailers & more	Trailer & mehr
+Collection	Sammlung
+The whole series	Die ganze Reihe
+Watch history	Verlauf
+Finished	Fertig
+Remove from Watch history	Aus dem Verlauf entfernen
+It's past bedtime. A parent can switch profile to watch	Schlafenszeit. Ein Elternteil kann das Profil wechseln
+Did you mean	Meintest du
+Alert chime	Hinweiston
+What's new as a pop-up	Neuigkeiten als Fenster
+WHAT'S NEW	NEU
+OK to see what's new	OK für die Neuigkeiten

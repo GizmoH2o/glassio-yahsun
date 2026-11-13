@@ -1053,3 +1053,38 @@ With	Com
 More like	Mais como
 Big picture parallax	Paralaxe da imagem grande
 The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV	A imagem de fundo se move um pouco ao ir para a esquerda ou direita, o texto fica parado, como na Apple TV
+My List tab	Aba Minha lista
+My List on Home	Minha lista no início
+Sync My List and Continue Watching	Sincronizar Minha lista e Continuar assistindo
+Adding to My List saves to Simkl too	Adicionar à Minha lista também salva no Simkl
+Trakt watchlist in My List	Lista do Trakt na Minha lista
+The selected poster in My List	O pôster selecionado na Minha lista
+in My List	na Minha lista
+Browse what's trending	Ver o que está em alta
+Clear the search	Limpar a busca
+Searching…	Buscando…
+Move this row up	Mover esta fileira para cima
+Move this row down	Mover esta fileira para baixo
+Hide this row	Ocultar esta fileira
+Row hidden. Settings › Home › Home rows brings it back	Fileira oculta. Configurações › Início › Fileiras a traz de volta
+STILL WATCHING?	AINDA ASSISTINDO?
+Keep watching	Continuar assistindo
+Done for now	Chega por agora
+Episode pictures	Imagens dos episódios
+Because you added	Porque você adicionou
+Christmas films	Filmes de Natal
+Halloween	Halloween
+Valentine's	Dia dos Namorados
+Summer blockbusters	Sucessos de verão
+Trailers & more	Trailers e mais
+Collection	Coleção
+The whole series	Toda a saga
+Watch history	Histórico
+Finished	Concluído
+Remove from Watch history	Remover do histórico
+It's past bedtime. A parent can switch profile to watch	Passou da hora de dormir. Um responsável pode trocar de perfil
+Did you mean	Você quis dizer
+Alert chime	Som de alerta
+What's new as a pop-up	Novidades em janela
+WHAT'S NEW	NOVIDADES
+OK to see what's new	OK para ver as novidades

@@ -1054,3 +1054,38 @@ With	С участием
 More like	Похожее на
 Big picture parallax	Параллакс большой картинки
 The picture behind shifts a little as you move left or right, the words staying put, as on Apple TV	Картинка позади слегка сдвигается при движении влево или вправо, а текст остаётся на месте, как на Apple TV
+My List tab	Вкладка «Мой список»
+My List on Home	Мой список на главной
+Sync My List and Continue Watching	Синхронизировать «Мой список» и «Продолжить»
+Adding to My List saves to Simkl too	Добавленное в «Мой список» сохраняется и в Simkl
+Trakt watchlist in My List	Список Trakt в «Моём списке»
+The selected poster in My List	Выбранный постер в «Моём списке»
+in My List	в «Моём списке»
+Browse what's trending	Смотреть популярное
+Clear the search	Очистить поиск
+Searching…	Поиск…
+Move this row up	Поднять этот ряд
+Move this row down	Опустить этот ряд
+Hide this row	Скрыть этот ряд
+Row hidden. Settings › Home › Home rows brings it back	Ряд скрыт. Настройки › Главная › Ряды вернут его
+STILL WATCHING?	ВЫ ЕЩЁ СМОТРИТЕ?
+Keep watching	Продолжить
+Done for now	Пока хватит
+Episode pictures	Кадры серий
+Because you added	Потому что вы добавили
+Christmas films	Рождественские фильмы
+Halloween	Хэллоуин
+Valentine's	День святого Валентина
+Summer blockbusters	Летние блокбастеры
+Trailers & more	Трейлеры и другое
+Collection	Коллекция
+The whole series	Вся серия фильмов
+Watch history	История просмотра
+Finished	Досмотрено
+Remove from Watch history	Удалить из истории
+It's past bedtime. A parent can switch profile to watch	Пора спать. Взрослый может сменить профиль
+Did you mean	Возможно, вы имели в виду
+Alert chime	Звук оповещения
+What's new as a pop-up	Новое во всплывающем окне
+WHAT'S NEW	ЧТО НОВОГО
+OK to see what's new	OK — посмотреть новое
