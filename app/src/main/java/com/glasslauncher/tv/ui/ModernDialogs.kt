@@ -312,6 +312,14 @@ object Notice {
 
     fun show(msg: String) {
         Handler(Looper.getMainLooper()).post { now.value = msg to SystemClock.uptimeMillis() }
+        // Something that couldn't be done sounds so (Navigation sounds).
+        if (looksLikeTrouble(msg)) Handoff.ctx?.let { com.glasslauncher.tv.live.NavSound.error(it) }
+    }
+
+    /** Whether a notice tells of something that couldn't be done. Pure. */
+    internal fun looksLikeTrouble(msg: String): Boolean {
+        val m = msg.lowercase()
+        return listOf("couldn't", "can't", "cannot", "failed", "isn't set up", "not available", "no connection", "not found").any { it in m }
     }
 }
 

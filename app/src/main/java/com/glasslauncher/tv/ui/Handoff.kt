@@ -57,6 +57,7 @@ object Handoff {
 
     fun go(item: HeroItem, target: String, start: () -> Unit) {
         val g = Going(item, target, SystemClock.uptimeMillis())
+        ctx?.let { com.glasslauncher.tv.live.NavSound.play(it) }
         last = item
         now.value = g
         ctx?.getSharedPreferences("handoff", 0)?.edit()?.putString("key", item.key)?.putLong("at", System.currentTimeMillis())?.apply()

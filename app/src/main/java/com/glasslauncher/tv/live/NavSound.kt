@@ -31,6 +31,8 @@ object NavSound {
             KeyEvent.KEYCODE_DPAD_LEFT -> AudioManager.FX_FOCUS_NAVIGATION_LEFT
             KeyEvent.KEYCODE_DPAD_RIGHT -> AudioManager.FX_FOCUS_NAVIGATION_RIGHT
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (e.repeatCount == 0) AudioManager.FX_KEY_CLICK else return
+            // Back: its own sound (the TV's), so going back sounds different from going in.
+            KeyEvent.KEYCODE_BACK -> if (e.repeatCount == 0) backFx() else return
             else -> return
         }
         val now = SystemClock.uptimeMillis()
@@ -38,5 +40,20 @@ object NavSound {
         if (!on(c)) return
         lastAt = now
         runCatching { (c.getSystemService(Context.AUDIO_SERVICE) as AudioManager).playSoundEffect(fx, 0.35f) }
+    }
+
+    private fun backFx() = if (android.os.Build.VERSION.SDK_INT >= 30) AudioManager.FX_BACK else AudioManager.FX_KEYPRESS_DELETE
+
+    /** A title starting (Play handing over to Nuvio, Stremio): a fuller sound than OK's click. */
+    @JvmStatic
+    fun play(c: Context) = once(c, AudioManager.FX_KEYPRESS_RETURN, 0.45f)
+
+    /** Something that couldn't be done: the TV's "not that" sound. */
+    @JvmStatic
+    fun error(c: Context) = once(c, AudioManager.FX_KEYPRESS_INVALID, 0.4f)
+
+    private fun once(c: Context, fx: Int, volume: Float) {
+        if (!on(c)) return
+        runCatching { (c.getSystemService(Context.AUDIO_SERVICE) as AudioManager).playSoundEffect(fx, volume) }
     }
 }
