@@ -244,3 +244,18 @@ fun Modifier.watchedBar(key: String, s: Float): Modifier {
         drawRect(accent, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - h), size = androidx.compose.ui.geometry.Size(size.width * p.coerceIn(0.03f, 1f), h))
     }
 }
+
+/** The line under a card, the same everywhere (Search, More like this, My List): rating · year · its first genre. Pure. */
+fun cardDetail(item: com.glasslauncher.tv.data.HeroItem): String = listOfNotNull(
+    item.rating.takeIf { it.isNotBlank() && it != "0" && it != "0.0" },
+    item.year.takeIf { it.isNotBlank() }?.take(4),
+    item.genres.firstOrNull()?.substringBefore(" & ")?.trim()?.takeIf { it.isNotBlank() },
+).joinToString(" · ")
+
+/** Whether a new episode of [item] is out (Airing this week's, as My List's NEW badge has it). */
+@Composable
+fun isNewOut(item: com.glasslauncher.tv.data.HeroItem): Boolean {
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as? com.glasslauncher.tv.GlassApp ?: return false
+    val airing by app.shelf.airing.collectAsState()
+    return remember(airing, item.id) { airing.any { it.out && it.item.id == item.id } }
+}

@@ -290,6 +290,9 @@ private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, mo
         }
         if (titles) RawText(item.name, color = Color.White.copy(alpha = if (focused) 0.95f else 0.6f), fontSize = (9.5f * s).sp,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = (7 * s).dp))
+        // The same line under it as every card has (rating · year · genre), with its name.
+        if (titles) cardDetail(item).takeIf { it.isNotEmpty() }?.let { RawText(it, color = Color.White.copy(alpha = if (focused) 0.7f else 0.42f),
+            fontSize = (7.5f * s).sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = (2 * s).dp)) }
     }
 }
 

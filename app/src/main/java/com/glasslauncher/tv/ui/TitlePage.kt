@@ -613,7 +613,13 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
         ) {
             RawText(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))
             if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            if (isNewOut(h)) Text("NEW", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
+                modifier = Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(LocalAccent.current).padding(horizontal = (3 * s).dp))
         }
+        // The same line under it as every card has (rating · year · genre).
+        val detail = cardDetail(h)
+        if (detail.isNotEmpty()) RawText(detail, color = if (focused) Color.White.copy(alpha = 0.85f) else Text2, fontSize = (6.5f * s).sp, maxLines = 1,
+            modifier = Modifier.padding(top = (4 * s).dp))
     }
 }
 
