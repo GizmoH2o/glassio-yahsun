@@ -166,6 +166,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         lastInput = System.currentTimeMillis()
+        com.glasslauncher.tv.ui.Handoff.back(this)
         hideBars()
         (application as GlassApp).cw.pollNow()
         com.glasslauncher.tv.data.NuvioWatch.start(this)

@@ -134,7 +134,7 @@ object NuvioLaunch {
     fun openEpisode(ctx: Context, s: Settings, http: Http, item: HeroItem, season: Int, episode: Int) {
         val target = resolve(ctx, s, item)
         if (target != "stremio") {
-            open(ctx, s, http, item, target)
+            openNow(ctx, s, http, item, target)
             com.glasslauncher.tv.ui.toast(ctx, "${shortName(target)} opens on the series: choose S$season · E$episode")
             return
         }
@@ -144,14 +144,17 @@ object NuvioLaunch {
             ctx.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(STREMIO_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         } catch (e: Exception) {
             Glog.w("Open episode in Stremio", e)
-            open(ctx, s, http, item, target)
+            openNow(ctx, s, http, item, target)
         }
     }
 
     /** A card's OK: the next episode's own page where that can be, else as [open]. */
-    fun play(ctx: Context, s: Settings, http: Http, item: HeroItem) {
+    fun play(ctx: Context, s: Settings, http: Http, item: HeroItem) =
+        com.glasslauncher.tv.ui.Handoff.go(item, resolve(ctx, s, item)) { playNow(ctx, s, http, item) }
+
+    private fun playNow(ctx: Context, s: Settings, http: Http, item: HeroItem) {
         val ep = if (item.upNext) HomeShelf.episodeOf(item.sub) else null
-        if (ep != null) openEpisode(ctx, s, http, item, ep.first, ep.second) else open(ctx, s, http, item)
+        if (ep != null) openEpisode(ctx, s, http, item, ep.first, ep.second) else openNow(ctx, s, http, item)
     }
 
     /**
@@ -159,15 +162,18 @@ object NuvioLaunch {
      * its link asking it to play the movie or episode with the stream used last (autoPlay; Stremio's TV app). Nuvio's
      * links only open a title's page (no link of theirs starts a stream), so a Nuvio one opens as [play] does.
      */
-    fun resume(ctx: Context, s: Settings, http: Http, item: HeroItem) {
+    fun resume(ctx: Context, s: Settings, http: Http, item: HeroItem) =
+        com.glasslauncher.tv.ui.Handoff.go(item, resolve(ctx, s, item)) { resumeNow(ctx, s, http, item) }
+
+    private fun resumeNow(ctx: Context, s: Settings, http: Http, item: HeroItem) {
         val target = resolve(ctx, s, item)
-        if (target != "stremio") { play(ctx, s, http, item); return }
-        val uri = Uri.parse(resumeLink(item.type, item.id, HomeShelf.episodeOf(item.sub)) ?: run { play(ctx, s, http, item); return })
+        if (target != "stremio") { playNow(ctx, s, http, item); return }
+        val uri = Uri.parse(resumeLink(item.type, item.id, HomeShelf.episodeOf(item.sub)) ?: run { playNow(ctx, s, http, item); return })
         try {
             ctx.startActivity(Intent(Intent.ACTION_VIEW, uri).setPackage(STREMIO_PKG).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP))
         } catch (e: Exception) {
             Glog.w("Resume in Stremio", e)
-            play(ctx, s, http, item)
+            playNow(ctx, s, http, item)
             return
         }
         HaEvents.playing(ctx, "title", item.name, STREMIO_PKG, JSONObject().put("type", item.type).put("id", item.id))
@@ -194,7 +200,10 @@ object NuvioLaunch {
     private fun enc(s: String) = java.net.URLEncoder.encode(s, "UTF-8").replace("+", "%20").replace("%3A", ":")
 
     /** Opens [item] in the app it came from, else where "Open titles in" says; or in [target] when given. */
-    fun open(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) {
+    fun open(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) =
+        com.glasslauncher.tv.ui.Handoff.go(item, target) { openNow(ctx, s, http, item, target) }
+
+    private fun openNow(ctx: Context, s: Settings, http: Http, item: HeroItem, target: String = resolve(ctx, s, item)) {
         val pkg = TARGETS.getValue(target)
         try {
             ctx.startActivity(intent(target, item.type, item.id))

@@ -731,6 +731,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             if (screen == Screen.Home && settings.musicOn && settings.islandHome && !MusicUi.forced.value) MusicIsland(app, s)
             // A locked app's code window, over everything.
             AppLockHost(app, s, settings.menuStyle)
+            // Back from watching: what's next for it.
+            if (screen == Screen.Home) UpNextHost(app, s, heroFocus)
+            // Play: "Opening in Nuvio" over everything until the app is up.
+            HandoffHost(s)
         }
     }
 }
