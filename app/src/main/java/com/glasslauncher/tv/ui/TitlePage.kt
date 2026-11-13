@@ -150,6 +150,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
     val hasSeasons = details.seasons.isNotEmpty() && !item.type.equals("movie", true)
     val epEntry = remember { RowEntry() }
     val moreEntry = remember { RowEntry() }
+    val becauseEntry = remember { RowEntry() }
     val watchEntry = remember { RowEntry() }
     val castEntry = remember { RowEntry() }
     val withEntry = remember { RowEntry() }
@@ -185,6 +186,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         // The system may have put the focus on a row lower down first, scrolling there: the page starts at its top.
         scroll.scrollTo(0)
     }
+    val because = becauseYouWatched(item.key)
     val more by produceState(emptyList<HeroItem>(), item.key) {
         value = withContext(Dispatchers.IO) {
             val like = app.recs.similar(item).ifEmpty {
@@ -512,8 +514,22 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                     contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
                     horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
                 ) {
-                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = above(moreEntry.req), down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex))) { onOpen(h) } }
+                    itemsIndexed(more, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, moreEntry.of(i).nav(up = above(moreEntry.req), down = if (because != null) becauseEntry.req else FocusRequester.Cancel, left = edge(i == 0), right = edge(i == more.lastIndex))) { onOpen(h) } }
                 }
+                }
+                // Because you watched (the title last watched, when it isn't this one): as Home's row has it.
+                because?.let { (seen, list) ->
+                    Column(Modifier.onFocusChanged { if (it.hasFocus) section = "Because you watched" }) {
+                        Spacer(Modifier.height((12 * s).dp))
+                        DsHeading(Lang.tr("Because you watched") + " " + seen.name, s, Modifier.padding(start = (EDGE * s).dp))
+                        LazyRow(
+                            state = becauseEntry.state,
+                            contentPadding = PaddingValues(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (5 * s).dp, bottom = (5 * s).dp),
+                            horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
+                        ) {
+                            itemsIndexed(list, key = { _, h -> h.key }) { i, h -> SmallPoster(h, s, becauseEntry.of(i).nav(up = moreEntry.req, down = FocusRequester.Cancel, left = edge(i == 0), right = edge(i == list.lastIndex))) { onOpen(h) } }
+                        }
+                    }
                 }
             }
             }

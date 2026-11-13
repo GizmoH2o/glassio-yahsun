@@ -86,6 +86,7 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     // One tab per list in use: what you saved here, the Nuvio account's library, the Stremio account's, the Trakt
     // watchlist. Each shows its whole list.
     val airingNow by app.shelf.airing.collectAsState()
+    val because = becauseYouWatched()
     val newIds = remember(airingNow) { airingNow.filter { it.out }.map { it.item.id }.toSet() }
     val tabs = buildList<LibraryTab> {
         if (saved.isNotEmpty()) add(LibraryTab("saved", "Saved", saved, "") { it: HeroItem ->
@@ -200,6 +201,18 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                         onFocused = { lastKey = it.key; pillsFocused = false },
                         onOpen = { if (st.cardOk == "play" && NuvioLaunch.playable(ctx, st)) NuvioLaunch.open(ctx, st, app.http, it) else onTitle(it) },
                         onRemove = { tab.remove(it) })
+                }
+                // At the end of everything: Because you watched (the title last watched), as Home's row has it.
+                if (tab.key == tabs.firstOrNull()?.key) because?.let { (seen, list) ->
+                    item(span = { GridItemSpan(maxLineSpan) }, key = "because") {
+                        Column(Modifier.padding(top = (16 * s).dp)) {
+                            Section(Lang.tr("Because you watched") + " " + seen.name, s)
+                            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy((9 * s).dp),
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = (5 * s).dp)) {
+                                items(list.size, key = { list[it].key }) { i -> SmallPoster(list[i], s, Modifier) { onTitle(list[i]) } }
+                            }
+                        }
+                    }
                 }
             }
         }

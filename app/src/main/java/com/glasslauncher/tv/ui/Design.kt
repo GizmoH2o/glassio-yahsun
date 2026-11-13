@@ -259,3 +259,22 @@ fun isNewOut(item: com.glasslauncher.tv.data.HeroItem): Boolean {
     val airing by app.shelf.airing.collectAsState()
     return remember(airing, item.id) { airing.any { it.out && it.item.id == item.id } }
 }
+
+/**
+ * "Because you watched …": the title last watched (Continue watching's first with an IMDb id, not [except]) and
+ * titles like it (TMDB's recommendations), as Home's row has it; null while there's none.
+ */
+@Composable
+fun becauseYouWatched(except: String = ""): Pair<com.glasslauncher.tv.data.HeroItem, List<com.glasslauncher.tv.data.HeroItem>>? {
+    val app = androidx.compose.ui.platform.LocalContext.current.applicationContext as? com.glasslauncher.tv.GlassApp ?: return null
+    val cw by app.cw.items.collectAsState()
+    val seen = cw.firstOrNull { it.id.startsWith("tt") && it.key != except }
+    val list by androidx.compose.runtime.produceState(emptyList<com.glasslauncher.tv.data.HeroItem>(), seen?.key, except) {
+        value = if (seen == null) emptyList() else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            app.recs.similar(seen).filter { it.key != except && it.key != seen.key }.let { l ->
+                if (app.settings.kidsMode) l.filter { com.glasslauncher.tv.data.HeroPicks.isKids(it) } else l
+            }.take(12)
+        }
+    }
+    return if (seen == null || list.isEmpty()) null else seen to list
+}
