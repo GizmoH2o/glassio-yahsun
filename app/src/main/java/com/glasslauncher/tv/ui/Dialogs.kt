@@ -73,7 +73,7 @@ class TextEntry(val title: String, val initial: String, val hint: String, val se
  * every thing's menu ends with (Sleep timer, this page's settings), as one options sheet everywhere (hold OK or Menu).
  */
 class MenuDialog(val title: String, val options: List<Pair<String, () -> Unit>>, val picture: String = "", val sub: String = "",
-    val common: Boolean = false) : DialogState
+    val common: Boolean = false, /** The Home row the card is in ("" none): its own lines (move, hide) in the sheet. */ val row: String = "") : DialogState
 /** A list with a small picture next to each choice (pictures, videos, screensaver videos). */
 class ThumbDialog(val title: String, val items: List<ThumbItem>) : DialogState
 /** "Press the button you want": the next key (not the arrows, OK or Back) goes to [onKey]. */
@@ -243,7 +243,7 @@ private fun MenuDialogView(d: MenuDialog, onDismiss: () -> Unit) {
                     d.options.forEachIndexed { i, (label, action) ->
                         SheetButton(label, if (i == 0) Modifier.focusRequester(fr) else Modifier, destructive = destructiveChoice(label)) { onDismiss(); action() }
                     }
-                    if (d.common) CommonLines(onDismiss)
+                    if (d.common) CommonLines(onDismiss, d.row)
                 }
             }
         }
@@ -448,9 +448,21 @@ private val SLEEP_STEPS = listOf(0, 30, 60, 90, 120)
  * settings of the page it's on.
  */
 @Composable
-private fun CommonLines(onDismiss: () -> Unit) {
+private fun CommonLines(onDismiss: () -> Unit, row: String = "") {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val app = ctx.applicationContext as? com.glasslauncher.tv.GlassApp ?: return
+    // The row the card is in: moved or hidden from right here, without going to Settings › Home › Home rows.
+    if (row.isNotEmpty() && row != "Apps") {
+        val st = app.settings
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(Color.White.copy(alpha = 0.1f)))
+        SheetButton(Lang.tr("Move this row up")) { st.homeOrder = com.glasslauncher.tv.data.HomeRows.move(st.homeOrder, row, -1); onDismiss() }
+        SheetButton(Lang.tr("Move this row down")) { st.homeOrder = com.glasslauncher.tv.data.HomeRows.move(st.homeOrder, row, 1); onDismiss() }
+        SheetButton(Lang.tr("Hide this row")) {
+            st.homeHidden = (st.homeHidden.split(',').filter { it.isNotEmpty() } + row).distinct().joinToString(",")
+            onDismiss()
+            toast(ctx, Lang.tr("Row hidden. Settings › Home › Home rows brings it back"))
+        }
+    }
     var at by remember { mutableStateOf(com.glasslauncher.tv.data.HomeSleep.at(ctx)) }
     androidx.compose.foundation.layout.Box(Modifier.fillMaxWidth().padding(vertical = 4.dp).height(1.dp).background(Color.White.copy(alpha = 0.1f)))
     val left = if (at == 0L) "" else "${((at - System.currentTimeMillis()) / 60_000L + 1)} min"

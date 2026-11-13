@@ -275,6 +275,8 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+        // Test: the Up next card for this title's key, as if back from watching it.
+        i?.getStringExtra("upnext_test")?.let { com.glasslauncher.tv.ui.Handoff.returnedKey.value = it }
         // Test: as if offline (true) or back (false), for the No connection banner.
         if (i?.hasExtra("offline_test") == true) com.glasslauncher.tv.data.Online.up.value = !i.getBooleanExtra("offline_test", false)
         // Live TV's More info on a programme TMDB doesn't know: Search, on Titles, for its name.

@@ -311,6 +311,8 @@ internal fun HomePage(
     fun above(p: Part) = req(parts.getOrNull(parts.indexOf(p) - 1) ?: Part.Hero)
     fun below(p: Part) = parts.getOrNull(parts.indexOf(p) + 1)?.let { req(it) } ?: FocusRequester.Cancel
     var inPart by remember { mutableStateOf(Part.Hero) }
+    // Which row the selection is in, for its cards' sheets (move or hide the row from there).
+    androidx.compose.runtime.SideEffect { RowHere.name = if (inPart == Part.Hero) "" else inPart.name; RowHere.back = req(inPart) }
     // Back from a title's page: where it was opened from.
     var titleFromPart by remember { mutableStateOf(Part.Hero) }
     val heroMore = remember { FocusRequester() }
@@ -1524,7 +1526,7 @@ private fun titleMenu(app: GlassApp, ctx: android.content.Context, item: HeroIte
         settings.myCollections = Collections.write(Collections.toggle(Collections.parse(settings.myCollections), from.slot, item))
         toast(ctx, "Removed from ${from.name} · ${item.name}")
     }
-    return MenuDialog(item.name, options, picture = item.poster.ifBlank { item.background }, sub = sheetSub(item), common = true)
+    return MenuDialog(item.name, options, picture = item.poster.ifBlank { item.background }, sub = sheetSub(item), common = true, row = RowHere.name)
 }
 
 /** Hold OK on Continue watching: a title's menu (other app, mark watched, remove), a channel's (record, remove). */
@@ -1545,8 +1547,11 @@ private fun watchMenu(app: GlassApp, ctx: android.content.Context, scope: kotlin
                 toast(ctx, if (ok) "Marked as watched · ${item.name}" else "Couldn't mark ${item.name} as watched. Try again")
             }
         }
+        // The same as every card's sheet: My List here too.
+        if (app.library.has(item.key)) options += "Remove from My List" to { app.library.toggle(item); toast(ctx, "Removed from My List · ${item.name}") }
+        else options += "Add to My List" to { app.library.toggle(item); toast(ctx, "Added to My List · ${item.name}") }
         options += "Remove from Continue Watching" to { remove() }
-        onDialog(MenuDialog(item.name, options, picture = item.poster.ifBlank { item.background }, sub = sheetSub(item), common = true))
+        onDialog(MenuDialog(item.name, options, picture = item.poster.ifBlank { item.background }, sub = sheetSub(item), common = true, row = RowHere.name))
     } else if (item.type == cards.TYPE_RECORDING || channel == null) remove()
     else scope.launch {
         // A channel on now (the last one, a followed match): record what's on, or take the card out.
@@ -1564,7 +1569,7 @@ private fun watchMenu(app: GlassApp, ctx: android.content.Context, scope: kotlin
                 Unit
             },
             "Remove from Continue Watching" to { remove() },
-        ), picture = item.background.ifBlank { item.poster }, sub = item.sub.ifBlank { "Live TV" }, common = true))
+        ), picture = item.background.ifBlank { item.poster }, sub = item.sub.ifBlank { "Live TV" }, common = true, row = RowHere.name))
     }
 }
 
@@ -1574,3 +1579,10 @@ internal fun sheetSub(item: HeroItem): String = listOfNotNull(
     item.year.takeIf { it.isNotBlank() },
     item.sub.takeIf { it.isNotBlank() }?.let { (if (item.upNext) "Next " else "Resume ") + it },
 ).joinToString(" · ")
+
+/** The Home row the selection is in ("" on the big picture): a card's sheet can move or hide it. */
+object RowHere {
+    @Volatile var name = ""
+    /** Where the selection goes back to on Home (the row it was in, on the card it was on), e.g. after the Up next card. */
+    @Volatile var back: androidx.compose.ui.focus.FocusRequester? = null
+}

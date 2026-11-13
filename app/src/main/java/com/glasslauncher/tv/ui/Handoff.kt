@@ -152,8 +152,14 @@ fun UpNextHost(app: com.glasslauncher.tv.GlassApp, s: Float, restore: androidx.c
         kotlinx.coroutines.delay(12_000)
         if (card != null) { card = null; backTo++ }
     } }
-    // The card gone: the selection back on Home once Home can take it again (a frame later).
-    LaunchedEffect(backTo) { if (backTo > 0) { androidx.compose.runtime.withFrameNanos { }; kotlinx.coroutines.delay(30); runCatching { restore.requestFocus() } } }
+    // The card gone: the selection back on Home once Home can take it again (a frame later): on the card you played,
+    // in its row, else the big picture.
+    LaunchedEffect(backTo) {
+        if (backTo > 0) {
+            androidx.compose.runtime.withFrameNanos { }; kotlinx.coroutines.delay(30)
+            if (RowHere.back?.let { runCatching { it.requestFocus() }.isSuccess } != true) runCatching { restore.requestFocus() }
+        }
+    }
     androidx.compose.runtime.DisposableEffect(card != null) { Handoff.cardOn.value = card != null; onDispose { Handoff.cardOn.value = false } }
     val c = card ?: return
     val play = androidx.compose.runtime.remember(c) { androidx.compose.ui.focus.FocusRequester() }
