@@ -1536,6 +1536,34 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         page("Apps & icons"),
         page("Catalogs"),
         page("Continue Watching"),
+        // Watch history: what you're watching and the episodes finished, newest first; OK takes one out.
+        Category("Watch history") {
+            val going by app.cw.items.collectAsState()
+            var rev by remember { mutableStateOf(0) }
+            val finished = remember(rev, going) { app.cw.history() }
+            val names = remember(going) {
+                (going + app.library.saved.value + app.library.nuvioList.value + app.library.stremioList.value + app.shelf.series.value)
+                    .associate { it.key to it.name }
+            }
+            buildList<SRow> {
+                add(Note("What you've watched on this TV, newest first, from Nuvio, Stremio, Trakt and Live TV. OK on one takes it out."))
+                going.filter { it.progress >= 0f || it.upNext }.sortedByDescending { it.watchedAt }.forEach { e ->
+                    val name = e.name + (e.sub.takeIf { it.isNotBlank() }?.let { " · $it" } ?: "")
+                    val line = listOfNotNull(if (e.upNext) Lang.tr("Up next") else Lang.tr("Watching"), e.source.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() },
+                        e.watchedAt.takeIf { it > 0 }?.let { Dates.shortDay(it) }).joinToString(" · ")
+                    add(Act(name, line) {
+                        dialog = MenuDialog(e.name, listOf("Remove from Continue Watching" to { app.cw.remove(e.key); toast(ctx, "Removed · ${e.name}") }))
+                    })
+                }
+                finished.forEach { f ->
+                    val name = (names[f.key] ?: f.imdb) + " · S${f.season} · E${f.episode}"
+                    val line = listOfNotNull(Lang.tr("Finished"), f.app.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() }, Dates.shortDay(f.at)).joinToString(" · ")
+                    add(Act(name, line) {
+                        dialog = MenuDialog(names[f.key] ?: f.imdb, listOf("Remove from Watch history" to { app.cw.forgetFinished(f.key); rev++; toast(ctx, "Removed from Watch history") }))
+                    })
+                }
+            }
+        },
         // Live TV's own settings, by section: each opens them there, and Back comes back here.
         Category("Live TV") {
             fun open(section: Int) {

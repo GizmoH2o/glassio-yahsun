@@ -56,6 +56,13 @@ object Handoff {
     @Volatile var ctx: android.content.Context? = null
 
     fun go(item: HeroItem, target: String, start: () -> Unit) {
+        // A Kids profile after bedtime (Live TV's Family rules, the same for Glassio): nothing starts.
+        val c = ctx
+        val app = c?.applicationContext as? com.glasslauncher.tv.GlassApp
+        if (app != null && app.settings.kidsMode && runCatching { com.glasslauncher.tv.live.LiveHome.bedtimeNow(c) }.getOrDefault(false)) {
+            Notice.show(Lang.tr("It's past bedtime. A parent can switch profile to watch"))
+            return
+        }
         val g = Going(item, target, SystemClock.uptimeMillis())
         ctx?.let { com.glasslauncher.tv.live.NavSound.play(it) }
         last = item

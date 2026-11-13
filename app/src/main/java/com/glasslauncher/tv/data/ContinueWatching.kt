@@ -371,6 +371,18 @@ class ContinueWatching(
         return true
     }
 
+    /** Watch history: each series' furthest finished episode, newest first. */
+    fun history(): List<Finished> = finished.filterNot { it.hidden }.sortedByDescending { it.at }
+
+    /** Takes [key]'s finished episode out of the history (Up next forgets it too). */
+    @Synchronized
+    fun forgetFinished(key: String) {
+        val l = finished.filterNot { it.key == key }
+        if (l.size == finished.size) return
+        finished = l
+        saveFinished(l)
+    }
+
     /** Every series you've finished an episode of, by key. */
     fun finishedKeys(): Set<String> = finished.map { it.key }.toSet()
 

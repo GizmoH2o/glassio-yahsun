@@ -1022,6 +1022,12 @@ public final class LiveHome {
     }
 
     /** Live TV playing a finished recording (from its card). */
+    /** Whether it's past the Kids profiles' bedtime (Live TV › Settings › Family), for Glassio's Play too. */
+    public static boolean bedtimeNow(Context c) {
+        int bed = c.getApplicationContext().getSharedPreferences("live-family", Context.MODE_MULTI_PROCESS).getInt("bedtime", 0);
+        return LiveFamily.inBedtime(System.currentTimeMillis(), java.util.TimeZone.getDefault(), bed);
+    }
+
     /** Live TV's settings, on [section] (-1: the first screen); Back from them comes back. */
     public static Intent openSettings(Context c, int section) {
         return HomeApps.liveIntent(c, -1, false).putExtra(Live.EXTRA_SETTINGS, section);
