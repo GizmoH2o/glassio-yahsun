@@ -1351,6 +1351,7 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
                     if (settings.showDate) Text(date, color = Color.White.copy(alpha = 0.75f), fontSize = (8 * s).sp,
                         fontWeight = FontWeight.SemiBold, letterSpacing = (0.6f * s).sp, style = shade)
                 }
+                NowBadge(app, s)
                 UpdateDot(app, s) { barFocused = it }
                 BellButton(s, onInbox) { barFocused = it }
                 QuickButton(s, onQuick) { barFocused = it }
@@ -1362,6 +1363,7 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
             weatherRow()
             Row(Modifier.onGloballyPositioned { weatherEnd = it.boundsInWindow().left - with(density) { (10 * s).dp.toPx() } },
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
+                NowBadge(app, s)
                 UpdateDot(app, s) { barFocused = it }
                 BellButton(s, onInbox) { barFocused = it }
                 QuickButton(s, onQuick) { barFocused = it }
@@ -1374,6 +1376,34 @@ private fun TopBar(app: GlassApp, s: Float, gearReq: FocusRequester, onSettings:
 
 /** True while the Update pill in the top bar is selected: the banner below it shows what's new. */
 private val updateFocused = mutableStateOf(false)
+
+/**
+ * What's playing, small, in the top bar (as a streaming app's mini player): Live TV's small window (a red dot and its
+ * channel), else music (when its island isn't showing it already). Settings › Look & motion › Now playing in the top bar.
+ */
+@Composable
+private fun NowBadge(app: GlassApp, s: Float) {
+    if (!app.settings.nowBadge) return
+    val mini = MiniLive.now.value
+    val track by com.glasslauncher.tv.data.NowPlaying.track.collectAsState()
+    val islandShows = app.settings.musicOn && app.settings.islandHome && !MusicUi.forced.value
+    val live = mini != null
+    val label = when {
+        live -> mini!!.name
+        track?.playing == true && !islandShows -> track!!.title.ifBlank { track!!.artist }
+        else -> return
+    }
+    Row(
+        Modifier.clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.16f))
+            .padding(start = (6 * s).dp, end = (8 * s).dp, top = (3 * s).dp, bottom = (3 * s).dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy((4 * s).dp),
+    ) {
+        if (live) Box(Modifier.size((5 * s).dp).clip(CircleShape).background(LocalAccent.current))
+        else Text("♪", color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.Bold)
+        RawText(label, color = Color.White, fontSize = (8 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1,
+            modifier = Modifier.widthIn(max = (110 * s).dp))
+    }
+}
 
 /**
  * A small pill when a new version is on GitHub, next to the settings button. Select it (Up, then Left)

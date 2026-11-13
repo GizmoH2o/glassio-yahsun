@@ -1514,6 +1514,7 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                     { LiveLook.on.value ?: com.glasslauncher.tv.live.LiveHome.matchesGlassio(ctx).also { LiveLook.on.value = it } },
                     { com.glasslauncher.tv.live.LiveHome.setMatchGlassio(ctx, it); LiveLook.on.value = it }))
                 add(Toggle("Opening", "Glassio's name for a moment as it starts, then Welcome back when there's more than one profile", { st.openingAnim }, { st.openingAnim = it }))
+                add(Toggle("Now playing in the top bar", "A small badge while Live TV's small window or music plays", { st.nowBadge }, { st.nowBadge = it }))
                 add(Toggle("Mic opens Glassio's search", "The remote's microphone opens Search and listens, from anywhere in Glassio and from Live TV (\"watch\" and a channel still tunes it)", { st.micSearch }, { st.micSearch = it }))
                 add(Toggle("Navigation sounds", "A soft tick as the selection moves, a click on OK, as on Apple TV (Live TV too)", { st.navSounds }, { st.navSounds = it; com.glasslauncher.tv.live.NavSound.set(ctx, it) }))
                 add(Toggle("High contrast", "A stronger selection and solid backing behind text", { st.highContrast }, { st.highContrast = it }))
