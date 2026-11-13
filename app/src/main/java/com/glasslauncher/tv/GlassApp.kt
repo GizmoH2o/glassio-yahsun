@@ -136,6 +136,8 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
     val requestSearch = androidx.compose.runtime.mutableStateOf<String?>(null)
     /** Bumped by the remote's microphone: Search opens, listening. */
     val requestVoice = androidx.compose.runtime.mutableIntStateOf(0)
+    /** When a remote key was last pressed in Glassio (uptime ms): the big picture doesn't move on under a press. */
+    @Volatile var lastKeyAt = 0L
     /** The filter [requestSearch] opens Search on ("titles" from More info, "all" from Live TV's microphone). */
     @Volatile var requestSearchFilter = "titles"
     /** Bumped with every request, so asking for the same tab twice (or while the screen was asleep) still works. */

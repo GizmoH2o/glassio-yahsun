@@ -448,6 +448,8 @@ internal fun HomePage(
     LaunchedEffect(index, slides.size, settings.heroAutoplay, settings.heroIntervalSec, visible, paused, resumed, inPart, trailerOn, trailerOver) {
         if (settings.heroAutoplay && visible && !paused && resumed && slides.size > 1 && inPart == Part.Hero && (!trailerOn || trailerOver)) {
             delay(settings.heroIntervalSec * 1000L)
+            // Not under a press (OK on More info as the next title comes would open that one instead).
+            while (android.os.SystemClock.uptimeMillis() - app.lastKeyAt < 1_500) delay(250)
             SlideDir.dir = 1
             index++
         }
