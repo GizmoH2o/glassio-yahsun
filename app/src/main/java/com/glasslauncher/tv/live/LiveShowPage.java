@@ -406,6 +406,7 @@ final class LiveShowPage extends LiveDialog {
         }
 
         // Glassio 3's page, in the 1920 space.
+        private Paint g3Where;
         private Paint g3Shade, g3Bottom, g3Kicker, g3Title, g3Meta, g3Button, g3ButtonOn, g3Head, g3When, g3Ep, g3Ch, g3EpOn, g3WhenOn, g3ChOn;
         private TextPaint g3About;
         private StaticLayout g3AboutLayout;
@@ -423,6 +424,7 @@ final class LiveShowPage extends LiveDialog {
             g3Bottom.setShader(new LinearGradient(0, 450 * k, 0, G3_IMG_H * k, LiveTheme.bg & 0x00FFFFFF, LiveTheme.bg, Shader.TileMode.CLAMP));
             g3Kicker = Ui.text(Ui.semibold, 18 * k, 0xFFE50914);
             g3Kicker.setLetterSpacing(0.08f);
+            g3Where = Ui.text(Ui.semibold, 20 * k, 0xFFFFFFFF);
             g3Title = Ui.text(Ui.displaySemibold, 66 * k, 0xFFFFFFFF);
             g3Meta = Ui.text(Ui.medium, 21 * k, 0xFFD0D0D4);
             g3About = new TextPaint(Ui.text(Ui.regular, 22.5f * k, 0xFFD0D0D4));
@@ -497,10 +499,19 @@ final class LiveShowPage extends LiveDialog {
             String where = (channel.num > 0 ? channel.num + " " : "") + names.name(channel);
             String tag = names.tag(channel), badge = LiveBadge.of(getContext(), channel);
             LiveCountry.label(g3Ch, tagPaint);      // its lettering grey, not the line's red
-            String kickerLine = ellipsize(when + "  ·  " + where.toUpperCase(Ui.locale()), g3Kicker,
-                    tw - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k) - LiveBadge.width(badge, g3Ch, k));
-            c.drawText(kickerLine, x, 72 * k, g3Kicker);
-            float kx = x + g3Kicker.measureText(kickerLine);
+            float kx;
+            if (onNow) {
+                // On now: Glassio's red LIVE pill (as its Live TV tab has it), the channel after it in white.
+                float px = drawLivePill(c, x, 72 * k, k) + 12 * k;
+                String line = ellipsize(where, g3Where, tw - (px - x) - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k) - LiveBadge.width(badge, g3Ch, k));
+                c.drawText(line, px, 72 * k, g3Where);
+                kx = px + g3Where.measureText(line);
+            } else {
+                String kickerLine = ellipsize(when + "  ·  " + where.toUpperCase(Ui.locale()), g3Kicker,
+                        tw - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k) - LiveBadge.width(badge, g3Ch, k));
+                c.drawText(kickerLine, x, 72 * k, g3Kicker);
+                kx = x + g3Kicker.measureText(kickerLine);
+            }
             if (!tag.isEmpty()) kx = LiveCountry.drawTag(c, tag, kx + 12 * k, 72 * k, g3Ch, tagPaint, k);
             LiveBadge.drawInline(c, badge, kx + 12 * k, 72 * k, g3Ch, k);
             String name = show.title.isEmpty() ? channel.name : show.title;
@@ -839,5 +850,23 @@ final class LiveShowPage extends LiveDialog {
         float sx = x + w + 8 * k;
         c.drawText(score, sx, baseline, IMDB_SCORE);
         return sx + IMDB_SCORE.measureText(score);
+    }
+
+    private static final Paint LIVE_FILL = new Paint(Paint.ANTI_ALIAS_FLAG), LIVE_WORD = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    /** Glassio's LIVE pill (red, white lettering), its text on [baseline]. Returns where it ends. */
+    static float drawLivePill(android.graphics.Canvas c, float x, float baseline, float k) {
+        LIVE_FILL.setColor(0xFFE50914);
+        LIVE_WORD.setTypeface(Ui.semibold);
+        LIVE_WORD.setFakeBoldText(true);
+        LIVE_WORD.setTextSize(15 * k);
+        LIVE_WORD.setLetterSpacing(0.06f);
+        LIVE_WORD.setColor(0xFFFFFFFF);
+        String w = Ui.tr("AO VIVO", "LIVE");
+        float padX = 9 * k, h = 26 * k, cap = 15 * k * 0.72f, wd = LIVE_WORD.measureText(w) + padX * 2;
+        float top = baseline - cap - (h - cap) / 2;
+        c.drawRoundRect(x, top, x + wd, top + h, 6 * k, 6 * k, LIVE_FILL);
+        c.drawText(w, x + padX, top + h / 2 + Ui.halfCap(LIVE_WORD), LIVE_WORD);
+        return x + wd;
     }
 }
