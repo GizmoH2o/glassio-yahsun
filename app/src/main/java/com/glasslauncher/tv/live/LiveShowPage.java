@@ -416,12 +416,30 @@ final class LiveShowPage extends LiveDialog {
         private final android.graphics.Path g3Clip = new android.graphics.Path();
                 private static final float G3_LEFT = 72, G3_IMG_W = 1350, G3_IMG_H = 690;
 
-        private void g3Paints(float w) {
+        /** The picture's shades, into the page's colour [bg] (the design's, or the picture's tint). */
+        private void g3Shades(float w, int bg) {
             float ix = w - G3_IMG_W * k;
             g3Shade = new Paint();
-            g3Shade.setShader(new LinearGradient(ix, 0, w, 0, new int[] {LiveTheme.bg, (LiveTheme.bg & 0x00FFFFFF) | 0x8C000000, LiveTheme.bg & 0x00FFFFFF}, new float[] {0, 0.45f, 1}, Shader.TileMode.CLAMP));
+            g3Shade.setShader(new LinearGradient(ix, 0, w, 0, new int[] {bg, (bg & 0x00FFFFFF) | 0x8C000000, bg & 0x00FFFFFF}, new float[] {0, 0.45f, 1}, Shader.TileMode.CLAMP));
             g3Bottom = new Paint();
-            g3Bottom.setShader(new LinearGradient(0, 450 * k, 0, G3_IMG_H * k, LiveTheme.bg & 0x00FFFFFF, LiveTheme.bg, Shader.TileMode.CLAMP));
+            g3Bottom.setShader(new LinearGradient(0, 450 * k, 0, G3_IMG_H * k, bg & 0x00FFFFFF, bg, Shader.TileMode.CLAMP));
+            g3ShadedFor = bg;
+        }
+
+        /** The page's colour from its picture, as Glassio's title pages have it (0: none), fading in. */
+        private Bitmap g3TintOf;
+        private int g3Tint, g3ShadedFor;
+        private float g3TintIn;
+
+        private static int blend(int from, int to, float t) {
+            int r = Math.round(((from >> 16) & 0xFF) + (((to >> 16) & 0xFF) - ((from >> 16) & 0xFF)) * t);
+            int g = Math.round(((from >> 8) & 0xFF) + (((to >> 8) & 0xFF) - ((from >> 8) & 0xFF)) * t);
+            int b = Math.round((from & 0xFF) + ((to & 0xFF) - (from & 0xFF)) * t);
+            return 0xFF000000 | (r << 16) | (g << 8) | b;
+        }
+
+        private void g3Paints(float w) {
+            g3Shades(w, LiveTheme.bg);
             g3Kicker = Ui.text(Ui.semibold, 18 * k, 0xFFE50914);
             g3Kicker.setLetterSpacing(0.08f);
             g3Where = Ui.text(Ui.semibold, 20 * k, 0xFFFFFFFF);
@@ -474,11 +492,22 @@ final class LiveShowPage extends LiveDialog {
             if (g3Shade == null) g3Paints(w);
             boolean moving = in.step(dt) | g3Page.step(dt);
             float a = Ui.clamp(in.value);
-            c.drawColor(LiveTheme.bg);
-            c.save();
-            c.translate(0, -g3Page.value);      // more rows than fit: the page moves up to the one in focus
             String url = !show.icon.isEmpty() ? show.icon : info != null ? info.backdrop : "";
             Bitmap hero = url.isEmpty() ? null : LiveLogos.get(getContext(), url, this::postInvalidate);
+            // The page takes its picture's colour (dark), as Glassio's title pages do; fading in over 0.6 s.
+            if (hero != null && hero != g3TintOf) {
+                g3TintOf = hero;
+                Integer t = com.glasslauncher.tv.ui.BackdropTint.INSTANCE.of(hero);
+                g3Tint = t == null ? 0 : t;
+                g3TintIn = 0;
+            }
+            if (g3Tint != 0 && g3TintIn < 1) { g3TintIn = Math.min(1, g3TintIn + dt / 0.6f); moving = true; }
+            float te = 1 - (1 - g3TintIn) * (1 - g3TintIn);
+            int pageBg = g3Tint == 0 ? LiveTheme.bg : blend(LiveTheme.bg, g3Tint, te);
+            if (pageBg != g3ShadedFor) g3Shades(w, pageBg);
+            c.drawColor(pageBg);
+            c.save();
+            c.translate(0, -g3Page.value);      // more rows than fit: the page moves up to the one in focus
             if (hero != null) {
                 box.set(w - G3_IMG_W * k, 0, w, G3_IMG_H * k);
                 float s = Math.max(box.width() / hero.getWidth(), box.height() / hero.getHeight());
