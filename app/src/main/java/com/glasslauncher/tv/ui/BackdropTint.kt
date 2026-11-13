@@ -1,5 +1,10 @@
 package com.glasslauncher.tv.ui
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import coil3.request.allowHardware
+import coil3.toBitmap
+
 /**
  * The page's colour from a title's backdrop (Settings › Look & motion › Colour from the picture): the average of the
  * picture's colourful parts, the more colourful the more they count, darkened until white text reads on it at any
@@ -40,4 +45,25 @@ object BackdropTint {
         val small = android.graphics.Bitmap.createScaledBitmap(soft, 32, 18, true)
         of(IntArray(32 * 18).also { small.getPixels(it, 0, 32, 0, 0, 32, 18) })
     }.getOrNull()
+}
+
+/**
+ * A page's colour from the picture selected on it (My List, Search), as a title's page takes its own: Glassio's dark
+ * ground until one is read, then a slow change to its tint. With Reduce motion, or nothing selected: the ground.
+ */
+@androidx.compose.runtime.Composable
+fun rememberPageTint(picture: String?): androidx.compose.ui.graphics.Color {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var tint by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
+    androidx.compose.runtime.LaunchedEffect(picture) {
+        if (picture.isNullOrBlank()) return@LaunchedEffect
+        kotlinx.coroutines.delay(350)       // not for every card passed along a row
+        val r = coil3.SingletonImageLoader.get(ctx).execute(coil3.request.ImageRequest.Builder(ctx).data(picture).size(64, 96)
+            .allowHardware(false).build())
+        val bmp = (r as? coil3.request.SuccessResult)?.image?.toBitmap() ?: return@LaunchedEffect
+        tint = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { BackdropTint.of(bmp) }
+    }
+    val target = tint?.let { androidx.compose.ui.graphics.Color(it) } ?: Ds.Bg
+    val c by androidx.compose.animation.animateColorAsState(target, androidx.compose.animation.core.tween(900), label = "pageTint")
+    return c
 }

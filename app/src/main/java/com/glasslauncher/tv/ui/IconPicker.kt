@@ -425,16 +425,7 @@ private fun Hint(text: String, s: Float) {
 }
 
 @Composable
-private fun PickButton(text: String, s: Float, onClick: () -> Unit) {
-    var f by remember { mutableStateOf(false) }
-    Text(
-        text, color = if (f) Color.Black else Color.White, fontSize = (12 * s).sp, fontWeight = FontWeight.Medium,
-        modifier = Modifier.clip(RoundedCornerShape((8 * s).dp))
-            .background(if (f) Color.White else Color.White.copy(alpha = 0.14f))
-            .onFocusChanged { f = it.isFocused }.tvPress(onClick = onClick)
-            .padding(horizontal = (14 * s).dp, vertical = (8 * s).dp),
-    )
-}
+private fun PickButton(text: String, s: Float, onClick: () -> Unit) = DsButton(text, s) { onClick() }     // Glassio's one button
 
 @Composable
 private fun PickTile(s: Float, label: String?, onClick: () -> Unit, content: @Composable () -> Unit) {

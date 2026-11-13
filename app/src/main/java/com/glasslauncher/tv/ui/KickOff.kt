@@ -118,15 +118,4 @@ fun KickOffCard() {
 
 /** A button on the card: a faint glass pill, the white plate with dark text when selected (Glassio's dialogs). */
 @Composable
-private fun KickButton(text: String, s: Float, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    var focused by remember { mutableStateOf(false) }
-    Text(
-        text, color = if (focused) Color.Black else Color.White, fontSize = (9.5f * s).sp,
-        fontWeight = if (focused) FontWeight.SemiBold else FontWeight.Medium, maxLines = 1,
-        modifier = modifier.clip(RoundedCornerShape((8 * s).dp))
-            .background(if (focused) Color.White.copy(alpha = 0.92f) else Color.White.copy(alpha = 0.08f))
-            .onFocusChanged { focused = it.isFocused }
-            .tvPress(onClick = onClick)
-            .padding(horizontal = (10 * s).dp, vertical = (5 * s).dp),
-    )
-}
+private fun KickButton(text: String, s: Float, modifier: Modifier = Modifier, onClick: () -> Unit) = DsButton(text, s, modifier) { onClick() }     // Glassio's one button

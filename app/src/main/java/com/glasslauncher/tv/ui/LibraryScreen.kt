@@ -171,7 +171,10 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         }
         return
     }
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
+    // The page takes the selected poster's colour (as a title's page does its picture's).
+    val selectedPic = tab?.items?.firstOrNull { it.key == lastKey }?.let { it.poster.ifBlank { it.background } }
+    val ground = rememberPageTint(selectedPic.takeIf { !LocalReduceMotion.current })
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(ground)) {
         // TV scrolling: the selected row always sits at the same height. Moving left / right inside a row never
         // scrolls (the default "just bring it into view" nudged the page up and down with every poster).
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides PivotScroll) {
