@@ -462,7 +462,9 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                                 EpisodeLine(e, item, s, now, if (current) resume?.progress ?: -1f else -1f,
                                     (if (i == 0) Modifier.focusRequester(epEntry.req) else Modifier)
                                         .nav(up = if (i == 0) above(epEntry.req) else null, down = if (i == eps.lastIndex) below(epEntry.req) else null, left = toSeason, right = FocusRequester.Cancel),
-                                    watched = seen && !current) {
+                                    watched = seen && !current,
+                                    // On your channels soon (Live TV's guide): when, and where.
+                                    onTv = airingOf(e, airings)?.let { a -> Lang.tr("On TV") + " · " + LiveHome.whenLine(a) + " · " + a.channelName }.orEmpty()) {
                                     if (canPlay) NuvioLaunch.openEpisode(ctx, st, app.http, item, e.season, e.number)
                                     else toast(ctx, "No app for titles on this TV: Nuvio or Stremio plays them")
                                 }
@@ -623,7 +625,7 @@ private fun PersonCard(p: TitlePeople.Person, s: Float, modifier: Modifier, onCl
  * picture (and what's left of it), its date and its story.
  */
 @Composable
-private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now: Long, progress: Float, modifier: Modifier, watched: Boolean = false, onClick: () -> Unit) {
+private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now: Long, progress: Float, modifier: Modifier, watched: Boolean = false, onTv: String = "", onClick: () -> Unit) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     val name = e.name.ifBlank { "Episode ${e.number}" }
@@ -642,6 +644,7 @@ private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now
             if (watched) Text("✓", color = Text2, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(end = (5 * s).dp))
             RawText(name, color = if (watched || progress >= 0.99f) Text2 else Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (upcoming) Text(Lang.tr("Out") + " " + java.text.SimpleDateFormat("d MMM", Lang.locale()).format(java.util.Date(e.released)), color = Text2, fontSize = (8 * s).sp)
+            else if (onTv.isNotEmpty()) RawText(onTv, color = LocalAccent.current, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1)
         } else Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             RawText("${e.number}", color = Ds.Ink, fontSize = (12 * s).sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width((14 * s).dp))
             Box(Modifier.width((150 * s).dp).aspectRatio(16f / 9f).clip(RoundedCornerShape((6 * s).dp)).background(Ds.Surface), contentAlignment = Alignment.Center) {
@@ -787,5 +790,16 @@ private fun VideoCard(name: String, key: String, s: Float, modifier: Modifier, o
             Box(Modifier.size((20 * s).dp).clip(CircleShape).background(Color.White.copy(alpha = 0.9f)), contentAlignment = Alignment.Center) { PlayGlyph(Modifier.size((7 * s).dp), Ds.Ink) }
         }
         RawText(name, color = if (focused) Color.White else Text2, fontSize = (7.5f * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** The airing on your channels that is this episode (by its number in the guide's words, else its title); null if none. Pure. */
+internal fun airingOf(e: TitleDetails.Episode, airings: List<LiveHome.Airing>): LiveHome.Airing? {
+    val name = e.name.trim().lowercase()
+    return airings.firstOrNull { a ->
+        val words = (a.sub + " " + a.title).lowercase()
+        val m = Regex("""s(\d{1,2})\s*[·.]?\s*e(\d{1,4})""").find(words)
+        if (m != null) m.groupValues[1].toInt() == e.season && m.groupValues[2].toInt() == e.number
+        else name.length >= 4 && a.sub.lowercase().contains(name)
     }
 }
