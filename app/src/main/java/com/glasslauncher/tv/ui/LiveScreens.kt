@@ -312,7 +312,9 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
     }
     val first = remember { FocusRequester() }
     val chip = remember { FocusRequester() }
-    LaunchedEffect(downAsk) { if (downAsk > 0) runCatching { first.requestFocus() } }     // Down from the tabs
+    // Down from the tabs: a press made while this page is up (not one counted before it came, as on My List's Following).
+    val askedBefore = remember { downAsk }
+    LaunchedEffect(downAsk) { if (downAsk > askedBefore) runCatching { first.requestFocus() } }
     LaunchedEffect(team, data != null, teamData != null) {
         val back = cameFrom
         if (team == null && back != null && data?.terms?.contains(back) == true) focusFirst(chip)
@@ -339,7 +341,8 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
     val shown = rev
     val armed = stopArmedAt != 0L && System.currentTimeMillis() - stopArmedAt < 5_000
 
-    LivePage(s) {
+    // On My List, under its heading: its colour shows through.
+    LivePage(s, bg = if (embedded) Color.Transparent else Ds.Bg) {
         if (todayShown) {
             header("Today in sport", "Live matches in the guide for the rest of today", s)
             val list = today
@@ -355,7 +358,7 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
         if (t == null) {
             if (!embedded) header(if (sport) "Sport" else "Following", if (!r) "Sign in to Live TV to see when your teams and shows are on"
                 else if (sport) "Your teams, today's matches, what's live" else "The teams and shows you follow, from the TV guide", s)
-            if (d == null) return@LivePage
+            if (d == null) { if (embedded) hint("Looking in the guide…", s); return@LivePage }
             val spot = d.spot
             item(key = "spot") {
                 if (spot != null) Spotlight(spot, s, shown, Modifier.fillMaxWidth().height((170 * s).dp).nav(up = toTabs).focusRequester(first)) { watch(spot) }
@@ -523,8 +526,8 @@ private fun TableRowView(s: Float, rank: String, team: String, numbers: Array<St
 /** The graphite page: one scrolling column, the selected row kept at the same height (as the Library does). */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun LivePage(s: Float, top: Float = 34f, state: androidx.compose.foundation.lazy.LazyListState? = null, content: LazyListScope.() -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize().background(Ds.Bg)) {
+private fun LivePage(s: Float, top: Float = 34f, state: androidx.compose.foundation.lazy.LazyListState? = null, bg: Color = Ds.Bg, content: LazyListScope.() -> Unit) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(bg)) {
         val rowScroll = androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
         CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides RowPivot, LocalRowScroll provides rowScroll) {
             LazyColumn(

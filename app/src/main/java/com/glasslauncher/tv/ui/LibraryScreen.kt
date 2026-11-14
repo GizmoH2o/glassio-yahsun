@@ -156,10 +156,19 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     }
 
     LaunchedEffect(tab?.key == FOLLOWING) { delay(30); if (pillsFocused) runCatching { selPill.requestFocus() } }
+    // The page takes the selected poster's colour (as a title's page does its picture's); on Following, the last one's,
+    // so moving onto it doesn't change the page's colour.
+    val selectedPic = tab?.items?.firstOrNull { it.key == lastKey }?.let { it.poster.ifBlank { it.background } }
+    var keptPic by remember { mutableStateOf<String?>(null) }
+    if (selectedPic != null) keptPic = selectedPic
+    val ground = rememberPageTint((if (tab?.key == FOLLOWING) keptPic else selectedPic).takeIf { !LocalReduceMotion.current })
     if (tab?.key == FOLLOWING) {
-        Column(Modifier.fillMaxSize().background(Ds.Bg)) {
+        Column(Modifier.fillMaxSize().background(ground)) {
+            // The same heading as the other lists (its line under the name too), so the filters stay where they are.
             Column(Modifier.padding(start = (64 * s).dp, top = (34 * s).dp)) {
                 Text("My List", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height((4 * s).dp))
+                Text("OK watches · hold OK on a team for more", color = Color.White.copy(alpha = 0.55f), fontSize = (10 * s).sp)
                 Spacer(Modifier.height((14 * s).dp))
                 androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
                     // Down from a filter: into what's followed (asked of it: a list found by the arrows takes the focus whole).
@@ -172,9 +181,6 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         }
         return
     }
-    // The page takes the selected poster's colour (as a title's page does its picture's).
-    val selectedPic = tab?.items?.firstOrNull { it.key == lastKey }?.let { it.poster.ifBlank { it.background } }
-    val ground = rememberPageTint(selectedPic.takeIf { !LocalReduceMotion.current })
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(ground)) {
         // TV scrolling: the selected row always sits at the same height. Moving left / right inside a row never
         // scrolls (the default "just bring it into view" nudged the page up and down with every poster).
