@@ -128,7 +128,8 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     val tab = tabs.firstOrNull { it.key == tabKey } ?: tabs.firstOrNull()
     val shown = tab?.items.orEmpty()
     val hasAny = tabs.any { it.items.isNotEmpty() }
-    LaunchedEffect(hasAny) { if (hasAny) { delay(60); runCatching { first.requestFocus() } } }
+    // Its first poster once there's one, unless you're moving along the tabs (the selection stays there, as on the other tabs).
+    LaunchedEffect(hasAny) { if (hasAny) { delay(60); if (!TabHandoff.barFocused) runCatching { first.requestFocus() } } }
     // Back from a title's page: on the poster it came from.
     var lastKey by remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }

@@ -60,6 +60,17 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
     // white under the selected tab, faint under the page's own while the selection is elsewhere.
     val spots = remember { androidx.compose.runtime.mutableStateMapOf<Screen, Pair<Float, Float>>() }
     var focusedTab by remember { mutableStateOf<Screen?>(null) }
+    // Arriving by a tab (OK on it): the bar you pressed goes with its page, so this one, the new page's own, takes the
+    // focus on its tab at once; else it falls on the first thing there (Home) and the pill shows Home for a moment.
+    val mine = remember { FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(current) {
+        if (TabHandoff.pending != current) return@LaunchedEffect
+        repeat(20) {
+            if (runCatching { mine.requestFocus() }.isSuccess && focusedTab == current) { TabHandoff.pending = null; return@LaunchedEffect }
+            kotlinx.coroutines.delay(25)
+        }
+        TabHandoff.pending = null
+    }
     val target = focusedTab ?: current
     val spot = spots[target]
     val reduce = LocalReduceMotion.current
@@ -95,16 +106,17 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
             Text(
                 label, color = ink, fontSize = (11.5f * s).sp,
                 fontWeight = if (focused || on) FontWeight.Bold else FontWeight.SemiBold,
-                modifier = (if (on) Modifier.focusRequester(entry) else Modifier)
+                modifier = (if (on) Modifier.focusRequester(entry).focusRequester(mine) else Modifier)
                     .onPlaced { spots[to] = it.positionInParent().x to it.size.width.toFloat() }
                     .onFocusChanged {
                         focused = it.isFocused; onFocus(it.isFocused)
                         if (it.isFocused) focusedTab = to else if (focusedTab == to) focusedTab = null
+                        TabHandoff.barFocused = focusedTab != null
                     }
                     // Down to the page: asked of the page itself, as the arrow alone can land on a list as a whole, with nothing selected.
                     .tvPress(onKey = { ev ->
                         if (onDown != null && ev.key == Key.DirectionDown) { if (ev.type == KeyEventType.KeyDown) onDown(); true } else false
-                    }, onClick = { onTab(to) })
+                    }, onClick = { if (to != Screen.Home && to != current) TabHandoff.pending = to; onTab(to) })
                     // The page you're on: a small dot under its name too (tvOS), seen while the selection is elsewhere.
                     .drawBehind {
                         if (on && focusedTab != null && focusedTab != to) drawCircle(Color.White.copy(alpha = 0.85f), radius = 1.5f * s * density,
@@ -114,4 +126,11 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
             )
         }
     }
+}
+
+/** The tab just chosen (OK on it), for the next page's bar to take the focus on; null once it has. */
+internal object TabHandoff {
+    @Volatile var pending: Screen? = null
+    /** A tab has the focus (a page leaves it there as it opens). */
+    @Volatile var barFocused = false
 }
