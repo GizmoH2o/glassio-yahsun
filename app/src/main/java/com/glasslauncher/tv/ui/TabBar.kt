@@ -63,6 +63,10 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
     // Arriving by a tab (OK on it): the bar you pressed goes with its page, so this one, the new page's own, takes the
     // focus on its tab at once; else it falls on the first thing there (Home) and the pill shows Home for a moment.
     val mine = remember { FocusRequester() }
+    // Any other way in (the menu, Live TV's own button): the focus falls on the first tab, Home, as the bar comes.
+    // Moved on to the page's own tab, but only in its first moments (a move to Home later is yours).
+    val born = remember { android.os.SystemClock.uptimeMillis() }
+    val barScope = androidx.compose.runtime.rememberCoroutineScope()
     androidx.compose.runtime.LaunchedEffect(current) {
         if (TabHandoff.pending != current) return@LaunchedEffect
         repeat(20) {
@@ -111,6 +115,8 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
                     .onFocusChanged {
                         focused = it.isFocused; onFocus(it.isFocused)
                         if (it.isFocused) focusedTab = to else if (focusedTab == to) focusedTab = null
+                        if (it.isFocused && to == Screen.Home && current != Screen.Home && android.os.SystemClock.uptimeMillis() - born < 900)
+                            barScope.launch { runCatching { mine.requestFocus() } }
                         TabHandoff.barFocused = focusedTab != null
                     }
                     // Down to the page: asked of the page itself, as the arrow alone can land on a list as a whole, with nothing selected.

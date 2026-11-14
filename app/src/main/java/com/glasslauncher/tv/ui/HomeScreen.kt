@@ -736,7 +736,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             // (Library and Search stay there under a title's page opened from them, as they were.)
             val tabPage = if (screen == Screen.Title) titleFrom else screen
             PageLayer(tabPage.takeIf { it == Screen.Library || it == Screen.LiveTv || it == Screen.Following || it == Screen.Search }, motionOff) { tabPage -> Box(
-                Modifier.fillMaxSize().background(Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
+                // My List's colour (its selected poster's) runs up behind the tabs too, as Home's picture does.
+                Modifier.fillMaxSize().background(if (tabPage == Screen.Library) TabPageTint.color.value ?: Ds.Bg else Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
             ) {
                 val onTop = screen != Screen.Title
                 // Live TV's picture runs up behind the tabs; the others start under them.
@@ -747,8 +748,11 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     if (tabPage == Screen.Following) FollowingScreen(app, downAsk = tabDown, toTabs = tabFocus) { onScreen(Screen.Home) }
                     if (tabPage == Screen.Search) SearchPage(app, s, searchQuery, active = onTop, downAsk = tabDown, toTabs = tabFocus, onClose = { onScreen(Screen.Home) }, onTitle = openTitle)
                 }
-                // What scrolls up goes dark behind the tabs, so nothing reads through them.
-                if (onTop) Box(Modifier.fillMaxWidth().height((58 * s).dp).background(Brush.verticalGradient(0.72f to Ds.Bg, 1f to Color.Transparent)))
+                // What scrolls up goes behind the tabs: in the page's own colour, so nothing reads through them and the
+                // colour runs on up (My List); Live TV's picture fades up into them under a soft shade, as Home's does.
+                if (onTop) Box(Modifier.fillMaxWidth().height(((if (tabPage == Screen.LiveTv) 64 else 58) * s).dp).background(
+                    if (tabPage == Screen.LiveTv) Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent)
+                    else Brush.verticalGradient(0.72f to (if (tabPage == Screen.Library) TabPageTint.color.value ?: Ds.Bg else Ds.Bg), 1f to Color.Transparent)))
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> if (to == Screen.Search) SearchFilter.now.value = "all"; onScreen(to) }
             } }
             // A row opened as a page (the card sheet's See all), over Home; a title opens over it, and Back from that comes back here.

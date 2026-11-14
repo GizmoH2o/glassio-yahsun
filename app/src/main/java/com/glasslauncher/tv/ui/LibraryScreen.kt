@@ -162,6 +162,9 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     var keptPic by remember { mutableStateOf<String?>(null) }
     if (selectedPic != null) keptPic = selectedPic
     val ground = rememberPageTint((if (tab?.key == FOLLOWING) keptPic else selectedPic).takeIf { !LocalReduceMotion.current })
+    // Up behind the tabs too (the bar's page draws it there).
+    androidx.compose.runtime.SideEffect { TabPageTint.color.value = ground }
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { TabPageTint.color.value = null } }
     if (tab?.key == FOLLOWING) {
         Column(Modifier.fillMaxSize().background(ground)) {
             // The same heading as the other lists (its line under the name too), so the filters stay where they are.
@@ -376,3 +379,6 @@ private fun sharpPoster(u: String): String = when {
 
 /** My List's Following filter: the teams and shows followed (Live TV's Following), on My List's page. */
 private const val FOLLOWING = "following"
+
+/** My List's page colour, for the strip behind the tabs above it (null: the plain page colour). */
+internal object TabPageTint { val color = androidx.compose.runtime.mutableStateOf<Color?>(null) }
