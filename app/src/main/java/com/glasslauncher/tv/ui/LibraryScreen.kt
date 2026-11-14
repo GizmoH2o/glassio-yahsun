@@ -155,66 +155,62 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
         }
     }
 
-    LaunchedEffect(tab?.key == FOLLOWING) { delay(30); if (pillsFocused) runCatching { selPill.requestFocus() } }
     // The page takes the selected poster's colour (as a title's page does its picture's); on Following, the last one's,
     // so moving onto it doesn't change the page's colour.
     val selectedPic = tab?.items?.firstOrNull { it.key == lastKey }?.let { it.poster.ifBlank { it.background } }
     var keptPic by remember { mutableStateOf<String?>(null) }
     if (selectedPic != null) keptPic = selectedPic
-    val ground = rememberPageTint((if (tab?.key == FOLLOWING) keptPic else selectedPic).takeIf { !LocalReduceMotion.current })
+    val following = tab?.key == FOLLOWING
+    val ground = rememberPageTint((if (following) keptPic else selectedPic).takeIf { !LocalReduceMotion.current })
     // Up behind the tabs too (the bar's page draws it there).
     androidx.compose.runtime.SideEffect { TabPageTint.color.value = ground }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { TabPageTint.color.value = null } }
-    if (tab?.key == FOLLOWING) {
-        Column(Modifier.fillMaxSize().background(ground)) {
-            // The same heading as the other lists (its line under the name too), so the filters stay where they are.
-            Column(Modifier.padding(start = (64 * s).dp, top = (34 * s).dp)) {
-                Text("My List", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height((4 * s).dp))
-                Text("OK watches · hold OK on a team for more", color = Color.White.copy(alpha = 0.55f), fontSize = (10 * s).sp)
+    Column(Modifier.fillMaxSize().background(ground)) {
+        // The heading and the filters: one and the same for every list, Following too, so moving from one filter to
+        // the next never takes the selection off it (two copies of the row lost it for a moment: to Home in the bar).
+        Column(Modifier.padding(start = (64 * s).dp, end = (64 * s).dp, top = (34 * s).dp)) {
+            Text("My List", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height((4 * s).dp))
+            Text(
+                if (following) "OK watches · hold OK on a team for more"
+                else if (hasAny) "OK opens · hold OK to remove" else "Nothing here yet. On the home screen, press + next to Play to save a title.",
+                color = Color.White.copy(alpha = 0.55f), fontSize = (10 * s).sp,
+            )
+            // The tabs: moving onto one shows its list (as the Apple TV app's tabs do); Down goes into it.
+            if (following || shown.isNotEmpty() || tabs.size > 1) {
                 Spacer(Modifier.height((14 * s).dp))
-                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp)) {
-                    // Down from a filter: into what's followed (asked of it: a list found by the arrows takes the focus whole).
-                    val down = Modifier.onPreviewKeyEvent { e -> if (e.key == Key.DirectionDown) { if (e.type == KeyEventType.KeyDown) followDown++; true } else false }
-                    tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab.key, i == 0, i == tabs.lastIndex, s, toTabs,
-                        down.then(if (t.key == tab.key) Modifier.focusRequester(selPill) else Modifier)) { tabKey = t.key; pillsFocused = true; atPills = true } }
+                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    // Down from a filter: into the list under it, asked of it (the arrows alone land on a list as a whole, with
+                    // nothing selected): on Following what's followed; else the poster last on, or the first.
+                    val down = Modifier.onPreviewKeyEvent { e ->
+                        if (e.key != Key.DirectionDown) return@onPreviewKeyEvent false
+                        if (e.type == KeyEventType.KeyDown) {
+                            if (following) followDown++
+                            else if (runCatching { lastFocus.requestFocus() }.getOrDefault(false) != true) runCatching { first.requestFocus() }
+                        }
+                        true
+                    }
+                    val surprise = !following && shown.isNotEmpty()
+                    if (tabs.size > 1) tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, i == tabs.lastIndex && !surprise, s, toTabs,
+                        down.then(if (t.key == tab?.key) Modifier.focusRequester(selPill) else Modifier)) { tabKey = t.key; pillsFocused = true; atPills = true } }
+                    if (surprise) DsButton("Surprise me", s, down.nav(up = toTabs)) { onTitle(shown.random()) }
                 }
             }
-            Box(Modifier.fillMaxSize().paneEnter(FOLLOWING)) { FollowingScreen(app, downAsk = downAsk + followDown, toTabs = selPill, embedded = true) { onClose() } }
         }
-        return
-    }
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize().background(ground)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+            if (following) Box(Modifier.fillMaxSize().paneEnter(FOLLOWING)) { FollowingScreen(app, downAsk = downAsk + followDown, toTabs = selPill, embedded = true, top = 20f) { onClose() } }
+            else androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxSize()) {
         // TV scrolling: the selected row always sits at the same height. Moving left / right inside a row never
         // scrolls (the default "just bring it into view" nudged the page up and down with every poster).
         androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides PivotScroll) {
         LazyVerticalGrid(
             state = grid,
             columns = GridCells.Fixed(5),
-            contentPadding = PaddingValues(start = (64 * s).dp, end = (64 * s).dp, top = (34 * s).dp, bottom = (40 * s).dp),
+            contentPadding = PaddingValues(start = (64 * s).dp, end = (64 * s).dp, top = (20 * s).dp, bottom = (40 * s).dp),
             horizontalArrangement = Arrangement.spacedBy((22 * s).dp),
             verticalArrangement = Arrangement.spacedBy((20 * s).dp),
             modifier = Modifier.fillMaxSize(),
         ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Column {
-                    Text("My List", color = Color.White, fontSize = (26 * s).sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height((4 * s).dp))
-                    Text(
-                        if (hasAny) "OK opens · hold OK to remove" else "Nothing here yet. On the home screen, press + next to Play to save a title.",
-                        color = Color.White.copy(alpha = 0.55f), fontSize = (10 * s).sp,
-                    )
-                    // The tabs: moving onto one shows its list (as the Apple TV app's tabs do); Down goes into it.
-                    if (shown.isNotEmpty() || tabs.size > 1) {
-                        Spacer(Modifier.height((14 * s).dp))
-                        androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy((8 * s).dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                            if (tabs.size > 1) tabs.forEachIndexed { i, t -> TabPill(t.label, t.key == tab?.key, i == 0, false, s, toTabs,
-                                if (t.key == tab?.key) Modifier.focusRequester(selPill) else Modifier) { tabKey = t.key; pillsFocused = true; atPills = true } }
-                            if (shown.isNotEmpty()) DsButton("Surprise me", s, Modifier.nav(up = toTabs)) { onTitle(shown.random()) }
-                        }
-                    }
-                }
-            }
             if (tab != null) {
                 if (tab.status.isNotBlank()) item(span = { GridItemSpan(maxLineSpan) }) { Section(tab.status, s) }
                 if (tab.items.isEmpty()) item(span = { GridItemSpan(maxLineSpan) }) {
@@ -247,6 +243,8 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
                 }
             }
         }
+        }
+            }
         }
     }
 }

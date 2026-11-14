@@ -245,7 +245,9 @@ private fun scoresChoice(ctx: Context, term: String, ask: (DialogState) -> Unit,
 @Composable
 fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null,
     /** On My List's page, under its filters: no heading of its own. */
-    embedded: Boolean = false, onClose: () -> Unit) {
+    embedded: Boolean = false,
+    /** The space above its first row (less on My List, under the filters). */
+    top: Float = 34f, onClose: () -> Unit) {
     val s = LocalScale.current
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -342,7 +344,7 @@ fun FollowingScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = n
     val armed = stopArmedAt != 0L && System.currentTimeMillis() - stopArmedAt < 5_000
 
     // On My List, under its heading: its colour shows through.
-    LivePage(s, bg = if (embedded) Color.Transparent else Ds.Bg) {
+    LivePage(s, top = top, bg = if (embedded) Color.Transparent else Ds.Bg) {
         if (todayShown) {
             header("Today in sport", "Live matches in the guide for the rest of today", s)
             val list = today
