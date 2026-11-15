@@ -2,6 +2,60 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.9.0 — 2026-11-15
+
+One app: Glassio, Live TV and every page now look, move and behave as one, as on the big streaming apps.
+
+**New pages**
+- **Poster style**: every poster as the streaming apps' own: the picture without its lettering, the title's logo, where it streams, its age rating and genre · ★ rating · year. Settings › Home › Poster style.
+- **See all**: hold OK on a card › See all in this row opens the whole row as a page, with filters and a sort.
+- **Genre pages**: Browse by genre in Search, each genre with what's in your lists and what's popular.
+- **People's pages**: OK on someone in a cast or in Search opens their page: who they are and what they're known for.
+- **Sport**: what's live now, today's matches and your teams on one page, and a Sport tab while you follow a team.
+- **Kids Home**: a kids profile's own Home: a hello, big Keep watching cards, cartoons, family films and their apps. Settings › Home › Kids Home.
+- **Live TV on Home**: On now on your channels and Starting soon (OK sets a reminder). Settings › Home › Live TV on Home.
+- **Inbox**: reminders, new episodes, matches starting, recordings and what's new in one place, behind the bell.
+- **Watch history**: what you've watched, in Settings.
+
+**Titles**
+- **More info, rebuilt**: a larger picture, one row of buttons, Trailers & more, the film series, the cast, and episodes as a list.
+- **A card grows into its title's page**, as on Apple TV, and the page takes its picture's colour.
+- **Watched ticks, TMDB score and age rating** on a title's page; episodes on your channels soon are marked.
+- **Play shows "Opening in Nuvio"**, and coming back offers the next episode.
+- **Trailers play in Glassio's own player**, with a Cinematic mode that takes the screen.
+
+**Home and My List**
+- **My List**: one list with filters, Following folded in, the page taking the selected poster's colour.
+- **Continue watching** shows each episode's own picture; Because you added, and a row for the time of year.
+- **Every poster you've started** shows how far in you are.
+- **Card sheets**: hold OK on any card to move or hide its row, or add it to My List.
+
+**Search**
+- **One search for everything**: titles, episodes by name, people, channels, recordings, apps and settings, with filters.
+- **Suggestions as you type**, recent searches (hold OK to forget one) and Did you mean.
+- **The remote's mic** opens Search and listens, from anywhere; voice commands like "watch" a channel.
+
+**Live TV**
+- **Live TV in Glassio's design**: its pages, notices, text size and colours follow Glassio's; opens in under 2 s.
+- **The player**: IMDb's rating, peek at the next channel as a card with its picture, and Up next with a picture.
+- **A programme's page** is Glassio's title page.
+
+**Feel**
+- **One motion everywhere**: pages, menus, dialogs and tabs come and go the same way; one pill slides along the tabs.
+- **Navigation sounds**, a bounce at a row's end, poster tilt (off by default) and an alert chime. Settings › Look & motion.
+- **Hold Back for Home** from any page, Live TV included; Back climbs to the top of a page before it leaves.
+- **One No connection banner**, and offline only what works is shown.
+
+**Faster on smaller TVs**
+- **Home, My List, Sport, Kids Home and title pages** draw far less each frame: near 60 fps on a 2 GB TV, from about 30.
+- **The big picture's slow zoom** pauses while you move around.
+
+**Fixes**
+- The top bar no longer shows Home selected for a moment when you open another tab.
+- Moving onto Following in My List no longer drops the selection.
+- Kids Home's greeting no longer runs under the clock.
+- A person's page counts each title once.
+
 ## 3.8.0 — 2026-11-09
 
 **Home**
