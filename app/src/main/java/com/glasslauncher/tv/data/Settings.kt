@@ -516,6 +516,10 @@ class Settings(private val ctx: Context) {
     var homeTvSpeed: Boolean get() = b("homeTvSpeed", false); set(v) = putB("homeTvSpeed", v)
     /** The open card's look: "light" (lighter grey, a thin border) | "dark". */
     var cardStyle: String get() = s("cardStyle", "light"); set(v) = putS("cardStyle", v)
+    /** Home's library rows and My List as the streaming apps' posters: lettering, service, age rating, genre · rating · year. */
+    var posterStyle: Boolean get() = b("posterStyle", true); set(v) = putB("posterStyle", v)
+    /** On those posters, where it streams at the top left. */
+    var posterService: Boolean get() = b("posterService", true); set(v) = putB("posterService", v)
     /** The version whose What's new has been shown, and whether the welcome is done. */
     var seenVersion: String get() = s("seenVersion", ""); set(v) = putS("seenVersion", v)
     var welcomeDone: Boolean get() = b("welcomeDone", false); set(v) = putB("welcomeDone", v)

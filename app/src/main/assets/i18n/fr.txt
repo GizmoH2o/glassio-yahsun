@@ -1149,3 +1149,7 @@ Your favourites	Tes préférés
 Cartoons	Dessins animés
 Family films	Films en famille
 Your apps	Tes applis
+Poster style	Style affiche
+Your library's posters on Home and My List as the streaming apps' own: the picture without its lettering, the title's logo, its age rating and genre · rating · year	Les affiches de votre bibliothèque sur l'accueil et Ma liste comme celles des applis de streaming : l'image sans texte, le logo du titre, sa classification et genre · note · année
+Where it streams on posters	Où le regarder, sur les affiches
+With the poster style: the service it's on, at the top left (none: left empty)	Avec le style affiche : le service où il est, en haut à gauche (aucun : vide)

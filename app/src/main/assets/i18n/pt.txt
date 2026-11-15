@@ -1149,3 +1149,7 @@ Your favourites	Seus favoritos
 Cartoons	Desenhos animados
 Family films	Filmes para a família
 Your apps	Seus apps
+Poster style	Estilo pôster
+Your library's posters on Home and My List as the streaming apps' own: the picture without its lettering, the title's logo, its age rating and genre · rating · year	Os pôsteres da sua biblioteca no Início e na Minha lista como os dos apps de streaming: a imagem sem letras, o logo do título, a classificação e gênero · nota · ano
+Where it streams on posters	Onde assistir, nos pôsteres
+With the poster style: the service it's on, at the top left (none: left empty)	Com o estilo pôster: o serviço onde está, no canto superior esquerdo (nenhum: vazio)

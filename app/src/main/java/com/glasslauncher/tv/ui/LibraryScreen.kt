@@ -334,7 +334,17 @@ private fun Poster(item: HeroItem, isNew: Boolean, s: Float, titles: Boolean, mo
         ) {
             RawText(item.name, color = Color.White.copy(alpha = 0.6f), fontSize = (10 * s).sp, textAlign = TextAlign.Center,
                 modifier = Modifier.padding((8 * s).dp))
-            AsyncImage(req, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true }, onError = { loaded = true })
+            // The poster style (Settings › Home): the poster painted as the streaming apps' (PosterArt), once made.
+            val app = ctx.applicationContext as com.glasslauncher.tv.GlassApp
+            val styled = app.settings.posterStyle; val service = app.settings.posterService
+            val art by androidx.compose.runtime.produceState(if (styled) PosterArt.cached(item, service) else null, item.key, styled, service) {
+                if (styled && value == null) value = PosterArt.get(app, item, service)
+                if (!styled) value = null
+            }
+            val a = art
+            if (a != null) androidx.compose.foundation.Image(a, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else AsyncImage(req, item.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true }, onError = { loaded = true })
+            if (a != null) androidx.compose.runtime.SideEffect { loaded = true }
             if (isNew) Text("NEW", color = Color.White, fontSize = (7 * s).sp, fontWeight = FontWeight.Black,
                 modifier = Modifier.align(Alignment.TopStart).padding((6 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(RED).padding(horizontal = (4 * s).dp))
         }

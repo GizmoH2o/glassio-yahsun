@@ -228,6 +228,37 @@ class Recs(private val settings: Settings, private val http: Http) {
         }.onFailure { Glog.w("TMDB person", it) }.getOrDefault(emptyList())
     }
 
+    /**
+     * Blocking: [item]'s poster without its own lettering (TMDB's language-free one, the best liked), for the poster
+     * style (its name and rating are drawn on it); "" when there's none or no token.
+     */
+    fun textlessPoster(item: HeroItem): String {
+        if (token.isBlank() || !item.id.matches(Regex("tt\\d{6,10}"))) return ""
+        return runCatching {
+            val movie = item.type.equals("movie", true)
+            val k = if (movie) "movie" else "tv"
+            val found = http.json("https://api.themoviedb.org/3/find/${item.id}?external_source=imdb_id", month, token)
+                .optJSONArray(if (movie) "movie_results" else "tv_results")?.optJSONObject(0) ?: return ""
+            val a = http.json("https://api.themoviedb.org/3/$k/${found.optInt("id")}/images?include_image_language=null", month, token)
+                .optJSONArray("posters") ?: return ""
+            (0 until a.length()).mapNotNull { a.optJSONObject(it) }
+                .filter { it.optString("file_path").startsWith("/") && (it.isNull("iso_639_1") || it.optString("iso_639_1").let { l -> l.isBlank() || l == "null" }) }
+                .maxByOrNull { it.optDouble("vote_average", 0.0) * 10 + minOf(it.optInt("vote_count"), 20) }
+                ?.let { "https://image.tmdb.org/t/p/w500" + it.optString("file_path") }.orEmpty()
+        }.onFailure { Glog.w("TMDB textless poster", it) }.getOrDefault("")
+    }
+
+    /** Blocking: where [item] streams (its first service), as the title page says it; "" for none or no token. */
+    fun service(item: HeroItem): String {
+        if (token.isBlank() || !item.id.matches(Regex("tt\\d{6,10}"))) return ""
+        return runCatching {
+            val movie = item.type.equals("movie", true)
+            val found = http.json("https://api.themoviedb.org/3/find/${item.id}?external_source=imdb_id", month, token)
+                .optJSONArray(if (movie) "movie_results" else "tv_results")?.optJSONObject(0) ?: return ""
+            Tmdb(http).providerOf(if (movie) "movie" else "tv", found.optInt("id"), token)
+        }.getOrDefault("")
+    }
+
     /** A person's page: what TMDB says of them (a line or two of their life, born when and where) and how many titles. */
     class PersonInfo(val bio: String, val born: String, val place: String, val dept: String, val count: Int)
 

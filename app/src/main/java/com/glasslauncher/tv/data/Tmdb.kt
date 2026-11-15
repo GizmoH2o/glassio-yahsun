@@ -133,6 +133,9 @@ class Tmdb(private val http: Http) {
         )
     }
 
+    /** Where a title streams (its first service, in the TV's country else the US); "" for none. Blocking, cached. */
+    internal fun providerOf(kind: String, id: Int, token: String): String = runCatching { provider(kind, id, token) }.getOrDefault("")
+
     private fun provider(kind: String, id: Int, token: String): String {
         // The TV's own country first: what's on a service differs by country.
         val all = get("https://api.themoviedb.org/3/$kind/$id/watch/providers", token).optJSONObject("results") ?: return ""

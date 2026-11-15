@@ -1149,3 +1149,7 @@ Your favourites	I tuoi preferiti
 Cartoons	Cartoni animati
 Family films	Film per famiglie
 Your apps	Le tue app
+Poster style	Stile locandina
+Your library's posters on Home and My List as the streaming apps' own: the picture without its lettering, the title's logo, its age rating and genre · rating · year	Le locandine della tua libreria in Home e nella mia lista come quelle delle app di streaming: l'immagine senza scritte, il logo del titolo, la classificazione e genere · voto · anno
+Where it streams on posters	Dove guardarlo, sulle locandine
+With the poster style: the service it's on, at the top left (none: left empty)	Con lo stile locandina: il servizio dove si trova, in alto a sinistra (nessuno: vuoto)

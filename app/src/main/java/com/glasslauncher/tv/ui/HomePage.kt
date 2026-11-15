@@ -692,7 +692,7 @@ internal fun HomePage(
                         if (i == list.size) SeeAllCard(s, mod, onLibrary)
                         else {
                             val item = list[i]
-                            PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row,
+                            PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row, styled = settings.posterStyle,
                                 beside = { listOfNotNull(list.getOrNull(i - 1), list.getOrNull(i + 1)).map { app.shelf.filled(it) } }, onFocused = { selected = item },
                                 onOpen = { openCard(item) },
                                 onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog)) })
@@ -1272,8 +1272,15 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
     /** Seconds open before its trailer plays in its picture (Settings › Home › Trailer in the open card); 0: none. */
     trailerSec: Int = 0, app: GlassApp? = null, look: CardLook = CardLook(), row: RowOpen? = null,
     /** The cards either side of it: their wide pictures load while it's open, so moving along the row opens the next at once. */
-    beside: () -> List<HeroItem> = { emptyList() }) {
+    beside: () -> List<HeroItem> = { emptyList() },
+    /** The poster style (Settings › Home): the poster painted as the streaming apps' (PosterArt). */
+    styled: Boolean = false) {
     val ctx = LocalContext.current
+    val service = app?.settings?.posterService ?: true
+    val art by androidx.compose.runtime.produceState(if (styled) PosterArt.cached(item, service) else null, item.key, styled, service) {
+        if (styled && app != null && value == null) value = PosterArt.get(app, item, service)
+        if (!styled) value = null
+    }
     var focused by remember { mutableStateOf(false) }
     var open by remember { mutableStateOf(false) }
     LaunchedEffect(focused, expand) {
@@ -1369,12 +1376,15 @@ private fun PosterCard(item: HeroItem, s: Float, expand: Boolean, modifier: Modi
             else RawText(item.name, color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = (6 * s).dp, bottom = (3 * s).dp))
         }
+        val styledArt = art
         if (posterA > 0.01f) {
-            if (item.poster.isNotBlank()) AsyncImage(remember(item.poster) { req(ctx, item.poster, 300, 450) }, item.name, contentScale = ContentScale.Crop,
+            if (styledArt != null) androidx.compose.foundation.Image(styledArt, item.name, contentScale = ContentScale.Crop,
+                modifier = Modifier.width((POSTER_W * s).dp).fillMaxHeight().graphicsLayer { alpha = posterA })
+            else if (item.poster.isNotBlank()) AsyncImage(remember(item.poster) { req(ctx, item.poster, 300, 450) }, item.name, contentScale = ContentScale.Crop,
                 modifier = Modifier.width((POSTER_W * s).dp).fillMaxHeight().graphicsLayer { alpha = posterA })
             else RawText(item.name, color = Color.White.copy(alpha = 0.7f * posterA), fontSize = (8 * s).sp, modifier = Modifier.align(Alignment.CenterStart).width((POSTER_W * s).dp).padding((8 * s).dp))
         }
-        if (item.rating.isNotBlank() && !open && posterA > 0.5f) Box(Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = (2 * s).dp, vertical = (1 * s).dp)) {
+        if (styledArt == null && item.rating.isNotBlank() && !open && posterA > 0.5f) Box(Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((2 * s).dp)).background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = (2 * s).dp, vertical = (1 * s).dp)) {
             ImdbBadge(item.rating, s, small = true)
         }
         if (infoA > 0.01f) Column(Modifier.fillMaxSize().graphicsLayer { alpha = infoA; translationY = (1f - infoA) * (if (together) 12 else 6) * s * density }) {

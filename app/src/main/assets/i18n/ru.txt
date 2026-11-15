@@ -1150,3 +1150,7 @@ Your favourites	Твоё любимое
 Cartoons	Мультфильмы
 Family films	Семейные фильмы
 Your apps	Твои приложения
+Poster style	Стиль постеров
+Your library's posters on Home and My List as the streaming apps' own: the picture without its lettering, the title's logo, its age rating and genre · rating · year	Постеры вашей библиотеки на главной и в «Моём списке» как в стриминговых приложениях: картинка без надписей, логотип, возрастной рейтинг и жанр · оценка · год
+Where it streams on posters	Где смотреть — на постерах
+With the poster style: the service it's on, at the top left (none: left empty)	Со стилем постеров: сервис, где он есть, слева сверху (нет — пусто)

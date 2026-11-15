@@ -1150,3 +1150,7 @@ Your favourites	Deine Lieblinge
 Cartoons	Cartoons
 Family films	Familienfilme
 Your apps	Deine Apps
+Poster style	Poster-Stil
+Your library's posters on Home and My List as the streaming apps' own: the picture without its lettering, the title's logo, its age rating and genre · rating · year	Die Poster deiner Mediathek auf der Startseite und in Meiner Liste wie bei den Streaming-Apps: Bild ohne Schrift, Logo des Titels, Altersfreigabe und Genre · Bewertung · Jahr
+Where it streams on posters	Streaming-Dienst auf Postern
+With the poster style: the service it's on, at the top left (none: left empty)	Mit dem Poster-Stil: der Dienst, auf dem es läuft, oben links (keiner: leer)
