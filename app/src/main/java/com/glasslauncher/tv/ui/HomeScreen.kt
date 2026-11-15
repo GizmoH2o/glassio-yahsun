@@ -1060,10 +1060,26 @@ private fun FadeBackdrop(prev: ImageBitmap?, cur: ImageBitmap?, mix: androidx.co
     remember(slide, slowZoom) { since[1] = since[0]; since[0] = android.os.SystemClock.uptimeMillis(); 0 }
     // The frame's time, ticking only while a picture is still growing (read while drawing: a redraw, never a recompose).
     val now = remember { androidx.compose.runtime.mutableLongStateOf(android.os.SystemClock.uptimeMillis()) }
+    // Paused while you're moving around (and a moment after): a picture changing size every frame has everything that
+    // shows it through glass drawn again too, which on a weak TV halved Home's frame rate as you navigated (34 ms a
+    // frame, 20 without). The zoom is slow enough that the pause can't be seen; it goes on from where it was.
+    val app = LocalContext.current.applicationContext as GlassApp
     LaunchedEffect(slide, slowZoom, cur == null) {
         if (!slowZoom || cur == null) return@LaunchedEffect
+        // Paused: nothing changes (no redraw). Going on: the time it was paused is added to when each picture came in,
+        // so the zoom takes up exactly where it stopped.
+        var pausedAt = 0L
         while (slowZoomOf(since[0], now.longValue, HERO_ZOOM_PER_S) < SLOW_ZOOM_MAX || mix.value < 1f) {
-            androidx.compose.runtime.withFrameMillis { now.longValue = android.os.SystemClock.uptimeMillis() }
+            val t = android.os.SystemClock.uptimeMillis()
+            if (t - app.lastKeyAt < ZOOM_PAUSE_MS) {
+                // (Waiting without asking for frames: no frame at all for the zoom while paused.)
+                if (pausedAt == 0L) pausedAt = now.longValue
+                kotlinx.coroutines.delay(100)
+            } else androidx.compose.runtime.withFrameMillis {
+                val f = android.os.SystemClock.uptimeMillis()
+                if (pausedAt != 0L) { val gap = f - pausedAt; since[0] += gap; since[1] += gap; pausedAt = 0L }
+                now.longValue = f
+            }
         }
     }
     val origin = androidx.compose.ui.graphics.TransformOrigin(HERO_ZOOM_X, HERO_ZOOM_Y)
@@ -1103,6 +1119,9 @@ internal fun Modifier.pageEnter(key: Any?, reduce: Boolean): Modifier {
     }
 }
 internal const val PAGE_ENTER_MS = 380
+
+/** How long after a key the big picture's slow zoom stays paused (it resumes once you've stopped moving). */
+private const val ZOOM_PAUSE_MS = 1_200L
 
 /**
  * Slow zoom (Settings › Home), measured from a streaming app's recording: a steady pace from the moment a picture
