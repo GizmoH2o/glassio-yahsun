@@ -705,7 +705,7 @@ internal fun HomePage(
                     val row = remember { RowOpen() }.takeIf { settings.cardKeepOpen }
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
-                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row,
+                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row, styled = settings.posterStyle,
                                 beside = { listOfNotNull(list.getOrNull(i - 1), list.getOrNull(i + 1)).map { app.shelf.filled(it) } }, onFocused = { selected = item }, onOpen = { openCard(item) },
                             onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog, c)) })
                     }
@@ -716,7 +716,7 @@ internal fun HomePage(
                     val row = remember { RowOpen() }.takeIf { settings.cardKeepOpen }
                     CardRow(s, req(part), above(part), below(part), list.map { it.key }) { i, mod ->
                         val item = list[i]
-                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row,
+                        PosterCard(app.shelf.filled(item), s, settings.homeExpand, mod, trailerSec = cardTrailer, app = app, look = cardLook, row = row, styled = settings.posterStyle,
                                 beside = { listOfNotNull(list.getOrNull(i - 1), list.getOrNull(i + 1)).map { app.shelf.filled(it) } }, onFocused = { selected = item }, onOpen = { openCard(item) },
                             onHold = { if (!kids) onDialog(titleMenu(app, ctx, item, scope, onDialog)) })
                     }

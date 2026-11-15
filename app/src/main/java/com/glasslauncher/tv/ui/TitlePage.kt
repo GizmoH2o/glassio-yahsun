@@ -702,6 +702,13 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
     var loaded by remember(h.poster) { mutableStateOf(h.poster.isBlank()) }
+    val app = ctx.applicationContext as com.glasslauncher.tv.GlassApp
+    val styled = app.settings.posterStyle; val service = app.settings.posterService
+    val art by androidx.compose.runtime.produceState(if (styled) PosterArt.cached(h, service) else null, h.key, styled, service) {
+        if (styled && value == null) value = PosterArt.get(app, h, service)
+        if (!styled) value = null
+    }
+    if (art != null) androidx.compose.runtime.SideEffect { loaded = true }
     Column(modifier.width((width * s).dp)) {
         Box(
             Modifier.fillMaxWidth().aspectRatio(2f / 3f)
@@ -715,13 +722,17 @@ internal fun SmallPoster(h: HeroItem, s: Float, modifier: Modifier, width: Float
             contentAlignment = Alignment.Center,
         ) {
             RawText(h.name, color = Text2, fontSize = (8 * s).sp, modifier = Modifier.padding((4 * s).dp))
-            if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            // The poster style (Settings › Home): the poster painted as the streaming apps' (PosterArt), once made.
+            val shownArt = art
+            if (shownArt != null) androidx.compose.foundation.Image(shownArt, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            else if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(240, 360).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize(),
                 onSuccess = { loaded = true }, onError = { loaded = true })
+            // NEW: under the service's name on a styled poster (which has that corner).
             if (isNewOut(h)) Text("NEW", color = Color.White, fontSize = (5.5f * s).sp, fontWeight = FontWeight.Black,
-                modifier = Modifier.align(Alignment.TopStart).padding((4 * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(LocalAccent.current).padding(horizontal = (3 * s).dp))
+                modifier = Modifier.align(Alignment.TopStart).padding(start = (4 * s).dp, top = ((if (art != null) 13 else 4) * s).dp).clip(RoundedCornerShape((1.5f * s).dp)).background(LocalAccent.current).padding(horizontal = (3 * s).dp))
         }
-        // The same line under it as every card has (rating · year · genre).
-        val detail = cardDetail(h)
+        // The same line under it as every card has (rating · year · genre); a styled poster has it on itself.
+        val detail = if (art != null) "" else cardDetail(h)
         if (detail.isNotEmpty()) RawText(detail, color = if (focused) Color.White.copy(alpha = 0.85f) else Text2, fontSize = (6.5f * s).sp, maxLines = 1,
             modifier = Modifier.padding(top = (4 * s).dp))
     }

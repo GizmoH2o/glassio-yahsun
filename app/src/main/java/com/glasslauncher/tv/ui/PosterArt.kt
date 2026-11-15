@@ -36,7 +36,7 @@ object PosterArt {
     private const val W = 330
     private const val H = 495
     /** Bumped when the look changes: older pictures on disk are then made again. */
-    private const val LOOK = 2
+    private const val LOOK = 3
 
     private val mem = android.util.LruCache<String, ImageBitmap>(36)
     private val gate = Semaphore(2)
@@ -60,12 +60,20 @@ object PosterArt {
                 val fromDisk = runCatching { android.graphics.BitmapFactory.decodeFile(file.path) }.getOrNull()
                 val made = fromDisk ?: runCatching { make(app, app.shelf.filled(item), service) }
                     .onFailure { com.glasslauncher.tv.data.Glog.w("Poster style: ${item.name}", it) }.getOrNull()
-                    ?.also { b -> runCatching { file.outputStream().use { b.compress(webp(), 88, it) } } }
+                    ?.also { b -> runCatching { file.outputStream().use { b.compress(webp(), 88, it) } }; if (++written % 40 == 0) prune(file.parentFile) }
                 if (made == null) { failed[k] = System.currentTimeMillis(); return@withPermit null }
                 made.prepareToDraw()
                 made.asImageBitmap().also { mem.put(k, it) }
             }
         }
+    }
+
+    private var written = 0
+
+    /** Keeps the newest posters on disk, so the folder doesn't grow for ever. */
+    private fun prune(dir: File?) = runCatching {
+        val all = dir?.listFiles()?.sortedByDescending { it.lastModified() } ?: return@runCatching
+        all.drop(500).forEach { it.delete() }
     }
 
     /** Forgets every made poster (a setting changed what's on them). */
@@ -90,10 +98,11 @@ object PosterArt {
     private suspend fun make(app: GlassApp, item: HeroItem, service: Boolean): Bitmap? {
         // The picture: without its own lettering when TMDB has one; else the catalog's poster (which has its name on it,
         // so the name isn't painted a second time).
-        val textless = app.recs.textlessPoster(item)
+        val (textless, tmdbLogo) = app.recs.posterImages(item)
         val pic = load(app, textless, W, H) ?: load(app, item.poster, W, H) ?: return null
         val ownName = textless.isNotBlank()
-        val logo = if (ownName && item.logo.isNotBlank()) runCatching { load(app, item.logo, 600, 220) }.getOrNull() else null
+        val logoUrl = item.logo.ifBlank { tmdbLogo }
+        val logo = if (ownName && logoUrl.isNotBlank()) runCatching { load(app, logoUrl, 600, 220) }.getOrNull() else null
         val cert = runCatching { app.recs.extras(item).cert }.getOrDefault("")
 
         val out = Bitmap.createBitmap(W, H, Bitmap.Config.ARGB_8888)
