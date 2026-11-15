@@ -42,14 +42,15 @@ object PosterArt {
     private val gate = Semaphore(2)
     private val failed = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    private fun key(item: HeroItem, service: Boolean) = "${item.key}|$service|$LOOK"
+    /** [round]: Kids Home's rounder corners (its painted edge follows them). */
+    private fun key(item: HeroItem, service: Boolean, round: Boolean = false) = "${item.key}|$service|$LOOK" + if (round) "|round" else ""
 
     /** Already made, in memory (no waiting): for a card's first frame. */
-    fun cached(item: HeroItem, service: Boolean): ImageBitmap? = mem.get(key(item, service))
+    fun cached(item: HeroItem, service: Boolean, round: Boolean = false): ImageBitmap? = mem.get(key(item, service, round))
 
     /** The poster for [item]: from memory, else from disk, else made now (background). Null if it can't be made. */
-    suspend fun get(app: GlassApp, item: HeroItem, service: Boolean): ImageBitmap? {
-        val k = key(item, service)
+    suspend fun get(app: GlassApp, item: HeroItem, service: Boolean, round: Boolean = false): ImageBitmap? {
+        val k = key(item, service, round)
         mem.get(k)?.let { return it }
         // Not made a minute ago (no picture, no connection): not asked again straight away.
         failed[k]?.let { if (System.currentTimeMillis() - it < 10 * 60_000L) return null }
@@ -58,7 +59,7 @@ object PosterArt {
                 mem.get(k)?.let { return@withPermit it }
                 val file = File(File(app.cacheDir, "posters").apply { mkdirs() }, hash(k) + ".webp")
                 val fromDisk = runCatching { android.graphics.BitmapFactory.decodeFile(file.path) }.getOrNull()
-                val made = fromDisk ?: runCatching { make(app, app.shelf.filled(item), service) }
+                val made = fromDisk ?: runCatching { make(app, app.shelf.filled(item), service, round) }
                     .onFailure { com.glasslauncher.tv.data.Glog.w("Poster style: ${item.name}", it) }.getOrNull()
                     ?.also { b -> runCatching { file.outputStream().use { b.compress(webp(), 88, it) } }; if (++written % 40 == 0) prune(file.parentFile) }
                 if (made == null) { failed[k] = System.currentTimeMillis(); return@withPermit null }
@@ -95,7 +96,7 @@ object PosterArt {
     }
 
     /** Paints the poster. Background thread. */
-    private suspend fun make(app: GlassApp, item: HeroItem, service: Boolean): Bitmap? {
+    private suspend fun make(app: GlassApp, item: HeroItem, service: Boolean, round: Boolean = false): Bitmap? {
         // The picture: without its own lettering when TMDB has one; else the catalog's poster (which has its name on it,
         // so the name isn't painted a second time).
         val (textless, tmdbLogo) = app.recs.posterImages(item)
@@ -176,7 +177,7 @@ object PosterArt {
         val tint = com.glasslauncher.tv.ui.BackdropTint.of(pic)
         val edge = tint?.let { val hsv = FloatArray(3); AColor.colorToHSV(it, hsv); hsv[1] = hsv[1].coerceIn(0.25f, 0.6f); hsv[2] = 0.55f; AColor.HSVToColor(hsv) }
             ?: AColor.argb(90, 255, 255, 255)
-        val sw = w * 0.012f; val rad = w * 0.055f
+        val sw = w * 0.012f; val rad = w * (if (round) 0.154f else 0.055f)
         c.drawRoundRect(RectF(sw / 2f, sw / 2f, w - sw / 2f, h - sw / 2f), rad, rad,
             Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = sw; color = edge })
         return out

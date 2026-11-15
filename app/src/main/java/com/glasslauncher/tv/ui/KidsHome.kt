@@ -182,9 +182,19 @@ private fun BigKidsCard(h: HeroItem, s: Float, modifier: Modifier, onClick: () -
 private fun KidsPoster(h: HeroItem, s: Float, modifier: Modifier, onClick: () -> Unit) {
     val ctx = LocalContext.current
     var focused by remember { mutableStateOf(false) }
-    Box(modifier.width((78 * s).dp).height((110 * s).dp).onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
+    // The poster style (Settings › Home), with Kids Home's round corners: painted once (PosterArt), the plain poster till then.
+    val app = ctx.applicationContext as GlassApp
+    val styled = app.settings.posterStyle; val service = app.settings.posterService
+    val art by androidx.compose.runtime.produceState(if (styled) PosterArt.cached(h, service, round = true) else null, h.key, styled, service) {
+        if (styled && value == null) value = PosterArt.get(app, h, service, round = true)
+        if (!styled) value = null
+    }
+    // 2:3, as posters are (the painted edge runs right round it).
+    Box(modifier.width((78 * s).dp).height((117 * s).dp).onFocusChanged { focused = it.isFocused }.tvPress(onKey = backKey(), onClick = onClick)
         .cardFocus(s, focused, 12f, 1.07f).clip(RoundedCornerShape((12 * s).dp)).background(Color.White.copy(alpha = 0.1f))) {
-        if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(300, 450).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        val shownArt = art
+        if (shownArt != null) androidx.compose.foundation.Image(shownArt, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        else if (h.poster.isNotBlank()) AsyncImage(remember(h.poster) { ImageRequest.Builder(ctx).data(h.poster).size(300, 450).build() }, h.name, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         else RawText(h.name, color = Color.White, fontSize = (9 * s).sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Center).padding((6 * s).dp))
     }
 }
