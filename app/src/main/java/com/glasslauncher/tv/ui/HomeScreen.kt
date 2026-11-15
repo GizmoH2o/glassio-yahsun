@@ -592,7 +592,13 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             }
             val motionOff = LocalReduceMotion.current
             val onHome = screen == Screen.Home
-            if (!folderOpen && screen != Screen.Title && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade", backdropSlide,
+            // Under a tab's page (a solid page over all of it) once it has come in, and under Kids Home: not drawn at all.
+            // Still painted it cost a weak TV's graphics chip about 7 ms every frame, for nothing seen (30 fps instead of 60).
+            val tabOver = screen == Screen.Library || screen == Screen.LiveTv || screen == Screen.Following || screen == Screen.Search
+            var backdropCovered by remember { mutableStateOf(false) }
+            LaunchedEffect(tabOver) { if (tabOver) { delay(700); backdropCovered = true } else backdropCovered = false }
+            val kidsOwnHome = settings.kidsMode && settings.kidsHome
+            if (!folderOpen && screen != Screen.Title && !(tabOver && backdropCovered) && !kidsOwnHome && DebugHide.intValue and 1 == 0) PageBackdrop(prevBackdropS, shownBackdropS, slideDirS, mix, "fade", backdropSlide,
                 slowZoom = !motionOff && settings.slowZoom in setOf("hero", "both"),
                 lift = { if (onHome && settings.heroScroll == "away") pageOffset.floatValue else 0f }) {
                 if (trailerDrawn) 1f - trailerShown.value else 1f
@@ -624,7 +630,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             ) {
                 // A kids profile: its own Home (mockup 34); the grown-ups' way out is the profile menu, behind the PIN.
                 if (settings.kidsMode && settings.kidsHome) {
-                    LaunchedEffect(Unit) { backdrop = null }
+                    LaunchedEffect(Unit) { backdrop = null; trailer = null; trailerItem = null }
                     KidsHome(app, s, heroFocus, active = screen == Screen.Home && !folderOpen && !menuOpen && dialog == null, onTitle = openTitle,
                         onGrownUps = { dialog = profileMenu(app, ctx, askPin) { d -> scope.launch { delay(80); dialog = d } } })
                 } else HomePage(
@@ -677,7 +683,8 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                     center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
                 Box(Modifier.padding(start = (EDGE * s).dp, top = (26 * s).dp).width((220 * s).dp)) { Title(cineItem, settings.titleMode.takeIf { it != "hidden" } ?: "text", settings.titleScale * 0.7f, s) }
                 Column(Modifier.align(Alignment.BottomStart).padding(start = (EDGE * s).dp, bottom = (26 * s).dp), verticalArrangement = Arrangement.spacedBy((5 * s).dp)) {
-                    val r = app.cw.items.value.firstOrNull { it.key == cineItem.key }
+                    val cwNow by app.cw.items.collectAsState()
+                    val r = cwNow.firstOrNull { it.key == cineItem.key }
                     if (NuvioLaunch.playable(ctx, settings)) Row(Modifier.height((30 * s).dp).clip(RoundedCornerShape(50)).background(Color.White).padding(horizontal = (18 * s).dp),
                         verticalAlignment = Alignment.CenterVertically) {
                         PlayGlyph(Modifier.size((9 * s).dp), Ds.Ink)
@@ -737,7 +744,7 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
             val tabPage = if (screen == Screen.Title) titleFrom else screen
             PageLayer(tabPage.takeIf { it == Screen.Library || it == Screen.LiveTv || it == Screen.Following || it == Screen.Search }, motionOff) { tabPage -> Box(
                 // My List's colour (its selected poster's) runs up behind the tabs too, as Home's picture does.
-                Modifier.fillMaxSize().background(if (tabPage == Screen.Library) TabPageTint.color.value ?: Ds.Bg else Ds.Bg).focusProperties { canFocus = screen != Screen.Title },
+                Modifier.fillMaxSize().drawBehind { drawRect(if (tabPage == Screen.Library) TabPageTint.color.value?.value ?: Ds.Bg else Ds.Bg) }.focusProperties { canFocus = screen != Screen.Title },
             ) {
                 val onTop = screen != Screen.Title
                 // Live TV's picture runs up behind the tabs; the others start under them.
@@ -750,9 +757,10 @@ fun HomeScreen(app: GlassApp, screen: Screen, onScreenAsked: (Screen) -> Unit) {
                 }
                 // What scrolls up goes behind the tabs: in the page's own colour, so nothing reads through them and the
                 // colour runs on up (My List); Live TV's picture fades up into them under a soft shade, as Home's does.
-                if (onTop) Box(Modifier.fillMaxWidth().height(((if (tabPage == Screen.LiveTv) 64 else 58) * s).dp).background(
-                    if (tabPage == Screen.LiveTv) Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent)
-                    else Brush.verticalGradient(0.72f to (if (tabPage == Screen.Library) TabPageTint.color.value ?: Ds.Bg else Ds.Bg), 1f to Color.Transparent)))
+                if (onTop) Box(Modifier.fillMaxWidth().height(((if (tabPage == Screen.LiveTv) 64 else 58) * s).dp).drawBehind {
+                    drawRect(if (tabPage == Screen.LiveTv) Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent)
+                        else Brush.verticalGradient(0.72f to (if (tabPage == Screen.Library) TabPageTint.color.value?.value ?: Ds.Bg else Ds.Bg), 1f to Color.Transparent))
+                })
                 if (onTop) TabBar(app, screen, s, tabFocus, Modifier.align(Alignment.TopCenter).padding(top = (14 * s).dp), onDown = { tabDown++ }) { to -> if (to == Screen.Search) SearchFilter.now.value = "all"; onScreen(to) }
             } }
             // A row opened as a page (the card sheet's See all), over Home; a title opens over it, and Back from that comes back here.

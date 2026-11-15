@@ -34,6 +34,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEvent
@@ -361,5 +363,61 @@ fun Modifier.loadingSweep(loading: Boolean): Modifier = if (!loading) this else 
         drawRect(androidx.compose.ui.graphics.Brush.linearGradient(
             listOf(Color.Transparent, Color.White.copy(alpha = 0.07f), Color.Transparent),
             start = androidx.compose.ui.geometry.Offset(w * (x - 0.5f), 0f), end = androidx.compose.ui.geometry.Offset(w * x, size.height)))
+    }
+}
+
+/** Small top-to-bottom gradient pictures, by their stops: made once each. */
+private val gradientPictures = java.util.concurrent.ConcurrentHashMap<List<Pair<Float, Color>>, androidx.compose.ui.graphics.ImageBitmap>()
+
+/**
+ * A top-to-bottom gradient behind the content, painted once into a 4 × 256 picture (dithered) and stretched over the
+ * area: a TV's graphics chip pays a picture copy instead of the gradient over every pixel (a whole screen of it cost
+ * one 14 ms a frame).
+ */
+internal fun Modifier.stretchedGradient(stops: List<Pair<Float, Color>>): Modifier {
+    val pic = gradientPictures.getOrPut(stops) {
+        val h = 256
+        val b = android.graphics.Bitmap.createBitmap(4, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
+        p.shader = android.graphics.LinearGradient(0f, 0f, 0f, h.toFloat(), stops.map { it.second.toArgb() }.toIntArray(),
+            stops.map { it.first }.toFloatArray(), android.graphics.Shader.TileMode.CLAMP)
+        android.graphics.Canvas(b).drawRect(0f, 0f, 4f, h.toFloat(), p)
+        b.prepareToDraw()
+        b.asImageBitmap()
+    }
+    return this.drawBehind {
+        drawImage(pic, srcOffset = androidx.compose.ui.unit.IntOffset.Zero, srcSize = androidx.compose.ui.unit.IntSize(pic.width, pic.height),
+            dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
+    }
+}
+
+/** Small gradient masks (white, the stops' opacity), by direction and stops: made once each. */
+private val gradientMasks = java.util.concurrent.ConcurrentHashMap<Pair<Boolean, List<Pair<Float, Float>>>, androidx.compose.ui.graphics.ImageBitmap>()
+
+/**
+ * A shade over the whole area in [color] (read while drawing: it can change every frame at no cost), its opacity
+ * going by [stops] (position 0..1, opacity) left to right ([horizontal]) or top to bottom: a 256-step mask picture
+ * stretched and tinted, not a live gradient (two full-screen ones cost a TV's graphics chip 30 ms a frame).
+ */
+internal fun Modifier.stretchedShade(horizontal: Boolean, stops: List<Pair<Float, Float>>, color: () -> Color, alpha: () -> Float = { 1f }): Modifier {
+    val mask = gradientMasks.getOrPut(horizontal to stops) {
+        val n = 256
+        val w = if (horizontal) n else 4; val h = if (horizontal) 4 else n
+        val b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
+        val colors = stops.map { android.graphics.Color.argb((it.second.coerceIn(0f, 1f) * 255).toInt(), 255, 255, 255) }.toIntArray()
+        p.shader = android.graphics.LinearGradient(0f, 0f, if (horizontal) w.toFloat() else 0f, if (horizontal) 0f else h.toFloat(),
+            colors, stops.map { it.first }.toFloatArray(), android.graphics.Shader.TileMode.CLAMP)
+        android.graphics.Canvas(b).drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
+        b.prepareToDraw()
+        b.asImageBitmap()
+    }
+    return this.drawBehind {
+        val a = alpha()
+        if (a <= 0.003f) return@drawBehind
+        drawImage(mask, srcOffset = androidx.compose.ui.unit.IntOffset.Zero, srcSize = androidx.compose.ui.unit.IntSize(mask.width, mask.height),
+            dstSize = androidx.compose.ui.unit.IntSize(size.width.toInt(), size.height.toInt()), alpha = a,
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(color(), androidx.compose.ui.graphics.BlendMode.Modulate),
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.Low)
     }
 }

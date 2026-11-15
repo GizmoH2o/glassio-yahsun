@@ -52,7 +52,11 @@ object BackdropTint {
  * ground until one is read, then a slow change to its tint. With Reduce motion, or nothing selected: the ground.
  */
 @androidx.compose.runtime.Composable
-fun rememberPageTint(picture: String?): androidx.compose.ui.graphics.Color {
+fun rememberPageTint(picture: String?): androidx.compose.ui.graphics.Color = rememberPageTintState(picture).value
+
+/** The same, as the animated value itself: read it while drawing and its change repaints, without rebuilding the page. */
+@androidx.compose.runtime.Composable
+fun rememberPageTintState(picture: String?): androidx.compose.runtime.State<androidx.compose.ui.graphics.Color> {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var tint by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Int?>(null) }
     androidx.compose.runtime.LaunchedEffect(picture) {
@@ -64,6 +68,5 @@ fun rememberPageTint(picture: String?): androidx.compose.ui.graphics.Color {
         tint = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { BackdropTint.of(bmp) }
     }
     val target = tint?.let { androidx.compose.ui.graphics.Color(it) } ?: Ds.Bg
-    val c by androidx.compose.animation.animateColorAsState(target, androidx.compose.animation.core.tween(900), label = "pageTint")
-    return c
+    return androidx.compose.animation.animateColorAsState(target, androidx.compose.animation.core.tween(900), label = "pageTint")
 }

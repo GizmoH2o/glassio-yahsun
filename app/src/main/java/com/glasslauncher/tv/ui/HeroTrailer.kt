@@ -348,9 +348,10 @@ fun HeroTrailer(ids: String, shown: () -> Float, onPlaying: () -> Unit, onWaitin
             )
             // The backdrops' own shades (baked into them, so gone as they fade): dark at the left (the text) and the bottom.
             // (Cinematic: they go with the page, so the trailer has the screen to itself.)
-            Box(Modifier.fillMaxSize().graphicsLayer { alpha = shown() * shade() }
-                .background(Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.78f), 0.45f to Color.Black.copy(alpha = 0.25f), 0.7f to Color.Transparent))
-                .background(Brush.verticalGradient(0.55f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.7f))))
+            // (Stretched masks, not live gradients: a TV's graphics chip pays a picture copy, not a gradient per pixel.)
+            Box(Modifier.fillMaxSize()
+                .stretchedShade(true, listOf(0f to 0.78f, 0.45f to 0.25f, 0.7f to 0f, 1f to 0f), { Color.Black }, { shown() * shade() })
+                .stretchedShade(false, listOf(0f to 0f, 0.55f to 0f, 1f to 0.7f), { Color.Black }, { shown() * shade() }))
         }
     }
 }

@@ -243,7 +243,9 @@ class Recs(private val settings: Settings, private val http: Http) {
             val picked = if (dept == "Acting") acted.ifEmpty { made } else made.ifEmpty { acted }
             val genres = genreNames()
             val titles = picked.mapNotNull { o -> runCatching { tmdbItem(o, null, genres) }.getOrNull() }
-            val count = ((credits.optJSONArray("cast")?.length() ?: 0) + (credits.optJSONArray("crew")?.length() ?: 0))
+            // Each title once (a film they acted in and produced is one title, not two).
+            val count = listOf("cast", "crew").flatMap { k -> credits.optJSONArray(k)?.let { a -> (0 until a.length()).mapNotNull { a.optJSONObject(it) } }.orEmpty() }
+                .filter { it.optString("media_type") in setOf("movie", "tv") }.map { it.optString("media_type") + it.optInt("id") }.toSet().size
             fun t(k: String) = root.optString(k).takeIf { it.isNotBlank() && it != "null" }.orEmpty()
             PersonInfo(t("biography"), t("birthday").take(4), t("place_of_birth"), dept, count) to titles
         }.onFailure { Glog.w("TMDB person page", it) }.getOrNull()

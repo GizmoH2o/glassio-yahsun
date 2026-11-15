@@ -129,7 +129,12 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     val shown = tab?.items.orEmpty()
     val hasAny = tabs.any { it.items.isNotEmpty() }
     // Its first poster once there's one, unless you're moving along the tabs (the selection stays there, as on the other tabs).
-    LaunchedEffect(hasAny) { if (hasAny) { delay(60); if (!TabHandoff.barFocused) runCatching { first.requestFocus() } } }
+    // (Asked again until it's there: the posters may come a moment after the page.)
+    LaunchedEffect(hasAny) {
+        if (!hasAny) return@LaunchedEffect
+        delay(60)
+        repeat(15) { if (TabHandoff.barFocused || runCatching { first.requestFocus() }.getOrDefault(false) == true) return@LaunchedEffect; delay(80) }
+    }
     // Back from a title's page: on the poster it came from.
     var lastKey by remember { mutableStateOf<String?>(null) }
     val lastFocus = remember { FocusRequester() }
@@ -161,11 +166,12 @@ fun LibraryScreen(app: GlassApp, active: Boolean = true, downAsk: Int = 0, toTab
     var keptPic by remember { mutableStateOf<String?>(null) }
     if (selectedPic != null) keptPic = selectedPic
     val following = tab?.key == FOLLOWING
-    val ground = rememberPageTint((if (following) keptPic else selectedPic).takeIf { !LocalReduceMotion.current })
+    // As a value read while drawing: its 0.9 s change repaints the page's ground, not the whole page each frame.
+    val ground = rememberPageTintState((if (following) keptPic else selectedPic).takeIf { !LocalReduceMotion.current })
     // Up behind the tabs too (the bar's page draws it there).
     androidx.compose.runtime.SideEffect { TabPageTint.color.value = ground }
     androidx.compose.runtime.DisposableEffect(Unit) { onDispose { TabPageTint.color.value = null } }
-    Column(Modifier.fillMaxSize().background(ground)) {
+    Column(Modifier.fillMaxSize().drawBehind { drawRect(ground.value) }) {
         // The heading and the filters: one and the same for every list, Following too, so moving from one filter to
         // the next never takes the selection off it (two copies of the row lost it for a moment: to Home in the bar).
         Column(Modifier.padding(start = (64 * s).dp, end = (64 * s).dp, top = (34 * s).dp)) {
@@ -379,4 +385,4 @@ private fun sharpPoster(u: String): String = when {
 private const val FOLLOWING = "following"
 
 /** My List's page colour, for the strip behind the tabs above it (null: the plain page colour). */
-internal object TabPageTint { val color = androidx.compose.runtime.mutableStateOf<Color?>(null) }
+internal object TabPageTint { val color = androidx.compose.runtime.mutableStateOf<androidx.compose.runtime.State<Color>?>(null) }

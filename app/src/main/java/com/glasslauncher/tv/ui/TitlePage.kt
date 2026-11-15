@@ -1,5 +1,7 @@
 package com.glasslauncher.tv.ui
 
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
@@ -267,26 +269,46 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
         // The trailer, under the picture that fades away once it plays (the TV's video plane shows through).
         if (inline) trailerIds?.let { ids ->
             HeroTrailer(ids, { inlineShown.value }, onPlaying = { inlinePlaying = true }, onWaiting = { inlinePlaying = false },
-                muted = false, shade = { uiA }, onProgress = { trailerAt.floatValue = it }) { inline = false; inlinePlaying = false }
+                // How far through: only while the cinematic view shows it (each change redraws the whole page, 4 a second).
+                muted = false, shade = { uiA }, onProgress = { if (uiA < 0.99f) trailerAt.floatValue = it }) { inline = false; inlinePlaying = false }
         }
         val pic = shown.background.ifBlank { shown.poster }
-        if (pic.isNotBlank()) AsyncImage(
+        // The picture with its shades painted in, once, off the main thread (as Home's is): the page then draws one solid
+        // picture. Shades drawn live over it were see-through full-screen layers, and blending those took a TV's
+        // graphics chip 30-50 ms a frame (the page at 15 fps). Live shades only while a trailer shows behind.
+        var baked by remember(pic) { mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null) }
+        val bakeW = constraints.maxWidth; val bakeH = constraints.maxHeight
+        // Down in the details the picture dims into the page's colour: with the baked picture, by its own opacity over
+        // the page's solid colour (the very same result as a colour layer over it, without one more full-screen layer).
+        val picAlpha = { (1f - inlineShown.value) * (enter.value * 2.5f).coerceAtMost(1f) * (if (baked != null) 1f - dimA else 1f) }
+        val b = baked
+        if (b != null) androidx.compose.foundation.Image(b, null, contentScale = ContentScale.FillBounds,
+            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = picAlpha() })
+        else if (pic.isNotBlank()) AsyncImage(
             remember(pic) { ImageRequest.Builder(ctx).data(pic).size(1920, 1080).allowHardware(false).build() }, null, contentScale = ContentScale.Crop,
             // The page takes a little of the picture's colour, as Home does (Settings › Look & motion › Colour from the picture).
-            onSuccess = { r -> if (st.backdropTint && !st.highContrast) scope.launch(kotlinx.coroutines.Dispatchers.Default) {
-                BackdropTint.of(r.result.image.toBitmap())?.let { pageTint = Color(it) }
+            onSuccess = { r -> scope.launch(kotlinx.coroutines.Dispatchers.Default) {
+                val src = r.result.image.toBitmap()
+                val t = if (st.backdropTint && !st.highContrast) BackdropTint.of(src) else null
+                t?.let { pageTint = Color(it) }
+                if (bakeW > 0 && bakeH > 0) runCatching { bakeTitlePicture(src, bakeW, bakeH, t?.let { Color(it) } ?: Ds.Bg) }.getOrNull()?.let { baked = it }
             } },
-            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = (1f - inlineShown.value) * (enter.value * 2.5f).coerceAtMost(1f) },
+            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = picAlpha() },
         )
-        // The shades the words need: a band along the bottom, a little at the left.
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.horizontalGradient(0f to pageBg.copy(alpha = 0.7f), 0.35f to pageBg.copy(alpha = 0.2f), 0.6f to Color.Transparent)))
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = uiA }.background(Brush.verticalGradient(0.3f to Color.Transparent, 0.6f to pageBg.copy(alpha = 0.72f), 1f to pageBg)))
+        // The shades the words need: a band along the bottom, a little at the left. Live (stretched masks in the page's
+        // colour) until the picture with them painted in is ready, and over a trailer (coming in as the picture goes).
+        val liveShades by remember { androidx.compose.runtime.derivedStateOf { baked == null || inlineShown.value > 0.001f } }
+        if (liveShades) {
+            val shadeA = { uiA * (if (baked != null) inlineShown.value else 1f) }
+            Box(Modifier.fillMaxSize().stretchedShade(true, TITLE_SHADE_LEFT, { pageBg }, shadeA))
+            Box(Modifier.fillMaxSize().stretchedShade(false, TITLE_SHADE_BOTTOM, { pageBg }, shadeA))
+        }
         // Cinematic: only a soft corner behind Play.
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = 1f - uiA }.background(Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.55f), Color.Transparent),
             center = androidx.compose.ui.geometry.Offset(0f, Float.POSITIVE_INFINITY), radius = 900f)))
         // Cinematic: how far through the trailer is, and that it plays with sound.
         CinematicChrome({ trailerAt.floatValue }, { 1f - uiA }, s)
-        Box(Modifier.fillMaxSize().graphicsLayer { alpha = dimA }.background(pageBg))
+        if (baked == null) Box(Modifier.fillMaxSize().graphicsLayer { alpha = dimA }.background(pageBg))
         val rise = with(androidx.compose.ui.platform.LocalDensity.current) { 40.dp.toPx() }
         val screenPx = with(androidx.compose.ui.platform.LocalDensity.current) { screenH.toPx() }
 
@@ -802,4 +824,32 @@ internal fun airingOf(e: TitleDetails.Episode, airings: List<LiveHome.Airing>): 
         if (m != null) m.groupValues[1].toInt() == e.season && m.groupValues[2].toInt() == e.number
         else name.length >= 4 && a.sub.lowercase().contains(name)
     }
+}
+
+/** The title page's shades (position 0..1, opacity): along the left, and the band along the bottom. */
+private val TITLE_SHADE_LEFT = listOf(0f to 0.7f, 0.35f to 0.2f, 0.6f to 0f, 1f to 0f)
+private val TITLE_SHADE_BOTTOM = listOf(0f to 0f, 0.3f to 0f, 0.6f to 0.72f, 1f to 1f)
+
+/**
+ * The title page's picture at the screen's size, cropped to fill it as on the page, with its shades painted in [bg]
+ * (the page's colour): one solid picture to draw. Background thread.
+ */
+private fun bakeTitlePicture(src: android.graphics.Bitmap, w: Int, h: Int, bg: Color): androidx.compose.ui.graphics.ImageBitmap {
+    val out = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+    val c = android.graphics.Canvas(out)
+    val sc = maxOf(w / src.width.toFloat(), h / src.height.toFloat())
+    val m = android.graphics.Matrix().apply { setScale(sc, sc); postTranslate((w - src.width * sc) / 2f, (h - src.height * sc) / 2f) }
+    c.drawBitmap(src, m, android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+    val argb = bg.toArgb()
+    fun shade(stops: List<Pair<Float, Float>>, horizontal: Boolean) {
+        val p = android.graphics.Paint(android.graphics.Paint.DITHER_FLAG)
+        val colors = stops.map { (argb and 0x00FFFFFF) or ((it.second.coerceIn(0f, 1f) * 255).toInt() shl 24) }.toIntArray()
+        p.shader = android.graphics.LinearGradient(0f, 0f, if (horizontal) w.toFloat() else 0f, if (horizontal) 0f else h.toFloat(),
+            colors, stops.map { it.first }.toFloatArray(), android.graphics.Shader.TileMode.CLAMP)
+        c.drawRect(0f, 0f, w.toFloat(), h.toFloat(), p)
+    }
+    shade(TITLE_SHADE_LEFT, true)
+    shade(TITLE_SHADE_BOTTOM, false)
+    out.prepareToDraw()
+    return out.asImageBitmap()
 }

@@ -51,7 +51,10 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
         if (st.menuLibrary) add("My List" to Screen.Library)
         // Following lives in My List now; its own tab only while you're on its page (from the menu).
         // Sport (Settings): its own tab while you follow a team or a show; Following, only while you're on its page.
-        val follows = androidx.compose.runtime.remember(current) { runCatching { com.glasslauncher.tv.live.LiveHome.followed(app).isNotEmpty() }.getOrDefault(false) }
+        val follows by androidx.compose.runtime.produceState(TabFollows.last, current) {
+            value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveHome.followed(app).isNotEmpty() }.getOrDefault(false) }
+            TabFollows.last = value
+        }
         if (st.menuLive && st.sportPage && st.sportTab && follows) add("Sport" to Screen.Following)
         else if (st.menuLive && st.menuFollowing && current == Screen.Following) add((if (st.sportPage) "Sport" else "Following") to Screen.Following)
         add("Search" to Screen.Search)
@@ -63,9 +66,10 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
     // Arriving by a tab (OK on it): the bar you pressed goes with its page, so this one, the new page's own, takes the
     // focus on its tab at once; else it falls on the first thing there (Home) and the pill shows Home for a moment.
     val mine = remember { FocusRequester() }
-    // Any other way in (the menu, Live TV's own button): the focus falls on the first tab, Home, as the bar comes.
-    // Moved on to the page's own tab, but only in its first moments (a move to Home later is yours).
-    val born = remember { android.os.SystemClock.uptimeMillis() }
+    // Gone while it had the focus (its page closed): the tabs no longer do.
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { if (focusedTab != null) TabHandoff.barFocused = false } }
+    // Any other way in (the menu, Live TV's own button), or a page whose selection wasn't there yet: the system drops
+    // the focus on the first thing it finds, the Home tab. Moved on to the page's own tab when no key took it there.
     val barScope = androidx.compose.runtime.rememberCoroutineScope()
     androidx.compose.runtime.LaunchedEffect(current) {
         if (TabHandoff.pending != current) return@LaunchedEffect
@@ -115,7 +119,7 @@ fun TabBar(app: GlassApp, current: Screen, s: Float, entry: FocusRequester, modi
                     .onFocusChanged {
                         focused = it.isFocused; onFocus(it.isFocused)
                         if (it.isFocused) focusedTab = to else if (focusedTab == to) focusedTab = null
-                        if (it.isFocused && to == Screen.Home && current != Screen.Home && android.os.SystemClock.uptimeMillis() - born < 900)
+                        if (it.isFocused && to == Screen.Home && current != Screen.Home && android.os.SystemClock.uptimeMillis() - app.lastKeyAt > 350)
                             barScope.launch { runCatching { mine.requestFocus() } }
                         TabHandoff.barFocused = focusedTab != null
                     }
@@ -140,3 +144,6 @@ internal object TabHandoff {
     /** A tab has the focus (a page leaves it there as it opens). */
     @Volatile var barFocused = false
 }
+
+/** Whether any team or show is followed, as last read (off the main thread): a new bar starts from it, so the Sport tab doesn't blink. */
+internal object TabFollows { @Volatile var last = false }

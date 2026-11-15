@@ -93,7 +93,9 @@ fun KidsHome(app: GlassApp, s: Float, first: FocusRequester, active: Boolean, on
             .onFocusChanged { if (it.isFocused && key.isNotEmpty()) lastKey = key }
     val open: (HeroItem) -> Unit = { h -> if (h.progress >= 0f && NuvioLaunch.playable(ctx, app.settings)) NuvioLaunch.open(ctx, app.settings, app.http, h) else onTitle(h) }
 
-    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to KIDS_BG, 1f to Color(0xFF0E1830)))) {
+    // The ground's gradient as a small picture stretched: painted live over the whole screen it took a TV's graphics
+    // chip 14 ms a frame (Kids Home at 30 fps); this, under 1.
+    Box(Modifier.fillMaxSize().stretchedGradient(listOf(0f to KIDS_BG, 1f to Color(0xFF0E1830)))) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = (58 * s).dp, bottom = (36 * s).dp)) {
             Row(Modifier.padding(start = (EDGE * s).dp, end = (EDGE * s).dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size((30 * s).dp).clip(CircleShape).background(KIDS_SUN), contentAlignment = Alignment.Center) {
@@ -143,6 +145,8 @@ fun KidsHome(app: GlassApp, s: Float, first: FocusRequester, active: Boolean, on
                 Text("Nothing to watch here yet", color = Color.White.copy(alpha = 0.8f), fontSize = (14 * s).sp, fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = (EDGE * s).dp, top = (24 * s).dp))
         }
+        // What scrolls up goes under the clock in the page's own colour, so the two never overlap.
+        Box(Modifier.fillMaxWidth().height((52 * s).dp).stretchedGradient(listOf(0.7f to KIDS_BG, 1f to Color.Transparent)))
     }
 }
 
