@@ -61,12 +61,17 @@ public class Live extends Activity {
             EXTRA_RESUME_END = "com.glasslauncher.tv.live.extra.RESUME_END", EXTRA_RESUME_TITLE = "com.glasslauncher.tv.live.extra.RESUME_TITLE",
             EXTRA_RESUME_AT = "com.glasslauncher.tv.live.extra.RESUME_AT";
     /** From the home screen's Continue Watching: a finished recording to play (its id). */
+    /** Another playlist to use (a reminder of something set on it). */
+    static final String EXTRA_PLAYLIST = "com.glasslauncher.tv.live.extra.PLAYLIST";
+    private String askPlaylist;
     static final String EXTRA_RECORDING = "com.glasslauncher.tv.live.extra.RECORDING";
     /** Glassio's Settings › Live TV: its settings (that section; -1 the first screen), Back going back there. */
     static final String EXTRA_SETTINGS = "com.glasslauncher.tv.live.extra.SETTINGS";
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private final ExecutorService io = Executors.newSingleThreadExecutor();
+    /** A past show's address: on its own, not behind a channel list being fetched. */
+    private final ExecutorService tune = Executors.newSingleThreadExecutor();
     private FrameLayout root;
     private SurfaceView surface;
     private LiveView view;
@@ -77,6 +82,12 @@ public class Live extends Activity {
     private Xtream.Program catchup;
     /** A recording playing (its file; catchup holds its show), or null. */
     private String recordingFile;
+    /** The recording playing is still being made: its id (LiveRecordSource), else null. */
+    private String growing;
+
+    String growing() {
+        return recordingFile == null ? null : growing;
+    }
     /** Live TV paused (LiveTimeshift): the channel going into the pieces; null when it plays live. */
     private LiveTimeshift shift;
     /** Where the player started in the pieces (the stream's clock), and whether it plays from them yet (else, paused). */
@@ -88,7 +99,9 @@ public class Live extends Activity {
      */
     private boolean rolling, atLive, rollingFailed;
     /** When Rewind any channel's buffer last ran dry at live (uptime ms; 0: not lately). */
-    private long rollingStallAt;
+    private final List<Long> rollingStalls = new java.util.ArrayList<>();
+    private static final int STALLS = 4;
+    private static final long STALLS_WITHIN_MS = 2 * 60_000L;
     private androidx.media3.extractor.DefaultExtractorsFactory extractors;
     /**
      * A past program's address starts here, ms into it (the provider takes a start to the minute): the player's
@@ -119,6 +132,9 @@ public class Live extends Activity {
     /** How the picture fills the screen: FIT (all of it, bars if need be), ZOOM (the screen, cropped), STRETCH. */
     static final int FIT = 0, ZOOM = 1, STRETCH = 2;
     private volatile boolean loading;
+    /** Which playlist's loading it is: a list that comes after another playlist is in use isn't shown. */
+    private volatile int loadRun;
+    private kotlin.jvm.functions.Function1<Boolean, kotlin.Unit> online;
     /** What plays of `playing`: itself, or the source of a merged channel picked for the connection (or by the person). */
     private Xtream.Channel source;
     /** Glassio's player let go for another one (Open in another player). */
@@ -150,20 +166,32 @@ public class Live extends Activity {
     private final Player.Listener listener = new Player.Listener() {
         @Override public void onPlaybackStateChanged(int state) {
             long up = android.os.SystemClock.uptimeMillis();
+            if (state == Player.STATE_READY) {
+                // It waited this long while playing: as good as a stop.
+                if (wasReady && bufferingSince > 0 && up - bufferingSince >= WAIT_MS && catchup == null && recordingFile == null && !shifted() && playing != null) {
+                    AppLog.w("live: " + playing.name + ": ran out for " + (up - bufferingSince) + " ms, goes on with "
+                            + (player == null ? 0 : player.getTotalBufferedDuration()) + " ms in hand" + (rolling ? "" : " (direct)"));
+                    health(LiveHealth.WAITED);
+                }
+                if (wasReady && bufferingSince > 0 && up - bufferingSince >= LONG_WAIT_MS) noteStop();
+                if (playing != null && catchup == null && recordingFile == null) playedOn = playing.id;
+            }
             bufferingSince = state == Player.STATE_BUFFERING ? up : 0;
+            if (loadGuard != null) loadGuard.reserveMs = catchup == null && recordingFile == null && !shifted() ? LiveOptions.liveReserve(Live.this) * 1000L : 0;
             // Rewind any channel on a poor connection: its one long download falls behind (a lossy line slows a single
-            // connection more than the player's own). Twice in a minute at live: this channel straight, as before.
+            // connection more than the player's own). Again and again at live: this channel straight.
             if (state == Player.STATE_BUFFERING && wasReady && rolling && atLive && shift != null && playing != null) {
-                if (up - rollingStallAt < 60_000) {
+                while (!rollingStalls.isEmpty() && up - rollingStalls.get(0) > STALLS_WITHIN_MS) rollingStalls.remove(0);
+                rollingStalls.add(up);
+                if (rollingStalls.size() >= STALLS) {
                     AppLog.w("live: " + playing.name + ": the TV's buffer can't keep up, playing it directly");
                     view.flash(Ui.tr("Conexão lenta: sem voltar neste canal", "Slow connection: rewind off for this channel"));
                     endShift();
                     rollingFailed = true;
-                    rollingStallAt = 0;
+                    rollingStalls.clear();
                     start(playing);
                     return;
                 }
-                rollingStallAt = up;
             }
             readySince = state == Player.STATE_READY ? up : 0;
             positionSince = up;
@@ -176,6 +204,7 @@ public class Live extends Activity {
             if (state == Player.STATE_BUFFERING && wasReady) stalled();
             wasReady = state == Player.STATE_READY || wasReady && state == Player.STATE_BUFFERING;
             if (state == Player.STATE_READY) view.setStatus("");
+            if (state == Player.STATE_READY && shifted()) main.postDelayed(Live.this::speedAlways, 1000);
             if (state == Player.STATE_READY && catchupPending >= 0) {
                 AppLog.w("live: catch-up playing from " + catchupBase / 1000 + " s, after " + (up - catchupAsked) + " ms, stream's length " + player.getDuration() / 1000 + " s");
                 catchupPending = -1;
@@ -187,6 +216,13 @@ public class Live extends Activity {
                 if (inside > 1000) player.seekTo(inside);
             }
             if (state == Player.STATE_ENDED && catchup != null && !endSeen) {       // the program is over: what's next, or live
+                // The connection closed partway looks like the end: from there again, and only then what's next.
+                long at = position();
+                boolean airing = recordingFile == null && catchup.end > System.currentTimeMillis();
+                if (recordingFile == null && LiveCatchup.cutOff(at, length(), airing)) {
+                    AppLog.w("live: catch-up cut off at " + at / 1000 + " s of " + length() / 1000 + " s");
+                    if (reconnect()) return;
+                }
                 endSeen = true;
                 upNext();
             }
@@ -202,6 +238,14 @@ public class Live extends Activity {
             int status = httpStatus(e);
             AppLog.w("live: " + e.getErrorCodeName() + (status > 0 ? " (HTTP " + status + ")" : "") + " on " + format
                     + (playing == null ? "" : ", " + playing.name));
+            if (e.errorCode != PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW && wasReady) noteStop();
+            // At its end some providers' catch-up fails rather than ends: it's over (tried again, it played on past it).
+            if (catchup != null && recordingFile == null && shift == null && catchupPending < 0 && !endSeen
+                    && catchup.end <= System.currentTimeMillis() && !LiveCatchup.cutOff(position(), length(), false)) {
+                endSeen = true;
+                upNext();
+                return;
+            }
             if (shift != null && rolling && playing != null) {     // Rewind any channel's buffer failed: straight, this time
                 AppLog.w("live: " + playing.name + ": the TV's buffer couldn't play, playing it directly");
                 endShift();
@@ -323,6 +367,7 @@ public class Live extends Activity {
         super.onCreate(savedInstanceState);
         Prefs.init(this);      // the language too: it may have changed since this process started
         AppLog.keepIn(new java.io.File(getFilesDir(), "live-log.txt"));
+        LivePlaylists.finish(this);
         if (!freezesWatched) {
             freezesWatched = true;
             CrashLog.watchFreezes(this);
@@ -340,11 +385,12 @@ public class Live extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, Gravity.CENTER));
         view = new LiveView(this);
         // The whole app's No connection banner, here as a notice (Settings › No connection banner).
-        com.glasslauncher.tv.data.Online.watch(this, on -> {
+        online = on -> {
             boolean banner = getApplicationContext().getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getBoolean("offlineBanner", true);
             if (banner && view != null) view.flash(on ? Ui.tr("De volta online", "Back online") : Ui.tr("Sem conexão · o que está salvo continua funcionando", "No connection · What's saved still works"));
             return kotlin.Unit.INSTANCE;
-        });
+        };
+        com.glasslauncher.tv.data.Online.watch(this, online);
         root.addView(view, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         nightDim = new android.view.View(this);
         nightDim.setBackgroundColor(android.graphics.Color.argb(NightMode.DIM_PERCENT * 255 / 100, 0, 0, 0));
@@ -354,14 +400,19 @@ public class Live extends Activity {
         setContentView(root);
         channelPreview = new LivePreview(this, root);
         TestHook.register(this, testHook);
-        readIntent(getIntent());
+        // Made again by the system (its process was stopped in standby): what was on last, not what it was first opened for.
+        if (savedInstanceState == null) readIntent(getIntent());
         if (Xtream.signedIn(this)) load(); else view.showSignIn();
     }
 
     @Override protected void onStart() {
         super.onStart();
         handedOff = false;
+        if (lineup != null && favoritesLeft != -1 && favoritesLeft != Xtream.favoritesStamp(this)) relist();       // chosen on the home screen meanwhile
+        favoritesLeft = -1;
         LiveScores.get(this).watch(scores);
+        registerReceiver(streamWanted, new android.content.IntentFilter(LiveStreams.WANTED), null, null,
+                android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         registerReceiver(recordingProblem, new android.content.IntentFilter(LiveRecordings.PROBLEM), null, null,
                 android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
         if (LiveTheme.changedElsewhere(this)) {      // a design put on from the phone page while Live TV was away
@@ -374,6 +425,8 @@ public class Live extends Activity {
         changes.addAction(LiveDesigns.THEME);
         registerReceiver(synced, changes, null, null,
                 android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
+        main.removeCallbacks(watchCount);
+        main.postDelayed(watchCount, COUNT_S * 1000L);
         main.removeCallbacks(ratingWatch);
         main.postDelayed(ratingWatch, 15_000);
         main.removeCallbacks(familyWatch);
@@ -538,6 +591,14 @@ public class Live extends Activity {
     }
 
     @Override protected void onStop() {
+        startId++;      // one waiting to open: not any more
+        wantedId++;
+        favoritesLeft = Xtream.favoritesStamp(this);
+        try {
+            unregisterReceiver(streamWanted);
+        } catch (IllegalArgumentException ignored) {
+        }
+        if (player != null && (shift != null || player.getPlaybackState() != Player.STATE_IDLE)) streamClosedAt = android.os.SystemClock.uptimeMillis();
         if (channelPreview != null) channelPreview.close();
         LiveScores.get(this).unwatch(scores);
         try {
@@ -549,6 +610,8 @@ public class Live extends Activity {
         } catch (IllegalArgumentException ignored) {
         }
         sayWatching(null);
+        main.removeCallbacks(watchCount);
+        countedOn = -1;
         main.removeCallbacks(ratingWatch);
         main.removeCallbacks(familyWatch);
         familyTick();       // the last seconds watched count too
@@ -559,6 +622,7 @@ public class Live extends Activity {
         }
         if (player != null && catchup != null) resumeAt = position();
         leftCatchup();
+        XmltvStore.closed(getApplicationContext());
         releasePlayer();
         setDisplayMode(0);  // the TV's own refresh rate again
         unlocked = false;   // the parental PIN is asked again next time
@@ -588,11 +652,21 @@ public class Live extends Activity {
                 r.title = "Test";
                 r.start = System.currentTimeMillis() - 3600_000L;
                 r.end = System.currentTimeMillis() - 600_000L;
+                int mins = i.getIntExtra("recmins", 0);
+                if (mins > 0) {       // a short show, with a missed recording's own id
+                    r.start = r.start / 60_000L * 60_000L;
+                    r.end = r.start + mins * 60_000L;
+                    r.id = LiveRecordings.idOf(playing.id, r.start);
+                }
                 r.file = "";
                 r.state = LiveRecordings.FAILED;
                 r.why = Ui.tr("a TV estava desligada", "the TV was off");
                 LiveRecordings.put(Live.this, r);
                 LiveRecordings.tell(Live.this, r, Ui.tr("Gravação perdida", "Recording missed"));
+                return;
+            }
+            if (i.hasExtra("zapgap")) {     // the wait between streams while recording (ms)
+                streamGapMs = i.getIntExtra("zapgap", 2500);
                 return;
             }
             if (i.hasExtra("flash")) {      // a flash message (its look)
@@ -719,6 +793,35 @@ public class Live extends Activity {
                 else if (source != null) for (int n = 0; n < 3; n++) LiveReliability.note(Live.this, source.id);
                 return;
             }
+            if (i.getBooleanExtra("stops", false)) {     // the log and each channel's stops, to read from the computer (no addresses)
+                io.execute(() -> {
+                    try {
+                        StringBuilder b = new StringBuilder();
+                        for (String name : new String[] {"live-log.txt", "live-health.json"}) {
+                            java.io.File f = new java.io.File(getFilesDir(), name);
+                            if (f.exists()) b.append("== ").append(name).append((char) 10).append(new String(java.nio.file.Files.readAllBytes(f.toPath()),
+                                    java.nio.charset.StandardCharsets.UTF_8)).append((char) 10);
+                        }
+                        java.nio.file.Files.write(new java.io.File(getExternalFilesDir(null), "stops.txt").toPath(),
+                                b.toString().replaceAll("(?i)(https?|rtmp|rtsp)://[^ ]+", "<address>").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    } catch (java.io.IOException ignored) {
+                    }
+                });
+                return;
+            }
+            if (i.hasExtra("speed") && player != null) {     // how fast it can play here
+                final long t0 = android.os.SystemClock.uptimeMillis(), p0 = player.getCurrentPosition();
+                if (i.hasExtra("tunnel")) trackSelector.setParameters(trackSelector.buildUponParameters().setTunnelingEnabled(i.getBooleanExtra("tunnel", false)));
+                player.setPlaybackSpeed(i.getFloatExtra("speed", 1));
+                main.postDelayed(() -> AppLog.w("live: test: speed " + player.getPlaybackParameters().speed + ", moved "
+                        + (player.getCurrentPosition() - p0) + " in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms, state " + player.getPlaybackState()
+                        + ", buffered " + player.getTotalBufferedDuration()), 8000);
+                return;
+            }
+            if (i.getBooleanExtra("trouble", false)) {     // as if it had stopped three times
+                if (playing != null) offerHelp(3);
+                return;
+            }
             if (i.getBooleanExtra("upnext", false)) {     // the Up next card, on whatever's on
                 view.testUpNext();
                 return;
@@ -763,7 +866,23 @@ public class Live extends Activity {
                     it.ch = ch;
                     it.start = System.currentTimeMillis() + i.getIntExtra("in", 60) * 1000L;
                     it.end = it.start + 3600_000L;
-                    it.title = Ui.tr("Teste", "Test");
+                    it.title = i.getStringExtra("title") != null ? i.getStringExtra("title") : Ui.tr("Teste", "Test");
+                    if (i.hasExtra("start")) {
+                        it.start = i.getLongExtra("start", 0);
+                        it.end = it.start + i.getIntExtra("len", 60) * 60_000L;
+                    }
+                    if (i.getStringExtra("of") != null) it.series = LiveFollow.SERIES + i.getStringExtra("of");
+                    if (i.getBooleanExtra("unset", false)) {
+                        LiveSchedule.remove(Live.this, it.key());
+                        it.kind = LiveSchedule.RECORD;
+                        LiveSchedule.remove(Live.this, it.key());
+                        break;
+                    }
+                    if (i.getBooleanExtra("set", false)) {       // set (`rec`: a recording), as from the guide
+                        if (i.getBooleanExtra("rec", false)) it.kind = LiveSchedule.RECORD;
+                        LiveSchedule.add(Live.this, it);
+                        break;
+                    }
                     String match = i.getStringExtra("match");      // a match alert, as following `match` makes
                     if (match != null) {
                         it.series = LiveFollow.SERIES + Xtream.fold(match);
@@ -801,6 +920,8 @@ public class Live extends Activity {
         XmltvStore.replaced = null;
         TestHook.unregister(this, testHook);
         io.shutdownNow();
+        tune.shutdownNow();
+        com.glasslauncher.tv.data.Online.unwatch(online);
         view.release();
         super.onDestroy();
     }
@@ -934,10 +1055,77 @@ public class Live extends Activity {
             view.flash(Ui.tr("Espere o guia completo terminar de atualizar", "Wait for the full guide to finish updating"));
             return;
         }
+        if (id.equals(LivePlaylists.active(this))) return;
+        leavePlaylist(id, () -> switchNow(id));
+    }
+
+    /** `go` (to playlist `id`; null: adding one), asked first when this one is recording or about to (Warn before switching). */
+    private void leavePlaylist(String id, Runnable go) {
+        java.util.List<LiveRecordings.Rec> recs = LiveStreams.recording(this);
+        java.util.List<LiveSchedule.Item> soon = new java.util.ArrayList<>();
+        long now = System.currentTimeMillis();
+        for (LiveSchedule.Item it : LiveSchedule.all(this)) if (LiveSchedule.RECORD.equals(it.kind) && it.start < now + 3600_000L) soon.add(it);
+        if (!LiveOptions.warnSwitch(this) || recs.isEmpty() && soon.isEmpty()) {
+            go.run();
+            return;
+        }
+        // What it'd cut or miss: after it, at once, or not.
+        StringBuilder what = new StringBuilder(LiveStreams.uses(recs, null));
+        for (LiveSchedule.Item it : soon) {
+            what.append(what.length() > 0 ? "  ·  " : "").append(it.title.isEmpty() ? it.ch.name : it.title).append(Ui.tr(" grava às ", " records at ")).append(Ui.time(it.start));
+        }
+        java.util.List<String> labels = new java.util.ArrayList<>(), icons = new java.util.ArrayList<>();
+        final java.util.List<Runnable> acts = new java.util.ArrayList<>();
+        if (!recs.isEmpty() && id != null) {
+            labels.add(Ui.tr("Mudar quando terminar", "Switch when it ends"));
+            icons.add("schedule");
+            acts.add(() -> {
+                LivePlaylists.setPending(this, id);
+                view.flash(Ui.tr("Muda quando a gravação terminar", "Switches when the recording ends"));
+            });
+            labels.add(Ui.tr("Parar e mudar", "Stop it and switch"));
+            icons.add("stop");
+            acts.add(() -> {
+                for (LiveRecordings.Rec r : recs) RecordService.stop(this, r.id);
+                main.postDelayed(go, 1500);
+            });
+        } else {
+            labels.add(Ui.tr("Mudar assim mesmo", "Switch anyway"));
+            icons.add("play");
+            acts.add(go);
+        }
+        labels.add(Ui.tr("Cancelar", "Cancel"));
+        icons.add("close");
+        acts.add(() -> { });
+        LiveSheet.menu(this).setTitle(id == null ? Ui.tr("Adicionar uma lista", "Add a playlist")
+                : Ui.tr("Mudar para ", "Switch to ") + LivePlaylists.nameOf(this, id) + "?").setMessage(what)
+                .setIcons(icons.toArray(new String[0])).setItems(labels.toArray(new String[0]), (d, w) -> acts.get(w).run()).show();
+    }
+
+    private void switchNow(String id) {
+        if (XmltvStore.running()) {
+            view.flash(Ui.tr("Espere o guia completo terminar de atualizar", "Wait for the full guide to finish updating"));
+            return;
+        }
         releasePlayer();
         LivePlaylists.switchTo(this, id);
         playlistChanged(true);
-        view.flash(Ui.tr("Usando ", "Using ") + Xtream.user(this));
+        view.flash(Ui.tr("Usando ", "Using ") + LivePlaylists.nameOf(this, id));
+    }
+
+    /** The playlists in a list (hold OK on Home in the menu). */
+    void quickSwitch() {
+        final java.util.List<LivePlaylists.Playlist> all = LivePlaylists.all(this);
+        String[] names = new String[all.size()];
+        int now = 0;
+        for (int i = 0; i < names.length; i++) {
+            names[i] = all.get(i).name();
+            if (all.get(i).id.equals(LivePlaylists.active(this))) now = i;
+        }
+        LiveSheet.menu(this).setTitle(Ui.tr("Listas", "Playlists")).setSingleChoiceItems(names, now, (d, w) -> {
+            d.dismiss();
+            switchPlaylist(all.get(w).id);
+        }).show();
     }
 
     /** The sign-in screen for another account (Back there goes back to this one). */
@@ -946,9 +1134,11 @@ public class Live extends Activity {
             view.flash(Ui.tr("Espere o guia completo terminar de atualizar", "Wait for the full guide to finish updating"));
             return;
         }
-        releasePlayer();
-        LivePlaylists.startAdding(this);
-        playlistChanged(false);
+        leavePlaylist(null, () -> {
+            releasePlayer();
+            LivePlaylists.startAdding(this);
+            playlistChanged(false);
+        });
     }
 
     /** Back on the sign-in screen while adding one: the one before. False when there's none. */
@@ -966,8 +1156,10 @@ public class Live extends Activity {
         playing = previous = null;
         catchup = null;
         loading = false;
+        loadRun++;
         createPlayer();
         view.guideReplaced();
+        view.closeMenu();
         if (load && Xtream.signedIn(this)) load(); else view.showSignIn();
     }
 
@@ -975,27 +1167,28 @@ public class Live extends Activity {
     private void load() {
         if (loading) return;
         loading = true;
+        final int run = loadRun;
         view.setStatus(Ui.tr("Carregando os canais…", "Loading channels…"));
         Context app = getApplicationContext();
         io.execute(() -> {
             Xtream.Lineup saved = Xtream.saved(app);
             if (saved != null) {
                 Xtream.Lineup ready = prepare(saved);
-                main.post(() -> show(ready));
+                main.post(() -> { if (run == loadRun) show(ready); });
             }
             if (saved != null && System.currentTimeMillis() - saved.at < Xtream.LIST_EVERY && saved.version >= Xtream.LIST_VERSION) {
-                loading = false;
+                if (run == loadRun) loading = false;
                 return;
             }
             try {
                 Xtream.Lineup fresh = prepare(Xtream.fetch(app));
-                main.post(() -> show(fresh));
+                main.post(() -> { if (run == loadRun) show(fresh); });
             } catch (Exception e) {
                 String message = e.getMessage() == null ? e.toString() : e.getMessage();
                 AppLog.w("live: list: " + message);
-                if (saved == null) main.post(() -> view.setStatus(message));
+                if (saved == null) main.post(() -> { if (run == loadRun) view.setStatus(message); });
             } finally {
-                loading = false;
+                if (run == loadRun) loading = false;
             }
         });
     }
@@ -1026,6 +1219,10 @@ public class Live extends Activity {
             });
         }
         lineup = l;
+        if (l != null) {
+            int count = l.every().size();
+            new Thread(() -> LivePlaylists.seen(getApplicationContext(), count), "playlist-seen").start();
+        }
         SharedPreferences p = prefs();
         int last = p.getInt("channel", -1);
         // The small window on the home screen changed channel since: that one (and from now on).
@@ -1037,7 +1234,7 @@ public class Live extends Activity {
         String category = p.getString("category", "");
         view.setLineup(l, category);
         updateGuide(false);
-        if (l.all().isEmpty()) {
+        if (l.every().isEmpty()) {
             view.setStatus(Ui.tr("O provedor não tem canais ao vivo nesta conta.", "The provider has no live channels on this account."));
             return;
         }
@@ -1237,6 +1434,12 @@ public class Live extends Activity {
     /** What the home screen asked for: a favorite channel (its row), the guide (the Guide button), a channel number. */
     private void asked() {
         if (lineup == null) return;
+        if (askPlaylist != null) {
+            String id = askPlaylist;
+            askPlaylist = null;
+            main.post(() -> switchPlaylist(id));
+            return;
+        }
         if (askChannel >= 0) {
             Xtream.Channel ch = find(askChannel);
             askChannel = -1;
@@ -1289,6 +1492,7 @@ public class Live extends Activity {
         askSearch = intent == null ? null : intent.getStringExtra(EXTRA_SEARCH);
         askResume = intent == null ? -1 : intent.getIntExtra(EXTRA_RESUME_CHANNEL, -1);
         askRecording = intent == null ? null : intent.getStringExtra(EXTRA_RECORDING);
+        askPlaylist = intent == null ? null : intent.getStringExtra(EXTRA_PLAYLIST);
         askSettings = intent == null ? -2 : intent.getIntExtra(EXTRA_SETTINGS, -2);
         if (askResume >= 0) {
             resumeProgram = new Xtream.Program();
@@ -1322,6 +1526,7 @@ public class Live extends Activity {
             view.askPin(() -> { unlocked = true; play(ch); }, () -> { if (playing == null) view.openGuide(); });
             return;
         }
+        if (streamsFull(ch, () -> play(ch))) return;
         endShift();
         leftCatchup();
         if (playing != null && playing.id != ch.id) previous = playing;
@@ -1411,7 +1616,274 @@ public class Live extends Activity {
         return player == null ? 0 : player.getTotalBufferedDuration();
     }
 
+    /**
+     * How long the provider still counts a stream that was closed: opened again sooner, with a recording on the
+     * account's other one, it made one too many, and the recording (the oldest) was cut off.
+     */
+    private static long streamGapMs = 2_500;
+    private long streamClosedAt;
+    private int startId;
+
+    /** How long to wait before opening a stream. Pure. */
+    static long streamGap(int recordings, int max, long sinceClosed, long gap) {
+        return recordings > 0 && max > 0 && recordings + 1 == max ? Math.max(0, gap - sinceClosed) : 0;
+    }
+
+    // MARK: - The account's streams (LiveStreams)
+
+    /** Gone ahead with, after asking. */
+    private boolean streamPass;
+
+    /** Whether a stream from the provider plays (not a recording's file). */
+    boolean streaming() {
+        return player != null && playing != null && recordingFile == null
+                && (shift != null || player.getPlaybackState() != Player.STATE_IDLE || startWaits == startId);
+    }
+
+    /** The start (its startId) waiting for the stream before it to be let go; 0: none. */
+    private int startWaits;
+
+    /**
+     * Every stream records: asked what to do (true), and `go` once there's one. A channel that's being recorded (`ch`)
+     * plays from its recording instead.
+     */
+    private boolean streamsFull(Xtream.Channel ch, Runnable go) {
+        if (streamPass) {
+            streamPass = false;
+            return false;
+        }
+        int how = LiveOptions.streamLimit(this), max = how == LiveOptions.LIMIT_OFF ? 0 : Xtream.knownMax(this);
+        if (max <= 0) return false;
+        java.util.List<LiveRecordings.Rec> recs = LiveStreams.recording(this);
+        if (!LiveStreams.over(recs.size(), 1, max)) return false;
+        if (how == LiveOptions.LIMIT_TELLS) {
+            view.flash(Ui.tr("Nenhum canal livre: uma gravação pode ser cortada", "No stream to spare: a recording may be cut off"));
+            return false;
+        }
+        if (ch != null) for (LiveRecordings.Rec r : recs) {
+            if (r.ch.id != ch.id || r.fetch) continue;
+            view.flash(Ui.tr("Da gravação", "From its recording"));
+            playRecording(r, Math.max(0, System.currentTimeMillis() - r.start - 12_000));
+            return true;
+        }
+        java.util.List<String> labels = new java.util.ArrayList<>(), icons = new java.util.ArrayList<>();
+        labels.add(Ui.tr("Ver uma gravação", "Watch a recording"));
+        icons.add("play");
+        for (LiveRecordings.Rec r : recs) {
+            labels.add(Ui.tr("Parar ", "Stop ") + LiveStreams.name(r));
+            icons.add("stop");
+        }
+        labels.add(Ui.tr("Cancelar", "Cancel"));
+        icons.add("close");
+        LiveSheet.menu(this)
+                .setTitle(max == 1 ? Ui.tr("O seu canal está gravando", "Your one stream is recording") : Ui.tr("Todos os canais estão gravando", "All your streams are recording"))
+                .setMessage(LiveStreams.allows(max) + ".  " + LiveStreams.uses(recs, null))
+                .setIcons(icons.toArray(new String[0]))
+                .setItems(labels.toArray(new String[0]), (d, which) -> {
+                    if (which == 0) {
+                        view.openRecordings();
+                    } else if (which <= recs.size()) {
+                        RecordService.stop(this, recs.get(which - 1).id);
+                        view.flash(Ui.tr("Gravação parada", "Recording stopped"));
+                        main.postDelayed(() -> {
+                            streamPass = true;
+                            go.run();
+                            streamPass = false;
+                        }, streamGapMs);
+                    } else if (playing == null) {
+                        view.openGuide();
+                    }
+                })
+                .setOnCancelListener(d -> { if (playing == null) view.openGuide(); })
+                .show();
+        return true;
+    }
+
+    /** Records `it` from now; with no stream to spare, asked first what gives way. */
+    void recordNow(LiveSchedule.Item it) {
+        int how = LiveOptions.streamLimit(this), max = how == LiveOptions.LIMIT_OFF ? 0 : Xtream.knownMax(this);
+        java.util.List<LiveRecordings.Rec> recs = LiveStreams.recording(this);
+        boolean watching = streaming();
+        if (how != LiveOptions.LIMIT_ASKS || !LiveStreams.over(recs.size() + 1, watching ? 1 : 0, max)) {
+            RecordService.start(this, it);
+            view.flash(how == LiveOptions.LIMIT_TELLS && LiveStreams.over(recs.size() + 1, watching ? 1 : 0, max)
+                    ? Ui.tr("Nenhum canal livre: uma gravação pode ser cortada", "No stream to spare: a recording may be cut off")
+                    : Ui.tr("Gravando até ", "Recording until ") + Ui.time(it.end));
+            return;
+        }
+        boolean fits = recs.size() + 1 <= max, same = watching && playing.id == it.ch.id;
+        java.util.List<String> labels = new java.util.ArrayList<>(), icons = new java.util.ArrayList<>();
+        if (fits) {
+            labels.add(same ? Ui.tr("Gravar e ver da gravação", "Record and watch from it") : Ui.tr("Gravar e ver esse", "Record and watch that"));
+            icons.add("record");
+        }
+        for (LiveRecordings.Rec r : recs) {
+            labels.add(Ui.tr("Parar ", "Stop ") + LiveStreams.name(r));
+            icons.add("stop");
+        }
+        labels.add(Ui.tr("Cancelar", "Cancel"));
+        icons.add("close");
+        final int first = fits ? 1 : 0;
+        LiveSheet.menu(this)
+                .setTitle(LiveStreams.allows(max))
+                .setMessage(LiveStreams.uses(recs, watching ? playing.name : null) + ".  "
+                        + Ui.tr("Mais um seria cortado: ", "One more would be cut off: ") + (it.title.isEmpty() ? it.ch.name : it.title))
+                .setIcons(icons.toArray(new String[0]))
+                .setItems(labels.toArray(new String[0]), (d, which) -> {
+                    if (fits && which == 0) {
+                        recordAndWatch(it);
+                    } else if (which - first < recs.size()) {
+                        RecordService.stop(this, recs.get(which - first).id);
+                        main.postDelayed(() -> RecordService.start(this, it), streamGapMs);
+                        view.flash(Ui.tr("Gravando até ", "Recording until ") + Ui.time(it.end));
+                    }
+                })
+                .show();
+    }
+
+    /** The list's own channel for one kept with a recording (its catch-up may have come since), else that one. */
+    Xtream.Channel channelOf(Xtream.Channel ch) {
+        Xtream.Channel now = find(ch.id);
+        return now == null ? ch : now;
+    }
+
+    /** How many days of catch-up `ch` has now, in any of its versions. */
+    int archiveOf(Xtream.Channel ch) {
+        Xtream.Channel now = channelOf(ch);
+        int days = now.archive;
+        if (now.sources != null) for (Xtream.Channel s : now.sources) days = Math.max(days, s.archive);
+        return days;
+    }
+
+    /** The stream let go, the recording started on it, and played from the recording once there's some of it. */
+    private void recordAndWatch(LiveSchedule.Item it) {
+        letStreamGo();
+        final int mine = startId;
+        view.flash(Ui.tr("Gravando até ", "Recording until ") + Ui.time(it.end));
+        main.postDelayed(() -> {
+            RecordService.start(this, it);
+            watchFrom(LiveRecordings.idOf(it.ch.id, it.start), mine, 0);
+        }, streamGapMs);
+    }
+
+    private void letStreamGo() {
+        startId++;
+        streamClosedAt = android.os.SystemClock.uptimeMillis();
+        endShift();
+        if (player != null) player.stop();
+        view.setStatus("");
+        view.setBuffering(true);
+        view.tuning();
+    }
+
+    /** Recording `id` played as soon as it has a few seconds (unless something else was put on meanwhile). */
+    private void watchFrom(String id, int mine, int tries) {
+        main.postDelayed(() -> {
+            if (mine != startId || player == null) return;
+            LiveRecordings.Rec r = LiveRecordings.find(this, id);
+            if (r != null && r.file != null && new java.io.File(r.file).length() > 2_000_000) {
+                playRecording(r);
+            } else if (tries < 40) {
+                watchFrom(id, mine, tries + 1);
+            } else {
+                view.setBuffering(false);
+                view.setStatus(Ui.tr("A gravação não começou. OK para tentar de novo.", "The recording didn't start. OK to try again."));
+            }
+        }, 700);
+    }
+
+    /** A recording about to start by itself needs the stream that's playing: asked, and let go if nobody says no. */
+    private final android.content.BroadcastReceiver streamWanted = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            if (i.getBooleanExtra(LiveStreams.EXTRA_ONLY, false)) {
+                if (streaming()) setResultCode(getResultCode() + 1);
+                return;
+            }
+            LiveSchedule.Item it;
+            try {
+                it = LiveSchedule.Item.of(new org.json.JSONObject(i.getStringExtra(LiveStreams.EXTRA_ITEM)));
+            } catch (org.json.JSONException | NullPointerException e) {
+                return;
+            }
+            if (it == null || !streaming()) return;
+            String title = it.title.isEmpty() ? it.ch.name : it.title;
+            if (LiveOptions.streamLimit(c) != LiveOptions.LIMIT_ASKS) {
+                view.flash(Ui.tr("Nenhum canal livre: uma gravação pode ser cortada", "No stream to spare: a recording may be cut off"));
+                return;
+            }
+            setResultCode(RESULT_FIRST_USER);
+            askForStream(it, title);
+        }
+    };
+
+    private int wantedId;
+
+    private void askForStream(LiveSchedule.Item it, String title) {
+        final int mine = ++wantedId;
+        if (!view.full()) view.flash(Ui.tr("Nenhum canal livre  ·  Gravação em ", "No stream to spare  ·  Recording in ") + LiveStreams.LET_GO_MS / 1000 + " s: " + title);
+        final long until = android.os.SystemClock.uptimeMillis() + LiveStreams.LET_GO_MS;
+        final String id = LiveRecordings.idOf(it.ch.id, it.start);
+        final boolean same = playing != null && playing.id == it.ch.id;
+        final Runnable go = () -> {
+            if (mine != wantedId) return;
+            wantedId++;
+            view.nextCard.hide();
+            if (!streaming()) return;
+            letStreamGo();
+            if (same) {
+                watchFrom(id, startId, 0);
+            } else {
+                view.setBuffering(false);
+                view.setStatus(Ui.tr("Gravando ", "Recording ") + title + Ui.tr(": nenhum canal livre. OK para escolher.", ": no stream to spare. OK to choose."));
+            }
+        };
+        view.nextCard.ask(Ui.tr("Nenhum canal livre  ·  Gravação em ", "No stream to spare  ·  Recording in "), title,
+                same ? Ui.tr("Ver da gravação", "Watch from it") : Ui.tr("Gravar", "Record"), Ui.tr("Pular", "Skip it"),
+                (int) (LiveStreams.LET_GO_MS / 1000), go, () -> {
+                    if (mine != wantedId) return;
+                    wantedId++;
+                    RecordService.stop(this, id);
+                    view.flash(Ui.tr("Gravação pulada", "Recording skipped"));
+                });
+        main.post(new Runnable() {
+            @Override public void run() {
+                if (mine != wantedId) return;
+                long left = until - android.os.SystemClock.uptimeMillis();
+                if (left <= 0) {
+                    go.run();
+                    return;
+                }
+                view.nextCard.left((int) Math.ceil(left / 1000.0));
+                main.postDelayed(this, 500);
+            }
+        });
+    }
+
     private void start(Xtream.Channel ch) {
+        if (player == null) return;
+        final int mine = ++startId;
+        long up = android.os.SystemClock.uptimeMillis();
+        if (shift != null || player.getPlaybackState() != Player.STATE_IDLE) streamClosedAt = up;
+        long gap = streamClosedAt == 0 ? 0 : streamGap(LiveStreams.recording(this).size(), Xtream.knownMax(this), up - streamClosedAt, streamGapMs);
+        if (gap <= 0) {
+            startNow(ch);
+            return;
+        }
+        AppLog.w("live: recording: " + gap + " ms before the next stream");
+        endShift();
+        player.stop();
+        view.setStatus("");
+        view.setBuffering(true);
+        view.tuning();
+        startWaits = mine;
+        main.postDelayed(() -> {
+            if (mine != startId || playing != ch || catchup != null || recordingFile != null) return;
+            startWaits = 0;
+            if (!streamsFull(ch, () -> play(ch))) startNow(ch);     // a recording may have taken it meanwhile
+        }, gap);
+    }
+
+    private void startNow(Xtream.Channel ch) {
         if (player == null) return;
         channelTracks(ch);
         if (source == null) source = pickSource(false);
@@ -1797,6 +2269,35 @@ public class Live extends Activity {
         return true;
     }
 
+    /** The favorites as Live TV left the screen (-1: it's on). */
+    private long favoritesLeft = -1;
+
+    /** How long the channel on has been watched (LiveWatchTime): every half minute it plays. */
+    private static final int COUNT_S = 30;
+    private int countedOn = -1, countedFor;
+    private final Runnable watchCount = new Runnable() {
+        @Override public void run() {
+            main.postDelayed(this, COUNT_S * 1000L);
+            String next = LivePlaylists.pending(Live.this);
+            if (!next.isEmpty() && LiveStreams.recording(Live.this).isEmpty() && !XmltvStore.running()) {       // Switch when it ends
+                LivePlaylists.setPending(Live.this, "");
+                switchNow(next);
+                return;
+            }
+            Xtream.Channel ch = playing;
+            if (ch == null || ch.id <= 0 || player == null || !player.isPlaying() || catchup != null || !LiveOptions.suggestFavorites(Live.this)) return;
+            if (ch.id != countedOn) {
+                countedOn = ch.id;
+                countedFor = 0;
+                return;     // from its first whole half minute on
+            }
+            countedFor += COUNT_S;
+            final int add = LiveWatchTime.counts(countedFor, COUNT_S), id = ch.id;
+            final Context app = getApplicationContext();
+            if (add > 0) io.execute(() -> LiveWatchTime.add(app, id, add));
+        }
+    };
+
     private final Runnable ratingWatch = new Runnable() {
         @Override public void run() {
             checkRating();
@@ -2013,6 +2514,99 @@ public class Live extends Activity {
         return true;
     }
 
+    /** Pure. */
+    static String tryingLine(int at, int of) {
+        String s = Ui.tr("Tentando a fonte ", "Trying source ") + at + Ui.tr(" de ", " of ") + of + ". ";
+        return s + (at == 2 ? Ui.tr("A primeira não respondeu", "The first didn't answer") : Ui.tr("As outras não responderam", "The others didn't answer"));
+    }
+
+    // MARK: - A channel that keeps stopping (LiveTroubleCard)
+
+    /** Running out for this long counts. */
+    private static final long WAIT_MS = 1000;
+    private static final long LONG_WAIT_MS = 4000;
+    /** The channel that has played; the one whose stops those are; the one the card was put away on, until when. */
+    private int playedOn, stopsOn, helpOff;
+    private long helpOffUntil;
+    private List<Long> stops = new java.util.ArrayList<>();
+
+    /** It stopped after playing: the third time in five minutes, what can be done about it is offered. */
+    private void noteStop() {
+        if (playing == null || catchup != null || recordingFile != null || shifted() || playedOn != playing.id) return;
+        long up = android.os.SystemClock.uptimeMillis();
+        if (stopsOn != playing.id) {
+            stopsOn = playing.id;
+            stops = new java.util.ArrayList<>();
+        }
+        List<Long> had = stops;
+        stops = LiveTroubleCard.stop(stops, up);
+        if (stops == had || stops.size() < LiveTroubleCard.TIMES || !LiveOptions.troubleHelp(this)) return;
+        if (helpOff == playing.id && up < helpOffUntil || view.trouble().showing() || !view.watching()) return;
+        offerHelp(stops.size());
+    }
+
+    private void offerHelp(int times) {
+        final Xtream.Channel ch = playing;
+        final Xtream.Program p = onNowOf(ch);
+        final Context app = getApplicationContext();
+        io.execute(() -> {      // another channel with the match: the guide is read
+            final LiveHome.Airing same = LiveHome.matchElsewhere(app, p, ch);
+            final java.util.Set<Integer> hide = LiveHide.away(app);
+            main.post(() -> {
+                if (playing == ch && catchup == null && !shifted()) showHelp(ch, times, same, hide);
+            });
+        });
+    }
+
+    private void showHelp(Xtream.Channel ch, int times, LiveHome.Airing same, java.util.Set<Integer> hide) {
+        List<LiveTroubleCard.Choice> list = new java.util.ArrayList<>();
+        Xtream.Channel other = otherSource(false), light = otherSource(true);
+        if (other != null) list.add(new LiveTroubleCard.Choice(Ui.tr("Tentar outra fonte", "Try another source"), () -> useSource(other, false)));
+        if (light != null && light.id != other.id) {
+            list.add(new LiveTroubleCard.Choice(Ui.tr("Qualidade menor", "Lower quality"), () -> useSource(light, true)));
+        }
+        Xtream.Channel copy = other != null || lineup == null ? null
+                : LiveMerge.copyOf(lineup.all(), ch, hide, this::locked);
+        if (copy != null) list.add(new LiveTroubleCard.Choice(Ui.tr("Outra cópia: ", "Another copy: ") + copyName(copy), () -> play(copy)));
+        Xtream.Channel match = same == null ? null : find(same.channel);
+        if (match != null && match.id != ch.id && (copy == null || match.id != copy.id) && !locked(match)) {
+            list.add(new LiveTroubleCard.Choice(Ui.tr("O mesmo jogo: ", "Same match: ") + copyName(match), () -> play(match)));
+        }
+        if (list.isEmpty()) return;
+        view.trouble().show(ch.id, view.nameOf(ch) + Ui.tr(" parou ", " has stopped ") + times + Ui.tr(" vezes", " times"),
+                Ui.tr("Nos últimos 5 minutos", "In the last 5 minutes"), list, () -> {
+                    helpOff = ch.id;
+                    helpOffUntil = android.os.SystemClock.uptimeMillis() + LiveTroubleCard.SNOOZE_MS;
+                });
+    }
+
+    private String copyName(Xtream.Channel ch) {
+        return (ch.num > 0 ? ch.num + " " : "") + view.nameOf(ch);
+    }
+
+    /** Another source of what's playing than the one it's on (one that failed, when they all did), or null. */
+    private Xtream.Channel otherSource(boolean lighter) {
+        if (playing == null || playing.sources == null || source == null || sources() == null) return null;
+        java.util.Set<Integer> skip = new java.util.HashSet<>(failed);
+        skip.add(source.id);
+        Xtream.Channel out = lighter ? LiveMerge.lighter(playing, source, false, skip) : LiveMerge.pick(this, playing, false, skip);
+        if (out != null) return out;
+        skip.clear();
+        skip.add(source.id);
+        return lighter ? LiveMerge.lighter(playing, source, false, skip) : LiveMerge.pick(this, playing, false, skip);
+    }
+
+    private void useSource(Xtream.Channel s, boolean lighter) {
+        if (playing == null || source == null) return;
+        if (lighter) LiveMerge.slower(this, LiveMerge.need(source) * 9 / 10);
+        failed.remove(s.id);
+        failed.add(source.id);
+        reconnects = 0;
+        chosenSource = -1;
+        stops = new java.util.ArrayList<>();
+        switchSource(s);
+    }
+
     private boolean nextSource() {
         if (playing.sources == null || source == null) return false;
         failed.add(source.id);
@@ -2024,7 +2618,9 @@ public class Live extends Activity {
         chosenSource = -1;
         triedOther = waited = false;
         format = chosenFormat();
-        view.setStatus(Ui.tr("Tentando outra fonte…", "Trying another source…"));
+        List<Xtream.Channel> all = sources();
+        view.setStatus(all == null || failed.size() >= all.size() ? Ui.tr("Tentando outra fonte…", "Trying another source…")
+                : tryingLine(failed.size() + 1, all.size()));
         retry();
         return true;
     }
@@ -2080,7 +2676,7 @@ public class Live extends Activity {
                     return;
                 }
             } else stillSince = 0;
-            if (state == Player.STATE_BUFFERING && bufferingSince > 0
+            if (state == Player.STATE_BUFFERING && bufferingSince > 0 && !(loadGuard != null && loadGuard.holding)
                     && up - bufferingSince > (wasReady ? STUCK_MS : STUCK_FIRST_MS)) {
                 recover(Ui.tr("O sinal travou", "The stream froze"));
             } else if (state == Player.STATE_READY && player.isPlaying()) {
@@ -2100,6 +2696,7 @@ public class Live extends Activity {
     /** The stream stopped (`why`, for the message): the merged channel's next source, else the same one again. */
     private void recover(String why) {
         if (playing == null) return;
+        noteStop();
         AppLog.w("live: " + playing.name + ": " + why + (source == null ? "" : " on " + LiveMerge.label(source)));
         if (source != null && catchup == null) LiveReliability.note(this, source.id);
         health(LiveHealth.FROZE);
@@ -2192,6 +2789,7 @@ public class Live extends Activity {
 
     /** OK on "couldn't play": the channel again, from the start of the tries. */
     void retryNow() {
+        if (catchup == null && playing != null && streamsFull(playing, this::retryNow)) return;
         reconnects = 0;
         failed.clear();
         if (playing != null && playing.sources != null) source = null;
@@ -2337,6 +2935,7 @@ public class Live extends Activity {
             view.askPin(() -> { unlocked = true; playCatchup(ch, p, from); }, null);
             return;
         }
+        if (streamsFull(null, () -> playCatchup(ch, p, from))) return;
         endShift();
         leftCatchup();
         if (playing != null && playing.id != ch.id) previous = playing;
@@ -2371,13 +2970,15 @@ public class Live extends Activity {
         // The provider's address starts at the minute before `from`, and plays from there: a seek inside its stream
         // can hang (LiveCatchup). A recording's file seeks from the start.
         from = Math.max(0, from);
-        final long base = file != null ? 0 : LiveCatchup.minute(p.start, from);
+        final String grows = growing();
+        final long base = grows != null ? from : file != null ? 0 : LiveCatchup.minute(p.start, from);
         catchupBase = base;
-        catchupInside = file != null ? from : 0;
+        catchupInside = file != null && grows == null ? from : 0;
         catchupPending = from;
         catchupAsked = android.os.SystemClock.uptimeMillis();
         AppLog.w("live: catch-up of " + p.title + " at " + from / 1000 + " s (address from " + base / 1000 + " s) on " + src.name + ", " + f);
         skipTo = -1;
+        resetNext();
         Context app = getApplicationContext();
         wasReady = false;
         stallAt = 0;
@@ -2385,7 +2986,7 @@ public class Live extends Activity {
         view.setBuffering(true);
         view.tuning();
         player.stop();
-        io.execute(() -> {
+        tune.execute(() -> {
             String url;
             try {
                 url = file != null ? android.net.Uri.fromFile(new java.io.File(file)).toString() : Xtream.catchupUrl(app, src, p, p.start + base, f);
@@ -2400,6 +3001,13 @@ public class Live extends Activity {
                     view.setStatus(Ui.tr("Não deu para falar com o servidor.", "Couldn't reach the server."));
                     return;
                 }
+                if (grows != null) {        // still being made: read from about there, on to what comes
+                    java.io.File f2 = new java.io.File(file);
+                    long at = LiveStreams.offset(f2.length(), base, System.currentTimeMillis() - p.start);
+                    player.setMediaSource(new androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(
+                            LiveRecordSource.factory(Live.this, grows, f2, at), extractors)
+                            .createMediaSource(new MediaItem.Builder().setUri(address).setMimeType(MimeTypes.VIDEO_MP2T).build()));
+                } else
                 // From the start of the address: a stream that can't seek would say it's further on than it is.
                 player.setMediaItem(new MediaItem.Builder().setUri(address)
                         .setMimeType(file != null ? MimeTypes.VIDEO_MP2T : Xtream.mime(this, address, f)).build(), 0);
@@ -2417,7 +3025,7 @@ public class Live extends Activity {
         if (player == null || catchup == null || playing == null || recordingFile != null) return;
         final Xtream.Channel ch = playing;
         final Xtream.Program p = catchup;
-        final long at = player.getPlaybackState() == Player.STATE_ENDED ? Long.MAX_VALUE / 2 : position();
+        final long at = player.getPlaybackState() == Player.STATE_ENDED && endSeen ? Long.MAX_VALUE / 2 : position();
         final long length = length();
         final Context app = getApplicationContext();
         io.execute(() -> LiveResume.left(app, ch, p, at, length));
@@ -2471,12 +3079,16 @@ public class Live extends Activity {
 
     /** Plays a recording from its file, like a past program (pause, skip, LIVE back to its channel). */
     void playRecording(LiveRecordings.Rec r) {
+        playRecording(r, 0);
+    }
+
+    private void playRecording(LiveRecordings.Rec r, long from) {
         Xtream.Channel ch = find(r.ch.id);
         if (ch == null) ch = r.ch;      // a channel the provider no longer has: its recording still plays
         final Xtream.Channel channel = ch;
-        if (familyBlocks(() -> playRecording(r))) return;
+        if (familyBlocks(() -> playRecording(r, from))) return;
         if (locked(channel)) {
-            view.askPin(() -> { unlocked = true; playRecording(r); }, null);
+            view.askPin(() -> { unlocked = true; playRecording(r, from); }, null);
             return;
         }
         endShift();
@@ -2491,11 +3103,13 @@ public class Live extends Activity {
         p.about = r.about;
         catchup = p;
         recordingFile = r.file;
+        growing = LiveRecordings.RECORDING.equals(r.state) && !r.fetch && !LiveRecordings.interrupted(r, System.currentTimeMillis()) ? r.id : null;
+        startId++;
         triedOther = waited = false;
         format = "ts";
-        startCatchup(0);
+        startCatchup(from);
         view.showBanner(channel);
-        findBreaks(r.file);
+        if (growing == null) findBreaks(r.file);        // once it's all there
     }
 
     // MARK: - A recording's ad breaks
@@ -2580,12 +3194,51 @@ public class Live extends Activity {
                 upNext();
                 return;
             }
+            offerNext(length);
+            // Its place kept as it plays, not only when it's left: a crash or a power cut loses a minute, not the place.
+            long up = android.os.SystemClock.uptimeMillis();
+            if (recordingFile == null && playing != null && player.isPlaying() && catchupPending < 0 && up - placeKeptAt > 60_000) {
+                placeKeptAt = up;
+                final Xtream.Channel ch = playing;
+                final Xtream.Program p = catchup;
+                final long at = position();
+                final Context app = getApplicationContext();
+                io.execute(() -> LiveResume.playing(app, ch, p, at, length));
+            }
             main.postDelayed(this, 1000);
         }
     };
+    private long placeKeptAt;
 
-    private void upNext() {
-        if (playing == null || catchup == null) return;
+    /** What plays after the past show or recording on: its title, its button's words, and playing it. */
+    private static final class Following {
+        final String title, sub, label;
+        final Runnable play;
+
+        Following(String title, String sub, String label, Runnable play) {
+            this.title = title;
+            this.sub = sub;
+            this.label = label;
+            this.play = play;
+        }
+    }
+
+    /** Offered in the corner card (nextOn), or turned down there (nextRefused). */
+    private Following nextOn;
+    private boolean nextRefused;
+    private Runnable nextTick;
+
+    private void resetNext() {
+        nextOn = null;
+        nextRefused = false;
+        if (nextTick != null) main.removeCallbacks(nextTick);
+        nextTick = null;
+        view.nextCard.hide();
+    }
+
+    /** The show after this one, null for none (or its guide isn't here yet). */
+    private Following following() {
+        if (playing == null || catchup == null) return null;
         final Xtream.Channel ch = playing;
         final Xtream.Program p = catchup;
         long now = System.currentTimeMillis();
@@ -2596,43 +3249,166 @@ public class Live extends Activity {
                         || r.start <= p.start) continue;
                 if (best == null || r.start < best.start) best = r;
             }
-            if (best == null) {
-                backToLive();
+            if (best == null) return null;
+            final LiveRecordings.Rec next = best;
+            return new Following(next.title, Ui.tr("Gravado", "Recorded") + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir", "Play now"),
+                    () -> playRecording(next));
+        }
+        final Xtream.Program n = LiveCatchup.after(view.programsOf(ch), p.start, p.end);
+        if (n == null) return null;
+        if (n.start <= now && n.end > now) {        // on now: the channel live
+            return new Following(n.title, Ui.tr("Agora", "Now") + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir ao vivo", "Watch live"),
+                    this::backToLive);
+        }
+        if (n.end <= now && LiveView.replayable(ch, n, now)) {
+            return new Following(n.title, Ui.time(n.start) + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir", "Play now"),
+                    () -> playCatchup(ch, n));
+        }
+        return null;
+    }
+
+    private boolean hasFollowing;
+    private long followingAt;
+    private Xtream.Program followingOf;
+
+    /** Whether there's a show after this one (looked up now and then: the recordings are files). */
+    boolean hasFollowing() {
+        long up = android.os.SystemClock.uptimeMillis();
+        if (followingOf != catchup || up - followingAt > (hasFollowing ? 30_000 : 3_000)) {
+            followingOf = catchup;
+            followingAt = up;
+            hasFollowing = following() != null;
+        }
+        return hasFollowing;
+    }
+
+    /** Next show, on the bar. */
+    void playFollowing() {
+        Following f = following();
+        if (f == null) return;
+        resetNext();
+        f.play.run();
+    }
+
+    /** The corner card in the last seconds, counting down to the end; gone when skipped back from it. */
+    private void offerNext(long length) {
+        if (LiveOptions.catchupNext(this) != LiveOptions.NEXT_CARD || catchupPending >= 0 || skipTo >= 0 || endSeen) return;
+        long left = length - position();
+        if (length < 60_000 || recordingFile == null && catchup.end > System.currentTimeMillis()) return;
+        if (left > 12_000) {
+            if (nextOn != null || nextRefused) resetNext();
+            return;
+        }
+        if (left <= 0 || left > 10_000 || nextRefused) return;
+        if (nextOn == null) {
+            nextOn = following();
+            if (nextOn == null) return;
+            showNextCard((int) Math.ceil(left / 1000.0));
+        }
+        view.nextCard.left((int) Math.ceil(left / 1000.0));
+    }
+
+    private void showNextCard(int seconds) {
+        final Following f = nextOn;
+        view.nextCard.show(f.title, f.label, seconds, () -> {
+            resetNext();
+            f.play.run();
+        }, () -> {
+            nextRefused = true;
+            nextOn = null;
+            if (endSeen) backToLive();      // over already
+        });
+    }
+
+    /** The end, with the corner card: what it offered; not offered in time, offered now, for a few seconds. */
+    private void endWithCard(Following f) {
+        if (nextRefused) {
+            resetNext();
+            backToLive();
+            return;
+        }
+        if (nextOn != null) {
+            Runnable play = nextOn.play;
+            resetNext();
+            play.run();
+            return;
+        }
+        nextOn = f;
+        final int[] seconds = {10};
+        final Xtream.Program p = catchup;
+        showNextCard(seconds[0]);
+        nextTick = () -> {
+            if (catchup != p || nextOn != f || nextRefused) return;
+            if (--seconds[0] <= 0) {
+                resetNext();
+                f.play.run();
                 return;
             }
-            final LiveRecordings.Rec next = best;
-            view.upNext(next.title, Ui.tr("Gravado", "Recorded") + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir", "Play now"),
-                    () -> playRecording(next), this::backToLive);
-            return;
-        }
-        List<Xtream.Program> list = view.programsOf(ch);
-        Xtream.Program next = null;
-        for (int i = 0; list != null && i + 1 < list.size(); i++) if (list.get(i).start == p.start) next = list.get(i + 1);
-        if (next == null) {
+            view.nextCard.left(seconds[0]);
+            main.postDelayed(nextTick, 1000);
+        };
+        main.postDelayed(nextTick, 1000);
+    }
+
+    private void upNext() {
+        upNext(6);
+    }
+
+    /** `tries`: seconds left to wait for the channel's guide (from Home, it may still be loading). */
+    private void upNext(int tries) {
+        if (playing == null || catchup == null) return;
+        final Xtream.Channel ch = playing;
+        final Xtream.Program p = catchup;
+        int how = LiveOptions.catchupNext(this);
+        if (how == LiveOptions.NEXT_OFF) {
             backToLive();
             return;
         }
-        final Xtream.Program n = next;
-        if (n.start <= now && n.end > now) {        // on now: the channel live
-            view.upNext(n.title, Ui.tr("Agora", "Now") + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir ao vivo", "Watch live"),
-                    this::backToLive, this::backToLive);
-        } else if (n.end <= now && LiveView.replayable(ch, n, now)) {
-            view.upNext(n.title, Ui.time(n.start) + "  ·  " + view.nameWithCountry(ch), Ui.tr("Assistir", "Play now"),
-                    () -> playCatchup(ch, n), this::backToLive);
-        } else {
-            backToLive();
+        if (how == LiveOptions.NEXT_CARD && (nextRefused || nextOn != null)) {
+            endWithCard(null);
+            return;
         }
+        Following f = following();
+        if (f == null && recordingFile == null && tries > 0) {
+            List<Xtream.Program> list = view.programsOf(ch);
+            if (list == null || list.isEmpty()) {
+                main.postDelayed(() -> { if (playing == ch && catchup == p) upNext(tries - 1); }, 1000);
+                return;
+            }
+        }
+        if (f == null) backToLive();
+        else if (how == LiveOptions.NEXT_CARD) endWithCard(f);
+        else view.upNext(f.title, f.sub, f.label, f.play, this::backToLive);
     }
 
     /** From a past program back to its channel live. */
     void backToLive() {
+        setSpeeding(false);
         if (shift != null && rolling && playing != null) {      // Rewind any channel: the buffer's newest, kept
             atLive = true;
-            playShift(shift.newest());
+            playShift(Math.max(shift.oldest(), shift.newest() - LiveOptions.liveReserve(this) * 1000L));      // not with nothing in hand
             view.showBanner(playing);
             return;
         }
+        if (growing() != null && streamsFullFor(playing)) {      // its newest: live would come from the recording again
+            if (length() - position() > 20_000) startCatchup(Math.max(0, length() - 8_000));
+            return;
+        }
         if (playing != null) play(playing);
+    }
+
+    /** Watching a recording as it's made because no stream is to spare, and at its newest: that's live here. */
+    boolean asLive() {
+        return growing() != null && streamsFullFor(playing) && length() - position() <= 30_000;
+    }
+
+    /** Whether live on `ch` would come from its recording (streamsFull). */
+    private boolean streamsFullFor(Xtream.Channel ch) {
+        if (ch == null || LiveOptions.streamLimit(this) != LiveOptions.LIMIT_ASKS) return false;
+        java.util.List<LiveRecordings.Rec> recs = LiveStreams.recording(this);
+        if (!LiveStreams.over(recs.size(), 1, Xtream.knownMax(this))) return false;
+        for (LiveRecordings.Rec r : recs) if (r.ch.id == ch.id && !r.fetch) return true;
+        return false;
     }
 
     /** How far into the past program (ms) and how long it is (the stream's length, else the guide's). */
@@ -2647,11 +3423,12 @@ public class Live extends Activity {
 
     long length() {
         if (shift != null) return Math.max(1000, shift.newest() - shift.oldest());
+        if (growing() != null) return Math.max(1000, Math.min(System.currentTimeMillis(), catchup.end) - catchup.start);
         long d = player == null ? C.TIME_UNSET : player.getDuration();
         long guide = catchup == null ? 0 : catchup.end - catchup.start;
         long total = d == C.TIME_UNSET || d <= 0 ? guide : (catchup == null ? 0 : catchupBase) + d;
-        // Some providers' catch-up says it's far longer than the show (a day and more): then the guide's length.
-        if (guide > 0 && recordingFile == null && total > guide * 3 / 2 + 15 * 60_000L) return guide;
+        // A provider's says it's far longer than the show (a day and more), or shorter: then the guide's length.
+        if (guide > 0 && recordingFile == null) return LiveCatchup.length(total, guide);
         return total;
     }
 
@@ -2716,11 +3493,6 @@ public class Live extends Activity {
         view.restyle();
         relist();       // the list read again (off the screen's thread): its favorites, and Kids' channels
         view.historyChanged();
-    }
-
-    /** The sound off while Live TV's Home covers the video (YouTube TV's Home is quiet), and back. */
-    void setMuted(boolean muted) {
-        if (player != null) player.setVolume(muted ? 0f : 1f);
     }
 
     /** Whether live TV is paused or playing behind live (from the TV's own buffer). */
@@ -2805,8 +3577,62 @@ public class Live extends Activity {
         view.tracksChanged();
     }
 
+    // MARK: - Catching up (behind live, a little faster)
+
+    private static final float FASTER = 1.25f;
+    private boolean speeding;
+    /** The channel whose sound (tunneled, or sent on as Dolby) can't be sped up. */
+    private int speedRefused = -1;
+
+    boolean speeding() {
+        return speeding;
+    }
+
+    /** Whether the button does anything: behind live, and not refused. */
+    boolean canSpeed() {
+        return player != null && shift != null && shiftPlaying && !atLive && playing != null && speedRefused != playing.id
+                && !LiveOptions.tunneling(this) && behind() > 15_000;
+    }
+
+    void setSpeeding(boolean on) {
+        if (player == null || speeding == on || on && !canSpeed()) return;
+        speeding = on;
+        player.setPlaybackSpeed(on ? FASTER : 1);
+        main.removeCallbacks(speedWatchdog);
+        if (on) main.postDelayed(speedWatchdog, 1500);
+        view.tracksChanged();
+    }
+
+    /** Refused: said once. Near live: as fast as before, and live. */
+    private final Runnable speedWatchdog = new Runnable() {
+        @Override public void run() {
+            if (!speeding || player == null) return;
+            if (player.getPlaybackParameters().speed < 1.1f) {
+                speedRefused = playing == null ? -1 : playing.id;
+                setSpeeding(false);
+                if (LiveOptions.catchUpSpeed(Live.this) == LiveOptions.SPEED_BUTTON) {
+                    view.flash(Ui.tr("O som deste canal não acelera", "This channel's sound can't be sped up"));
+                }
+                return;
+            }
+            if (shift == null || behind() < Math.max(6000, LiveOptions.liveReserve(Live.this) * 1000L)) {
+                setSpeeding(false);
+                if (rolling) atLive = true;
+                view.tracksChanged();
+                return;
+            }
+            main.postDelayed(this, 1000);
+        }
+    };
+
+    /** Always: on its own, once it's playing behind. */
+    private void speedAlways() {
+        if (LiveOptions.catchUpSpeed(this) == LiveOptions.SPEED_ALWAYS && !paused()) setSpeeding(true);
+    }
+
     /** The pause over: the buffer stops and goes (the caller plays what's next). */
     private void endShift() {
+        setSpeeding(false);
         rolling = atLive = false;
         if (shift == null) return;
         shift.stop();
@@ -2825,6 +3651,8 @@ public class Live extends Activity {
         skipLast = up;
         skipStep = ms;
         long step = ms * (skipRun >= 12 ? 6 : skipRun >= 5 ? 3 : 1);
+        // At the buffer's start, pressed again: on into the provider's catch-up.
+        if (ms < 0 && rolling && skipRun == 0 && skipTo < 0 && position() < 4000 && view.rewindInto(System.currentTimeMillis() - length(), -ms)) return true;
         if (skipTo < 0) skipFrom = position();
         long to = Math.max(0, (skipTo >= 0 ? skipTo : position()) + step), end = length();
         long now = System.currentTimeMillis();
@@ -2874,7 +3702,7 @@ public class Live extends Activity {
         if (to < 0 || player == null) return;
         if (shift != null) {
             if (skipOn != shift) return;
-            if (shift.oldest() + to >= shift.newest() - 4000) {     // past the newest: live again
+            if (shift.oldest() + to >= shift.newest() - Math.max(4000, LiveOptions.liveReserve(this) * 1000L)) {     // past the newest: live again
                 backToLive();
                 return;
             }
@@ -2887,6 +3715,10 @@ public class Live extends Activity {
         long now = System.currentTimeMillis();
         if (recordingFile == null && catchup.end > now && to >= now - catchup.start - 5000) {    // caught up: live
             backToLive();
+            return;
+        }
+        if (growing() != null) {
+            startCatchup(Math.max(0, Math.min(to, length() - 8_000)));
             return;
         }
         if (recordingFile != null) {
@@ -2924,6 +3756,17 @@ public class Live extends Activity {
         layoutVideo(true);
     }
 
+    /** Beside the player's card, in the 1920 space. */
+    private static final float[] SMALL = {56, 252, 1024, 576};
+    private boolean small;
+
+    /** The picture beside the player's card (Smaller picture beside cards), or full screen again. */
+    void setSmall(boolean on) {
+        if (small == on) return;
+        small = on;
+        layoutVideo(true);
+    }
+
     /** The guide's video window moved (another style's layout): the video goes there. */
     void layoutChanged() {
         layoutVideo(false);
@@ -2948,7 +3791,7 @@ public class Live extends Activity {
             return;
         }
         // In the guide's window always all of it; full screen, as picked (Picture: fit, zoom or stretch).
-        int mode = preview || window != null ? FIT : aspectMode();
+        int mode = preview || window != null || small ? FIT : aspectMode();
         int vw = sw, vh = Math.round(sw / aspect);
         if (mode == STRETCH) {
             vh = sh;
@@ -2969,6 +3812,11 @@ public class Live extends Activity {
         float s = 1, tx = 0, ty = 0;
         if (window != null) {
             float k = sw / 1920f, bx = window[0] * k, by = window[1] * k, bw = window[2] * k, bh = window[3] * k;
+            s = Math.min(bw / vw, bh / vh);
+            tx = bx + (bw - vw * s) / 2 - left;
+            ty = by + (bh - vh * s) / 2 - top;
+        } else if (small && !preview) {
+            float k = sw / 1920f, bx = SMALL[0] * k, by = SMALL[1] * k, bw = SMALL[2] * k, bh = SMALL[3] * k;
             s = Math.min(bw / vw, bh / vh);
             tx = bx + (bw - vw * s) / 2 - left;
             ty = by + (bh - vh * s) / 2 - top;

@@ -45,7 +45,7 @@ final class LiveStart {
     static void watchWake(Application app) {
         app.registerReceiver(new BroadcastReceiver() {
             @Override public void onReceive(Context c, Intent intent) {
-                if (LiveOptions.startOnWake(c)) open(c, "wake");
+                if (LiveOptions.startOnWake(c) && !RecordOff.on(c)) open(c, "wake");
             }
         }, new IntentFilter(Intent.ACTION_SCREEN_ON));
     }

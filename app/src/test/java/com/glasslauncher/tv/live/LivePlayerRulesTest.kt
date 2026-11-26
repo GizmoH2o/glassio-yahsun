@@ -169,6 +169,12 @@ class LivePlayerRulesTest {
         assertEquals(listOf(LiveOverlay.SKIP_BACK, LiveOverlay.SKIP_AHEAD, LiveOverlay.MOMENTS, LiveOverlay.AUDIO, LiveOverlay.LIVE), tabs)
     }
 
+    @Test fun `the new bar has Start over and Next show, and no skip tabs`() {
+        assertEquals(listOf(LiveOverlay.START_OVER, LiveOverlay.NEXT, LiveOverlay.MATCH, LiveOverlay.MOMENTS, LiveOverlay.AUDIO, LiveOverlay.LIVE),
+            LiveOverlay.pastTabs(true, true, true).toList())
+        assertEquals(listOf(LiveOverlay.START_OVER, LiveOverlay.AUDIO, LiveOverlay.LIVE), LiveOverlay.pastTabs(false, false, false).toList())
+    }
+
     @Test fun `no match means no Moments tab`() {
         assertFalse(LiveOverlay.tabs(true, true, true, false, true).contains(LiveOverlay.MOMENTS))
         assertFalse(LiveOverlay.tabs(false, true, true, false, true).contains(LiveOverlay.MOMENTS))

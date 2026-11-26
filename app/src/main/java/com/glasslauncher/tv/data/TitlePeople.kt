@@ -25,9 +25,13 @@ data class TitlePeople(val makers: List<String>, val cast: List<Person>) {
             val credits = root.optJSONObject("credits")
             val makers = if (movie) objects(credits, "crew").filter { it.optString("job") == "Director" }.map { it.text("name") }
             else objects(root, "created_by").map { it.text("name") }
-            val cast = objects(credits, "cast").filter { it.text("name").isNotEmpty() }.sortedBy { it.optInt("order", Int.MAX_VALUE) }.take(CAST).map {
-                Person(it.optInt("id"), it.text("name"), it.text("character"), it.text("profile_path").takeIf { p -> p.startsWith("/") }?.let { p -> PHOTO + p }.orEmpty())
-            }
+            // One card each: an actor playing two parts is in TMDB's list twice (the row's cards need their own keys).
+            val cast = objects(credits, "cast").filter { it.text("name").isNotEmpty() }.sortedBy { it.optInt("order", Int.MAX_VALUE) }
+                .groupBy { it.optInt("id") }.values.take(CAST).map { all ->
+                    val it = all.first()
+                    val parts = all.map { o -> o.text("character") }.filter { c -> c.isNotEmpty() }.distinct().joinToString(" / ")
+                    Person(it.optInt("id"), it.text("name"), parts, it.text("profile_path").takeIf { p -> p.startsWith("/") }?.let { p -> PHOTO + p }.orEmpty())
+                }
             return TitlePeople(makers.filter { it.isNotEmpty() }.distinct().take(2), cast)
         }
 

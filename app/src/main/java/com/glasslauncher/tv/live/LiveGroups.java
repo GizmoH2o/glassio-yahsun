@@ -35,6 +35,18 @@ final class LiveGroups {
         return false;
     }
 
+    static synchronized Set<Integer> ids(Context c, String group) {
+        Set<Integer> out = new java.util.HashSet<>();
+        JSONArray ids = read(c).optJSONArray(group);
+        for (int i = 0; ids != null && i < ids.length(); i++) out.add(ids.optInt(i));
+        return out;
+    }
+
+    /** When they last changed. */
+    static long stamp(Context c) {
+        return file(c).lastModified();
+    }
+
     /** Puts the channel in the group, or takes it out; true when it's in now. */
     static synchronized boolean toggle(Context c, String group, int channel) {
         JSONObject all = read(c);

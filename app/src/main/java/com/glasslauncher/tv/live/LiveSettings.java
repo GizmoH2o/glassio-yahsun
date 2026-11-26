@@ -23,7 +23,7 @@ import java.util.Set;
 final class LiveSettings {
     // MAIN: the sections; ROWS: a section's settings; KEYS: the remote's buttons; the rest, lists a setting opens.
     private static final int MAIN = 0, HIDDEN = 1, ORDER = 2, LOCKED = 3, SCHEDULE = 4, SEPARATE = 5, ROWS = 6, KEYS = 7,
-            SERIES = 8, PLAYLISTS = 9, FOLLOWING = 10, CHECK = 11, GUIDE_PAGE = 12, GALLERY = 13;
+            SERIES = 8, FOLLOWING = 10, CHECK = 11, GUIDE_PAGE = 12, GALLERY = 13, BUTTONS = 14;
     // The first list: playback, the lists' order, the guide, opening by itself (all of these step with ← → and OK),
     // then the lists that open (hidden, favorites), the PIN, signing out.
     private static final int FORMAT_ROW = 0, BUFFER_ROW = 1, FRAME_RATE_ROW = 2, PASSTHROUGH_ROW = 3, TUNNELING_ROW = 4,
@@ -40,7 +40,9 @@ final class LiveSettings {
             SERIES_RECORD_ROW = 66, RECORD_EARLY_ROW = 67, RECORD_LATE_ROW = 68, COUNTRY_ROW = 69,
             VOICE_ROW = 70, GUIDE_ALIGN_ROW = 71, PLAYER_LOGO_ROW = 72, LOGO_SOURCE_ROW = 73,
             CUSTOM_FOCUS_ROW = 74, CUSTOM_INFO_ROW = 75, CUSTOM_FONT_ROW = 76, REWIND_ANY_ROW = 77,
-            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220, STREAM_BADGES_ROW = 221, HAND_GUIDES_ROW = 222, GUIDE_SEARCH_ROW = 223, GUIDE_PANEL_ROW = 224, MOMENTS_TIMING_ROW = 225,
+            KEEP_DAYS_ROW = 79, KEEP_SHOW_ROW = 80, HIDE_NO_GUIDE_ROW = 81, LOCK_ADULT_ROW = 82, MATCH_NEWS_ROW = 83, RED_CARD_ROW = 84, CHANNEL_MARK_ROW = 85, SPOILER_GUARD_ROW = 86, UP_NEXT_ROW = 87, CHECK_ROW = 88, GUIDE_PAGE_ROW = 89, KEEP_PAST_ROW = 190, CATCHUP_TABLE_ROW = 191, MATCH_NAMES_ROW = 192, HD_TWINS_ROW = 193, AVOID_BAD_ROW = 194, CLASHES_ROW = 195, RECORD_DRIVE_ROW = 196, SMART_ROW = 197, SMART_FOLLOW_ROW = 198, SMART_NEW_ROW = 199, SMART_ADD_ROW = 200, MATCH_CENTRE_ROW = 201, CLOSE_GAMES_ROW = 202, ALERTS_HOME_ROW = 203, ALERTS_QUIET_ROW = 204, MULTI_CHIP_ROW = 205, PREVIEW_CHANNEL_ROW = 206, BREAKS_ROW = 207, BREAKS_AUTO_ROW = 208, KIDS_LIMIT_ROW = 209, KIDS_BEDTIME_ROW = 210, KIDS_AGE_ROW = 211, VOICE_COMMANDS_ROW = 212, UNRATED_ROW = 213, TEXT_SCALE_ROW = 214, HIGH_CONTRAST_ROW = 215, SAVE_DESIGN_ROW = 216, MY_DESIGNS_ROW = 217, COMMUNITY_ROW = 218, COMMUNITY_ON_ROW = 219, RES_BADGE_ROW = 220, STREAM_BADGES_ROW = 221, HAND_GUIDES_ROW = 222, GUIDE_SEARCH_ROW = 223, GUIDE_PANEL_ROW = 224, MOMENTS_TIMING_ROW = 225, CATCHUP_BAR_ROW = 226, CATCHUP_NEXT_ROW = 227, RECORD_OFF_ROW = 228, LIMIT_ROW = 229, GUIDE_FOCUS_ROW = 230, GUIDE_LOGOS_ROW = 231, GUIDE_GREY_ROW = 232, GUIDE_STATUS_ROW = 233, ATTENTION_ROW = 234, MISSED_ROW = 235, MULTI_OK_ROW = 236, MULTI_FREEZE_ROW = 237, SHORT_ROW = 238, SUGGEST_ROW = 239,
+            // Rows that open some of the others (short settings).
+            G_CAPTIONS = 240, G_MULTI = 241, G_CATCHUP = 242, G_OPEN = 243, G_LOOK = 244, G_PAST = 245, G_SMART = 246, G_TIMES = 247, G_SCORES = 248, MORE_ROW = 250, SNOOZE_ROW = 251, BEST_ROW = 252, WARN_ROW = 253, TELL_ROW = 254, TAGS_ROW = 255, REPEATS_ROW = 256, CORRECT_ROW = 257, FIRSTS_ROW = 258, HIDE_ALL_ROW = 259, PLAYER_BUTTONS_ROW = 260, OK_OPENS_ROW = 261, STREAM_LINE_ROW = 262, TROUBLE_ROW = 263, PLAYER_STAYS_ROW = 264, SPEED_ROW = 266, REWIND_INTO_ROW = 265, SMALL_PIC_ROW = 268, TUNE_CARD_ROW = 269, PAST_BUTTONS_ROW = 270, RESERVE_ROW = 271, TITLE_ROW = 272, BADGE_LOOK_ROW = 273, G_PLAYER = 249,
             HEAD_STREAM = 90, HEAD_SOUND = 91, HEAD_START = 92, HEAD_PARENTAL = 93, HEAD_PROFILES = 94, MAIN_ROWS = 94;
     // The sections in a column at the left (each with its symbol); the page at the right: on the first list, the
     // focused section's details and its settings, in a section its rows (the launcher settings' layout).
@@ -56,7 +58,7 @@ final class LiveSettings {
     /** Design without Custom's own rows (the design isn't Custom). */
     private static final int[] THEME_PLAIN = {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, THEME_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW,
             COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW,
-            TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW};
+            TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, SHORT_ROW, RESET_ROW};
 
     /** A section's rows (Custom's parts only while Custom is the design). */
     /** An M3U or MAG playlist in use: no subscription to show (set as the settings open). */
@@ -93,21 +95,217 @@ final class LiveSettings {
     }
 
     private static final int[][] SECTION_ROWS = {
-            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, REWIND_ANY_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MULTI_CHIP_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
+            {HEAD_STREAM, CHECK_ROW, FORMAT_ROW, BUFFER_ROW, RESERVE_ROW, REWIND_ANY_ROW, PLAYER_BUTTONS_ROW, OK_OPENS_ROW, STREAM_LINE_ROW, TITLE_ROW, TROUBLE_ROW, PLAYER_STAYS_ROW, REWIND_INTO_ROW, SPEED_ROW, SMALL_PIC_ROW, TUNE_CARD_ROW, PAST_BUTTONS_ROW, CATCHUP_BAR_ROW, CATCHUP_NEXT_ROW, FRAME_RATE_ROW, TUNNELING_ROW, MULTI_CHIP_ROW, MULTI_OK_ROW, MULTI_FREEZE_ROW, MERGE_ROW, HD_TWINS_ROW, AVOID_BAD_ROW, SEPARATE_ROW, HEALTH_ROW,
                     HEAD_SOUND, PASSTHROUGH_ROW, AUDIO_LANG_ROW, CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW,
                     HEAD_START, BOOT_ROW, WAKE_ROW, PREVIEW_ROW, RESET_ROW},
-            {CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, RES_BADGE_ROW, STREAM_BADGES_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, ORDER_ROW,
+            {SUGGEST_ROW, CHANNEL_SORT_ROW, CATEGORY_SORT_ROW, CHANNEL_MARK_ROW, RES_BADGE_ROW, STREAM_BADGES_ROW, BADGE_LOOK_ROW, LOGO_SOURCE_ROW, COUNTRY_ROW, VOICE_ROW, VOICE_COMMANDS_ROW, HIDE_NO_GUIDE_ROW, HISTORY_ROW, CLEAR_HISTORY_ROW, HIDDEN_ROW, HIDE_ALL_ROW, ORDER_ROW,
                     RESET_ROW},
-            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, HAND_GUIDES_ROW, GUIDE_PANEL_ROW, GUIDE_SEARCH_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
+            {GUIDE_PAGE_ROW, GUIDE_SIZE_ROW, GUIDE_FOCUS_ROW, GUIDE_LOGOS_ROW, GUIDE_GREY_ROW, GUIDE_STATUS_ROW, TAGS_ROW, REPEATS_ROW, CORRECT_ROW, FIRSTS_ROW, GUIDE_HOURS_ROW, PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW, MATCH_NAMES_ROW, HAND_GUIDES_ROW, GUIDE_PANEL_ROW, GUIDE_SEARCH_ROW, GUIDE_START_ROW, FULL_GUIDE_ROW, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_SHIFT_ROW, GUIDE_NOW_ROW,
                     PREVIEW_CHANNEL_ROW, SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW, RESET_ROW},
             {STYLE_ROW, MORNING_ROW, NIGHT_ROW, LATE_ROW, CUSTOM_BG_ROW, CUSTOM_FOCUS_ROW, THEME_ROW, CUSTOM_ROUND_ROW,
-                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW, COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, RESET_ROW},
-            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, MOMENTS_TIMING_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
+                    CUSTOM_INFO_ROW, CUSTOM_FONT_ROW, CODE_ROW, SAVE_DESIGN_ROW, MY_DESIGNS_ROW, COMMUNITY_ROW, COMMUNITY_ON_ROW, OPACITY_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, SHORT_ROW, RESET_ROW},
+            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, SNOOZE_ROW, BEST_ROW, REMIND_WATCHING_ROW, SCHEDULE_ROW, SERIES_ROW, FOLLOW_ROW, MATCH_ROW, MATCH_STYLE_ROW, UP_NEXT_ROW, SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, MOMENTS_TIMING_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW, ALERTS_HOME_ROW, ALERTS_QUIET_ROW,
                     RESET_ROW},
-            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
+            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_OFF_ROW, LIMIT_ROW, ATTENTION_ROW, MISSED_ROW, RECORD_LIST_ROW, SERIES_RECORD_ROW, RECORDINGS_ROW, CLASHES_ROW, RECORD_DRIVE_ROW, BREAKS_ROW, BREAKS_AUTO_ROW, KEEP_DAYS_ROW, KEEP_SHOW_ROW, RESET_ROW},
             {HEAD_PARENTAL, PIN_ROW, LOCKED_ROW, LOCK_ADULT_ROW, AGE_ROW, UNRATED_ROW, HEAD_PROFILES, PROFILES_ROW, ASK_PROFILE_ROW, KIDS_LIMIT_ROW, KIDS_BEDTIME_ROW, KIDS_AGE_ROW, RESET_ROW},
             {},
-            {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, SIGN_OUT_ROW}};
+            {SUBSCRIPTION_ROW, EXPORT_ROW, IMPORT_ROW, PLAYLISTS_ROW, ADD_PLAYLIST_ROW, WARN_ROW, TELL_ROW, SIGN_OUT_ROW}};
+
+    // MARK: - Short settings: what's changed most, the rest behind More settings
+
+    /** Each section's short list (groups among them); null: all its rows, as they are. */
+    private static final int[][] SHORT = {
+            {CHECK_ROW, REWIND_ANY_ROW, BUFFER_ROW, RESERVE_ROW, AUDIO_LANG_ROW, G_PLAYER, G_CAPTIONS, G_CATCHUP, G_MULTI, G_OPEN},
+            {SUGGEST_ROW, CHANNEL_SORT_ROW, CHANNEL_MARK_ROW, COUNTRY_ROW, RES_BADGE_ROW, HIDDEN_ROW, HIDE_ALL_ROW, ORDER_ROW},
+            {GUIDE_PAGE_ROW, G_LOOK, DAYS_AHEAD_ROW, GUIDE_SOURCE_ROW, GUIDE_NOW_ROW, G_PAST, PREVIEW_CHANNEL_ROW, G_SMART},
+            {STYLE_ROW, G_TIMES, THEME_ROW, TEXT_SCALE_ROW, HIGH_CONTRAST_ROW, MY_DESIGNS_ROW, COMMUNITY_ROW, SHORT_ROW},
+            {REMIND_LEAD_ROW, REMIND_AUTO_ROW, SCHEDULE_ROW, FOLLOW_ROW, MATCH_ROW, G_SCORES, ALERTS_HOME_ROW, SERIES_ROW},
+            {RECORD_EARLY_ROW, RECORD_LATE_ROW, RECORD_LIST_ROW, RECORDINGS_ROW, LIMIT_ROW, RECORD_OFF_ROW, MISSED_ROW, KEEP_DAYS_ROW},
+            null, null, null};
+
+    private static int[] members(int group) {
+        switch (group) {
+            case G_CAPTIONS: return new int[] {CC_ON_ROW, CC_SIZE_ROW, CC_STYLE_ROW, CC_COLOR_ROW};
+            case G_MULTI: return new int[] {MULTI_CHIP_ROW, MULTI_OK_ROW, MULTI_FREEZE_ROW};
+            case G_PLAYER: return new int[] {PLAYER_BUTTONS_ROW, OK_OPENS_ROW, STREAM_LINE_ROW, TITLE_ROW, TROUBLE_ROW, PLAYER_STAYS_ROW, REWIND_INTO_ROW, SPEED_ROW, SMALL_PIC_ROW, TUNE_CARD_ROW, PAST_BUTTONS_ROW};
+            case G_CATCHUP: return new int[] {CATCHUP_BAR_ROW, CATCHUP_NEXT_ROW};
+            case G_OPEN: return new int[] {BOOT_ROW, WAKE_ROW};
+            case G_LOOK: return new int[] {GUIDE_SIZE_ROW, GUIDE_FOCUS_ROW, GUIDE_LOGOS_ROW, GUIDE_GREY_ROW, GUIDE_STATUS_ROW, TAGS_ROW};
+            case G_PAST: return new int[] {PAST_DAYS_ROW, KEEP_PAST_ROW, CATCHUP_TABLE_ROW};
+            case G_SMART: return new int[] {SMART_ROW, SMART_FOLLOW_ROW, SMART_NEW_ROW, SMART_ADD_ROW};
+            case G_TIMES: return new int[] {MORNING_ROW, NIGHT_ROW, LATE_ROW};
+            case G_SCORES: return new int[] {SCORES_ROW, MATCH_CENTRE_ROW, SPOILER_GUARD_ROW, MOMENTS_TIMING_ROW, GOALS_ROW, CLOSE_GAMES_ROW, MATCH_NEWS_ROW, RED_CARD_ROW};
+            default: return null;
+        }
+    }
+
+    private static boolean group(int id) {
+        return id >= G_CAPTIONS && id <= MORE_ROW;
+    }
+
+    private static boolean in(int[] a, int id) {
+        for (int x : a) if (x == id) return true;
+        return false;
+    }
+
+    /** The rows a section shows: its short list, then what's been changed, then More settings. Pure. */
+    static int[] shortRows(int[] all, int[] first, java.util.Set<Integer> changed) {
+        List<Integer> o = new ArrayList<>();
+        for (int id : first) if (group(id) || in(all, id)) o.add(id);
+        boolean more = false;
+        for (int id : all) {
+            if (head(id) || o.contains(id) || inGroups(first, id)) continue;
+            if (changed.contains(id)) o.add(id);
+            else if (id != RESET_ROW) more = true;
+        }
+        if (more) o.add(MORE_ROW);
+        else if (in(all, RESET_ROW)) o.add(RESET_ROW);
+        return ints(o);
+    }
+
+    /** More settings: every row not in the short list itself or one of its groups (what's changed too). Pure. */
+    static int[] moreRows(int[] all, int[] first) {
+        List<Integer> o = new ArrayList<>();
+        for (int id : all) if (!head(id) && !in(first, id) && !inGroups(first, id)) o.add(id);
+        return ints(o);
+    }
+
+    private static boolean inGroups(int[] first, int id) {
+        for (int g : first) {
+            int[] m = members(g);
+            if (m != null && in(m, id)) return true;
+        }
+        return false;
+    }
+
+    private static int[] ints(List<Integer> l) {
+        int[] a = new int[l.size()];
+        for (int i = 0; i < a.length; i++) a[i] = l.get(i);
+        return a;
+    }
+
+    /** The group open in the section (its rows), MORE_ROW, or 0: the section's own list. */
+    private int group;
+    /** The rows on screen (shown), read as they open: a row changed stays where it is. */
+    private int[] shownRows;
+    private int shownFor = -1;
+
+    private boolean isShort() {
+        return LiveOptions.shortSettings(context()) && section < SHORT.length && SHORT[section] != null;
+    }
+
+    private int[] shown() {
+        int[] all = rowsOf(section);
+        if (!isShort()) return all;
+        int key = section * 1000 + group + (LiveTheme.style() == LiveTheme.CUSTOM ? 500_000 : 0);
+        if (shownRows == null || shownFor != key) {
+            shownFor = key;
+            shownRows = group == MORE_ROW ? moreRows(all, SHORT[section]) : group != 0 ? members(group) : shortRows(all, SHORT[section], changed());
+        }
+        return shownRows;
+    }
+
+    /** The settings not as they first are. */
+    private final java.util.Set<Integer> changed = new java.util.HashSet<>();
+    private android.util.SparseArray<String> firstValues;
+    /** Reading the first values: this in place of the app's own (nothing saved in it). */
+    private Context fresh;
+
+    private java.util.Set<Integer> changed() {
+        if (firstValues == null) {
+            firstValues = new android.util.SparseArray<>();
+            fresh = new Fresh(view.getContext());
+            try {
+                for (int[] rows : SECTION_ROWS) for (int id : rows) {
+                    if (head(id) || !option(id)) continue;
+                    try {
+                        firstValues.put(id, computeRowValue(id));
+                    } catch (RuntimeException ignored) {
+                    }
+                }
+            } finally {
+                fresh = null;
+            }
+        }
+        changed.clear();
+        for (int i = 0; i < firstValues.size(); i++) {
+            int id = firstValues.keyAt(i);
+            try {
+                if (!firstValues.valueAt(i).equals(computeRowValue(id))) changed.add(id);
+            } catch (RuntimeException ignored) {
+            }
+        }
+        return changed;
+    }
+
+    /** Settings with a first value to compare (not lists, pages, nor the design's, which are kept elsewhere). */
+    private static boolean option(int id) {
+        switch (id) {
+            case STYLE_ROW: case MORNING_ROW: case NIGHT_ROW: case LATE_ROW: case THEME_ROW: case TEXT_SCALE_ROW: case HIGH_CONTRAST_ROW: case OPACITY_ROW:
+            case MY_DESIGNS_ROW: case COMMUNITY_ROW: case CODE_ROW: case SAVE_DESIGN_ROW: case CHECK_ROW: case HEALTH_ROW: case SEPARATE_ROW:
+            case HIDDEN_ROW: case ORDER_ROW: case CLEAR_HISTORY_ROW: case GUIDE_PAGE_ROW: case GUIDE_SOURCE_ROW: case GUIDE_NOW_ROW: case HAND_GUIDES_ROW:
+            case SMART_ADD_ROW: case SCHEDULE_ROW: case SERIES_ROW: case FOLLOW_ROW: case RECORD_LIST_ROW: case SERIES_RECORD_ROW: case RECORDINGS_ROW:
+            case CC_ON_ROW: case RECORD_DRIVE_ROW: case RESET_ROW: case SUBSCRIPTION_ROW: case EXPORT_ROW: case IMPORT_ROW: case PLAYLISTS_ROW:
+            case ADD_PLAYLIST_ROW: case SIGN_OUT_ROW: case PROFILES_ROW: case PIN_ROW: case LOCKED_ROW:
+                return false;
+            default:
+                return partOf(id) < 0;
+        }
+    }
+
+    /** The app as on its first day: its settings' files and flags empty. */
+    private static final class Fresh extends android.content.ContextWrapper {
+        Fresh(Context c) {
+            super(c.getApplicationContext());
+        }
+
+        @Override public Context getApplicationContext() {
+            return this;
+        }
+
+        @Override public android.content.SharedPreferences getSharedPreferences(String name, int mode) {
+            return super.getSharedPreferences(name.startsWith("live-") ? "first-day" : name, mode);
+        }
+
+        @Override public java.io.File getFilesDir() {
+            java.io.File dir = new java.io.File(getCacheDir(), "first-day");
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            return dir;
+        }
+    }
+
+    /** Changed, or a group with something changed in it. */
+    private boolean dotted(int id) {
+        int[] m = members(id);
+        if (m == null) return changed.contains(id);
+        for (int x : m) if (changed.contains(x)) return true;
+        return false;
+    }
+
+    private String groupLabel(int id) {
+        switch (id) {
+            case G_CAPTIONS: return Ui.tr("Legendas", "Captions");
+            case G_MULTI: return Ui.tr("Multivisão", "Multiview");
+            case G_PLAYER: return Ui.tr("Player", "Player");
+            case G_CATCHUP: return Ui.tr("Reprises", "Catch-up");
+            case G_OPEN: return Ui.tr("Abrir a TV ao vivo sozinha", "Open Live TV by itself");
+            case G_LOOK: return Ui.tr("Aparência do guia", "Guide look");
+            case G_PAST: return Ui.tr("Programas passados", "Past shows");
+            case G_SMART: return Ui.tr("Canais inteligentes", "Smart channels");
+            case G_TIMES: return Ui.tr("Design por hora do dia", "Design by time of day");
+            case G_SCORES: return Ui.tr("Placar e jogos", "Scores and matches");
+            default: return Ui.tr("Mais ajustes", "More settings");
+        }
+    }
+
+    /** What's in a group, for the panel beside it. */
+    private String groupNames(int id) {
+        int[] rows = id == MORE_ROW ? moreRows(rowsOf(section), SHORT[section]) : members(id);
+        StringBuilder s = new StringBuilder();
+        for (int r : rows) if (r != RESET_ROW) s.append(s.length() > 0 ? ", " : "").append(rowLabel(r));
+        return s + ".";
+    }
 
     private static boolean head(int id) {
         return id >= HEAD_STREAM && id <= HEAD_PROFILES;
@@ -273,7 +471,7 @@ final class LiveSettings {
     }
 
     private Context context() {
-        return view.getContext();
+        return fresh != null ? fresh : view.getContext();
     }
 
     // MARK: - The lists
@@ -282,13 +480,13 @@ final class LiveSettings {
         switch (screen) {
             case HIDDEN:
             case LOCKED: return view.providerCategories().size();
+            case BUTTONS: return LiveOverlay.BAR.length;
             case ORDER: return favorites().size();
             case SCHEDULE: return scheduled.size();
             case SERIES: return series.size();
             case FOLLOWING: return following.size();
-            case PLAYLISTS: return playlists.size();
             case SEPARATE: return separate.size();
-            case ROWS: return rowsOf(section).length;
+            case ROWS: return shown().length;
             case KEYS: return LiveKeys.SLOTS.length;
             default: return SECTION_ROWS.length;
         }
@@ -315,8 +513,6 @@ final class LiveSettings {
     /** The series (read when their list opens). */
     private List<LiveSeries.Rule> series = new ArrayList<>();
     private List<String> following = new ArrayList<>();
-    /** The playlists (read when their list opens). */
-    private List<LivePlaylists.Playlist> playlists = new ArrayList<>();
     /** The channels kept apart from their similar ones, {group, name} (read when their list opens). */
     private List<String[]> separate = new ArrayList<>();
 
@@ -328,14 +524,14 @@ final class LiveSettings {
     private String title() {
         switch (screen) {
             case HIDDEN: return Ui.tr("Categorias ocultas", "Hidden categories");
+            case BUTTONS: return Ui.tr("Botões do player", "Player buttons");
             case ORDER: return Ui.tr("Ordem dos favoritos", "Favorites order");
             case LOCKED: return Ui.tr("Categorias bloqueadas", "Locked categories");
             case SCHEDULE: return listRecordings ? Ui.tr("Gravações marcadas", "Scheduled recordings") : Ui.tr("Lembretes marcados", "Reminders set");
             case SERIES: return listRecordings ? Ui.tr("Gravações de séries", "Series recordings") : Ui.tr("Lembretes de séries", "Series reminders");
             case FOLLOWING: return Ui.tr("Seguindo", "Following");
-            case PLAYLISTS: return Ui.tr("Listas", "Playlists");
             case SEPARATE: return Ui.tr("Mantidos separados", "Kept separate");
-            case ROWS: return sectionName(section);
+            case ROWS: return isShort() && group != 0 ? sectionName(section) + "  ›  " + groupLabel(group) : sectionName(section);
             case KEYS: return sectionName(KEYS_SECTION);
             default: return Ui.tr("Ajustes da TV ao vivo", "Live TV settings");
         }
@@ -347,17 +543,17 @@ final class LiveSettings {
             LiveSchedule.Item it = scheduled.get(i);
             return it.title.isEmpty() ? view.nameWithCountry(it.ch) : it.title;
         }
+        if (screen == BUTTONS) return LiveOverlay.barName(LiveOptions.playerOrder(context())[i]);
         if (screen == SEPARATE) return separate.get(i)[1];
         if (screen == SERIES) return series.get(i).title;
         if (screen == FOLLOWING) return following.get(i);
-        if (screen == PLAYLISTS) return playlists.get(i).name();
         if (screen == ORDER) {
             Xtream.Channel ch = favorites().get(i);
             return view.numberAndName(ch, "   ");
         }
         if (screen == MAIN) return sectionName(i);
         if (screen == KEYS) return LiveKeys.slotName(LiveKeys.SLOTS[i]);
-        return rowLabel(rowsOf(section)[i]);
+        return rowLabel(shown()[i]);
     }
 
     private static String sectionName(int s) {
@@ -376,7 +572,31 @@ final class LiveSettings {
 
     /** The setting row `i` (a section's ROWS id). */
     private String rowLabel(int i) {
+        if (group(i)) return groupLabel(i);
         switch (i) {
+            case PLAYER_BUTTONS_ROW: return Ui.tr("Botões do player", "Player buttons");
+            case OK_OPENS_ROW: return Ui.tr("OK abre em", "OK opens on");
+            case STREAM_LINE_ROW: return Ui.tr("Detalhes do sinal na barra", "Stream details on the bar");
+            case TROUBLE_ROW: return Ui.tr("Ajuda quando um canal fica parando", "Help when a channel keeps stopping");
+            case REWIND_INTO_ROW: return Ui.tr("Voltar até a reprise", "Rewind into catch-up");
+            case SMALL_PIC_ROW: return Ui.tr("Imagem menor ao lado dos cartões", "Smaller picture beside cards");
+            case TUNE_CARD_ROW: return Ui.tr("Cartão do canal ao sintonizar", "Channel card after tuning");
+            case PAST_BUTTONS_ROW: return Ui.tr("Os mesmos botões nas reprises", "Same buttons on past shows");
+            case SPEED_ROW: return Ui.tr("Alcançar o ao vivo mais rápido", "Catch up faster");
+            case RESERVE_ROW: return Ui.tr("Reserva ao vivo", "Live reserve");
+            case TITLE_ROW: return Ui.tr("Títulos longos", "Long titles");
+            case PLAYER_STAYS_ROW: return Ui.tr("O player fica na tela", "Player stays up");
+            case HIDE_ALL_ROW: return Ui.tr("Ocultar em todo lugar", "Hide everywhere");
+            case TAGS_ROW: return Ui.tr("Etiquetas do guia", "Guide tags");
+            case REPEATS_ROW: return Ui.tr("Descobrir as reprises", "Work out repeats");
+            case CORRECT_ROW: return Ui.tr("Corrigir etiquetas erradas", "Correct wrong tags");
+            case FIRSTS_ROW: return Ui.tr("Estreias e finais", "Premieres and finales");
+            case SNOOZE_ROW: return Ui.tr("Adiar um lembrete", "Reminder snooze");
+            case BEST_ROW: return Ui.tr("O melhor canal para os jogos", "Best channel for matches");
+            case WARN_ROW: return Ui.tr("Avisar antes de mudar de lista", "Warn before switching");
+            case TELL_ROW: return Ui.tr("Avisar das outras listas", "Tell me about other playlists");
+            case SHORT_ROW: return Ui.tr("Ajustes curtos", "Short settings");
+            case SUGGEST_ROW: return Ui.tr("Sugerir favoritos", "Suggest favorites");
             case FORMAT_ROW: return Ui.tr("Formato do vídeo", "Stream format");
             case BUFFER_ROW: return Ui.tr("Buffer", "Buffer");
             case FRAME_RATE_ROW: return Ui.tr("Taxa de quadros automática", "Auto frame rate");
@@ -403,9 +623,19 @@ final class LiveSettings {
             case RECORD_DRIVE_ROW: return Ui.tr("Gravar no drive USB", "Record to a USB drive");
             case DAYS_AHEAD_ROW: return Ui.tr("Dias à frente no guia", "Days ahead in the guide");
             case GUIDE_SHIFT_ROW: return Ui.tr("Ajustar o horário do guia", "Guide time offset");
+            case GUIDE_FOCUS_ROW: return Ui.tr("Foco do guia", "Guide focus");
+            case GUIDE_LOGOS_ROW: return Ui.tr("Logos do guia", "Guide logos");
+            case GUIDE_GREY_ROW: return Ui.tr("Espaços cinza no guia", "Grey placeholders");
+            case GUIDE_STATUS_ROW: return Ui.tr("Linha de estado do guia", "Guide status line");
             case GUIDE_SIZE_ROW: return Ui.tr("Tamanho do guia", "Guide size");
             case GUIDE_ALIGN_ROW: return Ui.tr("Logos e nomes no guia", "Logos and names in the guide");
             case PLAYER_LOGO_ROW: return Ui.tr("Logo no player", "Logo in the player");
+            case CATCHUP_BAR_ROW: return Ui.tr("Barra do player nas reprises", "Catch-up player bar");
+            case CATCHUP_NEXT_ROW: return Ui.tr("A seguir nas reprises", "Up next on catch-up");
+            case ATTENTION_ROW: return Ui.tr("Fileira Precisam de atenção", "Needs attention row");
+            case MISSED_ROW: return Ui.tr("Gravações perdidas", "Missed recordings");
+            case LIMIT_ROW: return Ui.tr("Sem canal livre na conta", "When there's no stream to spare");
+            case RECORD_OFF_ROW: return Ui.tr("TV desligada durante uma gravação", "TV turned off while recording");
             case LOGO_SOURCE_ROW: return Ui.tr("Logos dos canais", "Channel logos");
             case CHANNEL_MARK_ROW: return Ui.tr("Ao lado do nome do canal", "Beside the channel's name");
             case GUIDE_SOURCE_ROW: return Ui.tr("Fontes do guia", "Guide sources");
@@ -421,6 +651,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: return Ui.tr("Comandos de voz", "Voice commands");
             case RES_BADGE_ROW: return Ui.tr("Selos de resolução", "Resolution badges");
             case STREAM_BADGES_ROW: return Ui.tr("Selos do sinal em figuras", "Stream badges as pictures");
+            case BADGE_LOOK_ROW: return Ui.tr("Selos na cor da aparência", "Badges in the look's colour");
             case HAND_GUIDES_ROW: return Ui.tr("Guias escolhidos à mão", "Guides chosen by hand");
             case GUIDE_SEARCH_ROW: return Ui.tr("Busca do guia", "Guide search");
             case GUIDE_PANEL_ROW: return Ui.tr("Painel do guia", "Guide panel");
@@ -447,6 +678,8 @@ final class LiveSettings {
             case BREAKS_ROW: return Ui.tr("Achar os intervalos comerciais", "Find ad breaks");
             case BREAKS_AUTO_ROW: return Ui.tr("Pular os intervalos sozinho", "Skip ad breaks by themselves");
             case PREVIEW_CHANNEL_ROW: return Ui.tr("Prévia do canal no guia", "Channel preview in the guide");
+            case MULTI_OK_ROW: return Ui.tr("OK na Multivisão", "OK in Multiview");
+            case MULTI_FREEZE_ROW: return Ui.tr("Reconectar imagens paradas", "Reconnect frozen pictures");
             case MULTI_CHIP_ROW: return Ui.tr("Multivisão no chip de vídeo", "Multiview on the video chip");
             case CLOSE_GAMES_ROW: return Ui.tr("Jogos apertados", "Close games");
             case ALERTS_HOME_ROW: return Ui.tr("Avisos na tela inicial", "Alerts on the home screen");
@@ -518,10 +751,8 @@ final class LiveSettings {
             return (LiveSchedule.reminder(it) ? Ui.tr("Lembrete", "Reminder") : Ui.tr("Gravação", "Recording"))
                     + "  ·  " + day.format(new java.util.Date(it.start)) + ", " + Ui.time(it.start) + "  ·  " + view.nameWithCountry(it.ch);
         }
+        if (screen == BUTTONS) return carrying && i == focus ? "▲ ▼" : (LiveOptions.playerButtons(c) & 1 << LiveOptions.playerOrder(c)[i]) != 0 ? Ui.tr("Na barra", "On the bar") : Ui.tr("Em Mais", "Under More");
         if (screen == SEPARATE) return Ui.tr("Separado", "Separate");
-        if (screen == PLAYLISTS) {
-            return playlists.get(i).id.equals(LivePlaylists.active(c)) ? Ui.tr("Em uso", "In use") : "";
-        }
         if (screen == FOLLOWING) return Ui.tr("Lembretes", "Reminders");
         if (screen == SERIES) {
             LiveSeries.Rule r = series.get(i);
@@ -538,7 +769,7 @@ final class LiveSettings {
         if (screen == ORDER) return carrying && i == focus ? "▲ ▼" : String.valueOf(i + 1);
         if (screen == MAIN) return "›";
         if (screen == KEYS) return LiveKeys.actionName(LiveKeys.action(c, LiveKeys.SLOTS[i]));
-        return rowValue(rowsOf(section)[i]);
+        return rowValue(shown()[i]);
     }
 
     // Some values read files (the schedule, what's followed): drawn every frame, they're kept a second, and dropped on
@@ -562,7 +793,41 @@ final class LiveSettings {
 
     private String computeRowValue(int i) {
         Context c = context();
+        if (group(i)) {
+            int n = i == MORE_ROW ? 0 : members(i).length;
+            if (i == MORE_ROW) for (int id : moreRows(rowsOf(section), SHORT[section])) if (id != RESET_ROW) n++;
+            return i == G_CAPTIONS ? rowValue(CC_ON_ROW) + "  ›" : n + "  ›";
+        }
         switch (i) {
+            case PLAYER_BUTTONS_ROW: return Integer.bitCount(LiveOptions.playerButtons(c)) + Ui.tr(" escolhidos", " chosen") + "  ›";
+            case OK_OPENS_ROW: return LiveOptions.okOnBar(c) ? Ui.tr("Barra", "Bar") : Ui.tr("Botões", "Buttons");
+            case STREAM_LINE_ROW: {
+                int how = LiveOptions.streamDetails(c);
+                return how == LiveOptions.DETAILS_OFF ? Ui.tr("Desligado", "Off") : how == LiveOptions.DETAILS_WORDS ? Ui.tr("Sob o título", "Under the title") : Ui.tr("Selos na linha", "Badges on the line");
+            }
+            case TITLE_ROW: return LiveOptions.titleLines(c) ? Ui.tr("Duas linhas", "Two lines") : Ui.tr("Rolando", "Scroll");
+            case TROUBLE_ROW: return onOff(LiveOptions.troubleHelp(c));
+            case REWIND_INTO_ROW: return onOff(LiveOptions.rewindInto(c));
+            case SMALL_PIC_ROW: return onOff(LiveOptions.smallPicture(c));
+            case TUNE_CARD_ROW: return onOff(LiveOptions.tuneCard(c));
+            case PAST_BUTTONS_ROW: return onOff(LiveOptions.pastButtons(c));
+            case SPEED_ROW: {
+                int how = LiveOptions.catchUpSpeed(c);
+                return how == LiveOptions.SPEED_OFF ? Ui.tr("Desligado", "Off") : how == LiveOptions.SPEED_ALWAYS ? Ui.tr("Sempre", "Always") : Ui.tr("Só o botão", "Button only");
+            }
+            case RESERVE_ROW: return LiveOptions.liveReserve(c) == 0 ? Ui.tr("Desligada", "Off") : LiveOptions.liveReserve(c) + " s";
+            case PLAYER_STAYS_ROW: return LiveOptions.playerStays(c) + " s";
+            case HIDE_ALL_ROW: return onOff(LiveOptions.hideEverywhere(c));
+            case TAGS_ROW: return tagsName(LiveOptions.guideTags(c));
+            case REPEATS_ROW: return onOff(LiveOptions.workOutRepeats(c));
+            case CORRECT_ROW: return onOff(LiveOptions.correctTags(c));
+            case FIRSTS_ROW: return onOff(LiveOptions.premieres(c));
+            case SNOOZE_ROW: return snoozeName(LiveOptions.snooze(c));
+            case BEST_ROW: return onOff(LiveOptions.bestChannel(c));
+            case WARN_ROW: return onOff(LiveOptions.warnSwitch(c));
+            case TELL_ROW: return onOff(LiveOptions.tellOthers(c));
+            case SHORT_ROW: return onOff(LiveOptions.shortSettings(c));
+            case SUGGEST_ROW: return onOff(LiveOptions.suggestFavorites(c));
             case FORMAT_ROW: {
                 String f = LiveOptions.format(c);
                 return f.equals(LiveOptions.TS) ? "MPEG-TS" : f.equals(LiveOptions.HLS) ? "HLS" : Ui.tr("Automático", "Automatic");
@@ -588,6 +853,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: return onOff(LiveOptions.voiceCommands(c));
             case RES_BADGE_ROW: return onOff(LiveOptions.resolutionBadges(c));
             case STREAM_BADGES_ROW: return onOff(LiveOptions.streamBadgePictures(c));
+            case BADGE_LOOK_ROW: return onOff(LiveOptions.badgesInLook(c));
             case GUIDE_PANEL_ROW: return LiveOptions.guidePanel(c) ? Ui.tr("Painel", "Panel") : Ui.tr("Lista", "List");
             case GUIDE_SEARCH_ROW: return LiveOptions.guideSearchFull(c) ? Ui.tr("Tela cheia", "Full screen") : Ui.tr("Caixa simples", "Simple box");
             case UNRATED_ROW: return onOff(LiveOptions.unratedNeedsPin(c));
@@ -627,10 +893,20 @@ final class LiveSettings {
                 return d + " " + (d == 1 ? Ui.tr("dia", "day") : Ui.tr("dias", "days"));
             }
             case GUIDE_SHIFT_ROW: return LiveOptions.shiftName(LiveOptions.guideShiftMinutes(c));
+            case GUIDE_FOCUS_ROW: return LiveOptions.guideSoft(c) ? Ui.tr("Suave", "Soft") : Ui.tr("Cheio", "Filled");
+            case GUIDE_LOGOS_ROW: return LiveOptions.guideBigLogos(c) ? Ui.tr("Grandes", "Large") : Ui.tr("Pequenos", "Small");
+            case GUIDE_GREY_ROW: return onOff(LiveOptions.guideGrey(c));
+            case GUIDE_STATUS_ROW: return onOff(LiveOptions.guideStatus(c));
             case GUIDE_SIZE_ROW: return LiveOptions.guideCompact(c) ? Ui.tr("Compacto", "Compact") : Ui.tr("Confortável", "Comfortable");
             case GUIDE_ALIGN_ROW: return LiveOptions.guideLogosLeft(c) ? Ui.tr("À esquerda", "Left") : Ui.tr("No centro", "Centered");
             case PLAYER_LOGO_ROW: return LiveOptions.playerLogoSteady(c) ? Ui.tr("No centro, fixo", "Centered, steady")
                     : Ui.tr("Junto ao texto", "With the text");
+            case CATCHUP_BAR_ROW: return LiveOptions.catchupBar(c) ? Ui.tr("Nova", "New") : Ui.tr("Clássica", "Classic");
+            case CATCHUP_NEXT_ROW: return catchupNextName(LiveOptions.catchupNext(c));
+            case ATTENTION_ROW: return onOff(LiveOptions.attention(c));
+            case MISSED_ROW: return missedName(LiveOptions.missedShows(c));
+            case LIMIT_ROW: return limitName(LiveOptions.streamLimit(c));
+            case RECORD_OFF_ROW: return recordOffName(LiveOptions.recordOff(c));
             case LOGO_SOURCE_ROW: return logoSourceName(LiveOptions.logoSource(c));
             case CHANNEL_MARK_ROW: return channelMarkName(LiveOptions.channelMark(c));
             case GUIDE_SOURCE_ROW:
@@ -662,6 +938,8 @@ final class LiveSettings {
             case BREAKS_ROW: return onOff(LiveOptions.adBreaks(c));
             case BREAKS_AUTO_ROW: return LiveOptions.adBreaks(c) ? onOff(LiveOptions.adBreaksAuto(c)) : "—";
             case PREVIEW_CHANNEL_ROW: return onOff(LiveOptions.channelPreview(c));
+            case MULTI_OK_ROW: return LiveOptions.multiOkFull(c) ? Ui.tr("Tela cheia", "Full screen") : Ui.tr("Escolher o canal", "Pick a channel");
+            case MULTI_FREEZE_ROW: return onOff(LiveOptions.multiFreeze(c));
             case MULTI_CHIP_ROW: return onOff(LiveOptions.multiviewHardware(c));
             case CLOSE_GAMES_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.closeGames(c)) : "—";
             case ALERTS_HOME_ROW: return LiveOptions.scores(c) ? onOff(LiveOptions.alertsOnHome(c)) : "—";
@@ -984,8 +1262,8 @@ final class LiveSettings {
         switch (id) {
             case STYLE_ROW: case MORNING_ROW: case NIGHT_ROW: case LATE_ROW: case CUSTOM_LAYOUT_ROW: case CUSTOM_BG_ROW:
             case CUSTOM_ROUND_ROW: case CUSTOM_FOCUS_ROW: case CUSTOM_INFO_ROW: case CUSTOM_FONT_ROW: case CC_SIZE_ROW: case CC_STYLE_ROW: case CC_COLOR_ROW: case FORMAT_ROW: case BUFFER_ROW:
-            case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_HOURS_ROW:
-            case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW: case CHANNEL_MARK_ROW:
+            case CHANNEL_SORT_ROW: case CATEGORY_SORT_ROW: case REMIND_AUTO_ROW: case HOME_ROW: case MATCH_ROW: case MATCH_STYLE_ROW: case GUIDE_SIZE_ROW: case GUIDE_FOCUS_ROW: case GUIDE_LOGOS_ROW: case GUIDE_HOURS_ROW:
+            case GUIDE_ALIGN_ROW: case PLAYER_LOGO_ROW: case LOGO_SOURCE_ROW: case CHANNEL_MARK_ROW: case CATCHUP_BAR_ROW: case CATCHUP_NEXT_ROW: case RECORD_OFF_ROW: case LIMIT_ROW: case MISSED_ROW: case MULTI_OK_ROW:
             case PAST_DAYS_ROW: case DAYS_AHEAD_ROW: case REMIND_LEAD_ROW: case HISTORY_ROW: case OPACITY_ROW: case AGE_ROW: case TEXT_SCALE_ROW:
             case KIDS_LIMIT_ROW: case KIDS_BEDTIME_ROW: case KIDS_AGE_ROW:
             case RECORD_EARLY_ROW: case RECORD_LATE_ROW: case KEEP_DAYS_ROW: case KEEP_SHOW_ROW:
@@ -999,19 +1277,55 @@ final class LiveSettings {
     }
 
     private String hintRaw() {
+        if (screen == ROWS && group(id())) return groupNames(id());
+        if (screen == ROWS && id() == PLAYER_BUTTONS_ROW) return Ui.tr("Os botões sob a barra ao vivo. Os outros ficam em Mais.", "The buttons under the live bar. The others are under More.");
+        if (screen == ROWS && id() == OK_OPENS_ROW) return Ui.tr("Na barra, um segundo OK pausa. Nos botões, ▲ vai para a barra.", "On the bar, a second OK pauses. On the buttons, ▲ goes to the bar.");
+        if (screen == ROWS && id() == STREAM_LINE_ROW) return Ui.tr("A resolução, os quadros e o som: em palavras sob o título, ou como selos ao lado do canal. Desligado: só em Info.",
+                "The resolution, frame rate and sound: in words under the title, or as badges beside the channel. Off: in Info only.");
+        if (screen == ROWS && id() == BADGE_LOOK_ROW) return Ui.tr("Os selos do sinal e o FHD e 4K na cor de destaque da aparência (o vermelho da Netflix), senão nas cores do conjunto.",
+                "The stream badges, and FHD and 4K, in the look's focus colour (Netflix's red), else in the badge set's own colours.");
+        if (screen == ROWS && id() == TITLE_ROW) return Ui.tr("Um título longo em duas linhas, a competição de um jogo acima dele; ou numa linha que rola.",
+                "A long title on two lines, a match's competition above it; or on one line that scrolls across.");
+        if (screen == ROWS && id() == TROUBLE_ROW) return Ui.tr("Na terceira parada em 5 minutos: outra fonte, qualidade menor ou o mesmo jogo noutro canal, o que houver. Nada muda sozinho.",
+                "On the third stop in 5 minutes: another source, lower quality or the same match elsewhere, whichever there is. Nothing changes by itself.");
+        if (screen == ROWS && id() == REWIND_INTO_ROW) return Ui.tr("No começo do que a TV guardou, ◀ de novo continua na reprise do provedor, nos canais que a têm.", "At the start of what the TV kept, ◀ again goes on into the provider's catch-up, on channels that have it.");
+        if (screen == ROWS && id() == SMALL_PIC_ROW) return Ui.tr("Com Mais ou Áudio e legendas abertos, a imagem inteira ao lado.", "With More or Audio & Subtitles open, the whole picture beside it.");
+        if (screen == ROWS && id() == TUNE_CARD_ROW) return Ui.tr("No canto, por um instante, quando a imagem chega.", "In the corner, for a moment, once the picture comes.");
+        if (screen == ROWS && id() == PAST_BUTTONS_ROW) return Ui.tr("Canais e Mais também numa reprise, numa gravação e atrás do ao vivo.", "Channels and More on a past show, a recording and behind live too.");
+        if (screen == ROWS && id() == SPEED_ROW) return Ui.tr("Atrás do ao vivo, 1,25× até alcançá-lo. Não funciona com a reprodução em túnel nem com Dolby enviado direto.", "Behind live, 1.25× until you're live. Not with Tunneled playback, nor with Dolby sent straight out.");
+        if (screen == ROWS && id() == RESERVE_ROW) return Ui.tr("Se o canal ficar sem imagem, espera juntar isto antes de continuar; Ir ao vivo também deixa isto de folga. Mais: menos paradas, um pouco mais atrás do ao vivo.",
+                "When a channel runs out, it waits for this much before going on; Go live leaves this much too. More: fewer stops, a little further behind live.");
+        if (screen == ROWS && id() == PLAYER_STAYS_ROW) return Ui.tr("Quanto tempo a barra fica depois da última tecla.", "How long the bar stays after the last key.");
+        if (screen == ROWS && id() == HIDE_ALL_ROW) return Ui.tr("Os canais das categorias ocultas saem também da busca, de Todos os canais, do Histórico e do Início. O número do canal ainda o abre.",
+                "The hidden categories' channels are out of search, All channels, History and the home screen too. A channel's number still opens it.");
+        if (screen == ROWS && id() == TAGS_ROW) return Ui.tr("As etiquetas nos programas do guia.", "The tags on the guide's shows.");
+        if (screen == ROWS && id() == REPEATS_ROW) return Ui.tr("Um episódio que já passou há mais de 12 horas, pelo número da temporada e do episódio (lembrados por 60 dias). Canais 24 h ficam de fora.",
+                "An episode on more than 12 hours before, by its season and episode numbers (remembered for 60 days). Looping channels are left out.");
+        if (screen == ROWS && id() == CORRECT_ROW) return Ui.tr("NOVO num episódio que já passou e AO VIVO em melhores momentos ou num jogo repetido saem; os lembretes e as gravações seguem.",
+                "NEW on an episode already shown, and LIVE on highlights or a match shown again, come off; reminders and recordings follow.");
+        if (screen == ROWS && id() == FIRSTS_ROW) return Ui.tr("O primeiro episódio novo de uma temporada, e o último quando o guia diz.", "A season's first new episode, and its last when the guide says so.");
+        if (screen == ROWS && id() == SNOOZE_ROW) return Ui.tr("O aviso de um lembrete volta depois desse tempo.", "A reminder's card comes again after this long.");
+        if (screen == ROWS && id() == BEST_ROW) return Ui.tr("Um jogo em vários canais: lembrado no seu favorito, senão no que você mais assiste, e não num que anda falhando.",
+                "A match on several channels: reminded of on your favorite, else the one you watch most, and not one that's been failing.");
+        if (screen == ROWS && id() == WARN_ROW) return Ui.tr("Ao mudar de lista, o que está gravando ou vai gravar na próxima hora.", "As you switch playlists, what's recording or about to within the hour.");
+        if (screen == ROWS && id() == TELL_ROW) return Ui.tr("Uma hora antes do que está marcado numa lista guardada, com Mudar agora.", "An hour before what's set on a playlist put aside, with Switch now.");
+        if (screen == ROWS && id() == SHORT_ROW) return Ui.tr("O que mais se muda primeiro, o resto em Mais ajustes. O que você mudou fica na lista, com um ponto azul.",
+                "What's changed most first, the rest in More settings. What you've changed stays in the list, with a blue dot.");
+        if (screen == ROWS && id() == SUGGEST_ROW) return Ui.tr("Ao escolher favoritos, os canais que você mais assiste e os que mostram seus times. O tempo assistido é contado e fica só nesta TV.",
+                "As you choose favorites, the channels you watch most and those that show your teams. Watch time is counted and stays on this TV.");
         switch (screen) {
             case SCHEDULE: return Ui.tr("OK cancela o que está em foco. Segure OK num programa do guia para marcar.",
                     "OK cancels the one in focus. Hold OK on a show in the guide to set one.");
-            case PLAYLISTS: return Ui.tr("OK numa lista: usar ou tirar (a que está em uso sai por Sair da conta).",
-                    "OK on a playlist: use it or remove it (the one in use goes with Sign out).");
             case SERIES: return Ui.tr("OK para a série em foco (os episódios já marcados saem também).",
                     "OK stops the series in focus (with its airings already set).");
             case FOLLOWING: return Ui.tr("OK deixa de seguir (os lembretes que ele marcou saem também).",
                     "OK stops following it (with the reminders it set).");
             case SEPARATE: return Ui.tr("OK junta o canal em foco com os parecidos de novo.",
                     "OK merges the one in focus with its similar channels again.");
+            case BUTTONS: return carrying ? Ui.tr("▲ ▼ movem o botão, OK solta.", "▲ ▼ move the button, OK puts it down.")
+                    : Ui.tr("OK põe o botão na barra ou em Mais; ▶ pega para mudar a ordem. Só aparecem os que servem para o canal.", "OK puts the button on the bar or under More; ▶ picks it up to move it. Only those that work on the channel show.");
             case HIDDEN: return Ui.tr("As ocultas saem da lista e do guia; os canais continuam em Todos os canais.",
-                    "Hidden ones leave the list and the guide; their channels stay in All channels.");
+                    "Hidden ones leave the list and the guide, with their channels (Hide everywhere: search and All channels too).");
             case LOCKED: return Ui.tr("Os canais delas pedem o PIN, uma vez a cada vez que a TV ao vivo abre.",
                     "Their channels ask for the PIN, once each time Live TV opens.");
             case ORDER: return carrying ? Ui.tr("▲ ▼ movem o canal, OK solta.", "▲ ▼ move the channel, OK puts it down.")
@@ -1067,7 +1381,7 @@ final class LiveSettings {
                     case GUIDE_HOURS_ROW: return Ui.tr("Quanto tempo o guia salvo de um canal vale antes de buscar de novo.",
                             "How long a channel's saved guide lasts before it's fetched again.");
                     case PAST_DAYS_ROW: return Ui.tr("Programas que já passaram ficam no guia (canais com reprise: pelo menos a reprise).",
-                            "Shows that are over stay in the guide (catch-up channels: at least their catch-up).");
+                            "Shows that are over stay in the guide (catch-up channels: at least their catch-up; channels without it: up to a day).");
                     case MATCH_CENTRE_ROW: return Ui.tr("Uma aba no player com linha do tempo, estatísticas, escalações e tabela dos jogos de futebol.",
                             "A player tab with the timeline, stats, lineups and table of football matches.");
                     case BREAKS_ROW: return Ui.tr("Ouve as gravações para achar os intervalos; ao chegar num, OK pula. Pode errar alguns segundos.",
@@ -1101,10 +1415,30 @@ final class LiveSettings {
                     case FULL_GUIDE_ROW: return Ui.tr("O guia inteiro do provedor de uma vez: o guia abre na hora e a busca acha programas.",
                             "Your provider's whole guide at once: the guide fills instantly and search finds shows.");
                     case DAYS_AHEAD_ROW: return Ui.tr("Quantos dias à frente o guia completo guarda.", "How many days ahead the full guide keeps.");
+                    case GUIDE_FOCUS_ROW: return Ui.tr("O programa em foco com um contorno, ou a ficha inteira na cor do tema. No Glassio 3.",
+                            "The show in focus with an outline, or its whole tile in the theme's color. In Glassio 3.");
+                    case GUIDE_LOGOS_ROW: return Ui.tr("Os logos dos canais grandes sobre um fundo, ou pequenos. No Glassio 3, com o guia confortável.",
+                            "The channels' logos large on a plate, or small. In Glassio 3, with the comfortable guide.");
+                    case GUIDE_GREY_ROW: return Ui.tr("Barras cinza enquanto o guia de um canal carrega, e um aviso tracejado quando não há.",
+                            "Grey bars while a channel's guide loads, and a dashed note where there's none.");
+                    case GUIDE_STATUS_ROW: return Ui.tr("O que está gravando, os canais em uso e quando o guia foi atualizado, sob os detalhes do programa.",
+                            "What's recording, the streams in use and when the guide was updated, under the show's details.");
                     case GUIDE_SIZE_ROW: return Ui.tr("Linhas maiores e fáceis de ler, ou menores e mais canais na tela.",
                             "Bigger rows, easy to read from the couch, or smaller ones with more channels on screen.");
                     case GUIDE_ALIGN_ROW: return Ui.tr("O logo e o nome de cada canal na coluna do guia: à esquerda, alinhados, ou no centro.",
                             "Each channel's logo and name in the guide's column: at the left, lined up, or in the middle.");
+                    case CATCHUP_BAR_ROW: return Ui.tr("Ao ver uma reprise ou gravação: o tempo visto e o que falta numa linha só, ou os botões de pular de antes.",
+                            "Watching catch-up or a recording: the time gone and left on one line, or the skip buttons as before.");
+                    case ATTENTION_ROW: return Ui.tr("Na página Gravações, o que deu errado primeiro, com o que fazer.",
+                            "On the Recordings page, what went wrong first, with what to do about it.");
+                    case MISSED_ROW: return Ui.tr("Um programa perdido que a reprise do canal ainda tem: oferecido, ou gravado de lá sozinho quando há um canal livre.",
+                            "A missed show the channel's catch-up still has: offered, or recorded from there by itself when there's a stream.");
+                    case LIMIT_ROW: return Ui.tr("Quando gravar ou assistir passaria dos canais que a sua conta toca ao mesmo tempo, e o provedor cortaria um.",
+                            "When recording or watching would go past the streams your account plays at once, and the provider would cut one off.");
+                    case RECORD_OFF_ROW: return Ui.tr("Algumas TVs param de gravar minutos depois de desligadas: a tela preta deixa a gravação terminar.",
+                            "Some TVs stop recording minutes after they turn off: a black screen lets the recording finish.");
+                    case CATCHUP_NEXT_ROW: return Ui.tr("No fim de uma reprise ou gravação: o próximo programa, num aviso no canto ou no painel grande.",
+                            "At the end of catch-up or a recording: the next show, in a corner card or the full panel.");
                     case PLAYER_LOGO_ROW: return Ui.tr("Fixo no centro do seu espaço, ou centrado no texto ao lado (mexe quando há pouco texto).",
                             "Steady in the middle of its space, or centered on the text beside it (it moves when there's little text).");
                     case CHANNEL_MARK_ROW: return Ui.tr("No guia e na lista de canais. Digitar um número no controle continua funcionando.",
@@ -1230,6 +1564,10 @@ final class LiveSettings {
                             "A line at half-time and full-time of a team you follow, while Live TV is on.");
                     case RED_CARD_ROW: return Ui.tr("Uma linha quando há um cartão vermelho no jogo de um time que você segue, enquanto a TV ao vivo está aberta.",
                             "A line when there's a red card in a match of a team you follow, while Live TV is on.");
+                    case MULTI_OK_ROW: return Ui.tr("OK num quadro abre o canal em tela cheia e Voltar fecha; ou OK escolhe o canal e Voltar abre em tela cheia.",
+                            "OK on a box opens it full screen and Back closes; or OK picks its channel and Back opens it full screen.");
+                    case MULTI_FREEZE_ROW: return Ui.tr("Um quadro da Multivisão com a imagem parada por 12 segundos abre de novo sozinho.",
+                            "A Multiview box whose picture stands still for 12 seconds opens again by itself.");
                     case MULTI_CHIP_ROW: return Ui.tr("Todos os quadros usam o chip de vídeo, em movimento fluido. Desligue se a Multivisão travar.",
                             "Every box uses the video chip, for smooth motion. Turn it off if Multiview stutters.");
                     case CLOSE_GAMES_ROW: return Ui.tr("Um aviso a partir dos 80 minutos, com no máximo um gol de diferença. OK vai ao jogo.",
@@ -1264,7 +1602,7 @@ final class LiveSettings {
                             "Ask: Watch or Dismiss. Automatically: the TV switches to the channel as it starts, unless you dismiss it.");
                     case SEPARATE_ROW: return Ui.tr("Canais juntados que você mostra separados (segure OK num canal no guia).",
                             "Merged channels you show separately (hold OK on a channel in the guide).");
-                    case HIDDEN_ROW: return Ui.tr("Categorias do provedor que você não usa.", "Your provider's categories you don't use.");
+                    case HIDDEN_ROW: return Ui.tr("Categorias do provedor que você não usa.", "Your provider's categories you don't use: out of the lists, the alerts and the suggestions. A favorite, or a channel in your own groups, stays.");
                     case ORDER_ROW: return Ui.tr("A ordem dos favoritos, aqui e no Início.", "Your favorites' order, here and on the home screen.");
                     case PIN_ROW: return Ui.tr("Um PIN para as categorias bloqueadas.", "A PIN for the locked categories.");
                     case AGE_ROW: return (Ui.tr("Programas com essa classificação ou mais pedem o PIN: a classificação do guia, senão a do TMDB.",
@@ -1461,13 +1799,13 @@ final class LiveSettings {
             case HIDDEN:
             case ORDER: return 1;
             case SEPARATE:
+            case BUTTONS:
             case CHECK: return 0;
             case GUIDE_PAGE: return 2;
             case LOCKED: return PARENTAL_SECTION;
             case SCHEDULE:
             case SERIES: return listRecordings ? RECORDINGS_SECTION : REMINDERS_SECTION;
             case FOLLOWING: return REMINDERS_SECTION;
-            case PLAYLISTS: return KEYS_SECTION + 1;
             default: return section;
         }
     }
@@ -1532,19 +1870,23 @@ final class LiveSettings {
         boolean lockedOff = screen == ROWS && !LiveOptions.hasPin(context());
         for (int i = first; i < last; i++) {
             rowRect(i, r);
-            if (screen == ROWS && head(rowsOf(section)[i])) {       // a group's heading: never focused
+            if (screen == ROWS && head(shown()[i])) {       // a group's heading: never focused
                 hint.setColor(0xCCFFFFFF);
-                c.drawText(rowLabel(rowsOf(section)[i]), r.left + 22 * k, r.bottom - 14 * k, hint);
+                c.drawText(rowLabel(shown()[i]), r.left + 22 * k, r.bottom - 14 * k, hint);
                 continue;
             }
             Paint p = ink ? labelOn : label, v = ink ? valueOn : value;
             float base = r.centerY() + Ui.halfCap(p);
-            boolean dim = lockedOff && rowsOf(section)[i] == LOCKED_ROW;
+            if (screen == ROWS && isShort() && dotted(shown()[i])) {       // not as it first is
+                fill.setColor(0xFF64D2FF);
+                c.drawCircle(r.left + 10 * k, r.centerY(), 4.5f * k, fill);
+            }
+            boolean dim = lockedOff && shown()[i] == LOCKED_ROW;
             if (dim && !ink) p.setAlpha(0x66);
-            Boolean sw = screen == ROWS ? switchState(rowsOf(section)[i]) : null;
+            Boolean sw = screen == ROWS ? switchState(shown()[i]) : null;
             float valueW;
             if (sw != null) {
-                valueW = drawSwitch(c, r.right - 22 * k, r.centerY(), sw, switchUsable(rowsOf(section)[i]), ink, 1);
+                valueW = drawSwitch(c, r.right - 22 * k, r.centerY(), sw, switchUsable(shown()[i]), ink, 1);
             } else {
                 String val = ellipsize(value(i), v, r.width() * 0.6f);
                 c.drawText(val, r.right - 22 * k, base, v);
@@ -1553,6 +1895,40 @@ final class LiveSettings {
             c.drawText(ellipsize(label(i), p, r.width() - 80 * k - valueW), r.left + 22 * k, base, p);
             p.setAlpha(ink ? 255 : 0xCC);
         }
+    }
+
+    /** What's hidden changed: the match alerts again without it, once the toggling is over. */
+    private final Runnable hideSync = new Runnable() {
+        @Override public void run() {
+            final Context app = view.getContext().getApplicationContext();
+            live.relist();
+            new Thread(() -> LiveFollow.sync(app), "hide-sync").start();
+        }
+    };
+
+    private static String tagsName(int which) {
+        return which == 0 ? Ui.tr("Todas", "All") : which == 1 ? Ui.tr("Só ao vivo e novo", "Live and new only") : Ui.tr("Desligado", "Off");
+    }
+
+    private static String snoozeName(int minutes) {
+        return minutes == 0 ? Ui.tr("Desligado", "Off") : minutes + " min";
+    }
+
+    private static String missedName(int how) {
+        return how == LiveOptions.MISSED_FETCHES ? Ui.tr("Da reprise, sozinho", "Get from catch-up") : how == LiveOptions.MISSED_OFF ? Ui.tr("Desligado", "Off") : Ui.tr("Perguntar", "Ask");
+    }
+
+    private static String limitName(int how) {
+        return how == LiveOptions.LIMIT_TELLS ? Ui.tr("Avisar", "Tell me") : how == LiveOptions.LIMIT_OFF ? Ui.tr("Desligado", "Off") : Ui.tr("Perguntar", "Ask");
+    }
+
+    private static String recordOffName(int how) {
+        return how == LiveOptions.OFF_BLACK ? Ui.tr("Tela preta", "Black screen") : how == LiveOptions.OFF_TURNS_OFF ? Ui.tr("Desligar", "Turn off") : Ui.tr("Perguntar", "Ask");
+    }
+
+    private static String catchupNextName(int how) {
+        return how == LiveOptions.NEXT_PANEL ? Ui.tr("Painel grande", "Full panel") : how == LiveOptions.NEXT_OFF ? Ui.tr("Desligado", "Off")
+                : Ui.tr("Aviso no canto", "Corner card");
     }
 
     /** On or off, for a row that's a switch; null for the others (they show their value). */
@@ -1569,6 +1945,21 @@ final class LiveSettings {
             case BREAKS_ROW: return LiveOptions.adBreaks(c);
             case BREAKS_AUTO_ROW: return LiveOptions.adBreaksAuto(c);
             case PREVIEW_CHANNEL_ROW: return LiveOptions.channelPreview(c);
+            case TROUBLE_ROW: return LiveOptions.troubleHelp(c);
+            case REWIND_INTO_ROW: return LiveOptions.rewindInto(c);
+            case SMALL_PIC_ROW: return LiveOptions.smallPicture(c);
+            case TUNE_CARD_ROW: return LiveOptions.tuneCard(c);
+            case PAST_BUTTONS_ROW: return LiveOptions.pastButtons(c);
+            case HIDE_ALL_ROW: return LiveOptions.hideEverywhere(c);
+            case REPEATS_ROW: return LiveOptions.workOutRepeats(c);
+            case CORRECT_ROW: return LiveOptions.correctTags(c);
+            case FIRSTS_ROW: return LiveOptions.premieres(c);
+            case BEST_ROW: return LiveOptions.bestChannel(c);
+            case WARN_ROW: return LiveOptions.warnSwitch(c);
+            case TELL_ROW: return LiveOptions.tellOthers(c);
+            case SHORT_ROW: return LiveOptions.shortSettings(c);
+            case SUGGEST_ROW: return LiveOptions.suggestFavorites(c);
+            case MULTI_FREEZE_ROW: return LiveOptions.multiFreeze(c);
             case MULTI_CHIP_ROW: return LiveOptions.multiviewHardware(c);
             case CLOSE_GAMES_ROW: return LiveOptions.closeGames(c);
             case ALERTS_HOME_ROW: return LiveOptions.alertsOnHome(c);
@@ -1582,6 +1973,9 @@ final class LiveSettings {
             case MATCH_NAMES_ROW: return LiveOptions.matchNames(c);
             case HD_TWINS_ROW: return LiveOptions.hdTwins(c);
             case AVOID_BAD_ROW: return LiveOptions.avoidBadSources(c);
+            case ATTENTION_ROW: return LiveOptions.attention(c);
+            case GUIDE_GREY_ROW: return LiveOptions.guideGrey(c);
+            case GUIDE_STATUS_ROW: return LiveOptions.guideStatus(c);
             case CLASHES_ROW: return LiveOptions.recordClashes(c);
             case RECORD_DRIVE_ROW: return LiveOptions.recordToDrive(c);
             case BOOT_ROW: return LiveOptions.startOnBoot(c);
@@ -1603,6 +1997,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: return LiveOptions.voiceCommands(c);
             case RES_BADGE_ROW: return LiveOptions.resolutionBadges(c);
             case STREAM_BADGES_ROW: return LiveOptions.streamBadgePictures(c);
+            case BADGE_LOOK_ROW: return LiveOptions.badgesInLook(c);
             case HIGH_CONTRAST_ROW: return LiveOptions.highContrast(c);
             case COMMUNITY_ON_ROW: return LiveOptions.communityDesigns(c);
             case UNRATED_ROW: return LiveOptions.unratedNeedsPin(c);
@@ -1727,8 +2122,13 @@ final class LiveSettings {
                 else if (screen != MAIN && screen != ORDER) back();      // out to the sections (a list: to its row)
                 break;
             case KeyEvent.KEYCODE_DPAD_RIGHT:
-                if (screen == ROWS && steps()) cycle(1);
+                if (screen == ROWS && group(id())) openGroup(id());
+                else if (screen == ROWS && steps()) cycle(1);
                 else if (screen == KEYS) cycleKey(1);
+                else if (screen == BUTTONS) {
+                    carrying = !carrying;
+                    announce();
+                }
                 else if (screen == MAIN && n > 0) activate();      // into the section, as its › says
                 break;
             case KeyEvent.KEYCODE_DPAD_CENTER:
@@ -1767,6 +2167,7 @@ final class LiveSettings {
     }
 
     private void openSection(int s, int at) {
+        group = 0;
         if (s == KEYS_SECTION) {
             show(KEYS, 0);
         } else {
@@ -1826,6 +2227,15 @@ final class LiveSettings {
 
     /** Back: from a list to the first one (putting down a channel being moved), from the first to the categories. */
     void back() {
+        if (screen == ROWS && !onRail && group != 0) {      // out of a group: its row
+            int from = group;
+            group = 0;
+            shownRows = null;
+            int at = 0;
+            for (int i = 0; i < shown().length; i++) if (shown()[i] == from) at = i;
+            show(ROWS, at);
+            return;
+        }
         if (screen == MAIN || (direct && !onRail && (screen == ROWS || screen == KEYS))) {
             direct = false;
             view.closeSettings();
@@ -1868,14 +2278,14 @@ final class LiveSettings {
         if (screen == ORDER && carrying) saveOrder();
         int from = screen == HIDDEN ? HIDDEN_ROW : screen == ORDER ? ORDER_ROW
                 : screen == SCHEDULE ? (listRecordings ? RECORD_LIST_ROW : SCHEDULE_ROW)
-                : screen == SERIES ? (listRecordings ? SERIES_RECORD_ROW : SERIES_ROW) : screen == FOLLOWING ? FOLLOW_ROW : screen == PLAYLISTS ? PLAYLISTS_ROW
-                : screen == SEPARATE ? SEPARATE_ROW : LOCKED_ROW;
+                : screen == SERIES ? (listRecordings ? SERIES_RECORD_ROW : SERIES_ROW) : screen == FOLLOWING ? FOLLOW_ROW
+                : screen == SEPARATE ? SEPARATE_ROW : screen == BUTTONS ? PLAYER_BUTTONS_ROW : LOCKED_ROW;
         showRow(from);
     }
 
     /** The setting row in focus (ROWS). */
     private int id() {
-        return screen == ROWS && focus < rowsOf(section).length ? rowsOf(section)[focus] : -1;
+        return screen == ROWS && focus < shown().length ? shown()[focus] : -1;
     }
 
     /** Whether ← → step the focused setting (the rest open something). */
@@ -1883,11 +2293,11 @@ final class LiveSettings {
         int id = id();
         return id >= 0 && id <= PREVIEW_ROW && id != GUIDE_SOURCE_ROW && id != GUIDE_NOW_ROW || id == REMIND_LEAD_ROW || id == REMIND_AUTO_ROW
                 || id == MATCH_NEWS_ROW || id == RED_CARD_ROW || id == RECORD_EARLY_ROW || id == RECORD_LATE_ROW || id == KEEP_DAYS_ROW || id == KEEP_SHOW_ROW || id == HIDE_NO_GUIDE_ROW
-                || id == KEEP_PAST_ROW || id == BREAKS_ROW || id == BREAKS_AUTO_ROW || id == PREVIEW_CHANNEL_ROW || id == MULTI_CHIP_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
+                || id == KEEP_PAST_ROW || id == BREAKS_ROW || id == BREAKS_AUTO_ROW || id == PREVIEW_CHANNEL_ROW || id == MULTI_CHIP_ROW || id == MULTI_OK_ROW || id == MULTI_FREEZE_ROW || id == SHORT_ROW || id == SUGGEST_ROW || id >= SNOOZE_ROW && id <= TITLE_ROW && id != PLAYER_BUTTONS_ROW || id == CLOSE_GAMES_ROW || id == ALERTS_HOME_ROW || id == ALERTS_QUIET_ROW || id == MATCH_CENTRE_ROW || id == SMART_ROW || id == SMART_FOLLOW_ROW || id == SMART_NEW_ROW || id == CATCHUP_TABLE_ROW || id == MATCH_NAMES_ROW || id == HD_TWINS_ROW || id == AVOID_BAD_ROW || id == CLASHES_ROW || id == RECORD_DRIVE_ROW
                 || id == THEME_ROW || id == STYLE_ROW || id == NIGHT_ROW || id >= CUSTOM_BG_ROW && id <= LATE_ROW || partOf(id) >= 0
                 || id == HISTORY_ROW || id == OPACITY_ROW || id == TEXT_SCALE_ROW || id == HIGH_CONTRAST_ROW || id >= CC_ON_ROW && id <= CC_COLOR_ROW || id == HOME_ROW
-                || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == MOMENTS_TIMING_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
-                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == STREAM_BADGES_ROW || id == GUIDE_SEARCH_ROW || id == GUIDE_PANEL_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
+                || id == AGE_ROW || id == KIDS_LIMIT_ROW || id == KIDS_BEDTIME_ROW || id == KIDS_AGE_ROW || id == MATCH_ROW || id == MATCH_STYLE_ROW || id == REMIND_WATCHING_ROW || id == GUIDE_SIZE_ROW || id == GUIDE_FOCUS_ROW || id == GUIDE_LOGOS_ROW || id == GUIDE_GREY_ROW || id == GUIDE_STATUS_ROW || id == SCORES_ROW || id == SPOILER_GUARD_ROW || id == MOMENTS_TIMING_ROW || id == UP_NEXT_ROW || id == GOALS_ROW
+                || id == COUNTRY_ROW || id == VOICE_ROW || id == VOICE_COMMANDS_ROW || id == RES_BADGE_ROW || id == STREAM_BADGES_ROW || id == BADGE_LOOK_ROW || id == GUIDE_SEARCH_ROW || id == GUIDE_PANEL_ROW || id == UNRATED_ROW || id == COMMUNITY_ON_ROW || id == GUIDE_ALIGN_ROW || id == CATCHUP_BAR_ROW || id == CATCHUP_NEXT_ROW || id == RECORD_OFF_ROW || id == LIMIT_ROW || id == ATTENTION_ROW || id == MISSED_ROW || id == PLAYER_LOGO_ROW || id == LOGO_SOURCE_ROW || id == CHANNEL_MARK_ROW;
     }
 
     /** Setting row `id`, in its section, in focus. */
@@ -1896,7 +2306,16 @@ final class LiveSettings {
             for (int i = 0; i < rowsOf(s).length; i++) {
                 if (rowsOf(s)[i] != id) continue;
                 section = s;
-                show(ROWS, i);
+                group = 0;
+                shownRows = null;
+                if (isShort() && !in(shown(), id)) {        // in one of its groups, or under More settings
+                    group = MORE_ROW;
+                    for (int g : SHORT[s]) if (members(g) != null && in(members(g), id)) group = g;
+                    shownRows = null;
+                }
+                int at = 0;
+                for (int j = 0; j < shown().length; j++) if (shown()[j] == id) at = j;
+                show(ROWS, at);
                 return;
             }
         }
@@ -1918,7 +2337,7 @@ final class LiveSettings {
         int n = count();
         if (n == 0) return;
         int next = Math.max(0, Math.min(n - 1, focus + dir));
-        if (screen == ROWS && head(rowsOf(section)[next])) {        // a heading: the row past it
+        if (screen == ROWS && head(shown()[next])) {        // a heading: the row past it
             next += dir;
             if (next < 0 || next >= n) return;
         }
@@ -1928,6 +2347,13 @@ final class LiveSettings {
             Xtream.Channel ch = list.remove(focus);
             list.add(next, ch);
         }
+        if (screen == BUTTONS && carrying) {
+            int[] o = LiveOptions.playerOrder(context());
+            int b = o[focus];
+            o[focus] = o[next];
+            o[next] = b;
+            LiveOptions.setPlayerOrder(context(), o);
+        }
         focus = next;
         aim(false);
         announce();
@@ -1935,6 +2361,7 @@ final class LiveSettings {
 
     private void show(int next, int at) {
         screen = next;
+        shownRows = null;       // what's changed since: in the short list
         carrying = false;
         onRail = false;
         panelShown = null;
@@ -1942,7 +2369,7 @@ final class LiveSettings {
         live.setWindow(wide() ? null : screen == GALLERY ? LiveSettingsGallery.BOX : new float[] {WIN_X, WIN_Y, WIN_W, WIN_H});
         if (next == MAIN) homeFocus = at == -1 ? 0 : at == -2 ? 1 : LiveSettingsHome.FIRST_SECTION + at;
         focus = Math.max(0, Math.min(at, count() - 1));
-        if (next == ROWS && focus < count() - 1 && head(rowsOf(section)[focus])) focus++;
+        if (next == ROWS && focus < count() - 1 && head(shown()[focus])) focus++;
         top = 0;
         aim(true);
         announce();
@@ -2157,6 +2584,16 @@ final class LiveSettings {
                 now = LiveOptions.followAll(c) ? 1 : 0;
                 values = null;
                 break;
+            case GUIDE_FOCUS_ROW:
+                labels = new String[] {Ui.tr("Suave", "Soft"), Ui.tr("Cheio", "Filled")};
+                now = LiveOptions.guideSoft(c) ? 0 : 1;
+                values = null;
+                break;
+            case GUIDE_LOGOS_ROW:
+                labels = new String[] {Ui.tr("Grandes", "Large"), Ui.tr("Pequenos", "Small")};
+                now = LiveOptions.guideBigLogos(c) ? 0 : 1;
+                values = null;
+                break;
             case GUIDE_SIZE_ROW:
                 labels = new String[] {Ui.tr("Confortável", "Comfortable"), Ui.tr("Compacto", "Compact")};
                 now = LiveOptions.guideCompact(c) ? 1 : 0;
@@ -2170,6 +2607,36 @@ final class LiveSettings {
             case PLAYER_LOGO_ROW:
                 labels = new String[] {Ui.tr("No centro, fixo", "Centered, steady"), Ui.tr("Junto ao texto", "With the text")};
                 now = LiveOptions.playerLogoSteady(c) ? 0 : 1;
+                values = null;
+                break;
+            case CATCHUP_BAR_ROW:
+                labels = new String[] {Ui.tr("Nova", "New"), Ui.tr("Clássica", "Classic")};
+                now = LiveOptions.catchupBar(c) ? 0 : 1;
+                values = null;
+                break;
+            case MULTI_OK_ROW:
+                labels = new String[] {Ui.tr("Tela cheia", "Full screen"), Ui.tr("Escolher o canal", "Pick a channel")};
+                now = LiveOptions.multiOkFull(c) ? 0 : 1;
+                values = null;
+                break;
+            case MISSED_ROW:
+                labels = new String[] {missedName(0), missedName(1), missedName(2)};
+                now = LiveOptions.missedShows(c);
+                values = null;
+                break;
+            case LIMIT_ROW:
+                labels = new String[] {limitName(0), limitName(1), limitName(2)};
+                now = LiveOptions.streamLimit(c);
+                values = null;
+                break;
+            case RECORD_OFF_ROW:
+                labels = new String[] {recordOffName(0), recordOffName(1), recordOffName(2)};
+                now = LiveOptions.recordOff(c);
+                values = null;
+                break;
+            case CATCHUP_NEXT_ROW:
+                labels = new String[] {catchupNextName(0), catchupNextName(1), catchupNextName(2)};
+                now = LiveOptions.catchupNext(c);
                 values = null;
                 break;
             case CHANNEL_MARK_ROW:
@@ -2227,9 +2694,17 @@ final class LiveSettings {
                 case HOME_ROW: LiveOptions.setHomeOnStart(c, i == 1); break;
                 case MATCH_ROW: setMatchAlerts(c, i == 1); break;
                 case MATCH_STYLE_ROW: LiveOptions.setMatchCard(c, i == 1); break;
+                case GUIDE_FOCUS_ROW: guideLook(c, "guideSoft", i == 0); break;
+                case GUIDE_LOGOS_ROW: guideLook(c, "guideBigLogos", i == 0); break;
                 case GUIDE_SIZE_ROW: sizeGuide(c, i == 1); break;
                 case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, i == 0); view.invalidate(); break;
                 case PLAYER_LOGO_ROW: LiveOptions.setPlayerLogoSteady(c, i == 0); view.invalidate(); break;
+                case CATCHUP_BAR_ROW: LiveOptions.setCatchupBar(c, i == 0); view.invalidate(); break;
+                case MULTI_OK_ROW: LiveOptions.setMultiOkFull(c, i == 0); break;
+                case MISSED_ROW: LiveOptions.setMissedShows(c, i); break;
+                case LIMIT_ROW: LiveOptions.setStreamLimit(c, i); break;
+                case RECORD_OFF_ROW: LiveOptions.setRecordOff(c, i); break;
+                case CATCHUP_NEXT_ROW: LiveOptions.setCatchupNext(c, i); break;
                 case LOGO_SOURCE_ROW: setLogoSource(c, i); break;
                 case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, i); view.invalidate(); break;
                 case GUIDE_HOURS_ROW: LiveOptions.setGuideHours(c, values[i]); break;
@@ -2296,12 +2771,29 @@ final class LiveSettings {
                     Ui.tr("Muda de canal sozinho quando começa", "Changes channel by itself when it starts")};
             case MATCH_ROW: return new String[] {Ui.tr("Um lembrete quando o jogo passa ao vivo", "A reminder when the game is on live"),
                     Ui.tr("Também nas reprises e destaques", "For replays and highlights too")};
+            case GUIDE_FOCUS_ROW: return new String[] {Ui.tr("Mais claro, com um contorno", "Lighter, with an outline"), Ui.tr("A ficha inteira na cor do tema", "The whole tile in the theme's color")};
+            case GUIDE_LOGOS_ROW: return new String[] {Ui.tr("O nome ao lado, em duas linhas", "The name beside it, on two lines"), Ui.tr("O nome numa linha", "The name on one line")};
             case GUIDE_SIZE_ROW: return new String[] {Ui.tr("Linhas maiores, fáceis de ler de longe", "Bigger rows, easy to read from afar"),
                     Ui.tr("Linhas menores: mais canais na tela", "Smaller rows: more channels on screen")};
             case GUIDE_ALIGN_ROW: return new String[] {Ui.tr("Logos e nomes alinhados à esquerda da coluna", "Logos and names lined up at the column's left"),
                     Ui.tr("Logos e nomes no meio da coluna", "Logos and names in the middle of the column")};
             case PLAYER_LOGO_ROW: return new String[] {Ui.tr("Sempre no mesmo lugar, centrado", "Always in the same place, centered"),
                     Ui.tr("Centrado no título e na sinopse ao lado", "Centered on the title and synopsis beside it")};
+            case CATCHUP_BAR_ROW: return new String[] {Ui.tr("O tempo visto e o que falta, Começar do início e Próximo programa", "Time gone and left, Start over and Next show"),
+                    Ui.tr("Os botões de pular e as horas, como antes", "The skip buttons and clock times, as before")};
+            case MULTI_OK_ROW: return new String[] {Ui.tr("Voltar fecha a Multivisão", "Back closes Multiview"), Ui.tr("Voltar abre em tela cheia", "Back opens it full screen")};
+            case MISSED_ROW: return new String[] {Ui.tr("Oferece na página Gravações", "Offers it on the Recordings page"),
+                    Ui.tr("Grava da reprise quando há um canal livre", "Records it from catch-up when there's a stream"),
+                    Ui.tr("Não oferece", "Doesn't offer it")};
+            case LIMIT_ROW: return new String[] {Ui.tr("Pergunta o que fazer", "Asks what gives way"),
+                    Ui.tr("Um aviso curto, e segue", "A short notice, then it goes ahead"),
+                    Ui.tr("Segue sem avisar", "Goes ahead without a word")};
+            case RECORD_OFF_ROW: return new String[] {Ui.tr("A TV volta a ligar e pergunta; em 8 segundos, tela preta", "The TV comes back on and asks; black after 8 seconds"),
+                    Ui.tr("Preta na hora; a TV desliga quando a gravação termina", "Black at once; the TV turns off when the recording ends"),
+                    Ui.tr("A gravação pode parar", "The recording may stop")};
+            case CATCHUP_NEXT_ROW: return new String[] {Ui.tr("Nos últimos 10 segundos, sem cobrir a imagem", "In the last 10 seconds, without covering the picture"),
+                    Ui.tr("No fim, na parte de baixo da tela", "At the end, across the bottom of the screen"),
+                    Ui.tr("No fim, o canal ao vivo", "At the end, the channel live")};
             case LOGO_SOURCE_ROW: return new String[] {Ui.tr("Os logos que o seu provedor manda", "The logos your provider sends"),
                     Ui.tr("Os do guia completo (XMLTV), quando ligado", "The full guide's (XMLTV), when it's on"),
                     Ui.tr("iptv-org: nítidos, pelo nome e país do canal; baixa uns 14 MB por semana",
@@ -2420,6 +2912,11 @@ final class LiveSettings {
         if (source == LiveOptions.LOGOS_PUBLIC) view.flash(Ui.tr("Buscando os logos da base pública…", "Fetching the public database's logos…"));
     }
 
+    private void guideLook(Context c, String which, boolean on) {
+        LiveOptions.setGuideLook(c, which, on);
+        view.restyle();
+    }
+
     private void sizeGuide(Context c, boolean compact) {
         LiveOptions.setGuideCompact(c, compact);
         LiveView.compact = compact;
@@ -2450,10 +2947,11 @@ final class LiveSettings {
     private void reset(Context c, int s) {
         switch (s) {
             case 0:     // Playback
-                LiveOptions.forget(c, "format", "buffer", "rewindAny", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
+                LiveOptions.forget(c, "format", "buffer", "liveReserve", "rewindAny", "frameRate", "passthrough", "audioLanguage", "tunneling", "merge");
                 live.playbackChanged();
                 live.relist();
-                LiveOptions.forget(c, "homeOnStart", "ccSize", "ccColor", "ccStyle");
+                LiveOptions.forget(c, "playerButtons", "okOnBar", "streamLine", "streamDetails", "titleScroll", "troubleHelp", "playerStays", "playerOrder", "rewindInto", "catchUpSpeed", "smallPicture", "tuneCard", "pastButtons");
+                LiveOptions.forget(c, "multiOkFull", "multiFreeze", "catchupBar", "catchupNext", "homeOnStart", "ccSize", "ccColor", "ccStyle");
                 LiveOptions.setStartOnBoot(c, false);
                 LiveOptions.setStartOnWake(c, false);
                 LiveOptions.setHomePreviews(c, true);
@@ -2461,7 +2959,7 @@ final class LiveSettings {
                 view.captionsChanged();
                 break;
             case 1:     // Channels and categories
-                LiveOptions.forget(c, "channelSort", "categorySort");
+                LiveOptions.forget(c, "channelSort", "categorySort", "suggestFavorites");
                 LiveOptions.setCountryTags(c, true);
                 LiveOptions.setVoiceChannels(c, true);
                 LiveOptions.setResolutionBadges(c, true);
@@ -2469,14 +2967,15 @@ final class LiveSettings {
                 view.sortChanged();
                 break;
             case 2:     // Guide
-                LiveOptions.forget(c, "guideHours", "pastDays", "fullGuide", "daysAhead", "guideOnStart", "guideLogosLeft");
+                LiveOptions.forget(c, "guideHours", "pastDays", "fullGuide", "daysAhead", "guideOnStart", "guideLogosLeft", "guideSoft", "guideBigLogos", "guideGrey", "guideStatus", "guideTags", "workOutRepeats", "correctTags", "premieres");
+                view.restyle();
                 if (LiveOptions.guideShiftMinutes(c) != 0) shiftGuide(c, 0);
                 if (LiveOptions.guideCompact(c)) sizeGuide(c, false);
                 view.guideReplaced();
                 break;
             case DESIGN_SECTION:
                 LiveTheme.resetAll(c);
-                LiveOptions.forget(c, "panelOpacity", "playerLogoSteady");
+                LiveOptions.forget(c, "panelOpacity", "playerLogoSteady", "shortSettings");
                 opacity = LiveOptions.panelOpacity(c);
                 LiveTheme.applyFonts(c);
                 view.restyle();
@@ -2492,6 +2991,7 @@ final class LiveSettings {
                 break;
             case RECORDINGS_SECTION:     // the recordings' times (never the recordings)
                 LiveOptions.setRecordPadding(c, 0, 2);
+                LiveOptions.forget(c, "recordOff", "streamLimit", "attention", "missedShows");
                 LiveSchedule.armAll(c);
                 break;
             case PARENTAL_SECTION:     // the age lock and the profiles' options (never the PIN)
@@ -2564,6 +3064,41 @@ final class LiveSettings {
             case BREAKS_ROW: LiveOptions.setAdBreaks(c, !LiveOptions.adBreaks(c)); announce(); return;
             case BREAKS_AUTO_ROW: LiveOptions.setAdBreaksAuto(c, !LiveOptions.adBreaksAuto(c)); announce(); return;
             case PREVIEW_CHANNEL_ROW: LiveOptions.setChannelPreview(c, !LiveOptions.channelPreview(c)); announce(); return;
+            case MULTI_OK_ROW: LiveOptions.setMultiOkFull(c, !LiveOptions.multiOkFull(c)); announce(); return;
+            case OK_OPENS_ROW: LiveOptions.setFlagOption(c, "okOnBar", !LiveOptions.okOnBar(c)); announce(); return;
+            case STREAM_LINE_ROW: LiveOptions.setStreamDetails(c, (LiveOptions.streamDetails(c) + dir + 3) % 3); announce(); return;
+            case TITLE_ROW: LiveOptions.setFlagOption(c, "titleScroll", LiveOptions.titleLines(c)); announce(); return;
+            case TROUBLE_ROW: LiveOptions.setFlagOption(c, "troubleHelp", !LiveOptions.troubleHelp(c)); announce(); return;
+            case REWIND_INTO_ROW: LiveOptions.setFlagOption(c, "rewindInto", !LiveOptions.rewindInto(c)); announce(); return;
+            case SMALL_PIC_ROW: LiveOptions.setFlagOption(c, "smallPicture", !LiveOptions.smallPicture(c)); announce(); return;
+            case TUNE_CARD_ROW: LiveOptions.setFlagOption(c, "tuneCard", !LiveOptions.tuneCard(c)); announce(); return;
+            case PAST_BUTTONS_ROW: LiveOptions.setFlagOption(c, "pastButtons", !LiveOptions.pastButtons(c)); announce(); return;
+            case SPEED_ROW: LiveOptions.setCatchUpSpeed(c, (LiveOptions.catchUpSpeed(c) + dir + 3) % 3); announce(); return;
+            case RESERVE_ROW: LiveOptions.setLiveReserve(c, LiveOptions.step(LiveOptions.RESERVES, LiveOptions.liveReserve(c), dir)); announce(); return;
+            case PLAYER_STAYS_ROW: LiveOptions.setPlayerStays(c, LiveOptions.step(LiveOptions.STAYS, LiveOptions.playerStays(c), dir)); announce(); return;
+            case HIDE_ALL_ROW:
+                LiveOptions.setFlagOption(c, "hideEverywhere", !LiveOptions.hideEverywhere(c));
+                live.relist();
+                announce();
+                return;
+            case TAGS_ROW: LiveOptions.setGuideTags(c, (LiveOptions.guideTags(c) + dir + 3) % 3); view.restyle(); announce(); return;
+            case REPEATS_ROW: LiveOptions.setFlagOption(c, "workOutRepeats", !LiveOptions.workOutRepeats(c)); view.guideReplaced(); announce(); return;
+            case CORRECT_ROW: LiveOptions.setFlagOption(c, "correctTags", !LiveOptions.correctTags(c)); view.guideReplaced(); announce(); return;
+            case FIRSTS_ROW: LiveOptions.setFlagOption(c, "premieres", !LiveOptions.premieres(c)); view.guideReplaced(); announce(); return;
+            case SNOOZE_ROW: LiveOptions.setSnooze(c, LiveOptions.step(LiveOptions.SNOOZE, LiveOptions.snooze(c), dir)); announce(); return;
+            case BEST_ROW: LiveOptions.setFlagOption(c, "bestChannel", !LiveOptions.bestChannel(c)); announce(); return;
+            case WARN_ROW: LiveOptions.setFlagOption(c, "warnSwitch", !LiveOptions.warnSwitch(c)); announce(); return;
+            case TELL_ROW:
+                LiveOptions.setFlagOption(c, "tellOthers", !LiveOptions.tellOthers(c));
+                LivePlaylists.armOthers(c);
+                announce();
+                return;
+            case SHORT_ROW:
+                LiveOptions.setShortSettings(c, !LiveOptions.shortSettings(c));
+                showRow(SHORT_ROW);
+                return;
+            case SUGGEST_ROW: LiveOptions.setSuggestFavorites(c, !LiveOptions.suggestFavorites(c)); announce(); return;
+            case MULTI_FREEZE_ROW: LiveOptions.setMultiFreeze(c, !LiveOptions.multiFreeze(c)); announce(); return;
             case MULTI_CHIP_ROW: LiveOptions.setMultiviewHardware(c, !LiveOptions.multiviewHardware(c)); announce(); return;
             case CLOSE_GAMES_ROW: LiveOptions.setCloseGames(c, !LiveOptions.closeGames(c)); announce(); return;
             case ALERTS_HOME_ROW: LiveOptions.setAlertsOnHome(c, !LiveOptions.alertsOnHome(c)); announce(); return;
@@ -2589,6 +3124,12 @@ final class LiveSettings {
             case KEEP_DAYS_ROW: LiveOptions.setKeepDays(c, LiveOptions.step(LiveOptions.KEEP_DAYS, LiveOptions.keepDays(c), dir)); announce(); return;
             case KEEP_SHOW_ROW: LiveOptions.setKeepPerShow(c, LiveOptions.step(LiveOptions.KEEP_SHOW, LiveOptions.keepPerShow(c), dir)); announce(); return;
             case GUIDE_ALIGN_ROW: LiveOptions.setGuideLogosLeft(c, !LiveOptions.guideLogosLeft(c)); view.invalidate(); announce(); return;
+            case CATCHUP_BAR_ROW: LiveOptions.setCatchupBar(c, !LiveOptions.catchupBar(c)); view.invalidate(); announce(); return;
+            case ATTENTION_ROW: LiveOptions.setAttention(c, !LiveOptions.attention(c)); announce(); return;
+            case MISSED_ROW: LiveOptions.setMissedShows(c, Math.floorMod(LiveOptions.missedShows(c) + dir, 3)); announce(); return;
+            case LIMIT_ROW: LiveOptions.setStreamLimit(c, Math.floorMod(LiveOptions.streamLimit(c) + dir, 3)); announce(); return;
+            case RECORD_OFF_ROW: LiveOptions.setRecordOff(c, Math.floorMod(LiveOptions.recordOff(c) + dir, 3)); announce(); return;
+            case CATCHUP_NEXT_ROW: LiveOptions.setCatchupNext(c, Math.floorMod(LiveOptions.catchupNext(c) + dir, 3)); announce(); return;
             case PLAYER_LOGO_ROW: LiveOptions.setPlayerLogoSteady(c, !LiveOptions.playerLogoSteady(c)); view.invalidate(); announce(); return;
             case LOGO_SOURCE_ROW: setLogoSource(c, (LiveOptions.logoSource(c) + dir + 3) % 3); announce(); return;
             case CHANNEL_MARK_ROW: LiveOptions.setChannelMark(c, (LiveOptions.channelMark(c) + dir + 3) % 3); view.invalidate(); announce(); return;
@@ -2596,6 +3137,7 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW: LiveOptions.setVoiceCommands(c, !LiveOptions.voiceCommands(c)); announce(); return;
             case RES_BADGE_ROW: LiveOptions.setResolutionBadges(c, !LiveOptions.resolutionBadges(c)); view.invalidate(); announce(); return;
             case STREAM_BADGES_ROW: LiveOptions.setStreamBadgePictures(c, !LiveOptions.streamBadgePictures(c)); view.invalidate(); announce(); return;
+            case BADGE_LOOK_ROW: LiveOptions.setBadgesInLook(c, !LiveOptions.badgesInLook(c)); view.invalidate(); announce(); return;
             case GUIDE_PANEL_ROW: LiveOptions.setGuidePanel(c, !LiveOptions.guidePanel(c)); announce(); return;
             case GUIDE_SEARCH_ROW: LiveOptions.setGuideSearchFull(c, !LiveOptions.guideSearchFull(c)); announce(); return;
             case COMMUNITY_ON_ROW: LiveOptions.setCommunityDesigns(c, !LiveOptions.communityDesigns(c)); announce(); return;
@@ -2720,6 +3262,10 @@ final class LiveSettings {
             case HOME_ROW: LiveOptions.setHomeOnStart(c, !LiveOptions.homeOnStart(c)); announce(); return;
             case MATCH_ROW: setMatchAlerts(c, !LiveOptions.followAll(c)); announce(); return;
             case MATCH_STYLE_ROW: LiveOptions.setMatchCard(c, !LiveOptions.matchCard(c)); announce(); return;
+            case GUIDE_FOCUS_ROW: guideLook(c, "guideSoft", !LiveOptions.guideSoft(c)); announce(); return;
+            case GUIDE_LOGOS_ROW: guideLook(c, "guideBigLogos", !LiveOptions.guideBigLogos(c)); announce(); return;
+            case GUIDE_GREY_ROW: guideLook(c, "guideGrey", !LiveOptions.guideGrey(c)); announce(); return;
+            case GUIDE_STATUS_ROW: guideLook(c, "guideStatus", !LiveOptions.guideStatus(c)); announce(); return;
             case GUIDE_SIZE_ROW: sizeGuide(c, !LiveOptions.guideCompact(c)); announce(); return;
             case REMIND_WATCHING_ROW: LiveOptions.setRemindWatching(c, !LiveOptions.remindWatching(c)); announce(); return;
             case SCORES_ROW: LiveOptions.setScores(c, !LiveOptions.scores(c)); announce(); return;
@@ -2786,37 +3332,23 @@ final class LiveSettings {
         announce();
     }
 
+    /** Into a group, or More settings. */
+    private void openGroup(int id) {
+        group = id;
+        show(ROWS, 0);
+    }
+
     private void activate() {
         Context c = context();
+        if (screen == ROWS && group(id())) {
+            openGroup(id());
+            return;
+        }
         if (id() == STYLE_ROW) {
             openGallery(true);
             return;
         }
         if (screen == ROWS && choose(c, id())) return;
-        if (screen == PLAYLISTS) {      // use it
-            LivePlaylists.Playlist p = playlists.get(focus);
-            if (p.id.equals(LivePlaylists.active(c))) {
-                view.flash(Ui.tr("Esta já está em uso", "This one is already in use"));
-                return;
-            }
-            LiveSheet.menu(c)
-                    .setTitle(p.name())
-                    .setIcons("play", "delete")
-                    .setItems(new String[] {Ui.tr("Usar esta lista", "Use this playlist"), Ui.tr("Tirar esta lista", "Remove this playlist")}, (d, which) -> {
-                        if (which == 0) {
-                            view.closeSettings();
-                            live.switchPlaylist(p.id);
-                            return;
-                        }
-                        LivePlaylists.remove(c, p.id);
-                        view.flash(Ui.tr("Lista tirada", "Playlist removed"));
-                        playlists = LivePlaylists.all(c);
-                        if (playlists.size() <= 1) showRow(PLAYLISTS_ROW);
-                        else show(PLAYLISTS, Math.min(focus, playlists.size() - 1));
-                    })
-                    .show();
-            return;
-        }
         if (screen == FOLLOWING) {      // stop following it
             String term = following.get(focus);
             LiveFollow.remove(c, term);
@@ -2854,10 +3386,19 @@ final class LiveSettings {
             else show(SEPARATE, Math.min(focus, separate.size() - 1));
             return;
         }
+        if (screen == BUTTONS) {
+            if (carrying) carrying = false;
+            else LiveOptions.setPlayerButtons(c, LiveOptions.playerButtons(c) ^ 1 << LiveOptions.playerOrder(c)[focus]);
+            view.invalidate();
+            announce();
+            return;
+        }
         if (screen == HIDDEN) {
             Xtream.Category cat = view.providerCategories().get(focus);
             LiveOptions.setHidden(c, cat.id, !LiveOptions.hidden(c).contains(cat.id));
             view.hiddenChanged();
+            view.removeCallbacks(hideSync);
+            view.postDelayed(hideSync, 4000);
             announce();
             return;
         }
@@ -2921,12 +3462,43 @@ final class LiveSettings {
             case VOICE_COMMANDS_ROW:
             case RES_BADGE_ROW:
             case STREAM_BADGES_ROW:
+            case BADGE_LOOK_ROW:
             case GUIDE_SEARCH_ROW:
             case GUIDE_PANEL_ROW:
             case HIGH_CONTRAST_ROW:
             case UNRATED_ROW:
             case COMMUNITY_ON_ROW:
             case GUIDE_ALIGN_ROW:
+            case CATCHUP_BAR_ROW:
+            case CATCHUP_NEXT_ROW:
+            case RECORD_OFF_ROW:
+            case LIMIT_ROW:
+            case ATTENTION_ROW:
+            case MISSED_ROW:
+            case MULTI_OK_ROW:
+            case MULTI_FREEZE_ROW:
+            case SHORT_ROW:
+            case SUGGEST_ROW:
+            case OK_OPENS_ROW:
+            case STREAM_LINE_ROW:
+            case TROUBLE_ROW:
+            case REWIND_INTO_ROW:
+            case SMALL_PIC_ROW:
+            case TUNE_CARD_ROW:
+            case PAST_BUTTONS_ROW:
+            case SPEED_ROW:
+            case RESERVE_ROW:
+            case TITLE_ROW:
+            case PLAYER_STAYS_ROW:
+            case HIDE_ALL_ROW:
+            case TAGS_ROW:
+            case REPEATS_ROW:
+            case CORRECT_ROW:
+            case FIRSTS_ROW:
+            case SNOOZE_ROW:
+            case BEST_ROW:
+            case WARN_ROW:
+            case TELL_ROW:
             case PLAYER_LOGO_ROW:
             case LOGO_SOURCE_ROW:
             case CHANNEL_MARK_ROW:
@@ -2950,6 +3522,10 @@ final class LiveSettings {
             case MATCH_NEWS_ROW:
             case RED_CARD_ROW:
             case GUIDE_SIZE_ROW:
+            case GUIDE_FOCUS_ROW:
+            case GUIDE_LOGOS_ROW:
+            case GUIDE_GREY_ROW:
+            case GUIDE_STATUS_ROW:
             case AGE_ROW:
             case KIDS_LIMIT_ROW:
             case KIDS_BEDTIME_ROW:
@@ -3008,6 +3584,10 @@ final class LiveSettings {
             case SCHEDULE_ROW:
             case RECORD_LIST_ROW:
                 listRecordings = id() == RECORD_LIST_ROW;
+                if (!listRecordings) {
+                    new LiveRemindersPage(c, view).show();
+                    break;
+                }
                 scheduled = scheduled(c, listRecordings);
                 if (scheduled.isEmpty()) view.flash(Ui.tr("Nada marcado: segure OK num programa do guia.", "Nothing set: hold OK on a show in the guide."));
                 else show(SCHEDULE, 0);
@@ -3023,6 +3603,9 @@ final class LiveSettings {
                 break;
             case LOCK_ADULT_ROW:
                 lockAdult();
+                break;
+            case PLAYER_BUTTONS_ROW:
+                show(BUTTONS, 0);
                 break;
             case HIDDEN_ROW:
                 show(HIDDEN, 0);
@@ -3080,7 +3663,7 @@ final class LiveSettings {
             case IMPORT_ROW: {
                 Xtream.Lineup l = view.lineup();
                 if (!LiveBackup.available() || l == null || l.categories.size() < 2) break;
-                final List<Xtream.Channel> all = new ArrayList<>(l.categories.get(1).channels);
+                final List<Xtream.Channel> all = new ArrayList<>(l.every());
                 LiveSheet.menu(c)
                         .setTitle(Ui.tr("Restaurar o backup?", "Restore the backup?"))
                         .setMessage(Ui.tr("Os ajustes, favoritos, perfis e lembretes de agora dão lugar aos do backup.",
@@ -3183,9 +3766,7 @@ final class LiveSettings {
                 announce();
                 break;
             case PLAYLISTS_ROW:
-                playlists = LivePlaylists.all(c);
-                if (playlists.size() <= 1) view.flash(Ui.tr("Só uma lista: Adicionar uma lista para mais", "Just one: Add a playlist for more"));
-                else show(PLAYLISTS, 0);
+                new LivePlaylistsPage(c, view, live).show();
                 break;
             case ADD_PLAYLIST_ROW:
                 view.closeSettings();
@@ -3389,6 +3970,11 @@ final class LiveSettings {
 
     /** TalkBack reads the focused row and its value. */
     private void announce() {
+        if (screen == ROWS && firstValues != null && count() > 0) {     // its dot, at once
+            String first = firstValues.get(id());
+            if (first != null && first.equals(computeRowValue(id()))) changed.remove(id());
+            else if (first != null) changed.add(id());
+        }
         if (count() == 0 || screen == MAIN || screen == CHECK || screen == GUIDE_PAGE || screen == GALLERY) return;
         LiveSpeech.say(view, label(focus) + ", " + value(focus));
     }

@@ -123,4 +123,45 @@ class LiveCatchupTest {
         assertEquals(0, LiveCatchup.days("", "", ""))
         assertEquals(LiveCatchup.DEFAULT_DAYS, LiveCatchup.days("xc", "soon", ""))
     }
+
+    // How long it is, where it was cut off, and what follows.
+
+    private val min = 60_000L
+    private fun program(start: Long, end: Long) = Xtream.Program().also { it.start = start; it.end = end }
+
+    @Test fun `a stream shorter than the guide counts as the guide says`() {
+        assertEquals(80 * min, LiveCatchup.length(15 * min, 80 * min))
+        assertEquals(30 * min, LiveCatchup.length(1_739_000L, 30 * min))
+    }
+
+    @Test fun `longer or unknown is the guide's too, and without a guide the stream's`() {
+        assertEquals(80 * min, LiveCatchup.length(84 * min, 80 * min))
+        assertEquals(80 * min, LiveCatchup.length(17 * 60 * min, 80 * min))
+        assertEquals(80 * min, LiveCatchup.length(0, 80 * min))
+        assertEquals(20 * min, LiveCatchup.length(20 * min, 0))
+    }
+
+    @Test fun `an end well before the end is a cut, near it or while airing it isn't`() {
+        assertEquals(true, LiveCatchup.cutOff(40 * min, 80 * min, false))
+        assertEquals(false, LiveCatchup.cutOff(79 * min, 80 * min, false))
+        assertEquals(false, LiveCatchup.cutOff(40 * min, 80 * min, true))
+        assertEquals(false, LiveCatchup.cutOff(40 * min, 0, false))
+        assertEquals(true, LiveCatchup.cutOff(min, 3 * min, false))
+    }
+
+    @Test fun `what follows, also when the guide's times moved`() {
+        val a = program(0, 30 * min); val b = program(30 * min, 60 * min); val c = program(60 * min, 90 * min)
+        assertEquals(b, LiveCatchup.after(listOf(a, b, c), 0, 30 * min))
+        assertEquals(c, LiveCatchup.after(listOf(a, b, c), 31 * min, 61 * min))
+        assertNull(LiveCatchup.after(listOf(a, b, c), 60 * min, 90 * min))
+        assertNull(LiveCatchup.after(null, 0, 30 * min))
+        assertNull(LiveCatchup.after(listOf(program(300 * min, 330 * min)), 0, 30 * min))
+    }
+
+    @Test fun `past days are for channels that can replay`() {
+        assertEquals(7, XmltvStore.pastDaysOf(5, 7))
+        assertEquals(5, XmltvStore.pastDaysOf(5, 1))
+        assertEquals(1, XmltvStore.pastDaysOf(0, 7))
+        assertEquals(0, XmltvStore.pastDaysOf(0, 0))
+    }
 }

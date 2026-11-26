@@ -121,7 +121,36 @@ final class LiveOptions {
             return d.retainBackBufferFromKeyframe(p);
         }
 
-        @Override public boolean shouldStartPlayback(LoadControl.Parameters p) { return d.shouldStartPlayback(p); }
+        /**
+         * Live: how much to have in hand before going on after running out (0: as Media3 does). Providers send a few
+         * seconds at a time, sometimes late: going on with just one lot, the next late one stops it again.
+         */
+        volatile long reserveMs;
+        private long readySince;
+        /** It could go on, and waits for the rest of the reserve. */
+        volatile boolean holding;
+
+        @Override public boolean shouldStartPlayback(LoadControl.Parameters p) {
+            boolean yes = d.shouldStartPlayback(p);
+            if (!yes || !p.rebuffering) {
+                readySince = 0;
+                holding = false;
+                return yes;
+            }
+            long up = android.os.SystemClock.uptimeMillis();
+            if (readySince == 0) readySince = up;
+            holding = !goOn(p.bufferedDurationUs / 1000, reserveMs, up - readySince);
+            if (!holding) readySince = 0;
+            return !holding;
+        }
+
+        /** The longest it waits for the rest. */
+        static final long HOLD_MS = 7_000;
+
+        /** Whether to go on with `buffered`, having waited `waited` since it could have. Pure. */
+        static boolean goOn(long buffered, long reserve, long waited) {
+            return buffered >= reserve || waited >= HOLD_MS;
+        }
 
         @Override public boolean shouldContinueLoading(LoadControl.Parameters p) {
             if (d.shouldContinueLoading(p)) { starvedSince = 0; return true; }
@@ -141,6 +170,281 @@ final class LiveOptions {
 
     /** Auto frame rate: the screen switches to a refresh rate matching the video (when the stream tells its own). */
     /** Live TV through the TV's own buffer (its last 15 minutes): ◀ goes back on any channel, catch-up or not. */
+    /** A past show's player bar: the new one (one time line, its own buttons), else the classic. */
+    static boolean catchupBar(Context c) {
+        return sp(c).getBoolean("catchupBar", true);
+    }
+
+    static void setCatchupBar(Context c, boolean on) {
+        sp(c).edit().putBoolean("catchupBar", on).apply();
+    }
+
+    /** At a past show's end: the next one offered in a corner card, in the full panel, or not at all (live). */
+    static final int NEXT_CARD = 0, NEXT_PANEL = 1, NEXT_OFF = 2;
+
+    static int catchupNext(Context c) {
+        return sp(c).getInt("catchupNext", NEXT_CARD);
+    }
+
+    static void setCatchupNext(Context c, int how) {
+        sp(c).edit().putInt("catchupNext", how).apply();
+    }
+
+    static final int[] RESERVES = {0, 4, 8, 12};
+
+    /** Seconds kept in hand on live TV. */
+    static int liveReserve(Context c) {
+        return sp(c).getInt("liveReserve", 8);
+    }
+
+    static void setLiveReserve(Context c, int seconds) {
+        sp(c).edit().putInt("liveReserve", seconds).apply();
+    }
+
+    /** Guide tags: all (0), live and new only (1), none (2); repeats worked out, wrong tags put right, premieres and finales. */
+    static int guideTags(Context c) {
+        return sp(c).getInt("guideTags", 0);
+    }
+
+    static void setGuideTags(Context c, int which) {
+        sp(c).edit().putInt("guideTags", which).apply();
+    }
+
+    static boolean workOutRepeats(Context c) {
+        return fresh(c, "workOutRepeats");
+    }
+
+    static boolean correctTags(Context c) {
+        return fresh(c, "correctTags");
+    }
+
+    static boolean premieres(Context c) {
+        return fresh(c, "premieres");
+    }
+
+    /** A reminder put off by this many minutes (0: not offered); the best channel for a match; the playlists' warnings. */
+    static final int[] SNOOZE = {5, 10, 0};
+
+    static int snooze(Context c) {
+        return sp(c).getInt("snooze", 5);
+    }
+
+    static void setSnooze(Context c, int minutes) {
+        sp(c).edit().putInt("snooze", minutes).apply();
+    }
+
+    @SuppressWarnings("deprecation")
+    private static boolean fresh(Context c, String key) {
+        return c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getBoolean(key, true);
+    }
+
+    static boolean bestChannel(Context c) {
+        return fresh(c, "bestChannel");
+    }
+
+    static boolean warnSwitch(Context c) {
+        return fresh(c, "warnSwitch");
+    }
+
+    static boolean tellOthers(Context c) {
+        return fresh(c, "tellOthers");
+    }
+
+    /** The player: which buttons its live bar has (a bit each, LiveOverlay.BAR), where OK starts, what's on it, how long it stays. */
+    static int playerButtons(Context c) {
+        return sp(c).getInt("playerButtons", LiveOverlay.BAR_DEFAULT);
+    }
+
+    static void setPlayerButtons(Context c, int bits) {
+        sp(c).edit().putInt("playerButtons", bits).apply();
+    }
+
+    static boolean okOnBar(Context c) {
+        return sp(c).getBoolean("okOnBar", true);
+    }
+
+    /** What the stream is, on the bar: not at all (in Info only), in words under the title, as the badge pictures on the channel's line. */
+    static final int DETAILS_OFF = 0, DETAILS_WORDS = 1, DETAILS_BADGES = 2;
+
+    static int streamDetails(Context c) {
+        android.content.SharedPreferences p = sp(c);
+        if (p.contains("streamDetails")) return p.getInt("streamDetails", DETAILS_OFF);
+        return p.getBoolean("streamLine", false) ? DETAILS_WORDS : DETAILS_OFF;      // the switch it was
+    }
+
+    static void setStreamDetails(Context c, int how) {
+        sp(c).edit().putInt("streamDetails", how).apply();
+    }
+
+    /** On the bar at all. */
+    static boolean streamLine(Context c) {
+        return streamDetails(c) != DETAILS_OFF;
+    }
+
+    /** A long title on two lines (else it scrolls across, as before). */
+    static boolean titleLines(Context c) {
+        return !sp(c).getBoolean("titleScroll", false);
+    }
+
+    static boolean troubleHelp(Context c) {
+        return sp(c).getBoolean("troubleHelp", true);
+    }
+
+    static final int[] STAYS = {4, 6, 10, 15};
+
+    /** Seconds. */
+    static int playerStays(Context c) {
+        return sp(c).getInt("playerStays", 6);
+    }
+
+    /** The buttons' order: LiveOverlay.BAR's, or as arranged in the settings. */
+    static int[] playerOrder(Context c) {
+        return LiveOverlay.order(sp(c).getString("playerOrder", ""));
+    }
+
+    static void setPlayerOrder(Context c, int[] order) {
+        StringBuilder b = new StringBuilder();
+        for (int o : order) b.append(b.length() > 0 ? "," : "").append(o);
+        sp(c).edit().putString("playerOrder", b.toString()).apply();
+    }
+
+    static boolean rewindInto(Context c) {
+        return sp(c).getBoolean("rewindInto", true);
+    }
+
+    static final int SPEED_OFF = 0, SPEED_BUTTON = 1, SPEED_ALWAYS = 2;
+
+    static int catchUpSpeed(Context c) {
+        return sp(c).getInt("catchUpSpeed", SPEED_BUTTON);
+    }
+
+    static void setCatchUpSpeed(Context c, int how) {
+        sp(c).edit().putInt("catchUpSpeed", how).apply();
+    }
+
+    static boolean smallPicture(Context c) {
+        return sp(c).getBoolean("smallPicture", true);
+    }
+
+    static boolean tuneCard(Context c) {
+        return sp(c).getBoolean("tuneCard", true);
+    }
+
+    static boolean pastButtons(Context c) {
+        return sp(c).getBoolean("pastButtons", true);
+    }
+
+    static void setPlayerStays(Context c, int seconds) {
+        sp(c).edit().putInt("playerStays", seconds).apply();
+    }
+
+    static void setFlagOption(Context c, String key, boolean on) {
+        sp(c).edit().putBoolean(key, on).apply();
+    }
+
+    /** Favorites suggested by what's watched (and that counted, LiveWatchTime); the settings' short lists. */
+    @SuppressWarnings("deprecation")
+    static boolean suggestFavorites(Context c) {
+        return c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getBoolean("suggestFavorites", true);
+    }
+
+    static void setSuggestFavorites(Context c, boolean on) {
+        sp(c).edit().putBoolean("suggestFavorites", on).apply();
+    }
+
+    static boolean shortSettings(Context c) {
+        return sp(c).getBoolean("shortSettings", true);
+    }
+
+    static void setShortSettings(Context c, boolean on) {
+        sp(c).edit().putBoolean("shortSettings", on).apply();
+    }
+
+    /** OK on a Multiview box: full screen (Back: where you came from), or its channel picked (as before). */
+    static boolean multiOkFull(Context c) {
+        return sp(c).getBoolean("multiOkFull", true);
+    }
+
+    static void setMultiOkFull(Context c, boolean on) {
+        sp(c).edit().putBoolean("multiOkFull", on).apply();
+    }
+
+    /** A Multiview picture that stands still: opened again. */
+    static boolean multiFreeze(Context c) {
+        return sp(c).getBoolean("multiFreeze", true);
+    }
+
+    static void setMultiFreeze(Context c, boolean on) {
+        sp(c).edit().putBoolean("multiFreeze", on).apply();
+    }
+
+    /** The Recordings page's first row, what went wrong: on unless off. */
+    static boolean attention(Context c) {
+        return sp(c).getBoolean("attention", true);
+    }
+
+    static void setAttention(Context c, boolean on) {
+        sp(c).edit().putBoolean("attention", on).apply();
+    }
+
+    /** A show missed that the channel's catch-up has: offered, recorded from there by itself, or neither. */
+    static final int MISSED_ASKS = 0, MISSED_FETCHES = 1, MISSED_OFF = 2;
+
+    @SuppressWarnings("deprecation")
+    static int missedShows(Context c) {
+        return c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getInt("missedShows", MISSED_ASKS);
+    }
+
+    static void setMissedShows(Context c, int how) {
+        sp(c).edit().putInt("missedShows", how).apply();
+    }
+
+    /** The guide's look (Settings > Guide), all on unless off: the soft focus, large logos, grey placeholders, the status line. */
+    static boolean guideSoft(Context c) {
+        return sp(c).getBoolean("guideSoft", true);
+    }
+
+    static boolean guideBigLogos(Context c) {
+        return sp(c).getBoolean("guideBigLogos", true);
+    }
+
+    static boolean guideGrey(Context c) {
+        return sp(c).getBoolean("guideGrey", true);
+    }
+
+    static boolean guideStatus(Context c) {
+        return sp(c).getBoolean("guideStatus", true);
+    }
+
+    static void setGuideLook(Context c, String which, boolean on) {
+        sp(c).edit().putBoolean(which, on).apply();
+    }
+
+    /** A stream more than the account plays at once: asked, only told, or as it comes. */
+    static final int LIMIT_ASKS = 0, LIMIT_TELLS = 1, LIMIT_OFF = 2;
+
+    @SuppressWarnings("deprecation")
+    static int streamLimit(Context c) {
+        return c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getInt("streamLimit", LIMIT_ASKS);
+    }
+
+    static void setStreamLimit(Context c, int how) {
+        sp(c).edit().putInt("streamLimit", how).apply();
+    }
+
+    /** The TV turned off while something records: asked, black at once, or off as it is. */
+    static final int OFF_ASKS = 0, OFF_BLACK = 1, OFF_TURNS_OFF = 2;
+
+    /** Read anew: Live TV sets it, the recorder's process goes by it. */
+    @SuppressWarnings("deprecation")
+    static int recordOff(Context c) {
+        return c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getInt("recordOff", OFF_ASKS);
+    }
+
+    static void setRecordOff(Context c, int how) {
+        sp(c).edit().putInt("recordOff", how).apply();
+    }
+
     static boolean rewindAny(Context c) {
         return sp(c).getBoolean("rewindAny", false);
     }
@@ -556,10 +860,6 @@ final class LiveOptions {
         return sp(c).getString("guideUrl", "");
     }
 
-    static void setGuideUrl(Context c, String url) {
-        sp(c).edit().putString("guideUrl", url == null ? "" : url.trim()).apply();
-    }
-
     /** Whether each channel's guide is fetched again the first time Live TV shows it (else the saved one, while fresh). */
     static boolean guideOnStart(Context c) {
         return sp(c).getBoolean("guideOnStart", true);
@@ -833,6 +1133,16 @@ final class LiveOptions {
 
     static void setStreamBadgePictures(Context c, boolean on) {
         setFlag(c, "live-words-stream-badges", !on);
+    }
+
+    /** The badges (the stream's, the resolution's) in the design's own colors, else the badge set's. */
+    static boolean badgesInLook(Context c) {
+        return !flag(c, "live-badges-own-colors").exists();
+    }
+
+    static void setBadgesInLook(Context c, boolean on) {
+        setFlag(c, "live-badges-own-colors", !on);
+        LiveBadge.inLook = on;
     }
 
     static boolean resolutionBadges(Context c) {
@@ -1120,7 +1430,13 @@ final class LiveOptions {
     // MARK: - Categories
 
     static Set<String> hidden(Context c) {
-        return new HashSet<>(sp(c).getStringSet("hidden", new HashSet<>()));
+        // Read again: hidden in Live TV, and the home screen reads it too.
+        return new HashSet<>(c.getApplicationContext().getSharedPreferences("live-options", Context.MODE_MULTI_PROCESS).getStringSet("hidden", new HashSet<>()));
+    }
+
+    /** The hidden categories' channels out of search, All channels and History too. */
+    static boolean hideEverywhere(Context c) {
+        return fresh(c, "hideEverywhere");
     }
 
     static void setHidden(Context c, String category, boolean on) {

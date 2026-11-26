@@ -108,7 +108,7 @@ final class LiveBackup {
     /** Never in the file (it's in Downloads, where other apps could read it): the parental PIN. */
     private static final Set<String> SECRET = new HashSet<>(java.util.Arrays.asList("pin", "salt"));
     /** The small files: History, reminders and recordings set for later, series, look, profiles, the start flags. */
-    private static final String[] FILES = {"live-recent.json", "live-schedule.json", "live-series.json", "live-theme.txt",
+    private static final String[] FILES = {"live-recent.json", LiveWatchTime.FILE, "live-schedule.json", "live-series.json", "live-theme.txt",
             "live-remind.txt", "live-resume.json", "live-profiles.json", "live-follow.json", "live-channel-edits.json", "live-start-boot",
             "live-start-wake", "live-no-previews"};
 

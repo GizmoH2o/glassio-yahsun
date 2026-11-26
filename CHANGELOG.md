@@ -2,6 +2,54 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.10.0 — 2026-11-26
+
+Live TV's player, redesigned twice over, a Live TV that stops less, and recordings, reminders and playlists you can rely on.
+
+**The Live TV player**
+- **A calmer bar**: LIVE, the channel's logo, number and name on one line; a long match title on two lines, its competition above it; what the stream is in words under the title, or as badges, or only in Info.
+- **Buttons with icons**: Start over, Record, Audio & Subtitles, Channels, Last channel, Match and More. Choose them and their order in Settings › Watching › Player; the rest are under More.
+- **Up next** has its own row under the buttons: ▼ and OK remind, record or open the show.
+- **One rewind range**: ◀ goes back through the TV's own 15 minutes and on into the channel's catch-up, back to the show's start, shown on the bar.
+- **Behind live**, the bar keeps the show's time line with live marked, BEHIND says by how much, and Go live takes you back.
+- **Past shows and recordings** have Channels and More too.
+- **The picture shrinks beside More and Audio & Subtitles** instead of being covered.
+- **Tuning** shows the channel and its show once, in the middle, then the corner card; a merged channel says which source it's trying.
+- **A channel that keeps stopping** (three times in five minutes) offers another source, lower quality, another copy or the same match on another channel, whichever there is. Nothing changes by itself.
+- **Badges in the look's colour**: the stream, resolution, country and age badges take the design's focus colour (Netflix's red). Settings › Channels.
+- **Catch up faster** (1.25× while behind live) where the TV allows it; not with Tunneled playback or Dolby sent straight out.
+
+**Fewer stops**
+- **A live reserve**: a channel that runs out waits for a few seconds in hand before it goes on, and Go live leaves the same, so a provider's late delivery no longer stops it again at once. Settings › Watching › Live reserve.
+- **Rewind any channel stays on** after a few hiccups, instead of turning off for that channel on the second.
+- **Stream health counts each stop once** (a freeze and its reconnect were two), and short waits count too.
+
+**Recordings**
+- **A source that fails or trickles** while recording: the next one takes over.
+- **The account's streams** are known: a recording isn't cut off by watching one channel too many, and clashes are marked.
+- **TV turned off while recording**: on TVs that stop recording in standby, a black screen keeps it going until it's over.
+- **Missed recordings** offered from the catch-up, and a Needs attention row on the Recordings page.
+
+**Reminders and alerts**
+- **Reminders**: snooze, the best channel for a match picked for you, and a page of the reminders set.
+- **One reminder per match**, whichever channels show it.
+- **Hidden channels** are left out of alerts, suggestions, searches and History (Settings › Channels › Hide everywhere).
+
+**Playlists**
+- **Several playlists**, switched from the guide's Home held; reminders and recordings on another playlist warn and switch for you.
+
+**The guide**
+- **Better tags**: an episode seen before is a REPEAT, a match shown again isn't LIVE, a season's first is a PREMIERE; wrong tags from the guide put right.
+- **Suggest favorites** from what you watch and the teams you follow.
+
+**Glassio**
+- **Replace Google TV's home**: the Home button opens Glassio itself (needs TV access, ADB), with a safety net if Glassio keeps crashing.
+- **More info's episodes**: an Episodes heading, the list no wider than the rows and in a window of its own (a long show no longer pushes the page down), opening on the season and episode you're on.
+
+**Fixes**
+- Opening a show whose cast lists an actor twice (an actor in two parts) no longer crashes Glassio.
+- Two of Live TV's processes changing a list at once no longer lose a change.
+
 ## 3.9.0 — 2026-11-15
 
 One app: Glassio, Live TV and every page now look, move and behave as one, as on the big streaming apps.

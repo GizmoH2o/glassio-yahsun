@@ -30,6 +30,28 @@ final class LiveMultiRules {
         return allOn || box == focus;
     }
 
+    static final long FROZEN_MS = 12_000, STUCK_MS = 25_000;
+    static final int TRIES = 5;
+
+    /**
+     * Whether a box's picture stands still: nothing new drawn for a while though it plays, or waiting for data longer
+     * than a slow moment (`since`: when it last moved). Pure.
+     */
+    static boolean frozen(boolean ready, boolean began, long since, long now) {
+        return began && since > 0 && now - since > (ready ? FROZEN_MS : STUCK_MS);
+    }
+
+    /** The seconds of a wait, at least one till it's over. Pure. */
+    static int seconds(long at, long now) {
+        return at <= now ? 0 : (int) ((at - now + 999) / 1000);
+    }
+
+    /** Where button `at` of `n` goes with ◀ or ▶; -1: past the end, to the next box. Pure. */
+    static int button(int at, int n, boolean right) {
+        int to = at + (right ? 1 : -1);
+        return to < 0 || to >= n ? -1 : to;
+    }
+
     /** The channels for the wall: each once, no more than the account allows. */
     static List<Integer> wall(List<Integer> onNow, int allowed) {
         List<Integer> out = new ArrayList<>();

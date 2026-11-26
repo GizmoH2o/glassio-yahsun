@@ -182,11 +182,6 @@ final class LiveTheme {
         return ((tile >> 16) & 255) * 3 + ((tile >> 8) & 255) * 6 + (tile & 255) > 1700;
     }
 
-    /** Glassio 3's info bar on screen: its buttons are named pills. */
-    static boolean cinemaBar() {
-        return infoStyle() == CINEMA;
-    }
-
     /** Whether the focus color picked applies (the focus is Glassio's; the others bring their own). */
     static boolean ownColor() {
         return part(FOCUS) == ZERO;
@@ -794,6 +789,7 @@ final class LiveTheme {
         tick(c);
         highContrast = LiveOptions.highContrast(c);
         Ui.textScale = LiveOptions.textScale(c);
+        LiveBadge.inLook = LiveOptions.badgesInLook(c);
         accent = com.glasslauncher.tv.ui.TypeKt.accentArgb(c.getApplicationContext()
                 .getSharedPreferences("glass", Context.MODE_MULTI_PROCESS).getString("accent", "red"));
         use(i);

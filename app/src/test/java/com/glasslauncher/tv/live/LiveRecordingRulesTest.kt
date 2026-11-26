@@ -52,4 +52,23 @@ class LiveRecordingRulesTest {
     @Test fun `with nowhere to go there's no folder`() {
         assertNull(LiveRecordings.pick(listOf<File?>(null), false))
     }
+
+    // Stopped from outside, and shows the guide moved.
+
+    private fun rec(state: String, beat: Long) = LiveRecordings.Rec().also { it.id = "rec:7:1000"; it.state = state; it.beat = beat }
+
+    @Test fun `a recording not heard of for two minutes was stopped`() {
+        org.junit.Assert.assertTrue(LiveRecordings.interrupted(rec(LiveRecordings.RECORDING, 0), 1_000_000))
+        org.junit.Assert.assertFalse(LiveRecordings.interrupted(rec(LiveRecordings.RECORDING, 950_000), 1_000_000))
+        org.junit.Assert.assertFalse(LiveRecordings.interrupted(rec(LiveRecordings.DONE, 0), 1_000_000))
+        org.junit.Assert.assertEquals(1000L, rec(LiveRecordings.RECORDING, 0).showStart())
+    }
+
+    @Test fun `a show moved only when another one is over its old time`() {
+        fun p(a: Long, b: Long) = Xtream.Program().also { it.start = a; it.end = b }
+        org.junit.Assert.assertTrue(LiveSchedule.moved(listOf(p(0, 40), p(40, 80)), 30))
+        org.junit.Assert.assertFalse(LiveSchedule.moved(listOf(p(0, 30), p(30, 80)), 30))
+        org.junit.Assert.assertFalse(LiveSchedule.moved(listOf(p(0, 20), p(40, 80)), 30))
+        org.junit.Assert.assertFalse(LiveSchedule.moved(emptyList(), 30))
+    }
 }

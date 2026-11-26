@@ -67,6 +67,8 @@ final class LiveShowPage extends LiveDialog {
     private final List<Xtream.Channel> airChannels = new ArrayList<>();
     private final List<Xtream.Program> airShows = new ArrayList<>();
     private LiveTmdb.Info info;
+    /** A repeat: when it was first on. */
+    private String firstOn = "";
     private boolean searched;
     /** 0: the buttons; 1 on: the airings (1 is the first). */
     private int row, button;
@@ -114,14 +116,30 @@ final class LiveShowPage extends LiveDialog {
             return;
         }
         new Thread(() -> {
+            Object[] first = show.repeat ? LiveTags.firstOn(app, channel.epg, show) : null;
+            if (first != null && (Long) first[0] < show.start) {
+                String by = "";
+                for (Xtream.Channel ch : lineup.all()) {
+                    if (!((String) first[1]).equalsIgnoreCase(ch.epg)) continue;
+                    by = ", " + names.name(ch);
+                    break;
+                }
+                final String line = Ui.tr("Passou ", "Earlier: ") + new java.text.SimpleDateFormat("EEE d MMM", Ui.locale()).format(new java.util.Date((Long) first[0]))
+                        + ", " + Ui.time((Long) first[0]) + by;
+                page.post(() -> {
+                    firstOn = line;
+                    page.invalidate();
+                });
+            }
             long now = System.currentTimeMillis();
             List<XmltvStore.Found> found = XmltvStore.findAll(app, folded.split(" "), now, now + 7 * 24 * 3600_000L, 200);
             Map<String, Xtream.Channel> byEpg = new HashMap<>();
             // This channel first: another one with the same guide (the same feed, in another category) would list this
             // very airing as another, under the other's number.
             if (channel.epg != null && !channel.epg.isEmpty()) byEpg.put(channel.epg.toLowerCase(Locale.ROOT), channel);
+            java.util.Set<Integer> hide = LiveHide.away(app, lineup, false);
             for (Xtream.Channel ch : lineup.all()) {
-                if (ch.epg == null || ch.epg.isEmpty()) continue;
+                if (ch.epg == null || ch.epg.isEmpty() || hide.contains(ch.id)) continue;
                 String id = ch.epg.toLowerCase(Locale.ROOT);
                 if (!byEpg.containsKey(id)) byEpg.put(id, ch);
             }
@@ -144,6 +162,7 @@ final class LiveShowPage extends LiveDialog {
                 p.sub = f.sub;
                 p.about = f.about;
                 Xtream.mark(p);
+                LiveTags.apply(app, p, f.tags);
                 if (f.start <= now) nowN++;
                 else nextN++;
                 chs.add(ch);
@@ -197,6 +216,7 @@ final class LiveShowPage extends LiveDialog {
             p.sub = f.sub;
                 p.about = f.about;
             Xtream.mark(p);
+            LiveTags.apply(app, p, f.tags);
             out.add(new Object[] {ch, p, null});
         }
         java.util.Collections.sort(out, (a, b) -> Long.compare(((Xtream.Program) b[1]).start, ((Xtream.Program) a[1]).start));
@@ -528,10 +548,11 @@ final class LiveShowPage extends LiveDialog {
             String where = (channel.num > 0 ? channel.num + " " : "") + names.name(channel);
             String tag = names.tag(channel), badge = LiveBadge.of(getContext(), channel);
             LiveCountry.label(g3Ch, tagPaint);      // its lettering grey, not the line's red
+            int shownTag = past ? 0 : LiveTags.tag(show, LiveOptions.guideTags(getContext()));
             float kx;
             if (onNow) {
-                // On now: Glassio's red LIVE pill (as its Live TV tab has it), the channel after it in white.
-                float px = drawLivePill(c, x, 72 * k, k) + 12 * k;
+                // On now: a grey pill, the red LIVE one when it's a live broadcast; the channel after it in white.
+                float px = drawPillG3(c, shownTag == LiveTags.LIVE_TAG ? LiveTags.text(shownTag) : when, shownTag == LiveTags.LIVE_TAG ? LiveTheme.accent : 0x59FFFFFF, x, 72 * k, k) + 12 * k;
                 String line = ellipsize(where, g3Where, tw - (px - x) - LiveCountry.tagWidth(tag, g3Ch, tagPaint, k) - LiveBadge.width(badge, g3Ch, k));
                 c.drawText(line, px, 72 * k, g3Where);
                 kx = px + g3Where.measureText(line);
@@ -543,6 +564,11 @@ final class LiveShowPage extends LiveDialog {
             }
             if (!tag.isEmpty()) kx = LiveCountry.drawTag(c, tag, kx + 12 * k, 72 * k, g3Ch, tagPaint, k);
             LiveBadge.drawInline(c, badge, kx + 12 * k, 72 * k, g3Ch, k);
+            if (shownTag != 0 && !(onNow && shownTag == LiveTags.LIVE_TAG)) {       // NEW, REPEAT, PREMIERE…
+                float after = drawPillG3(c, LiveTags.text(shownTag), shownTag == LiveTags.REPEAT_TAG ? 0x59FFFFFF : shownTag >= LiveTags.PREMIERE_TAG ? 0xFF9A6A00 : LiveTheme.accent,
+                        kx + 12 * k + LiveBadge.width(badge, g3Ch, k) + (badge.isEmpty() ? 0 : 12 * k), 72 * k, k);
+                if (shownTag == LiveTags.REPEAT_TAG && !firstOn.isEmpty()) c.drawText(ellipsize(firstOn, g3Meta, 620 * k), after + 14 * k, 72 * k, g3Meta);
+            }
             String name = show.title.isEmpty() ? channel.name : show.title;
             // The lines below the top one spaced by the text size (Live TV's, or Glassio's it follows), so none overlap.
             float ts = Math.max(1f, Ui.textScale / 100f), titleBase = 72 * k + 75 * k * ts;
@@ -742,13 +768,15 @@ final class LiveShowPage extends LiveDialog {
             // Pills and facts: LIVE / LATER / CATCH-UP, year, genres, rating, TMDB score.
             y += 62 * k;
             float px = x;
-            px = drawPill(c, onNow ? Ui.tr("AO VIVO", "LIVE") : past ? Ui.tr("REPRISE", "CATCH-UP") : Ui.tr("DEPOIS", "LATER"), px, y,
+            px = drawPill(c, onNow ? Ui.tr("AGORA", "ON NOW") : past ? Ui.tr("REPRISE", "CATCH-UP") : Ui.tr("DEPOIS", "LATER"), px, y,
                     onNow ? LiveTheme.accent : past ? 0xFF2F6FED : 0x40FFFFFF) + 14 * k;
             int age = LiveTmdb.age(getContext(), show);
             if (age > 0) px = drawPill(c, age + "+", px, y, LiveTheme.chip()) + 14 * k;
-            if (show.fresh) px = drawPill(c, Ui.tr("NOVO", "NEW"), px, y, LiveTheme.chip()) + 14 * k;
+            int tag = past && show.live ? 0 : LiveTags.tag(show, LiveOptions.guideTags(getContext()));
+            if (tag != 0) px = drawPill(c, LiveTags.text(tag), px, y, tag == LiveTags.LIVE_TAG ? 0xFFE0352B : tag >= LiveTags.PREMIERE_TAG ? 0xFF9A6A00 : LiveTheme.chip()) + 14 * k;
             StringBuilder facts = new StringBuilder();
-            if (info != null && !info.year.isEmpty()) facts.append(info.year);
+            if (tag == LiveTags.REPEAT_TAG && !firstOn.isEmpty()) facts.append(firstOn);
+            if (info != null && !info.year.isEmpty()) facts.append(facts.length() > 0 ? "  ·  " : "").append(info.year);
             if (info != null && !info.genres.isEmpty()) facts.append(facts.length() > 0 ? "  ·  " : "").append(info.genres);
             if (facts.length() > 0) {
                 String f = facts.toString();
@@ -894,14 +922,13 @@ final class LiveShowPage extends LiveDialog {
     private static final Paint LIVE_FILL = new Paint(Paint.ANTI_ALIAS_FLAG), LIVE_WORD = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     /** Glassio's LIVE pill (red, white lettering), its text on [baseline]. Returns where it ends. */
-    static float drawLivePill(android.graphics.Canvas c, float x, float baseline, float k) {
-        LIVE_FILL.setColor(LiveTheme.accent);
+    static float drawPillG3(android.graphics.Canvas c, String w, int color, float x, float baseline, float k) {
+        LIVE_FILL.setColor(color);
         LIVE_WORD.setTypeface(Ui.semibold);
         LIVE_WORD.setFakeBoldText(true);
         LIVE_WORD.setTextSize(15 * k);
         LIVE_WORD.setLetterSpacing(0.06f);
         LIVE_WORD.setColor(0xFFFFFFFF);
-        String w = Ui.tr("AO VIVO", "LIVE");
         float padX = 9 * k, h = 26 * k, cap = 15 * k * 0.72f, wd = LIVE_WORD.measureText(w) + padX * 2;
         float top = baseline - cap - (h - cap) / 2;
         c.drawRoundRect(x, top, x + wd, top + h, 6 * k, 6 * k, LIVE_FILL);

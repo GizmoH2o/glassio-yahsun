@@ -70,4 +70,10 @@ class TitlePeopleTest {
         val many = (1..40).joinToString(",") { credit(it, it) }
         assertEquals(TitlePeople.TITLES, ids("""{"cast":[$many]}""").size)
     }
+
+    @Test fun `an actor in two parts is one card with both`() {
+        val p = TitlePeople.parse(JSONObject("""{"credits":{"cast":[{"id":7,"name":"Ann","character":"Mother","order":0},{"id":9,"name":"Bo","character":"Son","order":1},{"id":7,"name":"Ann","character":"Narrator","order":2}]}}"""), true)
+        assertEquals(listOf(7, 9), p.cast.map { it.id })
+        assertEquals("Mother / Narrator", p.cast[0].role)
+    }
 }

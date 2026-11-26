@@ -24,15 +24,63 @@ final class LiveRecordings {
 
     static final class Rec {
         String id, title = "", about = "", file, state = RECORDING;
+        /** Recording it once more: when the earlier one ended (the recorder's own, not kept). */
+        long hadUntil;
         /** Why it failed, was cut short or missed ("" when all went well): the Recordings page and the notice say so. */
         String why = "";
         Xtream.Channel ch;
         long start, end, size;
+        /** When it stopped and went on, in pairs (ms since 1970): holes in it. */
+        List<long[]> gaps = new ArrayList<>();
+        /** The show's own end (`end` is the recording's); 0: as `end`. */
+        long showEnd;
+        /** Out of Needs attention. */
+        boolean dismissed;
+        /** From the channel's catch-up (RecordService.fetch): waiting for a stream, how much there is (ms), how often begun. */
+        boolean fetch, waiting;
+        /** The playlist it's from (its login, should another be in use by then). */
+        String playlist = "";
+        /** The channel's version it last came in well from (0: not known). */
+        int from;
+        long got;
+        int tries;
+        /** When it last came in before it was stopped (the recorder's own, not kept). */
+        long gapFrom;
+
+        long showEnd() {
+            return showEnd > 0 ? showEnd : end;
+        }
+
+        /** How much is missing inside it (ms). */
+        long missing() {
+            long n = 0;
+            for (long[] g : gaps) n += Math.max(0, g[1] - g[0]);
+            return n;
+        }
+
+        /** When the recorder last said it's at it (about twice a minute): long ago, it was stopped from outside. */
+        long beat;
+
+        /** The show's own start (in the id; `start` is when the recording began). */
+        long showStart() {
+            try {
+                return Long.parseLong(id.substring(id.lastIndexOf(':') + 1));
+            } catch (RuntimeException e) {
+                return start;
+            }
+        }
 
         JSONObject json() throws JSONException {
             return new JSONObject().put("id", id).put("title", title).put("about", about).put("file", file).put("state", state)
                     .put("ch", Xtream.json(ch)).put("start", start).put("end", end).put("size", size)
-                    .put("why", why);
+                    .put("why", why).put("beat", beat).put("gaps", gapsJson()).put("showEnd", showEnd).put("dismissed", dismissed)
+                    .put("playlist", playlist).put("from", from).put("fetch", fetch).put("waiting", waiting).put("got", got).put("tries", tries);
+        }
+
+        private JSONArray gapsJson() throws JSONException {
+            JSONArray a = new JSONArray();
+            for (long[] g : gaps) a.put(new JSONArray().put(g[0]).put(g[1]));
+            return a;
         }
 
         static Rec of(JSONObject o) {
@@ -49,6 +97,20 @@ final class LiveRecordings {
             r.end = o.optLong("end");
             r.size = o.optLong("size");
             r.why = o.optString("why");
+            r.beat = o.optLong("beat");
+            JSONArray g = o.optJSONArray("gaps");
+            for (int i = 0; g != null && i < g.length(); i++) {
+                JSONArray one = g.optJSONArray(i);
+                if (one != null) r.gaps.add(new long[] {one.optLong(0), one.optLong(1)});
+            }
+            r.showEnd = o.optLong("showEnd");
+            r.dismissed = o.optBoolean("dismissed");
+            r.playlist = o.optString("playlist");
+            r.from = o.optInt("from");
+            r.fetch = o.optBoolean("fetch");
+            r.waiting = o.optBoolean("waiting");
+            r.got = o.optLong("got");
+            r.tries = o.optInt("tries");
             return r;
         }
     }
@@ -120,15 +182,115 @@ final class LiveRecordings {
     }
 
     /** Adds or updates `r` (by its id). */
-    static synchronized void put(Context c, Rec r) {
+    static void put(Context c, Rec r) {
+        LiveLock.run(c, () -> putNow(c, r));
+    }
+
+    private static synchronized void putNow(Context c, Rec r) {
         List<Rec> list = all(c);
         for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id.equals(r.id)) list.remove(i);
         list.add(r);
         save(c, list);
     }
 
+    /** Updates `r`; false (nothing written) when it was deleted meanwhile. */
+    static boolean update(Context c, Rec r) {
+        final boolean[] there = {false};
+        LiveLock.run(c, () -> {
+            there[0] = find(c, r.id) != null;
+            if (there[0]) put(c, r);
+        });
+        return there[0];
+    }
+
+    /** A recording that says it's going on, and whose recorder hasn't been heard of for a while: it was stopped. Pure. */
+    static boolean interrupted(Rec r, long now) {
+        return RECORDING.equals(r.state) && (now - r.beat > 2 * 60_000L || r.beat > now + 60_000L);
+    }
+
+    static final long GAP_MS = 10_000, GAPS_MATTER_MS = 30_000;
+
+    /** Notes a hole from `from` to `to`, when it's one. Pure. */
+    static void gap(Rec r, long from, long to) {
+        if (from > 0 && to - from > GAP_MS) r.gaps.add(new long[] {from, to});
+    }
+
+    /** Something went wrong with it (Needs attention). Pure. */
+    static boolean trouble(Rec r) {
+        return !r.dismissed && !RECORDING.equals(r.state) && (FAILED.equals(r.state) || !r.why.isEmpty() || r.missing() > GAPS_MATTER_MS);
+    }
+
+    /** Whether the show is over and `archive` days of catch-up still have all of it. Pure. */
+    static boolean inCatchup(long start, long end, int archive, long now) {
+        return archive > 0 && end <= now && start >= now - archive * 24 * 3600_000L;
+    }
+
+    static String fetchId(int channel, long start) {
+        return "rcu:" + channel + ":" + start;
+    }
+
+    /** The show of `r`, as it's recorded (or fetched). */
+    static LiveSchedule.Item itemOf(Rec r) {
+        LiveSchedule.Item it = new LiveSchedule.Item();
+        it.kind = LiveSchedule.RECORD;
+        it.ch = r.ch;
+        it.start = r.showStart();
+        it.end = r.showEnd();
+        it.title = r.title;
+        it.about = r.about;
+        return it;
+    }
+
+    /** Missed recordings > by itself: what went wrong and the catch-up has, fetched (each once). */
+    static void fetchMissed(Context c) {
+        if (LiveOptions.missedShows(c) != LiveOptions.MISSED_FETCHES) return;
+        long now = System.currentTimeMillis();
+        for (Rec r : all(c)) {
+            if (!trouble(r) || r.fetch || r.tries > 0 || !inCatchup(r.showStart(), r.showEnd(), r.ch.archive, now)) continue;
+            if (find(c, fetchId(r.ch.id, r.showStart())) != null) continue;
+            AppLog.w("live: a missed show, from the catch-up by itself");
+            RecordService.fetch(c, itemOf(r));
+        }
+    }
+
+    /** Out of Needs attention; what has nothing to play goes. */
+    static void dismiss(Context c, String id) {
+        LiveLock.run(c, () -> {
+            Rec r = find(c, id);
+            if (r == null) return;
+            if (r.file == null || r.file.isEmpty() || !new File(r.file).exists()) {
+                delete(c, id);
+                return;
+            }
+            r.dismissed = true;
+            put(c, r);
+        });
+    }
+
+    /** A recording that never began: on the Recordings page, and a notice. */
+    static void missed(Context c, LiveSchedule.Item it, String why, String playlist) {
+        Rec r = new Rec();
+        r.playlist = String.valueOf(playlist != null ? playlist : LivePlaylists.active(c));
+        r.id = idOf(it.ch.id, it.start);
+        r.ch = it.ch;
+        r.title = it.title;
+        r.about = it.about;
+        r.start = it.start;
+        r.end = it.end;
+        r.showEnd = it.end;
+        r.file = "";
+        r.state = FAILED;
+        r.why = why;
+        put(c, r);
+        tell(c, r, Ui.tr("Gravação perdida", "Recording missed"));
+    }
+
     /** Takes it out, and its file. */
-    static synchronized void delete(Context c, String id) {
+    static void delete(Context c, String id) {
+        LiveLock.run(c, () -> deleteNow(c, id));
+    }
+
+    private static synchronized void deleteNow(Context c, String id) {
         List<Rec> list = all(c);
         for (int i = list.size() - 1; i >= 0; i--) {
             if (!list.get(i).id.equals(id)) continue;

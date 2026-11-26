@@ -165,15 +165,6 @@ final class Ui {
         return cap(p) / 2f;
     }
 
-    /** Left bearing of the first character (large, thin fonts start a little inward). */
-    static float leftBearing(Paint p, String s) {
-        if (s.isEmpty()) return 0;
-        synchronized (BOUNDS) {
-            p.getTextBounds(s, 0, 1, BOUNDS);
-            return BOUNDS.left;
-        }
-    }
-
     static int alpha(int color, float a) {
         int base = (color >>> 24) & 255;
         return (Math.round(base * Math.max(0, Math.min(1, a))) << 24) | (color & 0xFFFFFF);

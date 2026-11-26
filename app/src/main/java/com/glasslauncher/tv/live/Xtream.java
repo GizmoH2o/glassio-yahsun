@@ -79,6 +79,15 @@ final class Xtream {
             return categories.size() > 1 ? categories.get(1).channels : new ArrayList<>();
         }
 
+        /** The channels hidden everywhere (LiveHide): out of All channels, in `everyone`. */
+        java.util.Set<Integer> away = java.util.Collections.emptySet();
+        /** Every channel, the hidden ones too; null: none is hidden. */
+        List<Channel> everyone;
+
+        List<Channel> every() {
+            return everyone != null ? everyone : all();
+        }
+
         /** Each of the provider's channel ids to the channel that shows it (a merged one for its sources). */
         final Map<Integer, Channel> byId = new HashMap<>();
 
@@ -213,10 +222,12 @@ final class Xtream {
     }
 
     static void setFavorite(Context c, Channel ch, boolean on) {
-        List<Channel> list = favorites(c);
-        for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id == ch.id) list.remove(i);
-        if (on) list.add(ch);
-        saveFavorites(c, list);
+        LiveLock.run(c, () -> {
+            List<Channel> list = favorites(c);
+            for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id == ch.id) list.remove(i);
+            if (on) list.add(ch);
+            saveFavorites(c, list);
+        });
     }
 
     /** The favorites in this order (Live TV's settings reorder them; the home screen's row follows). */
@@ -251,22 +262,27 @@ final class Xtream {
 
     /** `ch` was just watched: first in the recent ones. Background thread. */
     static void watched(Context c, Channel ch) {
-        List<Channel> list = recent(c);
-        for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id == ch.id) list.remove(i);
-        list.add(0, ch);
-        saveRecent(c, list);
+        LiveLock.run(c, () -> {
+            List<Channel> list = recent(c);
+            for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id == ch.id) list.remove(i);
+            list.add(0, ch);
+            saveRecent(c, list);
+        });
     }
 
     /** `id` out of History. */
     static void removeRecent(Context c, int id) {
-        List<Channel> list = recent(c);
-        for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id == id) list.remove(i);
-        saveRecent(c, list);
+        LiveLock.run(c, () -> {
+            List<Channel> list = recent(c);
+            for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).id == id) list.remove(i);
+            saveRecent(c, list);
+        });
     }
 
     /** History emptied. */
     static void clearRecent(Context c) {
         saveRecent(c, new ArrayList<>());
+        LiveWatchTime.clear(c);
     }
 
     /** History down to the number of channels picked in the settings (as one is watched, or the number changes). */
@@ -287,12 +303,6 @@ final class Xtream {
         }
     }
 
-    /** When the recent channels last changed (0 = none). */
-    static long recentStamp(Context c) {
-        File f = recentFile(c);
-        return f.exists() ? f.lastModified() * 31 + f.length() : 0;
-    }
-
     private static File recentFile(Context c) {
         return new File(c.getFilesDir(), "live-recent.json");
     }
@@ -300,12 +310,6 @@ final class Xtream {
     /** The provider's stream format ("ts" or "m3u8"). */
     static String format(Context c) {
         return login(c).format;
-    }
-
-    /** When the favorites last changed (0 = none): the home screen reads them again only then. */
-    static long favoritesStamp(Context c) {
-        File f = favoritesFile(c);
-        return f.exists() ? f.lastModified() * 31 + f.length() : 0;
     }
 
     static JSONObject json(Channel ch) throws JSONException {
@@ -344,8 +348,34 @@ final class Xtream {
         }
     }
 
+    /** On this thread, another playlist's login than the one in use (a recording going on from it). */
+    private static final ThreadLocal<File> OTHER = new ThreadLocal<>();
+
+    interface Ask<T> {
+        T get() throws IOException;
+    }
+
+    /** `ask` with the login in `login` (null: the one in use). */
+    static <T> T as(File login, Ask<T> ask) throws IOException {
+        if (login == null) return ask.get();
+        OTHER.set(login);
+        try {
+            return ask.get();
+        } finally {
+            OTHER.remove();
+        }
+    }
+
     private static File loginFile(Context c) {
+        File other = OTHER.get();
+        if (other != null) return other;
         return new File(c.getFilesDir(), "live-login.json");
+    }
+
+    /** When the favorites last changed. */
+    static long favoritesStamp(Context c) {
+        File f = favoritesFile(c);
+        return f.exists() ? f.lastModified() * 31 + f.length() : 0;
     }
 
     private static File favoritesFile(Context c) {
@@ -453,7 +483,7 @@ final class Xtream {
                 }
                 json = savedJson;
             }
-            return parse(json, login(c).format, favorites(c), mergeKeeping(c));
+            return LiveHide.apply(c, parse(json, login(c).format, favorites(c), mergeKeeping(c)));
         } catch (IOException | JSONException | RuntimeException e) {
             AppLog.w("live: saved list unreadable: " + e.getMessage());
             return null;
@@ -461,6 +491,17 @@ final class Xtream {
     }
 
     /** Fetches the categories and channels from the provider and saves them. Background thread. */
+    /** The list just fetched, unless another playlist came into use while it was (its files are there now). */
+    private static void saveList(Context c, Login was, String list) throws IOException {
+        synchronized (LivePlaylists.class) {
+            Login now = login(c);
+            if (!now.kind.equals(was.kind) || !now.server.equals(was.server) || !now.user.equals(was.user) || !now.mac.equals(was.mac)) {
+                throw new IOException("another playlist is in use now");
+            }
+            write(listFile(c), list);
+        }
+    }
+
     static Lineup fetch(Context c) throws IOException {
         Login l = login(c);
         String base = l.server, user = l.user, pass = l.pass;
@@ -473,14 +514,16 @@ final class Xtream {
                     all = p.list;
                     if (l.epg.isEmpty() && !p.guide.isEmpty()) {     // the list gained a guide link
                         l.epg = p.guide;
-                        saveLogin(c, l);
+                        synchronized (LivePlaylists.class) {
+                            if (login(c).server.equals(l.server)) saveLogin(c, l);
+                        }
                     }
                 } else {
                     all = LiveMag.fetch(base, l.mac);
                 }
                 all.put("at", System.currentTimeMillis()).put("v", LIST_VERSION);
-                write(listFile(c), all.toString());
-                return parse(all, l.format, favorites(c), mergeKeeping(c));
+                saveList(c, l, all.toString());
+                return LiveHide.apply(c, parse(all, l.format, favorites(c), mergeKeeping(c)));
             } catch (JSONException e) {
                 throw new IOException(e.getMessage());
             }
@@ -505,8 +548,8 @@ final class Xtream {
             }
             JSONObject all = new JSONObject().put("categories", outCats).put("channels", outChannels)
                     .put("at", System.currentTimeMillis()).put("v", LIST_VERSION);
-            write(listFile(c), all.toString());
-            return parse(all, l.format, favorites(c), mergeKeeping(c));
+            saveList(c, l, all.toString());
+            return LiveHide.apply(c, parse(all, l.format, favorites(c), mergeKeeping(c)));
         } catch (JSONException e) {
             throw new IOException(Ui.tr("A lista de canais veio num formato inesperado.", "The channel list came in an unexpected format."));
         }
@@ -522,6 +565,8 @@ final class Xtream {
         boolean fresh, live;
         /** Shown before (the full guide's previously-shown): the guide's REPEAT tag. */
         boolean repeat;
+        /** A season's or a series' first episode, its last (LiveTags). */
+        boolean premiere, finale;
         /** The episode's own title (the full guide's sub-title), "" without one: the tile's second line. */
         String sub = "";
         /** The age it's rated for (the full guide's rating: TV-14 is 14, R 17, 18 18…), -1 when it has none. */
@@ -531,7 +576,8 @@ final class Xtream {
     }
 
     private static final java.util.regex.Pattern MARK_BRACKET =
-            java.util.regex.Pattern.compile("(?i)\\s*[\\[(](new|live|premiere|en vivo|ao vivo)[\\])]\\s*");
+            java.util.regex.Pattern.compile("(?i)\\s*[\\[(](new|live|premiere|en vivo|ao vivo|en directo|directo|en direct|diretta|in diretta|repeat|rpt|rerun|recorded)[\\])]\\s*");
+    private static final java.util.Set<String> REPEAT_MARKS = new java.util.HashSet<>(java.util.Arrays.asList("repeat", "rpt", "rerun", "recorded"));
     private static final java.util.regex.Pattern MARK_PREFIX =
             java.util.regex.Pattern.compile("(?i)^(new|live|premiere)\\s*[:|\\-\u2013]\\s*");
 
@@ -576,6 +622,7 @@ final class Xtream {
         while (m.find()) {
             String w = m.group(1).toLowerCase(Locale.ROOT);
             if (w.equals("new") || w.equals("premiere")) p.fresh = true;
+            else if (REPEAT_MARKS.contains(w)) p.repeat = true;
             else p.live = true;
         }
         t = m.replaceAll(" ");
@@ -586,6 +633,8 @@ final class Xtream {
             t = t.substring(m.end());
         }
         t = t.replaceAll("\\s{2,}", " ").trim();
+        // "WDAY News Encore" (a song's title has its dash: "Artist – Encore").
+        if ((t.endsWith(" Encore") || t.endsWith(" Repeat")) && t.indexOf('\u2013') < 0) p.repeat = true;
         if (!t.isEmpty()) p.title = t;
     }
 
@@ -658,6 +707,9 @@ final class Xtream {
                 int marks = e.optInt(4);
                 p.fresh = (marks & 1) != 0;
                 p.live = (marks & 2) != 0;
+                p.repeat = (marks & 4) != 0;
+                p.premiere = (marks & 8) != 0;
+                p.finale = (marks & 16) != 0;
                 mark(p);
                 g.programs.add(p);
             }
@@ -672,7 +724,8 @@ final class Xtream {
         try {
             JSONArray list = new JSONArray();
             for (Program p : programs) {
-                list.put(new JSONArray().put(p.start).put(p.end).put(p.title).put(p.about).put((p.fresh ? 1 : 0) | (p.live ? 2 : 0)));
+                list.put(new JSONArray().put(p.start).put(p.end).put(p.title).put(p.about)
+                        .put((p.fresh ? 1 : 0) | (p.live ? 2 : 0) | (p.repeat ? 4 : 0) | (p.premiere ? 8 : 0) | (p.finale ? 16 : 0)));
             }
             File f = guideFile(c, streamId);
             //noinspection ResultOfMethodCallIgnored
@@ -780,6 +833,12 @@ final class Xtream {
                 + at.format(new java.util.Date(start)) + "/" + ch.id + "." + format;
     }
 
+    /** As maxConnections, without asking the provider (0: not known). */
+    static int knownMax(Context c) {
+        Login l = login(c);
+        return l.kind.equals(XTREAM) ? l.max : 0;
+    }
+
     /**
      * How many streams the account may play at once (Multiview's boxes), asked once and kept; 1 when the server
      * doesn't say. Background thread.
@@ -841,7 +900,10 @@ final class Xtream {
 
     /** The subscription as last asked (no network), or null. */
     static Account savedAccount(Context c) {
-        File f = new File(c.getFilesDir(), "live-account.json");
+        return savedAccount(new File(c.getFilesDir(), "live-account.json"));
+    }
+
+    static Account savedAccount(File f) {
         if (!f.exists()) return null;
         try (FileInputStream in = new FileInputStream(f)) {
             JSONObject o = new JSONObject(read(in));
@@ -1015,6 +1077,8 @@ final class Xtream {
     }
 
     static File listFile(Context c) {
+        File other = OTHER.get();
+        if (other != null) return new File(other.getParentFile(), "live-channels.json");
         return new File(c.getFilesDir(), "live-channels.json");
     }
 

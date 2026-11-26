@@ -22,8 +22,8 @@ android {
         resValue("string", "live_search_authority", "$applicationId.live.search")
         minSdk = 28
         targetSdk = 35
-        versionCode = 49
-        versionName = "3.9.0"
+        versionCode = 50
+        versionName = "3.10.0"
         // TV boxes are ARM: the depth model's native library only for those (keeps the download small).
         ndk { abiFilters += listOf("armeabi-v7a", "arm64-v8a") }
         // Trakt app (PKCE, no secret).

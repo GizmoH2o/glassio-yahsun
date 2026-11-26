@@ -39,8 +39,9 @@ import java.util.concurrent.Executors;
 /**
  * Multiview (TiviMate's): two to four channels at once, in a grid (two side by side, one large and two small, or
  * two by two), or picture-in-picture. The arrow keys move between the boxes; the focused one has the sound and a white
- * frame. OK picks a box's channel, the channel buttons change it, OK held (or Menu) offers full screen, removing it, the
- * layout, saved views and a wall of your teams' live matches; Back leaves, the focused channel full screen in Live TV.
+ * frame. OK opens a box full screen (or picks its channel, as set), the channel buttons change it, OK held (or Menu) offers
+ * the rest: reconnecting, the sound kept there, changing places, the layout, saved views and a wall of your teams' live
+ * matches; Back closes. A box that stops tries again a few times, then says why, with what can be done.
  * Never more boxes than the account may stream at once.
  * Measurements in a 1920×1080 space (k = width / 1920).
  */
@@ -71,13 +72,33 @@ public class Multiview extends Activity {
         boolean over;
         String status = "";
         boolean tried;      // the other format, once
+        /** Tries again after it dropped, and when it last began to play. */
+        int again;
+        long readyAt;
         /** Its player decodes on the video chip; else in software. */
         boolean hw;
         /** The chip refused this box: software from then on. */
         boolean refused;
         String format;
         Xtream.Program onNow;
+        /** Why it stopped for good ("" while it plays or tries), over its buttons: the account's streams, the chip. */
+        String problem = "";
+        boolean limit, noRoom, waitFree;
+        int button;
+        /** When it tries again (uptime), 0: not waiting to. */
+        long retryAt;
+        /** The version of a merged channel picked here, or null: the best. */
+        Xtream.Channel version, source;
+        /** What it had drawn, when that last changed (the freeze check). */
+        int drawn;
+        long movedAt;
+        String score = "";
+        boolean testFrozen;
     }
+
+    /** The box that keeps the sound while the focus moves, or null: the focused one. */
+    private Box soundOn;
+    private long freshenedAt;
 
     @Override protected void onCreate(Bundle state) {
         super.onCreate(state);
@@ -89,13 +110,21 @@ public class Multiview extends Activity {
         grid = new Grid(this);
         root.addView(grid, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
+        TestHook.register(this, testHook);
         unlocked = getIntent().getBooleanExtra(EXTRA_UNLOCKED, false);
         final int first = getIntent().getIntExtra(EXTRA_CHANNEL, -1);
         for (int i = 0; i < MAX_BOXES; i++) boxes.add(new Box());
         final Context app = getApplicationContext();
         io.execute(() -> {
-            Xtream.Lineup l = Xtream.saved(app);
+            Xtream.Lineup saved = Xtream.saved(app);
+            if (saved != null) {        // as Live TV shows them: the edits and groups made by hand, a Kids profile's channels only
+                LiveChannelEdits.apply(app, saved);
+                LiveGroups.apply(app, saved);
+                if (LiveProfiles.kids(app)) saved = LiveProfiles.kidsOnly(app, saved);
+            }
+            final Xtream.Lineup l = saved;
             int max = Xtream.maxConnections(app);
+            final List<LiveRecordings.Rec> recs = LiveStreams.recording(app);
             main.post(() -> {
                 if (isFinishing()) return;
                 lineup = l;
@@ -106,6 +135,7 @@ public class Multiview extends Activity {
                 }
                 // Glassio 3: the 2×2 grid, the empty boxes ready for a channel (they play nothing until one's chosen).
                 layout = Math.max(1, Math.min(LiveTheme.cinema() ? 4 : 2, allowed));
+                reserve(recs);
                 Xtream.Channel ch = l == null ? null : l.find(first);
                 if (ch != null) setChannel(0, ch);
                 int second = getIntent().getIntExtra(EXTRA_SECOND, -1);     // the test broadcast's second box, by number
@@ -115,8 +145,101 @@ public class Multiview extends Activity {
         });
     }
 
+    /** What records, each using one of the account's streams: a box each at the end, in use. */
+    private List<LiveRecordings.Rec> reserved = new ArrayList<>();
+    private int streams;
+
+    private void reserve(List<LiveRecordings.Rec> recs) {
+        if (LiveOptions.streamLimit(this) == LiveOptions.LIMIT_OFF) return;
+        if (streams == 0) streams = allowed;
+        reserved = recs;
+        allowed = Math.max(0, streams - recs.size());
+        for (int i = allowed; i < MAX_BOXES; i++) {
+            Box b = boxes.get(i);
+            stop(b);
+            clear(b);
+            b.channel = null;
+            b.status = b.score = "";
+            if (soundOn == b) soundOn = null;
+        }
+        if (allowed == 0) grid.say(Ui.tr("Todos os canais estão gravando", "All your streams are recording"));
+        grid.invalidate();
+    }
+
+    /** The recording using box `i`, or null. */
+    private LiveRecordings.Rec using(int i) {
+        return i >= allowed && i - allowed < reserved.size() ? reserved.get(i - allowed) : null;
+    }
+
+    /** A recording about to start by itself: the last box goes, a moment before. */
+    private final android.content.BroadcastReceiver streamWanted = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context c, android.content.Intent i) {
+            boolean playing = false;
+            int n = 0;
+            for (Box b : boxes) if (b.player != null) n++;
+            if (i.getBooleanExtra(LiveStreams.EXTRA_ONLY, false)) {
+                setResultCode(getResultCode() + n);
+                return;
+            }
+            playing = n > 0;
+            if (!playing || LiveOptions.streamLimit(c) != LiveOptions.LIMIT_ASKS) return;
+            setResultCode(RESULT_FIRST_USER);
+            LiveSchedule.Item it = null;
+            try {
+                it = LiveSchedule.Item.of(new org.json.JSONObject(i.getStringExtra(LiveStreams.EXTRA_ITEM)));
+            } catch (org.json.JSONException | NullPointerException ignored) {
+            }
+            String title = it == null ? "" : it.title.isEmpty() ? it.ch.name : it.title;
+            grid.say(Ui.tr("Gravação em 20 s: ", "Recording in 20 s: ") + title + Ui.tr(". O último quadro fecha.", ". The last box closes."));
+            main.postDelayed(() -> { if (!isFinishing()) reserve(LiveStreams.recording(Multiview.this)); }, LiveStreams.LET_GO_MS);
+        }
+    };
+
+    /** A Kids profile's watching counts here too; its time over (or bedtime), back to Live TV, which says so. */
+    private long familyLast;
+    private final Runnable family = new Runnable() {
+        @Override public void run() {
+            Context c = Multiview.this;
+            if (LiveFamily.on(c) && LiveProfiles.kids(c)) {
+                long now = System.currentTimeMillis();
+                String id = LiveProfiles.active(c).id;
+                boolean watching = false;
+                for (Box b : boxes) watching |= b.player != null && b.player.isPlaying();
+                if (watching) LiveFamily.add(c, id, now, LiveFamily.tick(familyLast, now));
+                familyLast = watching ? now : 0;
+                if (LiveFamily.stopNow(c, id, now) != LiveFamily.NONE) {
+                    finish();
+                    return;
+                }
+            }
+            main.postDelayed(this, 15_000);
+        }
+    };
+
+    @Override protected void onStart() {
+        super.onStart();
+        familyLast = 0;
+        main.removeCallbacks(family);
+        main.post(family);
+        main.removeCallbacks(watch);
+        main.postDelayed(watch, 3000);
+        LiveScores.get(this).watch(scores);
+        registerReceiver(streamWanted, new android.content.IntentFilter(LiveStreams.WANTED), null, null,
+                android.os.Build.VERSION.SDK_INT >= 33 ? Context.RECEIVER_NOT_EXPORTED : 0);
+    }
+
     @Override protected void onStop() {
-        for (Box b : boxes) stop(b);
+        try {
+            unregisterReceiver(streamWanted);
+        } catch (IllegalArgumentException ignored) {
+        }
+        main.removeCallbacks(family);
+        main.removeCallbacks(watch);
+        LiveScores.get(this).unwatch(scores);
+        for (Box b : boxes) {
+            stop(b);
+            clear(b);
+        }
         super.onStop();
     }
 
@@ -127,7 +250,185 @@ public class Multiview extends Activity {
 
     @Override protected void onDestroy() {
         io.shutdownNow();
+        try {
+            unregisterReceiver(testHook);
+        } catch (IllegalArgumentException ignored) {
+        }
         super.onDestroy();
+    }
+
+    // MARK: - When a box stops
+
+    /** Nothing wrong with it (any more). */
+    private void clear(Box b) {
+        b.problem = "";
+        b.limit = b.noRoom = b.waitFree = false;
+        b.button = 0;
+        b.retryAt = 0;
+        b.movedAt = 0;
+        b.drawn = 0;
+        b.testFrozen = false;
+    }
+
+    /** It stopped for good: why, with what can be done about it. */
+    private void fail(Box b, String why) {
+        stop(b);
+        b.retryAt = 0;
+        b.status = "";
+        b.problem = why;
+        b.button = 0;
+        AppLog.w("multiview: " + (b.channel == null ? "" : b.channel.name + ": ") + why);
+        if (boxes.indexOf(b) == focus) LiveSpeech.say(grid, why);
+        grid.invalidate();
+    }
+
+    /** Its own stream closed, then opened again after a moment (the provider still counts the old one). */
+    private void freshen(Box b, String why) {
+        AppLog.w("multiview: " + (b.channel == null ? "" : b.channel.name + ": ") + why + ", again");
+        freshenedAt = SystemClock.uptimeMillis();
+        if (!tryAgain(b)) fail(b, Ui.tr("O canal não responde", "No answer from the channel"));
+    }
+
+    /** Pressed: from the first try again. */
+    private void reconnect(Box b) {
+        if (b.channel == null) return;
+        stop(b);
+        clear(b);
+        b.again = 0;
+        b.tried = false;
+        b.status = "…";
+        main.postDelayed(() -> {
+            if (b.channel != null && b.player == null && b.problem.isEmpty() && boxes.indexOf(b) < layout) start(b);
+        }, 1500);
+        grid.invalidate();
+    }
+
+    private List<Xtream.Channel> versions(Box b) {
+        List<Xtream.Channel> all = b.channel == null ? null : LiveMerge.inOrder(b.channel);
+        return all == null ? new ArrayList<>() : all;
+    }
+
+    /** The version after the one that stopped; or, with no room on the chip, a lighter one (null: none). */
+    private Xtream.Channel otherVersion(Box b) {
+        List<Xtream.Channel> all = versions(b);
+        if (b.noRoom) {
+            Xtream.Channel best = null;
+            for (Xtream.Channel s : all) {
+                if (b.source != null && LiveMerge.need(s) < LiveMerge.need(b.source) && (best == null || LiveMerge.need(s) > LiveMerge.need(best))) best = s;
+            }
+            return best;
+        }
+        if (all.size() < 2) return null;
+        int at = -1;
+        for (int i = 0; i < all.size(); i++) if (b.source != null && all.get(i).id == b.source.id) at = i;
+        return all.get((at + 1) % all.size());
+    }
+
+    /** The buttons of a box that stopped: {text, what it does}. */
+    private List<Object[]> buttons(Box b) {
+        List<Object[]> out = new ArrayList<>();
+        if (b.waitFree) out.add(new Object[] {Ui.tr("Esperando um canal livre", "Waiting for a stream"), (Runnable) () -> reconnect(b)});
+        else if (b.limit) {
+            out.add(new Object[] {Ui.tr("Tentar quando houver", "Try when one is free"), (Runnable) () -> {
+                b.waitFree = true;
+                grid.invalidate();
+            }});
+        } else {
+            out.add(new Object[] {Ui.tr("Reconectar", "Reconnect"), (Runnable) () -> reconnect(b)});
+        }
+        final Xtream.Channel other = otherVersion(b);
+        if (other != null) {
+            out.add(new Object[] {b.noRoom ? Ui.tr("Versão mais leve", "Lighter version") : Ui.tr("Outra versão", "Another version"), (Runnable) () -> {
+                b.version = other;
+                b.refused = false;
+                reconnect(b);
+            }});
+        }
+        out.add(new Object[] {Ui.tr("Trocar o canal", "Change the channel"), (Runnable) () -> pick(boxes.indexOf(b))});
+        return out;
+    }
+
+    /** Every few seconds: the boxes standing still, those waiting for a stream, the scores. */
+    private final Runnable watch = new Runnable() {
+        @Override public void run() {
+            long up = SystemClock.uptimeMillis();
+            boolean check = LiveOptions.multiFreeze(Multiview.this);
+            int playing = 0;
+            for (Box b : boxes) if (b.player != null) playing++;
+            for (Box b : boxes) {
+                if (b.waitFree && playing + LiveStreams.recording(Multiview.this).size() < (streams > 0 ? streams : allowed) && up - freshenedAt > 15_000) {
+                    freshenedAt = up;
+                    b.waitFree = false;
+                    reconnect(b);
+                    continue;
+                }
+                if (b.player == null || b.channel == null || !b.problem.isEmpty() || b.retryAt > 0) continue;
+                int state = b.player.getPlaybackState();
+                androidx.media3.exoplayer.DecoderCounters n = b.player.getVideoDecoderCounters();
+                int drawn = n == null ? (int) b.player.getCurrentPosition() : n.renderedOutputBufferCount + n.skippedOutputBufferCount + n.droppedBufferCount;
+                if (!b.testFrozen && (drawn != b.drawn || b.movedAt == 0)) {
+                    b.drawn = drawn;
+                    b.movedAt = up;
+                }
+                if (check && b.player.getPlayWhenReady() && up - freshenedAt > 8_000
+                        && LiveMultiRules.frozen(state == Player.STATE_READY, b.readyAt > 0, b.movedAt, up)) freshen(b, "the picture stands still");
+            }
+            readScores();
+            main.postDelayed(this, 3000);
+        }
+    };
+
+    private final LiveScores.Listener scores = new LiveScores.Listener() {
+        @Override public void changed() {
+            readScores();
+        }
+
+        @Override public void goal(LiveScores.Score s, boolean forHome) {
+            readScores();
+        }
+    };
+
+    private void readScores() {
+        boolean new_ = false;
+        LiveScores all = LiveScores.get(this);
+        for (Box b : boxes) {
+            String t = "";
+            if (b.channel != null && b.onNow != null && all.any()) {
+                LiveScores.Score s = all.forTitle(Xtream.fold(b.onNow.title));
+                if (s != null && !s.state.equals("pre")) t = s.homeScore + " – " + s.awayScore + (s.state.equals("in") ? "  ·  " + s.clock : "  ·  FT");
+            }
+            if (!t.equals(b.score)) {
+                b.score = t;
+                new_ = true;
+            }
+        }
+        if (new_) grid.invalidate();
+    }
+
+    /** TestHook: box `multibox` dropped, failed, frozen or at the limit (`multitest`). */
+    private final android.content.BroadcastReceiver testHook = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(Context c, Intent i) {
+            String what = i.getStringExtra("multitest");
+            int at = i.getIntExtra("multibox", 0);
+            if (what == null || at >= boxes.size() || boxes.get(at).channel == null) return;
+            Box b = boxes.get(at);
+            if (what.equals("drop")) freshen(b, "test");
+            else if (what.equals("fail")) fail(b, Ui.tr("O canal não responde", "No answer from the channel"));
+            else if (what.equals("freeze")) b.testFrozen = true;
+            else if (what.equals("limit")) {
+                fail(b, atLimit());
+                b.limit = true;
+            } else if (what.equals("room")) {
+                fail(b, Ui.tr("A TV não toca mais um ao mesmo tempo", "The TV can't play another one at once"));
+                b.noRoom = true;
+            }
+        }
+    };
+
+    private String atLimit() {
+        List<LiveRecordings.Rec> recs = LiveStreams.recording(this);
+        return Ui.tr("O limite de canais do provedor foi atingido", "Your provider's stream limit is reached")
+                + (recs.isEmpty() ? "" : "  ·  " + LiveStreams.uses(recs, null));
     }
 
     // MARK: - The grid
@@ -202,13 +503,21 @@ public class Multiview extends Activity {
 
     private void setChannel(int i, Xtream.Channel ch) {
         Box b = boxes.get(i);
+        if (using(i) != null) {
+            grid.say(Ui.tr("Em uso por uma gravação: ", "In use by a recording: ") + LiveStreams.name(using(i)));
+            return;
+        }
         if (!unlocked && locked(ch)) {
             grid.say(Ui.tr("Este canal pede o PIN: abra-o na TV ao vivo.", "This channel asks for the PIN: open it in Live TV."));
             return;
         }
         stop(b);
         b.channel = ch;
+        clear(b);
+        b.version = null;
+        b.score = "";
         b.tried = false;
+        b.again = 0;
         b.refused = false;
         String f = LiveOptions.format(this);
         b.format = !f.equals(LiveOptions.AUTO) ? f : lineup == null ? "ts" : lineup.format;
@@ -278,7 +587,10 @@ public class Multiview extends Activity {
             b.player.addListener(new Player.Listener() {
                 @Override public void onPlaybackStateChanged(int s) {
                     if (s == Player.STATE_BUFFERING) box.status = "…";
-                    else if (s == Player.STATE_READY) box.status = "";      // (an error's message stays)
+                    else if (s == Player.STATE_READY) {
+                        box.status = "";      // (an error's message stays)
+                        if (box.readyAt == 0) box.readyAt = android.os.SystemClock.uptimeMillis();
+                    } else if (s == Player.STATE_ENDED) freshen(box, "the stream ended");      // live has no end: the provider closed it
                     grid.invalidate();
                 }
 
@@ -295,11 +607,12 @@ public class Multiview extends Activity {
                             + (cause == null ? "" : " — " + cause.getClass().getSimpleName() + ": " + cause.getMessage()));
                     boolean limit = http == 509 || http == 458 || http == 403 || http == 429;
                     if (limit) {        // the account's streams are all in use: no retry (it'd only add one)
-                        box.status = Ui.tr("O limite de canais do provedor foi atingido", "Your provider's stream limit is reached");
-                        grid.invalidate();
+                        fail(box, atLimit());
+                        box.limit = true;
                         return;
                     }
-                    if (!box.tried) {       // the other format, once (as Live TV does)
+                    boolean dropped = box.readyAt > 0;      // it was playing: the same again, its format is right
+                    if (!box.tried && !dropped) {       // the other format, once (as Live TV does)
                         box.tried = true;
                         box.format = box.format.equals("ts") ? "m3u8" : "ts";
                         start(box);
@@ -313,9 +626,11 @@ public class Multiview extends Activity {
                         start(box);
                         return;
                     }
-                    box.status = decoder ? Ui.tr("A TV não toca mais um ao mesmo tempo", "The TV can't play another one at once")
-                            : Ui.tr("Não deu para tocar este canal", "Couldn't play this channel");
-                    grid.invalidate();
+                    if (!decoder && tryAgain(box)) return;
+                    fail(box, decoder ? Ui.tr("A TV não toca mais um ao mesmo tempo", "The TV can't play another one at once")
+                            : http > 0 ? Ui.tr("Não deu para tocar este canal", "Couldn't play this channel") + " (HTTP " + http + ")"
+                            : Ui.tr("O canal não responde", "No answer from the channel"));
+                    box.noRoom = decoder;
                 }
             });
         }
@@ -323,7 +638,12 @@ public class Multiview extends Activity {
         if (!b.hw && b.channel.sources != null) {      // in software: the lightest version (less to decode)
             for (Xtream.Channel s : b.channel.sources) if (src == null || LiveMerge.need(s) < LiveMerge.need(src)) src = s;
         }
+        if (b.version != null) src = b.version;
         if (src == null) src = b.channel;
+        b.source = src;
+        b.problem = "";
+        b.retryAt = 0;
+        b.movedAt = 0;
         b.status = "…";
         String url = Xtream.streamUrl(this, src, b.format);
         b.player.setMediaItem(new MediaItem.Builder().setUri(url).setMimeType(Xtream.mime(this, url, b.format)).build());
@@ -332,7 +652,28 @@ public class Multiview extends Activity {
         sound();
     }
 
+    /** The box's channel dropped: again after a moment, a few times (counted anew once it has played for a while). */
+    private boolean tryAgain(Box b) {
+        long up = android.os.SystemClock.uptimeMillis();
+        if (b.readyAt > 0 && up - b.readyAt > 30_000) b.again = 0;
+        if (b.again >= LiveMultiRules.TRIES || b.channel == null) return false;
+        b.again++;
+        b.status = "";
+        stop(b);        // its stream goes first: the provider counts it a moment longer
+        final long at = up + 3000L * b.again;
+        b.retryAt = at;
+        grid.invalidate();
+        main.postDelayed(() -> {
+            if (b.retryAt != at || b.channel == null || boxes.indexOf(b) >= layout) return;
+            b.retryAt = 0;
+            start(b);
+        }, 3000L * b.again);
+        return true;
+    }
+
     private void stop(Box b) {
+        b.readyAt = 0;
+        b.movedAt = 0;
         if (b.player == null) return;
         b.player.release();
         b.player = null;
@@ -343,7 +684,7 @@ public class Multiview extends Activity {
         for (int i = 0; i < boxes.size(); i++) {
             ExoPlayer p = boxes.get(i).player;
             if (p == null) continue;
-            boolean on = i == focus;
+            boolean on = soundOn != null && soundOn.channel != null ? boxes.get(i) == soundOn : i == focus;
             p.setTrackSelectionParameters(p.getTrackSelectionParameters().buildUpon()
                     .setTrackTypeDisabled(androidx.media3.common.C.TRACK_TYPE_AUDIO, !on).build());
             p.setVolume(on ? 1f : 0f);
@@ -366,6 +707,7 @@ public class Multiview extends Activity {
             main.post(() -> {
                 if (b.channel == ch) {
                     b.onNow = p;
+                    readScores();
                     grid.invalidate();
                 }
             });
@@ -380,7 +722,10 @@ public class Multiview extends Activity {
         if (lineup == null && code != KeyEvent.KEYCODE_BACK) return true;
         switch (code) {
             case KeyEvent.KEYCODE_BACK:
-                if (!down) leave(focus);
+                if (!down) {
+                    if (LiveOptions.multiOkFull(this)) finish();      // the channel it was opened from
+                    else leave(focus);
+                }
                 return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
@@ -396,7 +741,7 @@ public class Multiview extends Activity {
                 } else {
                     boolean act = okDown && !okHeld && !e.isCanceled();
                     okDown = okHeld = false;
-                    if (act) pick(focus);
+                    if (act) ok();
                 }
                 return true;
             case KeyEvent.KEYCODE_MENU:
@@ -406,7 +751,7 @@ public class Multiview extends Activity {
             case KeyEvent.KEYCODE_DPAD_RIGHT:
             case KeyEvent.KEYCODE_DPAD_UP:
             case KeyEvent.KEYCODE_DPAD_DOWN:
-                if (down) move(code);
+                if (down && !onButtons(code)) move(code);
                 return true;
             case KeyEvent.KEYCODE_CHANNEL_UP:
             case KeyEvent.KEYCODE_CHANNEL_DOWN:
@@ -417,11 +762,34 @@ public class Multiview extends Activity {
         }
     }
 
+    /** OK: a stopped box's button, an empty box's channel, else full screen (or the channel picked, as set). */
+    private void ok() {
+        Box b = boxes.get(focus);
+        if (!b.problem.isEmpty()) {
+            List<Object[]> all = buttons(b);
+            ((Runnable) all.get(Math.min(b.button, all.size() - 1))[1]).run();
+        } else if (b.channel == null || !LiveOptions.multiOkFull(this)) pick(focus);
+        else leave(focus);
+    }
+
+    /** ◀ ▶ among a stopped box's buttons (past the last: the next box). */
+    private boolean onButtons(int code) {
+        Box b = boxes.get(focus);
+        if (b.problem.isEmpty() || code != KeyEvent.KEYCODE_DPAD_LEFT && code != KeyEvent.KEYCODE_DPAD_RIGHT) return false;
+        List<Object[]> all = buttons(b);
+        int to = LiveMultiRules.button(Math.min(b.button, all.size() - 1), all.size(), code == KeyEvent.KEYCODE_DPAD_RIGHT);
+        if (to < 0) return false;
+        b.button = to;
+        LiveSpeech.say(grid, (String) all.get(to)[0]);
+        grid.invalidate();
+        return true;
+    }
+
     /** The focused box gets the hardware decoder (its player again), the one that had it goes to software. */
     private final Runnable rebalance = () -> {
         if (isFinishing() || focus >= boxes.size()) return;
         Box b = boxes.get(focus);
-        if (b.channel == null || b.player != null && b.hw) return;
+        if (b.channel == null || b.player != null && b.hw || !b.problem.isEmpty() || b.retryAt > 0) return;
         stop(b);
         start(b);
     };
@@ -480,6 +848,10 @@ public class Multiview extends Activity {
 
     /** Box `i`'s channel: a category first (Favorites, History, then the provider's), then its channel, or a search. */
     private void pick(int i) {
+        if (using(i) != null) {
+            grid.say(Ui.tr("Em uso por uma gravação: ", "In use by a recording: ") + LiveStreams.name(using(i)));
+            return;
+        }
         List<String> names = new ArrayList<>();
         final List<List<Xtream.Channel>> lists = new ArrayList<>();
         names.add(Ui.tr("Buscar", "Search"));
@@ -487,7 +859,7 @@ public class Multiview extends Activity {
         List<Xtream.Channel> history = new ArrayList<>();
         for (Xtream.Channel r : Xtream.recent(this)) {
             Xtream.Channel ch = lineup.find(r.id);
-            if (ch != null && !history.contains(ch)) history.add(ch);
+            if (ch != null && !lineup.away.contains(ch.id) && !history.contains(ch)) history.add(ch);
         }
         for (int c = 0; c < lineup.categories.size(); c++) {
             Xtream.Category cg = lineup.categories.get(c);
@@ -548,17 +920,73 @@ public class Multiview extends Activity {
             actions.add(() -> leave(focus));
             labels.add(Ui.tr("Trocar o canal", "Change the channel"));
             actions.add(() -> pick(focus));
+            labels.add(Ui.tr("Reconectar", "Reconnect"));
+            actions.add(() -> reconnect(b));
+            labels.add(soundOn == b ? Ui.tr("Som com o foco", "Sound follows the focus") : Ui.tr("Manter o som aqui", "Keep sound here"));
+            actions.add(() -> {
+                soundOn = soundOn == b ? null : b;
+                sound();
+                grid.invalidate();
+            });
+            if (focus > 0 && (layout == 3 || pip)) {
+                labels.add(Ui.tr("Tornar o grande", "Make it the big one"));
+                actions.add(() -> swap(focus, 0));
+            }
+            if (filled() > 1) {
+                labels.add(Ui.tr("Trocar com…", "Swap with…"));
+                actions.add(this::swapWith);
+            }
             labels.add(Ui.tr("Tirar deste quadro", "Remove from this box"));
             actions.add(() -> {
                 stop(b);
+                clear(b);
                 b.channel = null;
-                b.status = "";
+                b.status = b.score = "";
+                if (soundOn == b) soundOn = null;
+                sound();
                 grid.invalidate();
             });
         } else {
             labels.add(Ui.tr("Adicionar canal", "Add channel"));
             actions.add(() -> pick(focus));
         }
+        labels.add(Ui.tr("Disposição", "Layout"));
+        actions.add(this::layouts);
+        LiveSheet.menu(this)
+                .setTitle(b.channel == null ? Ui.tr("Multivisão", "Multiview") : b.channel.name)
+                .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
+                .show();
+    }
+
+    /** Two boxes change places. */
+    private void swap(int a, int b) {
+        Collections.swap(boxes, a, b);
+        focus = b;
+        relayout();
+        sound();
+    }
+
+    private void swapWith() {
+        final int from = focus;
+        List<String> names = new ArrayList<>();
+        final List<Integer> at = new ArrayList<>();
+        for (int i = 0; i < layout; i++) {
+            if (i == from || boxes.get(i).channel == null) continue;
+            names.add(boxes.get(i).channel.name);
+            at.add(i);
+        }
+        if (at.size() == 1) {
+            swap(from, at.get(0));
+            return;
+        }
+        LiveSheet.menu(this).setTitle(Ui.tr("Trocar com…", "Swap with…"))
+                .setItems(names.toArray(new String[0]), (d, which) -> swap(from, at.get(which))).show();
+    }
+
+    /** How the boxes stand, the saved views and the wall of matches. */
+    private void layouts() {
+        List<String> labels = new ArrayList<>();
+        List<Runnable> actions = new ArrayList<>();
         if (allowed >= 2 && !pip) {
             labels.add(Ui.tr("Picture-in-picture", "Picture in picture"));
             actions.add(() -> {
@@ -595,7 +1023,7 @@ public class Multiview extends Activity {
             });
         }
         LiveSheet.menu(this)
-                .setTitle(b.channel == null ? Ui.tr("Multivisão", "Multiview") : b.channel.name)
+                .setTitle(Ui.tr("Disposição", "Layout"))
                 .setItems(labels.toArray(new String[0]), (d, which) -> actions.get(which).run())
                 .show();
     }
@@ -664,9 +1092,11 @@ public class Multiview extends Activity {
         int count = Math.min(list.size(), allowed);
         for (Box b : boxes) {
             stop(b);
+            clear(b);
             b.channel = null;
-            b.status = "";
+            b.status = b.score = "";
         }
+        soundOn = null;
         pip = asPip;
         layout = Math.max(1, count);
         focus = 0;
@@ -753,9 +1183,24 @@ public class Multiview extends Activity {
                 if (b.channel == null) {        // an empty box: + Add channel
                     fill.setColor(LiveTheme.cellLater);
                     c.drawRoundRect(r, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), fill);
-                    String t = "+  " + Ui.tr("Adicionar canal", "Add channel");
-                    c.drawText(t, r.centerX() - big.measureText(t) / 2, r.centerY() + Ui.halfCap(big), big);
+                    LiveRecordings.Rec rec = using(i);
+                    String t = rec != null ? Ui.tr("Em uso por uma gravação", "In use by a recording") : "+  " + Ui.tr("Adicionar canal", "Add channel");
+                    c.drawText(t, r.centerX() - big.measureText(t) / 2, r.centerY() + Ui.halfCap(big) - (rec == null ? 0 : 18 * k), big);
+                    if (rec != null) {
+                        String by = ellipsize(LiveStreams.name(rec) + Ui.tr(" até ", " until ") + Ui.time(rec.end), meta, r.width() - 48 * k);
+                        c.drawText(by, r.centerX() - meta.measureText(by) / 2, r.centerY() + 34 * k, meta);
+                    }
+                } else if (!b.problem.isEmpty()) {
+                    drawStopped(c, b, i == focus);
                 } else {
+                    if (b.retryAt > 0) {        // dropped: when it tries again
+                        fill.setColor(0xFF16161A);
+                        c.drawRoundRect(r, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), fill);
+                        String t = Ui.tr("Reconectando em ", "Reconnecting in ") + LiveMultiRules.seconds(b.retryAt, SystemClock.uptimeMillis())
+                                + Ui.tr(" s  ·  tentativa ", " s  ·  try ") + b.again + Ui.tr(" de ", " of ") + LiveMultiRules.TRIES;
+                        c.drawText(t, r.centerX() - name.measureText(t) / 2, r.centerY() + Ui.halfCap(name), name);
+                        postInvalidateDelayed(500);
+                    }
                     // At the bottom, shaded: what's on now (or the box's state), then the channel.
                     float lh = 165 * k;
                     shade.setShader(shadeFor(r.bottom - lh, r.bottom));
@@ -766,7 +1211,18 @@ public class Multiview extends Activity {
                             : b.onNow == null ? b.channel.name : b.onNow.title;
                     c.drawText(ellipsize(line1, name, room), x, r.bottom - 48 * k, name);
                     c.drawText(ellipsize(line2, meta, room), x, r.bottom - 20 * k, meta);
-                    if (i == focus && !(pip && i == 1)) {       // the box whose sound is playing
+                    if (!b.score.isEmpty()) {
+                        float pw = pill.measureText(b.score) + 30 * k;
+                        logo.set(r.right - 21 * k - pw, r.top + 21 * k, r.right - 21 * k, r.top + 63 * k);
+                        fill.setColor(0xE63A3A40);
+                        c.drawRoundRect(logo, 12 * k, 12 * k, fill);
+                        int was = pill.getColor();
+                        pill.setColor(0xFFF5F5F7);
+                        c.drawText(b.score, logo.left + 15 * k, logo.centerY() + Ui.halfCap(pill), pill);
+                        pill.setColor(was);
+                    }
+                    boolean heard = soundOn != null && soundOn.channel != null ? b == soundOn : i == focus;
+                    if (heard && (soundOn != null || !(pip && i == 1))) {       // the box whose sound is playing
                         String on = Ui.tr("Com som", "Sound on");
                         float pw = pill.measureText(on) + 30 * k;
                         logo.set(r.left + 21 * k, r.top + 21 * k, r.left + 21 * k + pw, r.top + 21 * k + 42 * k);
@@ -783,14 +1239,23 @@ public class Multiview extends Activity {
                     c.drawRoundRect(r, 18 * k * LiveTheme.rounding(), 18 * k * LiveTheme.rounding(), frame);
                 }
             }
-            String help = Ui.tr("OK escolhe o canal · segure OK: opções · Voltar: tela cheia",
+            String help = LiveOptions.multiOkFull(Multiview.this)
+                    ? Ui.tr("OK: tela cheia · segure OK: opções · Voltar: fechar", "OK: full screen · hold OK: options · Back: close")
+                    : Ui.tr("OK escolhe o canal · segure OK: opções · Voltar: tela cheia",
                     "OK picks the channel · hold OK: options · Back: full screen");
             // At the foot: moving, and what OK does (only where there's room under the boxes).
             if (layout >= 2 && !pip) {
                 String moveHelp = Ui.tr("Mova para escolher  ·  O canal selecionado toca o som", "Move to choose  ·  The selected channel plays its sound");
                 float hy = 1040 * k;
                 float inset = layout == 4 ? 143 : 24;       // in line with the boxes
-                c.drawText(moveHelp, inset * k, hy, hint);
+                int playing = 0, max = streams > 0 ? streams : allowed;
+                for (Box b : boxes) if (b.player != null) playing++;
+                String used = LiveStreams.inUse(Math.min(max, playing + reserved.size()), max) + "  ·  ";
+                int was = hint.getColor();
+                if (playing + reserved.size() >= max) hint.setColor(0xFFFFB340);
+                c.drawText(used, inset * k, hy, hint);
+                hint.setColor(was);
+                c.drawText(moveHelp, inset * k + hint.measureText(used), hy, hint);
                 c.drawText(help, (1920 - inset) * k - hint.measureText(help), hy, hint);
             }
             if (!message.isEmpty() && SystemClock.uptimeMillis() - messageAt < 3000) {
@@ -803,6 +1268,40 @@ public class Multiview extends Activity {
             boolean spinning = false;
             for (int i = 0; i < layout; i++) spinning |= boxes.get(i).channel != null && boxes.get(i).status.equals("…");
             if (spinning) postInvalidateOnAnimation();
+        }
+
+        /** A box that stopped: its channel, why, and its buttons (the focused box's lit). */
+        private void drawStopped(Canvas c, Box b, boolean focused) {
+            float rr = 18 * k * LiveTheme.rounding(), cx = r.centerX(), cy = r.centerY(), room = r.width() - 48 * k;
+            fill.setColor(0xFF16161A);
+            c.drawRoundRect(r, rr, rr, fill);
+            String t = ellipsize((b.onNow == null ? LiveCountry.named(Multiview.this, b.channel) : b.onNow.title) + Ui.tr(" parou", " stopped"), big, room);
+            c.drawText(t, cx - big.measureText(t) / 2, cy - 64 * k, big);
+            String why = ellipsize(b.problem, meta, room);
+            c.drawText(why, cx - meta.measureText(why) / 2, cy - 20 * k, meta);
+            List<Object[]> all = buttons(b);
+            int n = all.size(), at = Math.min(b.button, n - 1), first = 0;
+            float total = 0;
+            for (Object[] o : all) total += pill.measureText((String) o[0]) + 60 * k;
+            if (total - 12 * k > room) {        // a small box: the one in focus alone
+                first = at;
+                n = at + 1;
+                total = pill.measureText((String) all.get(at)[0]) + 60 * k;
+            }
+            float x = cx - (total - 12 * k) / 2;
+            for (int i = first; i < n; i++) {
+                String s = (String) all.get(i)[0];
+                float bw = pill.measureText(s) + 48 * k;
+                boolean on = focused && i == at;
+                logo.set(x, cy + 18 * k, x + bw, cy + 74 * k);
+                fill.setColor(on ? LiveTheme.tile : 0xFF3A3A40);
+                c.drawRoundRect(logo, 28 * k, 28 * k, fill);
+                int was = pill.getColor();
+                pill.setColor(on ? LiveTheme.ink : 0xFFF5F5F7);
+                c.drawText(s, x + 24 * k, logo.centerY() + Ui.halfCap(pill), pill);
+                pill.setColor(was);
+                x += bw + 12 * k;
+            }
         }
 
         private String ellipsize(String s, Paint p, float w) {

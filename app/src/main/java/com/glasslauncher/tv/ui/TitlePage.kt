@@ -21,6 +21,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
@@ -454,16 +459,40 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                 val seasonKeys = details.seasons.keys.toList()
                 val seasonReqs = remember(seasonKeys) { seasonKeys.map { FocusRequester() } }
                 val eps = details.seasons[seasonOn].orEmpty()
-                Row(Modifier.padding(start = (EDGE * s).dp, end = (EDGE * s).dp, top = (6 * s).dp).onFocusChanged { if (it.hasFocus) section = "Episodes" },
+                // Its heading as the other sections have, and no wider than the page's rows read: a white card the
+                // width of the screen was louder than anything else on it.
+                Spacer(Modifier.height((6 * s).dp))
+                DsHeading(Lang.tr("Episodes"), s, Modifier.padding(start = (EDGE * s).dp))
+                Row(Modifier.padding(start = (EDGE * s).dp, end = (EDGE * s).dp).onFocusChanged { if (it.hasFocus) section = "Episodes" },
                     horizontalArrangement = Arrangement.spacedBy((14 * s).dp)) {
                     // Seasons down the left; the one shown, light.
-                    Column(Modifier.width((96 * s).dp), verticalArrangement = Arrangement.spacedBy((3 * s).dp)) {
+                    // Each in a window of its own height, scrolling inside it: a long show (Naruto Shippuden's
+                    // hundreds of episodes, its many seasons) pushed the rest of the page far down.
+                    val seasonsScroll = rememberScrollState()
+                    val epsScroll = rememberScrollState()
+                    // The episode you're on: where the list opens and where Down from above lands (else the first).
+                    val onAt = if (seasonOn == fromResume) eps.indexOfFirst { it.number == epNow }.coerceAtLeast(0) else 0
+                    var epsFocused by remember { mutableStateOf(false) }
+                    var onY by remember(seasonOn) { mutableIntStateOf(0) }
+                    androidx.compose.runtime.LaunchedEffect(seasonOn, onY) {
+                        if (!epsFocused) epsScroll.scrollTo((onY - epsScroll.viewportSize / 3).coerceAtLeast(0))
+                    }
+                    val inside = remember(s) { KeepInView(0f, 0f) }
+                    // The season shown (the one you're on) in sight in its list, unless you're moving through it.
+                    var seasonsFocused by remember { mutableStateOf(false) }
+                    var shownAt by remember { mutableIntStateOf(-1) }
+                    androidx.compose.runtime.LaunchedEffect(shownAt) {
+                        if (shownAt >= 0 && !seasonsFocused) seasonsScroll.scrollTo((shownAt - seasonsScroll.viewportSize / 3).coerceAtLeast(0))
+                    }
+                    androidx.compose.runtime.CompositionLocalProvider(androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides inside) {
+                    Column(Modifier.width((96 * s).dp).heightIn(max = (EPISODES_H * s).dp).onFocusChanged { seasonsFocused = it.hasFocus }.fadingEdges(seasonsScroll, s).verticalScroll(seasonsScroll), verticalArrangement = Arrangement.spacedBy((3 * s).dp)) {
                         seasonKeys.forEachIndexed { i, n ->
                             var f by remember { mutableStateOf(false) }
                             Text(
                                 if (n == 0) Lang.tr("Specials") else Lang.tr("Season") + " $n", color = if (f) Ds.Ink else if (n == seasonOn) Color.White else Text2, fontSize = (10 * s).sp,
                                 fontWeight = if (f || n == seasonOn) FontWeight.Bold else FontWeight.SemiBold, maxLines = 1,
                                 modifier = Modifier.fillMaxWidth().focusRequester(seasonReqs[i])
+                                    .then(if (n == seasonOn) Modifier.onPlaced { shownAt = it.positionInParent().y.toInt() } else Modifier)
                                     .nav(up = if (i == 0) above(epEntry.req) else null, down = if (i == seasonKeys.lastIndex) below(epEntry.req) else null, left = FocusRequester.Cancel, right = epEntry.req)
                                     .onFocusChanged { f = it.isFocused; if (it.isFocused) season = n }.tvPress(onClick = { season = n; runCatching { epEntry.req.requestFocus() } })
                                     .clip(RoundedCornerShape((7 * s).dp)).background(if (f) Color.White else if (n == seasonOn) Ds.Glass else Color.Transparent)
@@ -473,7 +502,8 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                         Text(eps.size.toString() + " " + Lang.tr("episodes"), color = Text2, fontSize = (7.5f * s).sp, modifier = Modifier.padding(start = (9 * s).dp, top = (5 * s).dp))
                     }
                     // The episodes, one line each; the selected one opens out with its picture and story.
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy((3 * s).dp)) {
+                    Column(Modifier.weight(1f, fill = false).widthIn(max = (EPISODES_W * s).dp).heightIn(max = (EPISODES_H * s).dp).onFocusChanged { epsFocused = it.hasFocus }.fadingEdges(epsScroll, s).verticalScroll(epsScroll),
+                        verticalArrangement = Arrangement.spacedBy((3 * s).dp)) {
                         val toSeason = seasonReqs.getOrNull(seasonKeys.indexOf(seasonOn)) ?: FocusRequester.Cancel
                         eps.forEachIndexed { i, e ->
                             androidx.compose.runtime.key("$seasonOn:${e.number}") {
@@ -482,7 +512,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                                 val seen = resume != null && fromResume != null && epNow != null && seasonOn > 0 &&
                                     (seasonOn < fromResume || seasonOn == fromResume && (e.number < epNow || e.number == epNow && resume.upNext))
                                 EpisodeLine(e, item, s, now, if (current) resume?.progress ?: -1f else -1f,
-                                    (if (i == 0) Modifier.focusRequester(epEntry.req) else Modifier)
+                                    (if (i == onAt) Modifier.focusRequester(epEntry.req).onPlaced { onY = it.positionInParent().y.toInt() } else Modifier)
                                         .nav(up = if (i == 0) above(epEntry.req) else null, down = if (i == eps.lastIndex) below(epEntry.req) else null, left = toSeason, right = FocusRequester.Cancel),
                                     watched = seen && !current,
                                     // On your channels soon (Live TV's guide): when, and where.
@@ -492,6 +522,7 @@ fun TitlePage(app: GlassApp, item: HeroItem, s: Float, onClose: () -> Unit, onOp
                                 }
                             }
                         }
+                    }
                     }
                 }
             }
@@ -642,6 +673,22 @@ private fun PersonCard(p: TitlePeople.Person, s: Float, modifier: Modifier, onCl
     }
 }
 
+/** The episode and season lists' tallest (dp at scale 1): they scroll inside that. */
+private const val EPISODES_H = 250f
+
+/** A list that scrolls inside a window: its top and foot fade where there's more. */
+private fun Modifier.fadingEdges(state: androidx.compose.foundation.ScrollState, s: Float): Modifier = this
+    .graphicsLayer { compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        val fade = 14 * s * density
+        if (state.value > 0) drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black), 0f, fade), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+        if (state.value < state.maxValue) drawRect(Brush.verticalGradient(listOf(Color.Black, Color.Transparent), size.height - fade, size.height), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+    }
+
+/** The episode list's widest (dp at scale 1): about the width of the page's rows' first cards. */
+private const val EPISODES_W = 560f
+
 /**
  * An episode in the list (take B): one line, its number, name and when; selected, it opens out on a white card with its
  * picture (and what's left of it), its date and its story.
@@ -667,6 +714,7 @@ private fun EpisodeLine(e: TitleDetails.Episode, series: HeroItem, s: Float, now
             RawText(name, color = if (watched || progress >= 0.99f) Text2 else Color.White, fontSize = (10 * s).sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
             if (upcoming) Text(Lang.tr("Out") + " " + java.text.SimpleDateFormat("d MMM", Lang.locale()).format(java.util.Date(e.released)), color = Text2, fontSize = (8 * s).sp)
             else if (onTv.isNotEmpty()) RawText(onTv, color = LocalAccent.current, fontSize = (7.5f * s).sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            else if (date.isNotEmpty()) Text(date, color = Text2, fontSize = (8 * s).sp)
         } else Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
             RawText("${e.number}", color = Ds.Ink, fontSize = (12 * s).sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.width((14 * s).dp))
             Box(Modifier.width((150 * s).dp).aspectRatio(16f / 9f).clip(RoundedCornerShape((6 * s).dp)).background(Ds.Surface), contentAlignment = Alignment.Center) {

@@ -340,6 +340,15 @@ final class LiveCountry {
         Pen.R.set(x, mid - ph / 2, x + pw, mid + ph / 2);
         // On a light plate (dark lettering: the focus) the glass goes dark, as the lettering does.
         boolean onLight = luma(text.getColor()) < 128;
+        if (LiveBadge.inLook && !onLight) {     // as the badges: the design's focus, its ink on it
+            Pen.FILL.setColor(LiveTheme.tile | 0xFF000000);
+            c.drawRoundRect(Pen.R, ph / 2, ph / 2, Pen.FILL);
+            int was = label.getColor();
+            label.setColor(LiveTheme.ink);
+            c.drawText(code, x + (pw - tw) / 2, mid + Ui.halfCap(label), label);
+            label.setColor(was);
+            return Pen.R.right;
+        }
         Pen.FILL.setColor(onLight ? 0x1A000000 : LiveTheme.chip());
         c.drawRoundRect(Pen.R, ph / 2, ph / 2, Pen.FILL);
         Pen.RIM.setStrokeWidth(Math.max(1, 1.2f * k));

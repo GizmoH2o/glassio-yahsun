@@ -63,6 +63,14 @@ final class LiveReliability {
         return out;
     }
 
+    /** Whether source `id` is one to pass over now, as another process may have noted since. */
+    static synchronized boolean badNow(Context c, int id) {
+        troubles = null;
+        load(c);
+        long[] t = troubles.get(id);
+        return t != null && avoid(t, System.currentTimeMillis());
+    }
+
     /** Source `id` failed just now. */
     static synchronized void note(Context c, int id) {
         load(c);

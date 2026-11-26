@@ -182,6 +182,7 @@ class MainActivity : ComponentActivity() {
         (application as GlassApp).ensureHomeService()     // the Home-button service, if an update switched it off
         com.glasslauncher.tv.data.HaEvents.home(this)     // back from watching: Home Assistant hears it
         openTodayInTheMorning()
+        rescueNote()
         // Live TV's "open when the TV starts" (its settings): the first time the home screen shows after a boot.
         Thread {
             runCatching { com.glasslauncher.tv.live.LiveHome.homeShown(this) }
@@ -194,6 +195,18 @@ class MainActivity : ComponentActivity() {
         resumed = false
         com.glasslauncher.tv.ui.Notice.front = false
         KeyHub.homeInFront = false
+    }
+
+    private var rescueTold = false
+
+    /** After a rescue (Google TV's home put back): said, and over once Glassio has stayed up for a minute. */
+    private fun rescueNote() {
+        val note = HomeRescue.state(this).note
+        if (note.isEmpty() || rescueTold) return
+        rescueTold = true
+        // Once the home screen is drawn, or it's gone before it's seen.
+        android.os.Handler(mainLooper).postDelayed({ com.glasslauncher.tv.ui.toast(this, note) }, 5_000)
+        android.os.Handler(mainLooper).postDelayed({ HomeRescue.clearNote(applicationContext) }, 60_000)
     }
 
     /** Settings › Home › Open Today in the morning: the first time Home shows after 5 a.m. (not over a page an intent asked for). */

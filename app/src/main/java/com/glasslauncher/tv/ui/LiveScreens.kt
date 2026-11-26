@@ -179,7 +179,7 @@ fun LiveTvScreen(app: GlassApp, downAsk: Int = 0, toTabs: FocusRequester? = null
     val shown = rev
     var picking by remember { mutableStateOf(false) }
     if (picking) {
-        FavoritesPicker(app) { picking = false; rev++ }
+        Favorites(app) { picking = false; rev++ }
         return
     }
     LivePage(s, top = if (r == false || p == null) 82f else 0f, state = list) {
@@ -539,6 +539,81 @@ private fun LivePage(s: Float, top: Float = 34f, state: androidx.compose.foundat
                 modifier = Modifier.fillMaxSize(),
                 content = content,
             )
+        }
+    }
+}
+
+/** Choosing favorites: the suggested ones first (when there are any), then by category. */
+@Composable
+private fun Favorites(app: GlassApp, onClose: () -> Unit) {
+    var all by remember { mutableStateOf<List<com.glasslauncher.tv.live.LiveSuggest.One>?>(null) }
+    var byCategory by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { all = withContext(Dispatchers.IO) { runCatching { com.glasslauncher.tv.live.LiveSuggest.get(app) }.getOrDefault(emptyList()) } }
+    val list = all
+    when {
+        byCategory || list != null && list.isEmpty() -> FavoritesPicker(app, onClose)
+        list == null -> { BackHandler { onClose() }; Box(Modifier.fillMaxSize().background(Ds.Bg)) }
+        else -> Suggested(app, list, { byCategory = true }, onClose)
+    }
+}
+
+/** The channels suggested, each with why; OK takes one out or puts it back, then they're added together. */
+@Composable
+private fun Suggested(app: GlassApp, list: List<com.glasslauncher.tv.live.LiveSuggest.One>, byCategory: () -> Unit, onClose: () -> Unit) {
+    val s = LocalScale.current
+    val scope = rememberCoroutineScope()
+    BackHandler { onClose() }
+    // The teams' channels aren't in till chosen: they may never have been watched.
+    var chosen by remember { mutableStateOf(list.filter { it.why != "Shows your team" }.map { it.id }.toSet()) }
+    val first = remember { FocusRequester() }
+    LaunchedEffect(Unit) { focusFirst(first) }
+    Column(Modifier.fillMaxSize().background(Ds.Bg).padding(start = (MARGIN * s).dp, end = (MARGIN * s).dp, top = (82 * s).dp)) {
+        Text("Suggested for you", color = Color.White, fontSize = (22 * s).sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height((3 * s).dp))
+        Text("From what you watch and the teams you follow. OK takes one out or puts it back.", color = AppleSecondary, fontSize = (10.5f * s).sp)
+        Spacer(Modifier.height((16 * s).dp))
+        list.chunked(4).forEachIndexed { r, row ->
+            Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
+                row.forEachIndexed { i, ch ->
+                    val on = ch.id in chosen
+                    Focusable(
+                        Modifier.width((204 * s).dp).height((92 * s).dp).then(if (r == 0 && i == 0) Modifier.focusRequester(first) else Modifier),
+                        (10 * s).dp,
+                        onClick = { chosen = if (on) chosen - ch.id else chosen + ch.id },
+                        look = Look.ROW,
+                    ) { _ ->
+                        Row(Modifier.fillMaxSize().padding((10 * s).dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size((72 * s).dp, (50 * s).dp).background(Color(0xFF28282D), androidx.compose.foundation.shape.RoundedCornerShape((7 * s).dp)), contentAlignment = Alignment.Center) {
+                                if (ch.logo.isNotEmpty()) Logo(ch.logo, Modifier.fillMaxSize().padding((7 * s).dp))
+                                else RawText(ch.name.take(3).uppercase(), color = AppleSecondary, fontSize = (10 * s).sp, maxLines = 1)
+                            }
+                            Spacer(Modifier.width((10 * s).dp))
+                            Column(Modifier.weight(1f)) {
+                                RawText((if (ch.num > 0) "${ch.num}  " else "") + ch.name, color = Color.White, fontSize = (10.5f * s).sp, maxLines = 2, fontWeight = FontWeight.Medium)
+                                Text(ch.why, color = AppleSecondary, fontSize = (9 * s).sp, maxLines = 1)
+                                Text(if (on) "✓  In" else "Not in", color = if (on) Color.White else AppleSecondary, fontSize = (9 * s).sp, maxLines = 1)
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height((10 * s).dp))
+        }
+        Spacer(Modifier.height((8 * s).dp))
+        Row(horizontalArrangement = Arrangement.spacedBy((10 * s).dp)) {
+            if (chosen.isNotEmpty()) ChipView(if (chosen.size == 1) "Add this one" else "Add these ${chosen.size}", s, Modifier, null) {
+                val add = list.filter { it.id in chosen }
+                scope.launch {
+                    withContext(Dispatchers.IO) {
+                        val p = LiveHome.picker(app)
+                        add.forEach { if (!p.favorite(it.id)) p.toggle(app, it.id) }
+                    }
+                    toast(app, if (add.size == 1) "Added to favorites" else "${add.size} added to favorites")
+                    onClose()
+                }
+            }
+            ChipView("Choose by category", s, Modifier, null) { byCategory() }
+            ChipView("Not now", s, Modifier, null) { onClose() }
         }
     }
 }

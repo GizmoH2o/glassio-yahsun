@@ -78,8 +78,16 @@ public final class LiveHome {
         if (l == null) return out;
         if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(c, l);
         Set<String> hidden = LiveOptions.hidden(c);
+        Set<Integer> away = LiveHide.away(c, l, true);
         for (int i = 1; i < l.categories.size(); i++) {
             Xtream.Category cg = l.categories.get(i);
+            if (i == 1 && !away.isEmpty()) {       // All channels, without those
+                Xtream.Category all = new Xtream.Category();
+                all.id = cg.id;
+                all.name = cg.name;
+                for (Xtream.Channel ch : cg.channels) if (!away.contains(ch.id)) all.channels.add(ch);
+                cg = all;
+            }
             if (cg.channels.isEmpty() || hidden.contains(cg.id) || LiveOptions.isLockedAnyProcess(c, cg.id)) continue;
             out.categories.add(cg);
             for (Xtream.Channel ch : cg.channels) out.byId.put(ch.id, ch);
@@ -137,6 +145,7 @@ public final class LiveHome {
             p.end = f.end;
             p.icon = f.icon == null ? "" : f.icon;
             Xtream.mark(p);
+            LiveTags.apply(c, p, f.tags);
             if (!p.live) continue;
             String k = teamsKey(p.title);
             if (k == null || !seen.add(k)) continue;
@@ -763,13 +772,16 @@ public final class LiveHome {
                 p.end = f.end;
                 p.icon = f.icon == null ? "" : f.icon;
                 Xtream.mark(p);
+                LiveTags.apply(c, p, f.tags);
                 if (!p.live && !all) continue;
                 if (!names.in(Xtream.fold(p.title))) continue;
                 if (!seen.add(Xtream.fold(p.title) + "|" + p.start)) continue;
                 out.add(new Object[] {ch, p, k});
             }
         }
+        Set<Integer> hide = LiveHide.away(c);
         for (LiveSchedule.Item it : LiveSchedule.all(c)) {     // without the full guide (or a channel it lacks)
+            if (it.ch != null && !it.mine && hide.contains(it.ch.id)) continue;
             if (it.series == null || !it.series.startsWith(LiveFollow.SERIES) || it.ch == null || it.end <= now) continue;
             if (it.start > now + ahead || !folded.contains(it.series.substring(LiveFollow.SERIES.length()))) continue;
             if (it.kind.equals(LiveSchedule.SWITCH) || !seen.add(Xtream.fold(it.title) + "|" + it.start)) continue;
@@ -816,7 +828,9 @@ public final class LiveHome {
     // What a show about a match has in its name (Match Day Review: Arsenal v Spurs), folded.
     private static final String[] SHOWS = {"review", "highlights", "preview", "reaction", "build up", "classic", "replay",
             "rewind", "magazine", "match day", "matchday", "analysis", "news", "show", "podcast", "goals", "best of",
-            "story", "talk", "countdown", "press conference", "extra time", "warm up", "the big match", "flashback"};
+            "story", "talk", "countdown", "press conference", "extra time", "warm up", "the big match", "flashback",
+            "antevisao", "estudio", "pre jogo", "pos jogo", "previa", "previo", "resumo", "resumen", "vorbericht", "pre partita",
+            "prepartita", "post partita", "avant match"};
     // Between the two sides of a match, in the title as it's written (fold drops the "@" and "-").
     private static final String[] VERSUS = {" v ", " vs ", " vs. ", " x ", " - ", " – ", " @ ", " at "};
     // Left out of a side's name, so "AFC Bournemouth" and "Bournemouth" are the same team.
@@ -826,8 +840,18 @@ public final class LiveHome {
 
     /** The two sides of a match, sorted and folded, each by its team's main name ("bournemouth|manchester united"); null for anything else. */
     static String teamsKey(String title) {
+        return aboutMatch(title) ? null : sides(title);
+    }
+
+    /** Whether it's a show about matches, by its name. */
+    static boolean aboutMatch(String title) {
         String f = " " + Xtream.fold(title) + " ";
-        for (String w : SHOWS) if (f.contains(" " + w + " ")) return null;
+        for (String w : SHOWS) if (f.contains(" " + w + " ")) return true;
+        return false;
+    }
+
+    /** teamsKey, of a show about the match too. */
+    static String sides(String title) {
         String t = LiveMatchDay.teams(title), low = t.toLowerCase(Locale.ROOT);
         for (String v : VERSUS) {
             int at = low.indexOf(v);
@@ -905,7 +929,7 @@ public final class LiveHome {
             k.progress = progress(m.start, m.end, now);
             out.add(k);
         }
-        List<Xtream.Channel> recent = Xtream.recent(c);
+        List<Xtream.Channel> recent = LiveHide.shown(c, Xtream.recent(c));
         if (!recent.isEmpty() && recent.get(0).id != matchChannel) {
             Xtream.Channel ch = recent.get(0);
             Xtream.Program p = onNow(c, ch, now);
@@ -923,10 +947,11 @@ public final class LiveHome {
             out.add(k);
         }
         int resumes = 0;
+        Set<Integer> away = LiveOptions.hideEverywhere(c) ? LiveHide.away(c) : Collections.<Integer>emptySet();
         for (LiveResume.Entry e : LiveResume.entries(c)) {
             if (resumes >= RESUMES_MAX) break;
             Xtream.Channel ch = channelOf(c, e.channel);
-            if (ch == null || LiveOptions.isLockedAnyProcess(c, ch.category) || !LiveResume.canCarryOn(e, ch.archive, now)) continue;
+            if (ch == null || away.contains(ch.id) || LiveOptions.isLockedAnyProcess(c, ch.category) || !LiveResume.canCarryOn(e, ch.archive, now)) continue;
             HomeCard k = new HomeCard();
             k.kind = HomeCard.RESUME;
             k.channel = ch.id;
@@ -1007,7 +1032,9 @@ public final class LiveHome {
         it.end = p.end;
         it.title = p.title;
         it.about = p.about;
-        RecordService.start(c, it);
+        String full = LiveStreams.refusal(c);
+        if (full != null) return full;
+        RecordService.start(c, it, true);
         return "Recording " + (p.title.isEmpty() ? ch.name : p.title) + " until " + Ui.time(p.end);
     }
 
@@ -1120,7 +1147,7 @@ public final class LiveHome {
     /** The saved list (a Kids profile's own), read again only when it changed. Blocking the first time. */
     private static Xtream.Lineup cachedLineup(Context c) {
         synchronized (LiveHome.class) {
-            long at = Xtream.listFile(c).lastModified();
+            long at = LiveHide.stamp(c);
             if (miniLineup == null || miniLineupAt != at) {
                 miniLineup = Xtream.saved(c);
                 if (miniLineup != null && LiveProfiles.kids(c)) miniLineup = LiveProfiles.kidsOnly(c, miniLineup);
@@ -1158,9 +1185,10 @@ public final class LiveHome {
         if (list == null) list = l.all();
         int at = list.indexOf(now);
         if (at < 0 || list.size() < 2) return null;
+        Set<Integer> hide = LiveHide.away(c);
         for (int step = 1; step < list.size(); step++) {
             Xtream.Channel ch = list.get(Math.floorMod(at + dir * step, list.size()));
-            if (LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
+            if (hide.contains(ch.id) || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
             return miniOf(c, l, ch);
         }
         return null;
@@ -1245,7 +1273,7 @@ public final class LiveHome {
         Page out = new Page();
         if (!Xtream.ready(c)) return out;
         long now = System.currentTimeMillis();
-        List<Xtream.Channel> recent = Xtream.recent(c);
+        List<Xtream.Channel> recent = LiveHide.shown(c, Xtream.recent(c));
         if (!recent.isEmpty()) out.last = airing(c, recent.get(0), onNow(c, recent.get(0), now));
         Set<Integer> seen = new HashSet<>();
         for (Xtream.Channel ch : Xtream.favorites(c)) {
@@ -1268,7 +1296,7 @@ public final class LiveHome {
     /** The airings from now on of the title called `name` (its title page). */
     public static List<Airing> airingsOf(Context c, String name, int max) {
         List<Airing> out = new ArrayList<>();
-        for (Airing a : findShows(c, name, 40)) if (out.size() < max && LiveSearchRules.sameShow(a.title, name)) out.add(a);
+        for (Airing a : findShows(c, name, 40, true)) if (out.size() < max && LiveSearchRules.sameShow(a.title, name)) out.add(a);
         return out;
     }
 
@@ -1281,6 +1309,11 @@ public final class LiveHome {
 
     /** Shows in the full guide with these words in their title, from now on: what's on first (Home's search). */
     public static List<Airing> findShows(Context c, String words, int max) {
+        return findShows(c, words, max, false);
+    }
+
+    /** `pick`: not searched for, but offered by Glassio: without the hidden channels. */
+    private static List<Airing> findShows(Context c, String words, int max, boolean pick) {
         List<Airing> out = new ArrayList<>();
         if (!Xtream.ready(c) || LiveProfiles.kids(c)) return out;
         Xtream.Lineup l = Xtream.saved(c);
@@ -1292,8 +1325,9 @@ public final class LiveHome {
         // More than asked for: one show on many channels comes down to one.
         List<XmltvStore.Found> found = XmltvStore.findAny(c, phrases, now, now + LiveOptions.daysAhead(c) * 24 * 3600_000L, max * 40);
         Map<String, Xtream.Channel> byGuide = new HashMap<>();
+        Set<Integer> hide = pick ? LiveHide.away(c, l, false) : Collections.<Integer>emptySet();
         for (Xtream.Channel ch : l.all()) {
-            if (ch.epg == null || ch.epg.isEmpty() || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
+            if (ch.epg == null || ch.epg.isEmpty() || hide.contains(ch.id) || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
             String key = ch.epg.toLowerCase(java.util.Locale.ROOT);
             if (!byGuide.containsKey(key)) byGuide.put(key, ch);
         }
@@ -1311,9 +1345,48 @@ public final class LiveHome {
             p.start = f.start;
             p.end = f.end;
             Xtream.mark(p);
+            LiveTags.apply(c, p, f.tags);
             out.add(airing(c, byGuide.get(f.epg), p));
         }
         return out;
+    }
+
+    /** The match `p` is, on now on another channel than `ch`; null when it isn't one or there's none. It reads the guide. */
+    static Airing matchElsewhere(Context c, Xtream.Program p, Xtream.Channel ch) {
+        LiveMatchGroup match = p == null ? null : LiveMatchGroup.of(p.title, p.start);
+        if (match == null || match.show || !LiveOptions.fullGuide(c)) return null;
+        long now = System.currentTimeMillis();
+        if (LiveProfiles.kids(c)) return null;
+        Xtream.Lineup l = Xtream.saved(c);
+        if (l == null) return null;
+        List<String[]> sides = new ArrayList<>();
+        for (String side : match.pair.split("\\|")) sides.add(side.split(" "));
+        Map<String, Xtream.Program> on = new HashMap<>();
+        for (XmltvStore.Found f : XmltvStore.findAny(c, sides, now, now + 60_000, 400)) {
+            LiveMatchGroup o = f.start > now || f.end <= now ? null : LiveMatchGroup.of(f.title, f.start);
+            if (o == null || o.show || !match.same(o, null)) continue;
+            Xtream.Program q = new Xtream.Program();
+            q.title = f.title;
+            q.about = "";
+            q.icon = f.icon;
+            q.start = f.start;
+            q.end = f.end;
+            on.put(f.epg, q);
+        }
+        if (on.isEmpty()) return null;
+        // Not another copy of the same channel; yours first.
+        String own = ch.epg == null ? "" : ch.epg.toLowerCase(Locale.ROOT);
+        Set<Integer> hide = LiveHide.away(c, l, false);
+        List<Xtream.Channel> order = new ArrayList<>(Xtream.favorites(c));
+        order.addAll(Xtream.recent(c));
+        order.addAll(l.all());
+        for (Xtream.Channel o : order) {
+            Xtream.Channel at = l.find(o.id);
+            if (at == null || at.id == ch.id || at.epg == null || at.epg.isEmpty() || hide.contains(at.id) || LiveOptions.isLockedAnyProcess(c, at.category)) continue;
+            String key = at.epg.toLowerCase(Locale.ROOT);
+            if (!key.equals(own) && on.containsKey(key)) return airing(c, at, on.get(key));
+        }
+        return null;
     }
 
     /** Finished recordings with these words in their title, the newest first (Home's search). */
@@ -1526,6 +1599,7 @@ public final class LiveHome {
                 p.end = f.end;
                 p.icon = f.icon == null ? "" : f.icon;
                 Xtream.mark(p);
+                LiveTags.apply(c, p, f.tags);
                 out.add(new Object[] {ch, p});
                 if (out.size() >= 16) return out;
             }
@@ -1545,8 +1619,9 @@ public final class LiveHome {
         Set<Integer> seen = new HashSet<>();
         List<Xtream.Channel> yours = new ArrayList<>(Xtream.favorites(c));
         yours.addAll(Xtream.recent(c));
+        Set<Integer> hide = LiveHide.away(c);
         for (Xtream.Channel ch : yours) {
-            if (!seen.add(ch.id)) continue;
+            if (!seen.add(ch.id) || hide.contains(ch.id)) continue;
             List<Xtream.Program> l = LiveOptions.fullGuide(c) ? XmltvStore.programs(c, ch.epg, now, now + 90 * 60_000L) : null;
             if (l == null) {
                 Xtream.SavedGuide g = Xtream.savedGuide(c, ch.id);
@@ -1570,7 +1645,7 @@ public final class LiveHome {
 
     /** The channels by guide id, kept while the saved list and its merging stay the same. */
     static synchronized Map<String, Xtream.Channel> byEpg(Context c) {
-        long stamp = Xtream.lineupStamp(c);
+        long stamp = LiveHide.stamp(c);
         if (epgCache != null && stamp == epgStamp) return epgCache;
         Map<String, Xtream.Channel> out = readByEpg(c);
         epgCache = out;
@@ -1582,8 +1657,9 @@ public final class LiveHome {
         Map<String, Xtream.Channel> out = new HashMap<>();
         Xtream.Lineup l = Xtream.saved(c);
         if (l == null) return out;
+        Set<Integer> hide = LiveHide.away(c, l, false);
         for (Xtream.Channel ch : l.all()) {
-            if (ch.epg == null || ch.epg.isEmpty()) continue;
+            if (ch.epg == null || ch.epg.isEmpty() || hide.contains(ch.id)) continue;
             String id = ch.epg.toLowerCase(Locale.ROOT);
             if (!out.containsKey(id)) out.put(id, ch);
         }

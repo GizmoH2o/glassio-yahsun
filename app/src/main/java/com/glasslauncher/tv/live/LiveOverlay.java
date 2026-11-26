@@ -26,12 +26,54 @@ import java.util.List;
  * Measurements in a 1920×1080 space (k = width / 1920).
  */
 final class LiveOverlay {
-    static final int PLAY = 1, LIVE = 4, START_OVER = 5, INFO = 6, CHANNELS = 7, AUDIO = 8, MOMENTS = 9, SKIP_BACK = 11, SKIP_AHEAD = 12, MATCH = 13;
+    static final int PLAY = 1, LIVE = 4, START_OVER = 5, INFO = 6, CHANNELS = 7, AUDIO = 8, MOMENTS = 9, SKIP_BACK = 11, SKIP_AHEAD = 12, MATCH = 13, NEXT = 14,
+            RECORD = 15, LAST = 16, MORE = 17, FAVORITE = 18, SLEEP = 19, MULTI = 20, PICTURE = 21, GUIDE = 22, SPEED = 23;
+    /** What can be on the live bar (Player buttons), in its order there; what isn't is under More. */
+    static final int[] BAR = {START_OVER, RECORD, AUDIO, CHANNELS, LAST, MATCH, MOMENTS, INFO, FAVORITE, SLEEP, PICTURE, MULTI, GUIDE};
+    static final int BAR_DEFAULT = 1 << START_OVER | 1 << RECORD | 1 << AUDIO | 1 << CHANNELS | 1 << LAST | 1 << MATCH;
+    /** Live, with a show after this one: everything stands this much higher, Up next under the tabs. */
+    private static final float NEXT_LIFT = 72;
+
+    /** The order saved ("5,15,8"): those known, once each, then the ones it hasn't. Pure. */
+    static int[] order(String saved) {
+        int[] o = new int[BAR.length];
+        int n = 0;
+        for (String s : saved.split(",")) {
+            for (int b : BAR) {
+                if (!s.equals(String.valueOf(b))) continue;
+                boolean had = false;
+                for (int i = 0; i < n; i++) had |= o[i] == b;
+                if (!had) o[n++] = b;
+            }
+        }
+        for (int b : BAR) {
+            boolean had = false;
+            for (int i = 0; i < n; i++) had |= o[i] == b;
+            if (!had) o[n++] = b;
+        }
+        return o;
+    }
+
+    /** `row` of a past show (Back to live at its end) with Channels and More before that, the ones there's room for. Pure. */
+    static int[] withMore(int[] row, boolean channels, Width width, float gap, float room) {
+        float all = -gap;
+        for (int b : row) all += width.of(b) + gap;
+        for (int add : new int[] {CHANNELS, MORE}) {
+            if (add == CHANNELS && (!channels || all + width.of(CHANNELS) + width.of(MORE) + 2 * gap > room)) continue;
+            if (all + width.of(add) + gap > room) continue;
+            all += width.of(add) + gap;
+            int[] with = java.util.Arrays.copyOf(row, row.length + 1);
+            with[row.length] = row[row.length - 1];
+            with[row.length - 1] = add;
+            row = with;
+        }
+        return row;
+    }
     /** A past show's lines stand this much higher: the skip's label goes between them and the bar. */
     private static final float PAST_LIFT = 38;
     /** On a later show (◀ ▶ in the peek) it stays up longer, to read it (Back closes it). */
     private static final long PEEK_LATER_MS = 20_000;
-    private static final long HIDE_MS = 6000, BRIEF_MS = 3500;
+    private static final long BRIEF_MS = 3500;
     private static final float X = 96, R = 1824, GAP = 12, TOP_Y = 668, TITLE_Y = 748, SUB_Y = 800, BAR_Y = 880,
             LABEL_Y = 920, ROW_Y = 976, TAB_H = 64;
     private static final int INK = 0xFF1C1C1E, WHITE = 0xFFF5F5F7, RED = 0xFFD92D20;
@@ -51,7 +93,7 @@ final class LiveOverlay {
     private int ratedAge = -1;
     private long ratedAt;
     private final Spring appear = new Spring(0.32f, 1f, 0), focusX = new Spring(0.22f, 0.86f, 0), focusW = new Spring(0.22f, 0.86f, 120);
-    private final int[] buttons = new int[8];
+    private final int[] buttons = new int[18];
     private int count, focus;
     /** The first tab at the row's right end (Start over, Back to live), `count` for none. */
     private int rightFrom;
@@ -68,6 +110,13 @@ final class LiveOverlay {
     private long matchAt;
     private String revealed = "";
     private Paint bubble, thumbTime, upTitle;
+    /** On Up next, under the tabs; the show there (null: none, or not live); its bell. */
+    private boolean onNext;
+    private Xtream.Program upNext;
+    private boolean upNextBell;
+    private long upNextAt;
+    /** As of the last rebuild: whether the show's being recorded, the channel a favorite. */
+    private boolean recNow, favNow;
     /** On the Score hidden button, above the bar. */
     private boolean onScore;
     /** A stand-in match (the test broadcast's), instead of ESPN's. */
@@ -214,14 +263,16 @@ final class LiveOverlay {
             showing = false;
         }
         if (!showing) {
-            focus = count > 1 && buttons[1] == SKIP_AHEAD ? 1 : 0;
+            focus = count > 1 && (buttons[1] == SKIP_AHEAD || buttons[0] == RECORD) ? 1 : 0;      // never on Record: an OK too many
+            onNext = false;
+            if (newBar() && count > 1 && buttons[1] == NEXT) focus = 1;       // not on Start over: a ▼ OK too many would lose the place
             focusX.snap(buttonX(focus));
             focusW.snap(buttonW(focus));
             armed = user;
-            onBar = user && view.canSeek();     // OK: the focus on the bar first (YouTube's, Apple TV's)
+            onBar = user && view.canSeek() && LiveOptions.okOnBar(live);     // OK: the focus on the bar first (YouTube's, Apple TV's)
         } else if (user && !armed) {
             armed = true;
-            onBar = view.canSeek();
+            onBar = view.canSeek() && LiveOptions.okOnBar(live);
         }
         showing = true;
         appear.target = 1;
@@ -320,6 +371,7 @@ final class LiveOverlay {
         info.close();
         rail.close();
         onScore = false;
+        onNext = false;
         view.invalidate();
     }
 
@@ -345,9 +397,14 @@ final class LiveOverlay {
     }
 
     boolean step(float dt) {
-        long hold = brief ? BRIEF_MS : peek != null && peekAhead > 0 ? PEEK_LATER_MS : HIDE_MS;
+        long hold = brief ? BRIEF_MS : peek != null && peekAhead > 0 ? PEEK_LATER_MS : LiveOptions.playerStays(live) * 1000L;
         boolean paused = !brief && (live.catchup() != null || live.shifted()) && live.paused();
         if (showing && SystemClock.uptimeMillis() - lastKey > hold && !paused && !panel.open() && !moments.open() && !centre.open() && !info.open() && !rail.open()) hide();
+        live.setSmall(showing && panel.open() && LiveOptions.smallPicture(live));
+        if (brief && showing && view.tuningNow()) {     // its name is in the middle meanwhile
+            if (LiveOptions.tuneCard(live)) lastKey = SystemClock.uptimeMillis();
+            else hide();
+        }
         boolean moving = appear.step(dt) | focusX.step(dt) | focusW.step(dt) | panel.step(dt) | moments.step(dt) | centre.step(dt) | info.step(dt) | rail.step(dt);
         if (!showing && !moving && appear.value <= 0.004f) {     // gone (settled, not on a bounce): the peek with it
             peek = null;
@@ -360,18 +417,99 @@ final class LiveOverlay {
     /** The tabs for what's playing, then at the right end Start over, or Back to live on a past program. */
     private void rebuild() {
         Xtream.Channel ch = live.playing();
-        int[] row = tabs(live.catchup() != null || live.shifted(), view.canSeek(), ch != null, match != null && !match.moments.isEmpty(), ch != null && ch.archive > 0,
-                match != null && !match.event.isEmpty() && LiveOptions.matchCentre(live));
+        boolean moments = match != null && !match.moments.isEmpty(), centre = match != null && !match.event.isEmpty() && LiveOptions.matchCentre(live);
+        int[] row = newBar() ? pastTabs(live.hasFollowing(), moments, centre)
+                : live.catchup() != null || live.shifted() ? tabs(true, view.canSeek(), ch != null, moments, ch != null && ch.archive > 0, centre)
+                : null;
+        recNow = view.recordingNow();
+        favNow = ch != null && Xtream.isFavorite(view.lineup(), ch.id);
+        if (row == null) row = fit(liveBar(LiveOptions.playerOrder(live), LiveOptions.playerButtons(live), !view.canSeek() && ch != null, this::can), this::widthOf, GAP, R - X);
+        else {
+            if (live.shifted() && LiveOptions.catchUpSpeed(live) != LiveOptions.SPEED_OFF && (live.canSpeed() || live.speeding())) {
+                int[] with = new int[row.length + 1];       // after the skips
+                System.arraycopy(row, 0, with, 0, 2);
+                with[2] = SPEED;
+                System.arraycopy(row, 2, with, 3, row.length - 2);
+                row = with;
+            }
+            if (LiveOptions.pastButtons(live)) row = withMore(row, true, this::widthOf, GAP, R - X);
+        }
+        int was = count > 0 ? buttons[focus] : 0;
         count = row.length;
         rightFrom = count;
         for (int i = 0; i < count; i++) {
             buttons[i] = row[i];
             if (row[i] == LIVE) rightFrom = i;      // at the far right
         }
+        for (int i = 0; i < count; i++) if (buttons[i] == was) focus = i;       // the same one, wherever it is now
         // The focus goes where its tab is now (the row changes between live and a past program).
         focus = Math.min(focus, count - 1);
+        if (buttons[focus] == RECORD && was != RECORD && count > 1) focus = focus == 0 ? 1 : focus - 1;      // never left on Record: an OK too many
         focusX.target = buttonX(focus);
         focusW.target = buttonW(focus);
+    }
+
+    /** Whether button `b` does anything on what's playing live. */
+    private boolean can(int b) {
+        Xtream.Channel ch = live.playing();
+        if (ch == null) return false;
+        switch (b) {
+            case START_OVER: return ch.archive > 0;
+            case RECORD: return view.recordable() != null;
+            case LAST: return live.previous() != null && live.previous().id != ch.id;
+            case MATCH: return match != null && !match.event.isEmpty() && LiveOptions.matchCentre(live);
+            case MOMENTS: return match != null && !match.moments.isEmpty();
+            default: return true;
+        }
+    }
+
+    /** The live row: Play when there's no bar for that, those chosen (a bit each) that can, More. Pure. */
+    static int[] liveBar(int chosen, boolean play, java.util.function.IntPredicate can) {
+        return liveBar(BAR, chosen, play, can);
+    }
+
+    static int[] liveBar(int[] order, int chosen, boolean play, java.util.function.IntPredicate can) {
+        int[] row = new int[BAR.length + 2];
+        int n = 0;
+        if (play) row[n++] = PLAY;
+        for (int b : order) if ((chosen & 1 << b) != 0 && can.test(b)) row[n++] = b;
+        row[n++] = MORE;
+        return java.util.Arrays.copyOf(row, n);
+    }
+
+    interface Width {
+        float of(int button);
+    }
+
+    /** `row` (More at its end) without its last ones that don't fit in `room`. Pure. */
+    static int[] fit(int[] row, Width width, float gap, float room) {
+        float all = -gap;
+        for (int b : row) all += width.of(b) + gap;
+        while (all > room && row.length > 1) {
+            int at = row.length - 2;
+            all -= width.of(row[at]) + gap;
+            row[at] = row[at + 1];
+            row = java.util.Arrays.copyOf(row, row.length - 1);
+        }
+        return row;
+    }
+
+    /** A past show or a recording, with the new bar (Catch-up player bar). */
+    private boolean newBar() {
+        return live.catchup() != null && !live.shifted() && LiveOptions.catchupBar(live);
+    }
+
+    /** The new bar's tabs: ◀ ▶ on the line skip, so there are none for that. Pure. */
+    static int[] pastTabs(boolean next, boolean moments, boolean centre) {
+        int[] row = new int[6];
+        int n = 0;
+        row[n++] = START_OVER;
+        if (next) row[n++] = NEXT;
+        if (centre) row[n++] = MATCH;
+        if (moments) row[n++] = MOMENTS;
+        row[n++] = AUDIO;
+        row[n++] = LIVE;
+        return java.util.Arrays.copyOf(row, n);
     }
 
     /** The row of tabs: a past show has its own, the skips first, Back to live at the far right. Pure. */
@@ -421,26 +559,74 @@ final class LiveOverlay {
 
     /** A tab's width in the 1920 space: its longest name, so it doesn't change size as it changes state. */
     private float pillWidth(int i) {
-        if (pillText == null) pillText = Ui.text(Ui.semibold, 29, WHITE);
-        pillText.setTextSize(29);
-        float wd = pillText.measureText(name(buttons[i], false));
-        if (buttons[i] == PLAY) wd = Math.max(wd, pillText.measureText(name(PLAY, true)));
-        return wd + 60;
+        return widthOf(buttons[i]);
     }
 
-    /** A tab's name ([other]: its other state, for measuring). */
-    private String name(int b, boolean other) {
+    private static final float ICON = 30, ICON_ROOM = 46;
+
+    private float widthOf(int b) {
+        if (pillText == null) pillText = Ui.text(Ui.semibold, 29, WHITE);
+        pillText.setTextSize(29);
+        float wd = pillText.measureText(name(b, false));
+        if (b == PLAY) wd = Math.max(wd, pillText.measureText(name(PLAY, true)));
+        return wd + 56 + (icon(b).isEmpty() ? 0 : ICON_ROOM);
+    }
+
+    /** Its picture, "" for none ("…": More's dots). */
+    private String icon(int b) {
+        switch (b) {
+            case INFO: return "info";
+            case CHANNELS: return "list";
+            case AUDIO: return "captions";
+            case MOMENTS: return "sparkles";
+            case MATCH: return "trophy";
+            case NEXT: return "chevron_right";
+            case LIVE: return "live_tv";
+            case RECORD: return recNow ? "stop" : "record";
+            case LAST: return "swap";
+            case FAVORITE: return favNow ? "heart_off" : "heart";
+            case SLEEP: return "bedtime";
+            case MULTI: return "multiview";
+            case PICTURE: return "tv";
+            case GUIDE: return "guide";
+            case START_OVER: return "start_over";
+            case MORE: return "…";
+            case SPEED: return "timer";
+            default: return "";
+        }
+    }
+
+    /** A button's name (the settings' Player buttons too). */
+    static String barName(int b) {
         switch (b) {
             case INFO: return Ui.tr("Info", "Info");
             case CHANNELS: return Ui.tr("Canais", "Channels");
             case AUDIO: return Ui.tr("Áudio e legendas", "Audio & Subtitles");
             case MOMENTS: return Ui.tr("Momentos", "Moments");
             case MATCH: return Ui.tr("Partida", "Match");
+            case RECORD: return Ui.tr("Gravar", "Record");
+            case LAST: return Ui.tr("Último canal", "Last channel");
+            case FAVORITE: return Ui.tr("Favorito", "Favorite");
+            case SLEEP: return Ui.tr("Timer para dormir", "Sleep timer");
+            case MULTI: return Ui.tr("Multivisão", "Multiview");
+            case PICTURE: return Ui.tr("Imagem", "Picture");
+            case GUIDE: return Ui.tr("Guia de TV", "TV guide");
+            case MORE: return Ui.tr("Mais", "More");
+            default: return Ui.tr("Começar do início", "Start over");
+        }
+    }
+
+    /** A tab's name ([other]: its other state, for measuring). */
+    private String name(int b, boolean other) {
+        switch (b) {
+            case RECORD: return recNow ? Ui.tr("Parar de gravar", "Stop recording") : barName(b);
+            case NEXT: return Ui.tr("Próximo programa", "Next show");
             case SKIP_BACK: return "◀ " + (live.minuteSkips() ? "1 min" : "10 s");
             case SKIP_AHEAD: return (live.minuteSkips() ? "1 min" : "30 s") + " ▶";
             case PLAY: return live.paused() != other ? Ui.tr("Continuar", "Play") : Ui.tr("Pausar", "Pause");
-            case LIVE: return Ui.tr("Voltar ao vivo", "Back to live");
-            default: return Ui.tr("Começar do início", "Start over");
+            case LIVE: return live.shifted() ? Ui.tr("Ir ao vivo", "Go live") : Ui.tr("Voltar ao vivo", "Back to live");
+            case SPEED: return live.speeding() ? Ui.tr("Velocidade normal", "Normal speed") : Ui.tr("Alcançar a 1,25×", "Catch up at 1.25×");
+            default: return barName(b);
         }
     }
 
@@ -477,9 +663,25 @@ final class LiveOverlay {
             int at = list.indexOf(later);
             next = at >= 0 && at + 1 < list.size() ? list.get(at + 1) : null;
         }
+        boolean plain = peek == null && past == null && !behind;
+        // A long title on two lines (a match's competition above it, smaller), everything above it that much higher.
+        String head = shown == null || shown.title.isEmpty() ? ch.name : shown.title;
+        float extra = 0;
+        if (peek == null && LiveOptions.titleLines(live)) {
+            titleLayout(head);
+            extra = titleExtra;
+        } else {
+            titleLines = null;
+        }
+        if ((plain ? next : null) != upNext) {
+            upNext = plain ? next : null;
+            upNextAt = 0;
+            if (upNext == null) onNext = false;
+        }
+        float lift = upNext != null ? NEXT_LIFT * k : 0;
         int save = a < 0.995f ? c.saveLayerAlpha(0, 0, w, h, Math.round(255 * a)) : c.save();
         if (brief) {
-            drawBrief(c, ch, shown, past != null, now, (1 - a) * (1 - a));
+            if (!view.tuningNow()) drawBrief(c, ch, shown, past != null, now, (1 - a) * (1 - a));
             c.restoreToCount(save);
             // Only a frame looks at the clock (step), and once the picture's on nothing else may ask for one.
             if (showing) view.postInvalidateDelayed(briefWake(lastKey, SystemClock.uptimeMillis()));
@@ -515,8 +717,10 @@ final class LiveOverlay {
             return false;
         }
         if (past == null) shade(c, topShade, 0, 0, w, 240 * k);
-        shade(c, bottomShade, 0, 480 * k, w, h);
-        drawPanel(c);
+        c.translate(0, -lift - extra);
+        shade(c, bottomShade, 0, 480 * k, w, h + lift + extra);
+        drawPanel(c, lift + extra);
+        c.translate(0, lift + extra);
         if (past == null) drawTop(c, ch, now);
         if (rail.open()) {
             rail.draw(c);
@@ -524,21 +728,29 @@ final class LiveOverlay {
             if (showing) view.postInvalidateDelayed(1000 - now % 1000);
             return false;
         }
-        c.translate(0, (1 - a) * (1 - a) * 60 * k);
+        c.translate(0, (1 - a) * (1 - a) * 60 * k - lift);
 
         // LIVE (or what it is instead), the score, then what the stream is.
         float raise = past != null ? PAST_LIFT : 0;
-        float x = X * k, y = (TOP_Y - raise) * k;
+        float x = X * k, y = (TOP_Y - raise) * k - extra;
         String pill = past == null ? Ui.tr("AO VIVO", "LIVE") : live.recorded() ? Ui.tr("GRAVADO", "RECORDED") : Ui.tr("REPRISE", "CATCH-UP");
         if (later != null) pill = Ui.tr("DEPOIS", "LATER");
         else if (live.paused() && peek == null) pill = Ui.tr("PAUSADO", "PAUSED");
+        else if (behind) pill = Ui.tr("ATRASADO", "BEHIND") + " −" + LiveView.clock(live.behind());
         boolean lit = past == null && !behind && later == null && !live.paused();
         x = drawPill(c, pill, x, y, lit ? LiveTheme.accent : past != null ? LiveTheme.tile : (LiveTheme.text & 0x00FFFFFF) | 0x59000000,
                 past != null && !lit ? LiveTheme.ink : 0xFFFFFFFF, true) + 16 * k;
         if (past != null) {        // when it was, and where
-            String when = LiveCatchup.dayName(past.start, now) + "  ·  " + view.nameWithCountry(ch);
+            String when = LiveCatchup.dayName(past.start, now) + (newBar() ? " " + Ui.time(past.start) : "") + "  ·  " + view.nameWithCountry(ch);
             c.drawText(ellipsize(when, small, 760 * k), x, y, small);
             x += Math.min(760 * k, small.measureText(when)) + 16 * k;
+        }
+        if (past == null) {     // the channel, its logo first, on the same line
+            float mid = y - Ui.halfCap(meta);
+            box.set(x, mid - 22 * k, x + 78 * k, mid + 22 * k);
+            view.drawLogoBare(c, ch, box, 1, false, true);
+            x += 78 * k + 14 * k;
+            x = drawNameAndTag(c, (ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch), view.tagOf(ch), peek == null && LiveOptions.streamLine(live) ? "" : view.badgeOf(ch), x, y, 760 * k) + 20 * k;
         }
         // A followed team's match on live: its score (Live scores), looked up again every second.
         if (shown != scoreFor || up - scoreAt > 1000) {
@@ -576,7 +788,8 @@ final class LiveOverlay {
             ratedAge = LiveTmdb.rating(live, shown, null);
         }
         if (past == null && (ratedAge > 0 || ratedAge == LiveRating.NONE && shown != null && live.lockAge() > 0)) {
-            x = drawPill(c, LiveRating.label(ratedAge, true), x, y, LiveTheme.chip(), false) + 10 * k;     // "12+"; "No rating" under the lock
+            x = drawPill(c, LiveRating.label(ratedAge, true), x, y, LiveBadge.inLook ? LiveTheme.tile | 0xFF000000 : LiveTheme.chip(),
+                    LiveBadge.inLook ? LiveTheme.ink : 0xFFFFFFFF, false) + 10 * k;     // "12+"; "No rating" under the lock
         }
         // Trouble first (it matters more than the quality tags), then the tags that fit.
         if (ch != healthFor || up - healthAt > 3000) {
@@ -585,7 +798,7 @@ final class LiveOverlay {
             unstable = ch.id > 0 && LiveHealth.recent(live, ch.id, 10 * 60_000L) > 0;
         }
         if (unstable && peek == null) x = drawPill(c, Ui.tr("INSTÁVEL", "UNSTABLE"), x, y, 0xCCC77800, false) + 10 * k;
-        if (peek == null && past == null) {        // what the stream is: the badge set's pictures (Stream badges), else in words
+        if (peek == null && past == null && LiveOptions.streamDetails(live) == LiveOptions.DETAILS_BADGES) {        // what the stream is: the badge set's pictures (Stream badges), else in words
             if (LiveOptions.streamBadgePictures(live)) {
                 float bx = x + 2 * k, mid = y - Ui.halfCap(small), h = 36 * k;
                 for (LiveBadgeArt.Tag t : live.streamTags()) {
@@ -634,27 +847,40 @@ final class LiveOverlay {
                 textR = (cl / k) - 40;
             }
         }
-        // The show's title, big (its words, not its logo); a long one scrolls across.
-        String head = shown == null || shown.title.isEmpty() ? ch.name : shown.title;
-        titleMarquee.draw(c, head, X * k, (TITLE_Y - raise) * k, (textR - X) * k, title, k);
+        // The show's title, big (its words, not its logo): on two lines, or scrolling across.
+        if (titleLines != null) drawTitle(c, (TITLE_Y - raise) * k);
+        else titleMarquee.draw(c, head, X * k, (TITLE_Y - raise) * k, (textR - X) * k, title, k);
 
         // How far it is: the show on now, or the past show's position.
         float f = 0;
-        long at = 0, length = 0;
+        long at = 0, length = 0, base = Long.MIN_VALUE;
         String rightText = "", startText = "", endText = "";
         if (past != null) {
             at = live.position();
             length = live.length();
             f = length > 0 ? Ui.clamp(at / (float) length) : 0;
             rightText = Math.max(0, at) / 60_000 + Ui.tr(" min vistos", " min in") + "  ·  " + LiveView.minutesLeft((int) Math.max(0, (length - at) / 60_000));
-            startText = Ui.time(past.start);
-            endText = Ui.time(past.end);
+            if (newBar()) {      // on the line's two ends instead; paused, when it would end
+                rightText = live.paused() && length > at ? Ui.tr("Termina às ", "Ends ") + Ui.time(now + length - at)
+                        + Ui.tr(" se continuar agora", " if you resume now") : "";
+            } else {
+                startText = Ui.time(past.start);
+                endText = Ui.time(past.end);
+            }
         } else if (behind) {        // the buffer from its oldest to now; how far behind live
             at = live.position();
             length = live.length();
             f = length > 0 ? Ui.clamp(at / (float) length) : 0;
-            rightText = live.paused() && live.behind() < 2000 ? Ui.tr("Pausado", "Paused")
-                    : "−" + LiveView.clock(live.behind()) + Ui.tr(" do ao vivo", " behind live");
+            rightText = live.paused() && live.behind() < 2000 ? Ui.tr("Pausado", "Paused") : "";      // how far behind: on its pill
+            if (live.speeding()) rightText += (rightText.isEmpty() ? "" : "  ·  ") + Ui.tr("ao vivo de novo em ", "live again in ") + Math.max(1, Math.round(live.behind() * 4 / 60_000f)) + " min";
+            if (onNow != null && live.rolling() && now - length >= onNow.start - 15_000_000L && now - live.behind() >= onNow.start) {
+                base = now - length - onNow.start;      // the buffer's start, in the show
+                at = now - live.behind() - onNow.start;
+                length = onNow.end - onNow.start;
+                f = Ui.clamp(at / (float) Math.max(1, length));
+                startText = Ui.time(onNow.start);
+                endText = Ui.time(onNow.end);
+            }
         } else if (later != null) {      // a later show: when it starts
             rightText = startsIn(later.start, now);
         } else if (onNow != null) {
@@ -672,6 +898,9 @@ final class LiveOverlay {
         if (ep != null && !ep.label().isEmpty()) sub.append(ep.label());
         if (shown != null && past == null) sub.append(sub.length() > 0 ? "  ·  " : "").append(Ui.time(shown.start)).append(" – ").append(Ui.time(shown.end));
         if (!rightText.isEmpty()) sub.append(sub.length() > 0 ? "  ·  " : "").append(rightText);
+        if (peek == null && past == null && LiveOptions.streamDetails(live) == LiveOptions.DETAILS_WORDS && !live.badges().isEmpty()) {
+            sub.append(sub.length() > 0 ? "  ·  " : "").append(TextUtils.join(" · ", live.badges()));
+        }
         float subX = X * k;
         if (known != null && !known.imdb.isEmpty()) subX = LiveShowPage.drawImdb(c, known.imdb, subX, (SUB_Y - raise) * k, meta.getTextSize() * 0.9f, k) + 18 * k;
         c.drawText(ellipsize(sub.toString(), meta, textR * k - subX), subX, (SUB_Y - raise) * k, meta);
@@ -680,17 +909,55 @@ final class LiveOverlay {
         long target = peek == null ? live.skipTarget() : -1;
         if (target >= 0) {      // while skips are stacked the thumb stays where it is; the ring goes
             at = live.skipStart();
+            if (base != Long.MIN_VALUE) {
+                at = Math.max(0, at + base);
+                target = Math.max(0, target + base);
+            }
             f = length > 0 ? Ui.clamp(at / (float) length) : 0;
         }
         float barY = BAR_Y * k, barL = X * k, barR = R * k;
+        boolean fresh = past != null && newBar();
+        if (fresh) {        // the time gone, the line, the time left (where the skips will land, as they're pressed)
+            String gone = LiveView.clock(at), remains = "−" + LiveView.clock(Math.max(0, length - (target >= 0 ? target : at)));
+            float side = thumbTime.measureText(length >= 3600_000L ? "−0:00:00" : "−00:00") + 28 * k;
+            Paint.Align was = thumbTime.getTextAlign();
+            thumbTime.setTextAlign(Paint.Align.LEFT);
+            c.drawText(gone, barL, barY + Ui.halfCap(thumbTime), thumbTime);
+            thumbTime.setTextAlign(Paint.Align.RIGHT);
+            c.drawText(remains, barR, barY + Ui.halfCap(thumbTime), thumbTime);
+            thumbTime.setTextAlign(was);
+            barL += side;
+            barR -= side;
+        }
+        boolean line = plain || base != Long.MIN_VALUE;
+        long rewind = line && onNow != null ? view.rewindFrom(ch, onNow, now) : 0, buffer = line && onNow != null ? view.bufferFrom(now) : 0;
         boolean focused = armed() && onBar;
         float half = 5 * k;
         fill.setColor(0x42F5F5F7);
         c.drawRoundRect(barL, barY - half, barR, barY + half, half, half, fill);
         if (later == null && (past != null || behind || onNow != null)) {
             float end = barL + (barR - barL) * f;
+            // Live, when ◀ doesn't go back to its start: the part before fainter.
+            float from = rewind > 0 && onNow != null && length > 0 ? Math.min(end, barL + (barR - barL) * Ui.clamp((rewind - onNow.start) / (float) length)) : barL;
+            if (from > barL + 2 * half) {
+                fill.setColor(0x59F5F5F7);
+                c.drawRoundRect(barL, barY - half, end, barY + half, half, half, fill);
+            }
+            float kept = buffer > 0 && rewind > 0 && length > 0 ? Math.min(end, barL + (barR - barL) * Ui.clamp((buffer - onNow.start) / (float) length)) : from;
+            if (kept > from + 2 * half) {       // the provider's catch-up, softer than what's on the TV
+                fill.setColor(0xA6F5F5F7);
+                c.drawRoundRect(from, barY - half, end, barY + half, half, half, fill);
+                from = kept;
+            }
+            if (base != Long.MIN_VALUE) {       // to live, and where live is
+                float lv = barL + (barR - barL) * Ui.clamp((now - onNow.start) / (float) Math.max(1, length));
+                fill.setColor(0x80F5F5F7);
+                c.drawRect(end, barY - half, lv, barY + half, fill);
+                fill.setColor(RED);
+                c.drawRect(lv - 2 * k, barY - 10 * k, lv + 2 * k, barY + 10 * k, fill);
+            }
             fill.setColor(LiveTheme.text);
-            c.drawRoundRect(barL, barY - half, Math.max(barL + 2 * half, end), barY + half, half, half, fill);
+            c.drawRoundRect(from, barY - half, Math.max(from + 2 * half, end), barY + half, half, half, fill);
             if (match != null && !hidden && length > 0 && peek == null) {
                 fill.setColor(MARK);
                 for (LiveMoments.Moment m : match.moments) {
@@ -706,20 +973,25 @@ final class LiveOverlay {
             else c.drawCircle(end, barY, 13 * k, fill);
             if (target >= 0 && length > 0) {
                 drawTarget(c, target, at, length, past, barL, barR, barY);
+            } else if (fresh) {
+                // (its time is at the line's end)
             } else if (past != null) {
                 drawBubble(c, Ui.tr("Agora", "Now") + " " + Ui.time(past.start + at), end, barL, barR, barY);
             } else if (peek == null) {       // the time at the thumb
                 float tx = Math.max(barL + 60 * k, Math.min(barR - 60 * k, end));
-                c.drawText(Ui.time(now - (behind ? live.behind() : 0)), tx, barY - 26 * k, thumbTime);
+                c.drawText(Ui.time(now - (behind ? live.behind() : 0)), tx, barY - 34 * k, thumbTime);
             }
         }
         small.setTextAlign(Paint.Align.LEFT);
         float labelY = LABEL_Y * k;
+        // How far back it goes: under the bar at its left, where that is (in place of when the show began).
+        boolean back = peek == null && target < 0 && !fresh && past == null && (base != Long.MIN_VALUE || !behind) && rewind > 0 && now - rewind > 30_000;
+        if (back) startText = "◀ " + Ui.tr("Volta até ", "Rewind to ") + Ui.time(rewind);
         if (!startText.isEmpty()) c.drawText(startText, barL, labelY, small);
         if (peek == null) {
-            String hint = target >= 0 ? Ui.tr("Parou de apertar? Vai para aqui em 1 s", "Stopped pressing? It jumps here in 1 s")
-                    : past != null || behind ? Ui.tr("◀ ▶ some os saltos", "◀ ▶ add up skips")
-                    : focused ? Ui.tr("◀ Voltar", "◀ Rewind") : "";
+            String hint = fresh ? "" : target >= 0 ? Ui.tr("Parou de apertar? Vai para aqui em 1 s", "Stopped pressing? It jumps here in 1 s")
+                    : past != null || behind && base == Long.MIN_VALUE ? Ui.tr("◀ ▶ some os saltos", "◀ ▶ add up skips")
+                    : back ? "" : focused ? Ui.tr("◀ Voltar", "◀ Rewind") : "";
             small.setTextAlign(Paint.Align.CENTER);
             c.drawText(hint, (barL + barR) / 2, labelY, small);
         }
@@ -728,7 +1000,8 @@ final class LiveOverlay {
         small.setTextAlign(Paint.Align.LEFT);
 
         if (peek == null) {
-            drawTabs(c, past == null && !behind ? next : null);
+            drawTabs(c);
+            if (upNext != null) drawUpNextRow(c, ch, up);
         } else {        // another channel's info (Sky's mini guide): OK tunes it; ◀ ▶ its later shows
             String hint = later != null ? Ui.tr("OK para lembrar ou gravar   ·   ◀ ▶ outros programas", "OK to remind or record   ·   ◀ ▶ other shows")
                     : Ui.tr("OK para assistir   ·   ▶ mais tarde", "OK to watch   ·   ▶ later shows");
@@ -740,13 +1013,64 @@ final class LiveOverlay {
         return false;
     }
 
+    /** A long title's lines (null: it scrolls), the line above it (a match's competition, "" none), how much higher it all goes. */
+    private StaticLayout titleLines;
+    private String titleOf = "", titleKicker = "";
+    private float titleExtra, titleFor = -1;
+    private final TextPaint titleFit = new TextPaint();
+
+    /** "Competition : Match" in its two parts ({"", title} when it isn't one). Pure. */
+    static String[] titleParts(String title) {
+        int at = title.indexOf(" : ");
+        if (at < 0) at = title.indexOf(": ");
+        if (at <= 0) return new String[] {"", title};
+        String kicker = title.substring(0, at).trim(), main = title.substring(title.indexOf(':', at) + 1).trim();
+        if (main.isEmpty() || kicker.length() > 60 || main.length() < 4) return new String[] {"", title};
+        return new String[] {kicker, main};
+    }
+
+    private void titleLayout(String head) {
+        if (head.equals(titleOf) && titleFor == k && titleLines != null) return;
+        titleOf = head;
+        titleFor = k;
+        String[] parts = titleParts(head);
+        titleKicker = parts[0];
+        int width = Math.max(1, Math.round((R - X) * k));
+        titleFit.set(title);
+        titleFit.setShadowLayer(10 * k, 0, 3 * k, 0xB3000000);
+        StaticLayout l = lines(parts[1], width);
+        if (l.getLineCount() > 2 || l.getLineCount() == 2 && l.getEllipsisCount(1) > 0) {       // a little smaller first
+            titleFit.setTextSize(title.getTextSize() * 0.82f);
+            l = lines(parts[1], width);
+        }
+        titleLines = l;
+        float line = l.getLineCount() > 1 ? l.getLineBottom(0) - l.getLineTop(0) : 0;
+        titleExtra = line + (titleKicker.isEmpty() ? 0 : 50 * k);
+    }
+
+    private StaticLayout lines(String s, int width) {
+        return StaticLayout.Builder.obtain(s, 0, s.length(), titleFit, width).setMaxLines(2)
+                .setEllipsize(TextUtils.TruncateAt.END).setLineSpacing(0, 0.95f).build();
+    }
+
+    /** The title's lines, its last on `baseline`; the competition above them. */
+    private void drawTitle(Canvas c, float baseline) {
+        int last = titleLines.getLineCount() - 1;
+        float top = baseline - titleLines.getLineBaseline(last);
+        c.save();
+        c.translate(X * k, top);
+        titleLines.draw(c);
+        c.restore();
+        if (titleKicker.isEmpty()) return;
+        int was = small.getColor();
+        small.setColor(0xD9FFFFFF);
+        c.drawText(ellipsize(titleKicker, small, (R - X) * k), X * k, top + titleLines.getLineTop(0) + 4 * k, small);
+        small.setColor(was);
+    }
+
     /** The channel at the top left, the clock and what's going on (recording, the sleep timer) at the top right. */
     private void drawTop(Canvas c, Xtream.Channel ch, long now) {
-        box.set(X * k, 44 * k, (X + 124) * k, 106 * k);
-        // The resolution badge goes after the name and country, not on the logo (it covered part of it).
-        view.drawLogoBare(c, ch, box, 1, false, true);
-        String line = (ch.num > 0 ? ch.num + "  " : "") + view.nameOf(ch);
-        drawNameAndTag(c, line, view.tagOf(ch), view.badgeOf(ch), (X + 144) * k, 86 * k, 900 * k);
+        // Its logo, number and name are on the line with LIVE.
         c.drawText(Ui.time(now), (1920 - X) * k, 92 * k, clockPaint);
         float end = (1920 - X) * k - clockPaint.measureText(Ui.time(now)) - 26 * k;
         if (view.recordingNow()) {
@@ -782,7 +1106,8 @@ final class LiveOverlay {
         fill.setColor(INK);
         c.drawCircle(tx, barY, 16 * k, fill);
         c.drawCircle(tx, barY, 16 * k, stroke);
-        String t = LiveCatchup.skipLabel(target, at) + (past == null ? "" : " · " + Ui.time(past.start + target));
+        String t = past != null && newBar() ? LiveView.clock(target) + "  ·  " + LiveCatchup.skipLabel(target, at)
+                : LiveCatchup.skipLabel(target, at) + (past == null ? "" : " · " + Ui.time(past.start + target));
         drawBubble(c, t, tx, barL, barR, barY);
     }
 
@@ -1191,11 +1516,16 @@ final class LiveOverlay {
      * the fade.
      */
     private void drawPanel(Canvas c) {
+        drawPanel(c, 0);
+    }
+
+    /** `more`: how far it's lifted: it goes on that much further down. */
+    private void drawPanel(Canvas c, float more) {
         switch (LiveTheme.infoBar()) {
             case LiveTheme.BAR_CARD: {
                 boolean apple = LiveTheme.infoStyle() != LiveTheme.DISNEY;
                 float rr = (apple ? 44 : 28) * k;
-                plate.set((X - 40) * k, 596 * k, (1920 - X + 40) * k, 1044 * k);
+                plate.set((X - 40) * k, 596 * k, (1920 - X + 40) * k, 1044 * k + more);
                 fill.setColor((LiveTheme.bgTop & 0x00FFFFFF) | 0x8C000000);      // glass tinted by the design's own color
                 c.drawRoundRect(plate, rr, rr, fill);
                 fill.setColor(0x1AFFFFFF);
@@ -1207,14 +1537,14 @@ final class LiveOverlay {
             }
             case LiveTheme.BAR_BAND_LINE:
             case LiveTheme.BAR_BAND:
-                shade(c, band, 0, 590 * k, w, h);
+                shade(c, band, 0, 590 * k, w, h + more);
                 if (LiveTheme.infoBar() == LiveTheme.BAR_BAND_LINE) {
                     fill.setColor(LiveTheme.tile);
                     c.drawRect(0, 590 * k, w, 594 * k, fill);
                 }
                 break;
             case LiveTheme.BAR_SIDE:
-                shade(c, side, 0, 480 * k, w * 0.62f, h);
+                shade(c, side, 0, 480 * k, w * 0.62f, h + more);
                 break;
             default:
                 break;
@@ -1222,9 +1552,9 @@ final class LiveOverlay {
     }
 
     /** The named tabs; the focused one in the design's focus, a little bigger. */
-    private void drawTabs(Canvas c, Xtream.Program next) {
+    private void drawTabs(Canvas c) {
         float cy = ROW_Y * k, rad = TAB_H / 2 * k, rr = LiveTheme.panelRound(14 * k);
-        boolean focused = armed && !onBar;
+        boolean focused = armed && !onBar && !onNext;
         if (pillText == null) pillText = Ui.text(Ui.semibold, 29, WHITE);
         pillText.setTextSize(29 * k);
         if (focused) {
@@ -1237,7 +1567,11 @@ final class LiveOverlay {
             float bx = buttonX(i) * k, bw = buttonW(i) * k;
             boolean on = focused && i == focus && Math.abs(focusX.value - buttonX(i)) < 40;
             r.set(bx, cy - rad, bx + bw, cy + rad);
-            if (!on && buttons[i] == LIVE) {
+            if (!on && buttons[i] == LIVE && newBar()) {      // outlined: not the loudest thing on the screen
+                stroke.setStrokeWidth(2.5f * k);
+                stroke.setColor(0x8CFFFFFF);
+                c.drawRoundRect(r, rr, rr, stroke);
+            } else if (!on && buttons[i] == LIVE) {
                 fill.setColor(RED);
                 c.drawRoundRect(r, rr, rr, fill);
             } else if (!on) {
@@ -1247,20 +1581,52 @@ final class LiveOverlay {
                 c.drawRoundRect(r, rr, rr, fill);
                 LiveTheme.rim(c, r, rr, 1.5f * k);
             }
+            pillText.setTextSize(29 * k);       // buttonX measured with it, in the 1920 space
             pillText.setColor(on ? LiveTheme.ink : WHITE);
             float tw = pillText.measureText(name(buttons[i], false));
-            c.drawText(name(buttons[i], false), bx + (bw - tw) / 2, cy + Ui.halfCap(pillText), pillText);
+            String pic = icon(buttons[i]);
+            float side = pic.isEmpty() ? 0 : ICON_ROOM * k, at = bx + (bw - tw - side) / 2;
+            int ink = pillText.getColor();
+            c.drawText(name(buttons[i], false), at + side, cy + Ui.halfCap(pillText), pillText);
+            if (pic.equals("…")) {
+                fill.setColor(ink);
+                for (int d = 0; d < 3; d++) c.drawCircle(at + (6 + d * 11) * k, cy, 4 * k, fill);
+            } else if (!pic.isEmpty()) {
+                Symbols.draw(view.getContext(), c, pic, at + 16 * k, cy, ICON * k, buttons[i] == RECORD && !on ? 0xFFFF6961 : ink);
+            }
         }
-        if (next == null || count == 0) return;
-        // What's next, at the right of the row.
-        float left = (buttonX(count - 1) + buttonW(count - 1) + 40) * k, right = R * k;
-        String when = Ui.tr("A seguir", "Up next") + "  " + Ui.time(next.start) + "  ·  ";
-        float room = right - left - small.measureText(when);
-        if (room < 160 * k) return;
-        String show = ellipsize(next.title, upTitle, room);
-        float at = right - upTitle.measureText(show);
-        c.drawText(show, at, cy + Ui.halfCap(upTitle), upTitle);
-        c.drawText(when, at - small.measureText(when), cy + Ui.halfCap(small), small);
+    }
+
+    /** What's next, under the tabs: ▼ goes to it, OK reminds, records or opens it. */
+    private void drawUpNextRow(Canvas c, Xtream.Channel ch, long up) {
+        if (upNextAt == 0 || up - upNextAt > 1000) {
+            upNextAt = up;
+            upNextBell = LiveSchedule.has(live, LiveSchedule.REMIND, ch.id, upNext.start);
+        }
+        float cy = (ROW_Y + 84) * k, half = 28 * k, left = X * k, rr = LiveTheme.panelRound(14 * k);
+        String word = Ui.tr("A seguir", "Up next");
+        c.drawText(word, left, cy + Ui.halfCap(small), small);
+        left += small.measureText(word) + 20 * k;
+        boolean on = armed && onNext;
+        float bell = upNextBell ? 42 * k : 0;
+        String text = ellipsize(Ui.time(upNext.start) + "  ·  " + upNext.title, upTitle, Math.min(R * k - left - 52 * k - bell, 1100 * k));
+        r.set(left, cy - half, left + upTitle.measureText(text) + 52 * k + bell, cy + half);
+        if (on) {
+            glow.setColor(LiveTheme.tile);
+            c.drawRoundRect(r, rr, rr, glow);
+            upTitle.clearShadowLayer();
+        } else {
+            fill.setColor((LiveTheme.card & 0x00FFFFFF) | 0xF0000000);
+            c.drawRoundRect(r, rr, rr, fill);
+            fill.setColor(0x1FFFFFFF);
+            c.drawRoundRect(r, rr, rr, fill);
+        }
+        int ink = on ? LiveTheme.ink : WHITE;
+        if (upNextBell) Symbols.draw(view.getContext(), c, "bell", left + 42 * k, cy, 26 * k, ink);
+        upTitle.setColor(ink);
+        c.drawText(text, left + 26 * k + bell, cy + Ui.halfCap(upTitle), upTitle);
+        upTitle.setColor(0xFFFFFFFF);
+        upTitle.setShadowLayer(7 * k, 0, 2 * k, 0xCC000000);
     }
 
     static String pictureName(int mode) {
@@ -1330,6 +1696,33 @@ final class LiveOverlay {
                     return false;
             }
         }
+        if (onNext) {       // Up next
+            switch (code) {
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    onNext = false;
+                    LiveSpeech.say(view, name(buttons[focus], false));
+                    break;
+                case KeyEvent.KEYCODE_DPAD_CENTER:
+                case KeyEvent.KEYCODE_ENTER:
+                case KeyEvent.KEYCODE_NUMPAD_ENTER:
+                    if (upNext != null && live.playing() != null) view.laterPlaying(live.playing(), upNext);
+                    break;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    break;
+                default:
+                    return false;
+            }
+            view.invalidate();
+            return true;
+        }
+        if (code == KeyEvent.KEYCODE_DPAD_DOWN && upNext != null) {
+            onNext = true;
+            LiveSpeech.say(view, Ui.tr("A seguir", "Up next") + ", " + Ui.time(upNext.start) + ", " + upNext.title);
+            view.invalidate();
+            return true;
+        }
         if (code == KeyEvent.KEYCODE_DPAD_UP && view.canSeek()) {      // back up to the bar
             onBar = true;
             view.invalidate();
@@ -1381,6 +1774,35 @@ final class LiveOverlay {
             case MOMENTS:
                 openMoments();
                 return;
+            case MORE:
+                panel.show(name(MORE, false), this::moreRows);
+                return;
+            case RECORD:
+                view.toggleRecording();
+                break;
+            case SPEED:
+                live.setSpeeding(!live.speeding());
+                break;
+            case LAST:
+                if (live.previous() != null) view.tuneFromPlayer(live.previous());
+                return;
+            case FAVORITE:
+                view.toggleFavorite(ch);
+                break;
+            case SLEEP:
+                view.sleepMenu();
+                break;
+            case PICTURE:
+                live.nextAspect();
+                break;
+            case MULTI:
+                hide();
+                live.openMultiview();
+                return;
+            case GUIDE:
+                hide();
+                view.openGuide();
+                return;
             case SKIP_BACK:
             case SKIP_AHEAD:
                 view.seek(LiveCatchup.skipStep(live.minuteSkips(), b == SKIP_BACK));
@@ -1388,6 +1810,19 @@ final class LiveOverlay {
             case PLAY:
                 live.togglePause();
                 break;
+            case NEXT:
+                focus = 0;
+                live.playFollowing();
+                return;
+            case START_OVER:
+                focus = 0;
+                if (newBar()) {     // the past show itself, not what's on now
+                    onBar = true;
+                    live.jump(0);
+                } else {
+                    view.startOverPlaying();
+                }
+                return;
             case LIVE:
                 focus = 0;      // first: playing it live shows the live tabs, the focus on the first
                 live.backToLive();
@@ -1401,13 +1836,54 @@ final class LiveOverlay {
         view.invalidate();
     }
 
+    /** More: what isn't on the bar, then the rest of what the player does. */
+    private List<LivePlayerPanel.Row> moreRows() {
+        List<LivePlayerPanel.Row> rows = new java.util.ArrayList<>();
+        Xtream.Channel ch = live.playing();
+        Xtream.Program p = view.playingShow();
+        if (ch == null) return rows;
+        boolean past = live.catchup() != null;
+        for (final int b : LiveOptions.playerOrder(live)) {
+            boolean there = !can(b) || past && (b == START_OVER || b == INFO || b == RECORD);
+            for (int i = 0; i < count; i++) there |= buttons[i] == b;
+            if (there) continue;
+            String text = name(b, false);
+            if (b == PICTURE) text += ": " + pictureName(live.aspectMode());
+            if (b == SLEEP && view.sleepAt() > 0) text += "  ·  " + Ui.time(view.sleepAt());
+            LivePlayerPanel.Row row = new LivePlayerPanel.Row(text, () -> {
+                if (b != PICTURE && b != FAVORITE) panel.close();
+                press(b);
+            });
+            rows.add(b == FAVORITE ? row.toggle(favNow) : row);
+        }
+        if (p != null && view.recordable() != null) rows.add(more(Ui.tr("Gravar série", "Record series"), () -> view.seriesPlaying(p)));
+        if (p != null && !past && !LiveFollow.choices(p.title).isEmpty()) rows.add(more(Ui.tr("Seguir…", "Follow…"), view::followPlaying));
+        if (live.sources() != null) {
+            Xtream.Channel s = live.source();
+            rows.add(more(Ui.tr("Fonte", "Source") + (s == null ? "" : ": " + LiveMerge.label(s)), this::chooseSource));
+        }
+        rows.add(more(Ui.tr("Sobre o sinal", "Stream info"), view::streamInfo));
+        if (p != null) rows.add(more(Ui.tr("Sobre o programa", "About the show"), () -> {
+            hide();
+            view.aboutPlaying();
+        }));
+        return rows;
+    }
+
+    private LivePlayerPanel.Row more(String text, Runnable act) {
+        return new LivePlayerPanel.Row(text, () -> {
+            panel.close();
+            act.run();
+        });
+    }
+
     /** Info: the show, what can be done with it and what's later on the channel. */
     private void openInfo(Xtream.Channel ch) {
         Xtream.Program p = view.playingShow();
         List<LivePlayerInfo.Item> tabs = new java.util.ArrayList<>();
         int on = 0;
-        for (int i = 0; i < count; i++) {
-            final int b = buttons[i];
+        // Its own short row, whatever's on the bar.
+        for (final int b : tabs(live.catchup() != null || live.shifted(), true, true, can(MOMENTS), ch.archive > 0, can(MATCH))) {
             if (b == INFO) on = tabs.size();
             tabs.add(new LivePlayerInfo.Item(name(b, false), () -> {
                 info.close();
@@ -1420,6 +1896,9 @@ final class LiveOverlay {
         String tag = view.tagOf(ch);
         if (!tag.isEmpty()) meta.append(meta.length() > 0 ? "  ·  " : "").append(tag);
         if (p != null) meta.append(meta.length() > 0 ? "  ·  " : "").append((p.end - p.start) / 60_000).append(" min");
+        if (live.catchup() == null && !LiveOptions.streamLine(live) && !live.badges().isEmpty()) {
+            meta.append(meta.length() > 0 ? "  ·  " : "").append(TextUtils.join("  ·  ", live.badges()));
+        }
         info.show(p == null ? view.nameOf(ch) : p.title, Ui.tr("AO VIVO", "LIVE"), RED, meta.toString(),
                 p == null ? "" : LiveNames.about(live, p.title, p.about), tabs, on, () -> infoActions(ch, p),
                 Ui.tr("Depois em ", "Later on ") + view.nameWithCountry(ch), laterOn(ch));

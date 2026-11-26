@@ -288,12 +288,12 @@ final class LiveVoice {
 
     /** The catalog, read again only when the saved list changed. Blocking (the first time reads the whole list). */
     static synchronized Catalog catalog(Context c) {
-        long at = Xtream.listFile(c).lastModified();
+        long at = LiveHide.stamp(c);
         if (cached == null || cachedAt != at) {
             Xtream.Lineup l = Xtream.saved(c);
             if (l == null) return null;
             if (LiveProfiles.kids(c)) l = LiveProfiles.kidsOnly(c, l);
-            cached = new Catalog(l, Xtream.recent(c));
+            cached = new Catalog(l, LiveHide.shown(c, Xtream.recent(c)));
             cachedAt = at;
         }
         return cached;

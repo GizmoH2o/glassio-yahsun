@@ -24,7 +24,9 @@ import java.util.concurrent.Executors;
 final class LiveHealth {
     private LiveHealth() {}
 
-    static final int FROZE = 0, RECONNECT = 1, SWITCHED = 2, FAILED = 3;
+    static final int FROZE = 0, RECONNECT = 1, SWITCHED = 2, FAILED = 3, WAITED = 4;
+    /** What happens this soon after is the same stop (it froze, it connected again). */
+    private static final long SAME = 20_000;
     private static final long KEEP = 7 * 24 * 3600_000L;
     private static final int PER_CHANNEL = 60;
     private static final ExecutorService IO = Executors.newSingleThreadExecutor();
@@ -32,12 +34,12 @@ final class LiveHealth {
 
     /** A channel's week, added up. */
     static final class Entry {
-        int id, froze, reconnects, switched, failed;
+        int id, froze, reconnects, switched, failed, waited, stops;
         String name = "";
         long last;
 
         int total() {
-            return froze + reconnects + switched + failed;
+            return stops;
         }
     }
 
@@ -68,12 +70,23 @@ final class LiveHealth {
         JSONObject e = read(c).optJSONObject(String.valueOf(id));
         JSONArray ev = e == null ? null : e.optJSONArray("ev");
         if (ev == null) return 0;
-        long from = System.currentTimeMillis() - ms;
+        return stops(ev, System.currentTimeMillis() - ms);
+    }
+
+    private static int stops(JSONArray ev, long from) {
+        long[] at = new long[ev.length()];
+        for (int i = 0; i < at.length; i++) at[i] = ev.optJSONArray(i) == null ? 0 : ev.optJSONArray(i).optLong(0);
+        return stops(at, from);
+    }
+
+    /** How many stops those moments are, from `from` on: what follows closely is one. Pure. */
+    static int stops(long[] at, long from) {
         int n = 0;
-        for (int i = ev.length() - 1; i >= 0; i--) {
-            JSONArray one = ev.optJSONArray(i);
-            if (one == null || one.optLong(0) < from) break;
-            n++;
+        long last = -SAME - 1;
+        for (long t : at) {
+            if (t < from) continue;
+            if (n == 0 || t - last > SAME) n++;
+            last = t;
         }
         return n;
     }
@@ -103,9 +116,11 @@ final class LiveHealth {
                     case FROZE: en.froze++; break;
                     case RECONNECT: en.reconnects++; break;
                     case SWITCHED: en.switched++; break;
+                    case WAITED: en.waited++; break;
                     default: en.failed++; break;
                 }
             }
+            en.stops = stops(ev, from);
             if (en.total() > 0) out.add(en);
         }
         Collections.sort(out, (a, b) -> a.total() != b.total() ? b.total() - a.total() : Long.compare(b.last, a.last));
@@ -120,8 +135,10 @@ final class LiveHealth {
             if (e.reconnects > 0) parts.add(Russian.count(e.reconnects, "переподключение", "переподключения", "переподключений"));
             if (e.switched > 0) parts.add(Russian.count(e.switched, "смена источника", "смены источника", "смен источника"));
             if (e.failed > 0) parts.add(Russian.count(e.failed, "сбой", "сбоя", "сбоев"));
+            if (e.waited > 0) parts.add(Russian.count(e.waited, "ожидание", "ожидания", "ожиданий"));
             return android.text.TextUtils.join("  ·  ", parts);
         }
+        if (e.waited > 0) parts.add(e.waited + (e.waited == 1 ? Ui.tr(" espera", " wait") : Ui.tr(" esperas", " waits")));
         if (e.froze > 0) parts.add(e.froze + (e.froze == 1 ? Ui.tr(" travada", " freeze") : Ui.tr(" travadas", " freezes")));
         if (e.reconnects > 0) parts.add(e.reconnects + (e.reconnects == 1 ? Ui.tr(" reconexão", " reconnect") : Ui.tr(" reconexões", " reconnects")));
         if (e.switched > 0) parts.add(e.switched + (e.switched == 1 ? Ui.tr(" troca de fonte", " source switch") : Ui.tr(" trocas de fonte", " source switches")));

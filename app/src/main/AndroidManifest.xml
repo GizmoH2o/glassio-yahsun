@@ -169,6 +169,8 @@
             android:screenOrientation="landscape"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@style/Theme.Glass.Live"/>
+        <!-- Replace Google TV's home: its safety net, in a process of its own (the home screen's crash doesn't take it along). -->
+        <receiver android:name=".HomeRescueReceiver" android:process=":rescue" android:exported="false"/>
         <!-- Live TV's process woken ahead while the home screen's Live TV page is open (its list read, ready for Watch). -->
         <receiver android:name=".live.LiveWarm" android:process=":live" android:exported="false"/>
         <!-- Multiview: two to four channels at once, from Live TV (its task, its process). -->
@@ -220,6 +222,18 @@
             android:taskAffinity="${applicationId}.reminder"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
             android:theme="@android:style/Theme.Translucent.NoTitleBar.Fullscreen"/>
+        <!-- The TV turned off while something records: the black screen, in the recorder's process. -->
+        <activity
+            android:name=".live.RecordOffActivity"
+            android:process=":rec"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.recordoff"
+            android:screenOrientation="landscape"
+            android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|screenLayout|smallestScreenSize|uiMode|density|fontScale|locale|layoutDirection"
+            android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"/>
+        <receiver android:name=".data.StandbyReceiver" android:exported="false"/>
         <!-- Live TV's recordings, in their own process, going on with Live TV closed. -->
         <service
             android:name=".live.RecordService"

@@ -149,7 +149,7 @@ final class LiveView extends View {
     // The guide's groups (◀ in the guide, TiviMate's): the menu rail and the categories beside the guide, which
     // moves over; ↑ ↓ pick the category (the guide follows), ← the rail, → or OK back to the guide.
     private static final float GP_RAIL = 110, GP_W = 600;
-    private boolean gGroups, gRail;
+    private boolean gGroups, gRail, railDown, railHeld;
     private int gRailIdx, gGroupIdx, gGroupTopI;
     private final List<Integer> panelCats = new ArrayList<>();
     private final Spring gPanel = new Spring(0.26f, 1f, 0), gGroupRow = new Spring(0.22f, 0.86f, 0), gGroupTop = new Spring(0.3f, 1f, 0);
@@ -224,7 +224,7 @@ final class LiveView extends View {
         runSearch();
         providerOrder.clear();
         providerOrder.addAll(l.categories);
-        List<Xtream.Channel> every = l.all();
+        List<Xtream.Channel> every = l.every();
         position.clear();
         for (int i = 0; i < every.size(); i++) position.put(every.get(i), i);
         sort();
@@ -349,11 +349,11 @@ final class LiveView extends View {
         if (lineup == null) return;
         for (Xtream.Channel r : Xtream.recent(getContext())) {
             Xtream.Channel ch = lineup.find(r.id);
-            if (ch != null && !history.channels.contains(ch)) history.channels.add(ch);
+            if (ch != null && !lineup.away.contains(ch.id) && !history.channels.contains(ch)) history.channels.add(ch);
         }
     }
 
-    /** The lineup without the categories hidden in the settings (Favorites, All channels and Search always stay). */
+    /** The lineup without the categories hidden in the settings (Favorites, All channels and Search always stay; LiveHide empties those of their channels). */
     private void filterHidden() {
         Set<String> hidden = LiveOptions.hidden(getContext());
         lineup.categories.clear();
@@ -468,7 +468,7 @@ final class LiveView extends View {
     private void drawSubtitle(Canvas c) {
         if (subtitle.isEmpty() || mode != WATCH) return;
         if (subtitleLayout == null) subtitleLayout = captionLayout(subtitle);
-        drawCaption(c, subtitleLayout, w / 2f, overlay.tall() ? 560 * k : h - 64 * k);
+        drawCaption(c, subtitleLayout, w / 2f, overlay.tall() ? 500 * k : h - 64 * k);
     }
 
     /** A sample of the captions as set (the settings' Captions), centered on cx, its last line at `bottom`. */
@@ -576,7 +576,18 @@ final class LiveView extends View {
     }
 
     /** Another screen comes in: it fades (and slides) in from nothing. */
+    /**
+     * Settings left for another screen, whichever way (Back, or Home and then a channel picked there): the video comes
+     * out of their window. Only Back did it, and a channel opened over them played on in the small window.
+     */
+    private void leftSettings(int next) {
+        if (mode != SETTINGS || next == SETTINGS) return;
+        settings.closed();
+        settingsFromHome = false;
+    }
+
     private void enter(int next) {
+        leftSettings(next);
         if (mode != next || closingTo >= 0) appear.snap(0);
         appear.target = 1;
         closingTo = -1;
@@ -585,6 +596,7 @@ final class LiveView extends View {
 
     /** The screen goes (fading out), then `next` takes over. */
     private void leave(int next) {
+        leftSettings(next);
         closingTo = next;
         appear.target = 0;
         invalidate();
@@ -683,6 +695,12 @@ final class LiveView extends View {
             else if (mode == LIST) drawList(c);
             else if (mode == SETTINGS) settings.draw(c, Ui.clamp(appear.value), w, h);
             else overlay.draw(c, up);
+            if (mode == WATCH) {
+                if (live.catchup() == null && !nextCard.any()) nextCard.hide();        // another channel, live
+                nextCard.draw(c, k, overlay.tall());
+                trouble.on(live.playing(), live.catchup() == null);
+                if (troubleClear()) trouble.draw(c, k);
+            }
             drawSubtitle(c);
             if (buffering && status.isEmpty() && mode != SETTINGS) {
                 // Over the video: the preview's middle in the guide, the right side beside the list, else the screen's.
@@ -698,6 +716,17 @@ final class LiveView extends View {
         }
         if (drawNotice(c)) moving = true;
         if (moving || Marquee.moving) postInvalidateOnAnimation();     // a long title scrolling
+    }
+
+    private final LiveTroubleCard trouble = new LiveTroubleCard(this);
+
+    /** Nothing else is where the card for a channel that keeps stopping goes. */
+    private boolean troubleClear() {
+        return !overlay.tall() && overlay.peeking() == null && !overlay.cardShowing() && !nextCard.showing();
+    }
+
+    LiveTroubleCard trouble() {
+        return trouble;
     }
 
     /** Black over the video while a channel starts, fading out on its first frame (only the window in the guide). */
@@ -729,9 +758,16 @@ final class LiveView extends View {
         float rise = (1f - pageEase(in)) * 20 * k;
         String name = ellipsize(nameOf(ch), identName, 1200 * k), num = ch.num > 0 ? String.valueOf(ch.num) : "";
         // Above the spinner (which sits at the middle while it loads).
-        float base = (overlay.tall() ? 380 * k : h / 2f) - 80 * k;
+        Xtream.Program on = live.catchup() != null ? live.catchup() : onNow(ch, System.currentTimeMillis());
+        String show = on == null || on.title.equals(ch.name) ? "" : on.title;
+        float base = (overlay.tall() ? 380 * k : h / 2f) - (show.isEmpty() ? 80 : 128) * k;
         c.drawText(name, w / 2f - identName.measureText(name) / 2, base + rise, identName);
         if (!num.isEmpty()) c.drawText(num, w / 2f - identNum.measureText(num) / 2, base - 56 * k + rise, identNum);
+        if (!show.isEmpty()) {      // what's on it
+            if (live.catchup() == null) show += "  ·  " + minutesLeft((int) Math.max(1, Math.round((on.end - System.currentTimeMillis()) / 60_000.0)));
+            show = ellipsize(show, identNum, 1200 * k);
+            c.drawText(show, w / 2f - identNum.measureText(show) / 2, base + 48 * k + rise, identNum);
+        }
     }
 
     private final Paint identName = new Paint(Paint.ANTI_ALIAS_FLAG), identNum = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1879,6 +1915,14 @@ final class LiveView extends View {
                 clearDigits();
                 return true;
             }
+            if (mode == WATCH && nextCard.showing() && !overlay.tall()) {     // Not now
+                nextCard.back();
+                return true;
+            }
+            if (mode == WATCH && trouble.showing() && troubleClear()) {
+                trouble.back();
+                return true;
+            }
             if (mode == WATCH && overlay.cardShowing()) {     // the Up next card goes first
                 overlay.closeCard();
                 return true;
@@ -1888,7 +1932,7 @@ final class LiveView extends View {
                 return true;
             }
             // A past program, or live TV behind: Back goes to its channel live.
-            if (mode == WATCH && (live.catchup() != null || live.shifted())) {
+            if (mode == WATCH && (live.catchup() != null || live.shifted()) && !live.asLive()) {
                 live.backToLive();
                 return true;
             }
@@ -1929,6 +1973,8 @@ final class LiveView extends View {
         }
         boolean ours = isOurs(code);
         if (!ours) return false;
+        if (mode == WATCH && !overlay.tall() && digits.isEmpty() && nextCard.key(e)) return true;
+        if (mode == WATCH && digits.isEmpty() && trouble.key(e, troubleClear())) return true;
         // A goal card offering the match: OK goes there.
         if (ok(code) && (offering() || goalPressed)) {
             if (down && e.getRepeatCount() == 0) {
@@ -1951,6 +1997,19 @@ final class LiveView extends View {
         }
         if (mode == WATCH && digits.isEmpty() && lineup != null && holdable(code)) return watchPress(e, down);
         if (mode == GUIDE && gGroups && digits.isEmpty()) {
+            if (gRail && gRailIdx == 0 && ok(code) && LivePlaylists.all(getContext()).size() > 1) {     // Home: held, the playlists
+                if (down && e.getRepeatCount() == 0) {
+                    railDown = true;
+                    railHeld = false;
+                } else if (down && railDown && !railHeld) {
+                    railHeld = true;
+                    live.quickSwitch();
+                } else if (!down && railDown) {
+                    railDown = false;
+                    if (!railHeld && !e.isCanceled()) guideGroupsKey(code);
+                }
+                return true;
+            }
             if (down) guideGroupsKey(code);
             return true;
         }
@@ -2202,6 +2261,7 @@ final class LiveView extends View {
 
     // MARK: - Up next
 
+    final LiveNextCard nextCard = new LiveNextCard(this);
     private LiveSheet upNextCard;
     private int upNextLeft;
     private Runnable upNextPlay, upNextTick;
@@ -2262,6 +2322,7 @@ final class LiveView extends View {
     /** Live TV left the screen (Home, another app): the timer goes off quietly, its card with it. */
     void cancelSleep() {
         dismissUpNext();        // an Up next card goes with the screen too
+        nextCard.hide();
         if (sleepAt <= 0 && sleepCard == null) return;
         sleepAt = 0;
         removeCallbacks(sleepTick);
@@ -2317,6 +2378,10 @@ final class LiveView extends View {
      */
     private void goToSleep() {
         final android.content.Context app = getContext().getApplicationContext();
+        if (RecordOff.instead(app)) {
+            live.finish();
+            return;
+        }
         new Thread(() -> {
             if (!com.glasslauncher.tv.data.LocalShell.runCommand(app, "input keyevent KEYCODE_SLEEP")) {
                 AppLog.w("live: couldn't put the TV to sleep");
@@ -2426,7 +2491,8 @@ final class LiveView extends View {
 
     private Xtream.Channel byNumber(int n) {
         for (Xtream.Channel ch : lineup.all()) if (ch.num == n) return ch;
-        for (Xtream.Channel ch : lineup.all()) {      // a merged channel's other sources keep their numbers
+        for (Xtream.Channel ch : lineup.every()) if (ch.num == n) return ch;      // a hidden one, asked for by its number
+        for (Xtream.Channel ch : lineup.every()) {      // a merged channel's other sources keep their numbers
             if (ch.sources != null) for (Xtream.Channel s : ch.sources) if (s.num == n) return ch;
         }
         return null;
@@ -2651,6 +2717,18 @@ final class LiveView extends View {
         }
     }
 
+    /** A past show from a page (Recordings), full screen. */
+    void playPast(Xtream.Channel ch, Xtream.Program p) {
+        live.playCatchup(ch, p, 0);
+        if (mode != WATCH) leave(WATCH);
+        invalidate();
+    }
+
+    /** Full screen on a channel (not in the guide, a list or the settings). */
+    boolean full() {
+        return mode == WATCH;
+    }
+
     /** Recordings, the page (recording now, recorded, set for later). */
     void openRecordings() {
         if (lineup == null) return;
@@ -2870,7 +2948,7 @@ final class LiveView extends View {
         AppLog.w("live: voice game → " + ch.num + " " + ch.name + (on ? " (on now)" : " at " + p.start));
         if (kind == LiveVoiceCommand.RECORD_GAME) {
             if (on) {
-                if (!LiveRecordings.recording(c, ch.id, p.start)) RecordService.start(c, item(LiveSchedule.RECORD, ch, p));
+                if (!LiveRecordings.recording(c, ch.id, p.start)) live.recordNow(item(LiveSchedule.RECORD, ch, p));
                 flash(Ui.tr("Gravando ", "Recording ") + p.title + Ui.tr(" até ", " until ") + Ui.time(p.end));
             } else {
                 if (!LiveSchedule.has(c, LiveSchedule.RECORD, ch.id, p.start)) LiveSchedule.add(c, item(LiveSchedule.RECORD, ch, p));
@@ -3004,8 +3082,7 @@ final class LiveView extends View {
         String digitsOnly = words.replace(" ", "");
         if (digitsOnly.matches("\\d{1,5}")) {
             int n = Integer.parseInt(digitsOnly);
-            for (Xtream.Channel ch : lineup.all()) if (ch.num == n) return ch;
-            return null;
+            return byNumber(n);
         }
         String want = core(words);
         if (want.isEmpty()) return null;
@@ -3839,7 +3916,12 @@ final class LiveView extends View {
     /** Glassio's Settings › Live TV: the settings ([section]; -1 the first screen), Back going back to Glassio. */
     void openSettingsFromHome(int section) {
         settingsFromHome = true;
-        if (mode == SETTINGS) settings.open(); else openSettings();
+        if (mode == SETTINGS) {
+            enter(SETTINGS);        // also when they were just going
+            settings.open();
+        } else {
+            openSettings();
+        }
         if (section >= 0) settings.openAt(section);
         invalidate();
     }
@@ -4158,9 +4240,141 @@ final class LiveView extends View {
     private final RectF badgeRect = new RectF();
     private int pendingBadge;       // 1 NEW, 2 LIVE: drawn on the next tile (over it)
     private String pendingBadgeText = "", badgeNew = "NEW", badgeLive = "LIVE", badgeRepeat = "REPEAT";
+    private int guideTags;
     private TextPaint gAboutPaint;
 
+    /** The guide's look (Settings > Guide): read as its paints are made. */
+    private boolean softFocus, bigLogos, greyRows, statusLine;
+    private Paint outline, dashes, gNameBig;
+    private final java.util.HashMap<Integer, String[]> nameLines = new java.util.HashMap<>();
+
+    private void readGuideLook() {
+        android.content.Context c = getContext();
+        boolean c3 = LiveTheme.cinema();
+        softFocus = c3 && LiveOptions.guideSoft(c) && !LiveTheme.highContrast;
+        bigLogos = c3 && !compact && LiveOptions.guideBigLogos(c) && LiveOptions.channelMark(c) != LiveOptions.MARK_NUMBER;
+        greyRows = LiveOptions.guideGrey(c);
+        statusLine = LiveOptions.guideStatus(c);
+        outline = new Paint(Paint.ANTI_ALIAS_FLAG);
+        outline.setStyle(Paint.Style.STROKE);
+        outline.setStrokeWidth(3 * k);
+        dashes = new Paint(Paint.ANTI_ALIAS_FLAG);
+        dashes.setStyle(Paint.Style.STROKE);
+        dashes.setStrokeWidth(2 * k);
+        dashes.setColor(0x38FFFFFF);
+        dashes.setPathEffect(new android.graphics.DashPathEffect(new float[] {10 * k, 8 * k}, 0));
+        gNameBig = Ui.text(Ui.semibold, 18.5f * k, WHITE);
+        nameLines.clear();
+        gStatus = null;
+    }
+
+    /** The focus's fill and line where it's soft: grey, its edge in the theme's colour. */
+    private static final int SOFT = 0xFF3A3A40;
+
+    private void drawSoft(Canvas c, RectF r, float rr, float a) {
+        fill.setShader(null);
+        fill.setColor(Ui.alpha(SOFT, a));
+        c.drawRoundRect(r, rr, rr, fill);
+    }
+
+    private void drawOutline(Canvas c, RectF r, float rr, float a) {
+        outline.setColor(Ui.alpha(LiveTheme.tile, a));
+        float in = 1.5f * k;
+        c.drawRoundRect(r.left + in, r.top + in, r.right - in, r.bottom - in, rr - in, rr - in, outline);
+    }
+
+    /** A channel's name on one line or two (`room` wide), kept. */
+    private String[] linesOf(Xtream.Channel channel, float room) {
+        String name = nameOf(channel);
+        String[] l = nameLines.get(channel.id);
+        if (l != null && l[0].equals(name)) return l;
+        String a = name, b = "";
+        if (gNameBig.measureText(name) > room) {
+            int n = gNameBig.breakText(name, true, room, null), space = name.lastIndexOf(' ', n);
+            int at = space > 0 ? space : n;
+            a = name.substring(0, at);
+            b = ellipsize(name.substring(at).trim(), gNameBig, room);
+        }
+        l = new String[] {name, a, b};
+        if (nameLines.size() > 600) nameLines.clear();
+        nameLines.put(channel.id, l);
+        return l;
+    }
+
+    // Every channel of the list from one country: its tag on each says nothing.
+    private List<Xtream.Channel> oneTagFor;
+    private boolean oneTag;
+
+    private boolean sameTag(List<Xtream.Channel> rows) {
+        if (rows == oneTagFor) return oneTag;
+        oneTagFor = rows;
+        oneTag = rows.size() > 1;
+        String t = rows.isEmpty() ? "" : tagOf(rows.get(0));
+        for (int i = 1; oneTag && i < rows.size() && i < 2000; i++) oneTag = t.equals(tagOf(rows.get(i)));
+        return oneTag;
+    }
+
+    /** The status line: what's recording and the streams in use (amber: none to spare), no connection, the guide's age. */
+    private String gStatus, gStatusDim;
+    private int gStatusColor;
+    private long gStatusAt;
+
+    private void readStatus() {
+        long up = SystemClock.uptimeMillis();
+        if (gStatus != null && up - gStatusAt < 2000) return;
+        gStatusAt = up;
+        android.content.Context c = getContext();
+        int recs = LiveStreams.recording(c).size(), max = Xtream.knownMax(c), used = recs + (live.streaming() ? 1 : 0);
+        boolean online = Boolean.TRUE.equals(com.glasslauncher.tv.data.Online.INSTANCE.getUp().getValue());
+        gStatusColor = 0xFFD0D0D4;
+        if (!online) {
+            gStatus = Ui.tr("Sem conexão", "No connection");
+            gStatusColor = 0xFFFFB340;
+        } else if (recs > 0) {
+            gStatus = Ui.tr("Gravando ", "Recording ") + recs;
+            if (max > 0) {
+                gStatus += "  ·  " + LiveStreams.inUse(used, max);
+                if (used >= max) gStatusColor = 0xFFFFB340;
+            }
+        } else {
+            gStatus = "";
+        }
+        gStatusDim = "";
+        if (LiveOptions.fullGuide(c)) {
+            long at = XmltvStore.updatedAt(c), age = System.currentTimeMillis() - at;
+            if (XmltvStore.running()) gStatusDim = Ui.tr("Atualizando o guia…", "Updating the guide…");
+            else if (at > 0 && age > 36 * 3600_000L) gStatusDim = Ui.tr("Guia de ", "Guide from ") + dayShort.format(new java.util.Date(at));
+            else if (at > 0) gStatusDim = Ui.tr("Guia atualizado às ", "Guide updated ") + Ui.time(at);
+        }
+    }
+
+    private void drawGuideStatus(Canvas c) {
+        if (!statusLine) return;
+        boolean c3 = LiveTheme.cinema();
+        float y = c3 ? 336 * k : (CHIP_Y - 8) * k;
+        if (!c3 && (CHIP_Y < 340 || G_ABOUT_LINES > 3)) return;       // no room in this look
+        readStatus();
+        float x = G_INFO_X * k, room = (G_INFO_R - G_INFO_X) * k;
+        Paint p = gSub;
+        int was = p.getColor();
+        if (gStatus.startsWith(Ui.tr("Gravando ", "Recording "))) {
+            fill.setShader(null);
+            fill.setColor(LIVE_RED);
+            c.drawCircle(x + 7 * k, y - Ui.halfCap(p), 6 * k, fill);
+            x += 24 * k;
+            room -= 24 * k;
+        }
+        p.setColor(gStatusColor);
+        String s = ellipsize(gStatus, p, room);
+        c.drawText(s, x, y, p);
+        float sw = gStatus.isEmpty() ? 0 : p.measureText(s);
+        p.setColor(0xFF8E8E93);
+        if (!gStatusDim.isEmpty() && room - sw > 160 * k) c.drawText(ellipsize((sw > 0 ? "  ·  " : "") + gStatusDim, p, room - sw), x + sw, y, p);
+        p.setColor(was);
+    }
+
     private void makeGuidePaints() {
+        readGuideLook();
         if (LiveTheme.cinema()) {
             float s3 = compact ? 0.92f : 1;
             gTitle = Ui.text(Ui.displaySemibold, 54 * k, WHITE);
@@ -4205,6 +4419,7 @@ final class LiveView extends View {
         gNameOn = Ui.text(Ui.medium, 19 * cs * k, LiveTheme.text);
         gBadge = Ui.text(Ui.semibold, 16 * cs * k, WHITE);
         badgeRepeat = Ui.tr("REPRISE", "REPEAT");
+        guideTags = LiveOptions.guideTags(getContext());
         badgeNew = Ui.tr("NOVO", "NEW");
         badgeLive = Ui.tr("AO VIVO", "LIVE");
         gAboutText = "";
@@ -4326,54 +4541,6 @@ final class LiveView extends View {
             "tennis", "grand prix", "formula 1", "boxing", "ufc", "racing", "premier league", "champions league", "serie a",
             "laliga", "bundesliga", "match", " v ", " vs "};
 
-    /** Filter `f` on: the channels it keeps, every category's, in the provider's order (the guide from its top). */
-    private void applyFilter(int f) {
-        gFilter = f;
-        gFiltered = null;
-        if (f != F_ALL && lineup != null) {
-            java.util.Map<String, String> groups = new java.util.HashMap<>();
-            for (Xtream.Category cg : lineup.categories) groups.put(cg.id, fold(cg.name));
-            List<Xtream.Channel> out = new ArrayList<>();
-            if (f == F_FAVORITES) {
-                out.addAll(lineup.categories.get(0).channels);
-            } else {
-                long now = System.currentTimeMillis();
-                for (Xtream.Channel ch : lineup.all()) {
-                    String g = groups.get(ch.category), name = fold(ch.name);
-                    boolean keep = false;
-                    for (String word : FILTER_WORDS[f]) {
-                        if (name.contains(word) || g != null && g.contains(word)) {
-                            keep = true;
-                            break;
-                        }
-                    }
-                    if (!keep && f == F_SPORTS) {       // a sport on a channel of any kind, now (its guide, when here)
-                        List<Xtream.Program> progs;
-                        synchronized (epg) {
-                            progs = epg.get(ch.id);
-                        }
-                        int at = programAt(progs, now);
-                        if (at >= 0) {
-                            String t = " " + fold(progs.get(at).title) + " ";
-                            for (String word : SPORTS_TITLES) if (t.contains(word)) keep = true;
-                        }
-                    }
-                    if (keep) out.add(ch);
-                }
-            }
-            gFiltered = out;
-        }
-        gRow = 0;
-        gTop = 0;
-        gCol = 1;
-        gTime = System.currentTimeMillis();
-        List<Xtream.Channel> rows = guideChannels();
-        if (rows.isEmpty()) flash(Ui.tr("Nenhum canal com este filtro", "No channels with this filter"));
-        aimGuide(true);
-        LiveSpeech.say(this, filterName(f) + ", " + rows.size());
-        invalidate();
-    }
-
     /** The filters' row, at the right above the time line: the one on (white), the focus (the theme's tile). */
     private void drawChips(Canvas c) {
         float x = G_INFO_X * k, y = CHIP_Y * k;
@@ -4454,7 +4621,8 @@ final class LiveView extends View {
             Long at = epgAt.get(channel.id);
             boolean stale = at == null || !fresh(at, list, now);
             epgWanted.put(channel.id, now);
-            if ((list == null || stale) && epgPending.add(channel.id)) {
+            Long again = epgAgain.get(channel.id);
+            if ((list == null || stale) && (again == null || now >= again) && epgPending.add(channel.id)) {
                 final Xtream.Channel chan = channel;
                 final List<Xtream.Program> had = list;
                 epgIo.execute(() -> loadGuide(chan, had));
@@ -4534,7 +4702,11 @@ final class LiveView extends View {
                 got = keepPast(channel, before, Xtream.guide(c, channel, 12), now);
                 Xtream.saveGuide(c, channel.id, got, now);
             } catch (IOException e) {
-                got = before;     // the provider can't be reached: what there was, until the next try
+                got = before;     // the provider can't be reached: what there was, asked for again in a few minutes
+                at = 0;
+                synchronized (epg) {
+                    epgAgain.put(channel.id, now + GUIDE_AGAIN);
+                }
             }
         }
         synchronized (epg) {
@@ -4577,10 +4749,17 @@ final class LiveView extends View {
     }
 
     /** A new full guide is in use: every channel's programs are read again (from it). */
+    /** Another playlist: its groups are others. */
+    void closeMenu() {
+        if (gGroups) closeGuideGroups();
+        if (mode == GUIDE) closeGuide();        // its channel full screen (the guide again when it has none)
+    }
+
     void guideReplaced() {
         synchronized (epg) {
             epg.clear();
             epgAt.clear();
+            epgAgain.clear();
         }
         if (!query.trim().isEmpty()) runSearch();
         invalidate();
@@ -4593,9 +4772,16 @@ final class LiveView extends View {
     private boolean fresh(long at, List<Xtream.Program> list, long now) {
         android.content.Context c = getContext();
         if (now - at > LiveOptions.guideHours(c) * HOUR || at > now) return false;
+        // Nothing: perhaps only for now (the provider busy, its guide still on its way): "No guide" stayed for hours.
+        if (list == null || list.isEmpty()) return now - at < GUIDE_AGAIN;
         if (LiveOptions.guideOnStart(c) && at < sessionAt) return false;
-        return list == null || list.isEmpty() || list.get(list.size() - 1).end > now + HOUR;
+        return list.get(list.size() - 1).end > now + HOUR;
     }
+
+    /** The channels whose guide couldn't be fetched, and when it may be asked for again (not at every redraw). */
+    private final java.util.Map<Integer, Long> epgAgain = new java.util.HashMap<>();
+    /** A channel's guide that didn't come is asked for again after this long. */
+    private static final long GUIDE_AGAIN = 3 * 60_000L;
 
     /** The new programs, after the ones from `before` that are over and still within the days kept. */
     private List<Xtream.Program> keepPast(Xtream.Channel channel, List<Xtream.Program> before, List<Xtream.Program> fresh, long now) {
@@ -4913,11 +5099,15 @@ final class LiveView extends View {
                 try {
                     past = Xtream.guide(c, channel, 12);
                 } catch (IOException | RuntimeException e) {
-                    past = null;
+                    post(() -> {        // asked for again the next time ◀ is held
+                        pastAsked.remove(channel.id);
+                        flash(Ui.tr("Não deu para carregar a reprise. Tente de novo.", "Couldn't load the catch-up. Try again."));
+                    });
+                    return;
                 }
                 List<Xtream.Program> merged = new ArrayList<>();
                 long first = had.isEmpty() ? Long.MAX_VALUE : had.get(0).start;
-                if (past != null) for (Xtream.Program q : past) if (q.end <= first && q.end <= now) merged.add(q);
+                for (Xtream.Program q : past) if (q.end <= first && q.end <= now) merged.add(q);
                 merged.addAll(had);
                 post(() -> {
                     synchronized (epg) {
@@ -5005,6 +5195,7 @@ final class LiveView extends View {
         List<Xtream.Program> fp = focus == null ? null : programs(focus);
         int fi = programAt(fp, gCol == 1 ? gTime : now);
         drawGuideInfo(c, focus, fi >= 0 ? fp.get(fi) : null, fp == null, now);
+        drawGuideStatus(c);
         drawPreviewFrame(c, now);
         c.translate(0, rise);
         // The time line.
@@ -5053,6 +5244,7 @@ final class LiveView extends View {
         }
         int first = Math.max(0, (int) Math.floor(gRowsTop.value)), last = Math.min(rows.size(), first + G_ROWS + 2);
         Xtream.Channel playing = live.playing();
+        if (bigLogos) sameTag(rows);
         for (int r = first; r < last; r++) {
             Xtream.Channel channel = rows.get(r);
             float y = rowY(r, 0), cy = y + G_ROW_H / 2 * k;
@@ -5116,7 +5308,7 @@ final class LiveView extends View {
             float x1 = Math.max(G_GRID_X * k, timeX(fA.value)), x2 = Math.min(G_GRID_R * k, timeX(fB.value)) - (c3 ? 9 : 6) * k;
             focusRect.set(x1, fy, Math.max(x1 + 12 * k, x2), fy + G_ROW_H * k);
             fill.setShader(null);
-            fill.setColor(Ui.alpha(LiveTheme.tile, col * away));
+            fill.setColor(Ui.alpha(softFocus ? SOFT : LiveTheme.tile, col * away));
             if (LiveTheme.cinema() && gHead == 0) {     // lifted off the page, as a card on the home screen
                 focusRect.inset(-3 * k, -3 * k);
                 if (liftPaint == null) {
@@ -5125,9 +5317,11 @@ final class LiveView extends View {
                     liftPaint.setShadowLayer(26 * k, 0, 10 * k, 0xA6000000);
                 }
                 c.drawRoundRect(focusRect, 15 * k * LiveTheme.rounding(), 15 * k * LiveTheme.rounding(), liftPaint);
+                fill.setColor(Ui.alpha(softFocus ? SOFT : LiveTheme.tile, col * away));
             }
             float focusR = c3 ? 15 * k * LiveTheme.rounding() : 10 * k * LiveTheme.round;
             c.drawRoundRect(focusRect, focusR, focusR, fill);
+            if (softFocus) drawOutline(c, focusRect, focusR, col * away);
             if (col > 0.5f && gHead == 0) {    // the titles again over the red (where it covers them)
                 c.save();
                 c.clipRect(focusRect);
@@ -5168,11 +5362,18 @@ final class LiveView extends View {
         float rr = 15 * k * LiveTheme.rounding();
         fill.setColor(LiveTheme.cellPast);
         c.drawRoundRect(cell, rr, rr, fill);
-        if (onTile > 0.01f) {
+        if (onTile > 0.01f && softFocus) {
+            drawSoft(c, cell, rr, onTile);
+            drawOutline(c, cell, rr, onTile);
+        } else if (onTile > 0.01f) {
             fill.setColor(Ui.alpha(LiveTheme.tile, onTile));
             c.drawRoundRect(cell, rr, rr, fill);
         }
-        boolean on = onTile > 0.5f;
+        boolean on = onTile > 0.5f && !softFocus;
+        if (bigLogos) {
+            drawChannelBig(c, channel, on, playing);
+            return;
+        }
         int ink = on ? LiveTheme.ink : 0xFFFFFFFF, sub = on ? LiveTheme.inkSoft() : 0xFFB3B3B8;
         String tag = tagOf(channel), badge = badgeOf(channel);
         boolean isPlaying = playing != null && playing.id == channel.id, fav = Xtream.isFavorite(lineup, channel.id);
@@ -5212,6 +5413,61 @@ final class LiveView extends View {
 
     private final RectF markBox = new RectF();
 
+    /** The channel with its logo large on an even plate, its name beside it (two lines), its number and the rest under. */
+    private void drawChannelBig(Canvas c, Xtream.Channel channel, boolean on, Xtream.Channel playing) {
+        float cy = cell.centerY(), half = Math.min(36 * k, cell.height() / 2 - 5 * k);
+        markBox.set(cell.left + 8 * k, cy - half, cell.left + 128 * k, cy + half);
+        Bitmap b = logo(channel.logo);
+        float pr = 11 * k * LiveTheme.rounding();
+        fill.setShader(null);
+        fill.setColor(b != null && LiveLogos.isDark(b) ? 0xFFE8E8ED : 0xFF28282D);
+        c.drawRoundRect(markBox, pr, pr, fill);
+        if (b != null) {
+            float pad = 7 * k, s = Math.min((markBox.width() - 2 * pad) / b.getWidth(), (markBox.height() - 2 * pad) / b.getHeight());
+            float dw = b.getWidth() * s, dh = b.getHeight() * s;
+            logoRect.set(markBox.centerX() - dw / 2, cy - dh / 2, markBox.centerX() + dw / 2, cy + dh / 2);
+            fill.setColor(0xFFFFFFFF);
+            c.drawBitmap(b, null, logoRect, fill);
+        } else {
+            drawLogoBare(c, channel, markBox, 1, false, false);      // another source's, else its letters
+        }
+        int ink = on ? LiveTheme.ink : 0xFFFFFFFF, sub = on ? LiveTheme.inkSoft() : 0xFFB3B3B8;
+        float x = markBox.right + 12 * k, room = cell.right - 10 * k - x;
+        String[] l = linesOf(channel, room);
+        boolean two = !l[2].isEmpty();
+        gNameBig.setColor(ink);
+        String tag = oneTag ? "" : tagOf(channel), badge = badgeOf(channel);
+        boolean numbered = channel.num > 0 && LiveOptions.channelMark(getContext()) != LiveOptions.MARK_LOGO;
+        boolean under = numbered || !tag.isEmpty() || !badge.isEmpty() || channel.archive > 0 || Xtream.isFavorite(lineup, channel.id)
+                || playing != null && playing.id == channel.id;
+        float step = gNameBig.getTextSize() * 1.2f, base = cy + Ui.halfCap(gNameBig) - ((two ? 1 : 0) + (under ? 1 : 0)) * step / 2;
+        c.drawText(l[1], x, base, gNameBig);
+        if (two) c.drawText(l[2], x, base + step, gNameBig);
+        float my = base + (two ? 2 : 1) * step + 3 * k, mx = x, end = cell.right - 8 * k, mid = my - Ui.halfCap(gSub);
+        int was = gSub.getColor();
+        gSub.setColor(sub);
+        if (numbered) {
+            String num = String.valueOf(channel.num);
+            c.drawText(num, mx, my, gSub);
+            mx += gSub.measureText(num) + 10 * k;
+        }
+        gSub.setColor(was);
+        if (!tag.isEmpty()) {
+            LiveCountry.label(gSub, tagPaint);
+            if (mx + LiveCountry.tagWidth(tag, gSub, tagPaint, k) < end) mx = LiveCountry.drawTag(c, tag, mx, my, gSub, tagPaint, k) + 8 * k;
+        }
+        if (!badge.isEmpty() && mx + LiveBadge.width(badge, gSub, k) < end) mx = LiveBadge.drawInline(c, badge, mx, my, gSub, k) + 8 * k;
+        if (playing != null && playing.id == channel.id && mx + 20 * k < end) {
+            drawPlayMark(c, mx + 8 * k, mid, 8 * k, ink);
+            mx += 26 * k;
+        }
+        if (channel.archive > 0 && mx + 20 * k < end) {
+            drawReplay(c, mx + 8 * k, mid, 8 * k, sub);
+            mx += 26 * k;
+        }
+        if (Xtream.isFavorite(lineup, channel.id) && mx + 20 * k < end) drawHeart(c, mx + 8 * k, mid, 14 * k, accent(on));
+    }
+
     /** Glassio 3's programme: its title, under it its times and what kind it is; a recording's dot and the bell at the title's end. */
     private void drawTileGlassio3(Canvas c, String title, Xtream.Program p, boolean ink, int color, float indent, int tag, String score, boolean rec, boolean bell) {
         if (!ink) {
@@ -5221,6 +5477,8 @@ final class LiveView extends View {
         }
         float x = cell.left + 21 * k + indent, room = cell.right - 15 * k - x;
         if (room < 24 * k) return;
+        final boolean over = ink;       // over the focus (its long title moves), whose colours may be the plain ones
+        if (softFocus) ink = false;
         Paint tp = ink ? gCellOn : gCell, sp = ink ? gSubOn : gSub;
         if (p == null) {
             c.drawText(ellipsize(title, tp, room), x, cell.centerY() + Ui.halfCap(tp), tp);
@@ -5232,7 +5490,7 @@ final class LiveView extends View {
         int fits = tp.breakText(title, true, titleRoom, null);
         if (fits < Math.min(title.length(), 3)) return;
         float tw;
-        if (ink && fits < title.length() && cell.contains(focusRect.centerX(), focusRect.centerY())) {
+        if (over && fits < title.length() && cell.contains(focusRect.centerX(), focusRect.centerY())) {
             cellMarquee.draw(c, title, x, base, titleRoom, tp, k);
             tw = titleRoom;
         } else {
@@ -5250,7 +5508,7 @@ final class LiveView extends View {
             }
             if (bell) Symbols.draw(getContext(), c, "bell", tx + 9 * k, mid, 19 * k, ink ? LiveTheme.ink : 0xCCFFFFFF);
         }
-        String kind = score != null ? score : tag == 1 ? badgeLive : tag == 2 ? badgeNew : tag == 3 ? badgeRepeat : null;
+        String kind = score != null ? score : LiveTags.text(tag);
         String times = Ui.time(p.start) + " – " + Ui.time(p.end);
         float line = cell.centerY() + 22 * k;
         if (kind == null) {
@@ -5266,14 +5524,46 @@ final class LiveView extends View {
         if (bw <= room) {
             badgeRect.set(bx, mid - 12 * k, bx + bw, mid + 12 * k);
             fill.setShader(null);
-            boolean quiet = tag != 1 && tag != 2 && tag != 4;      // a repeat, a match that's over: grey, on the focus's white too
-            fill.setColor(!quiet ? accent(ink) : ink ? 0x26000000 : 0x59FFFFFF);
+            boolean quiet = tag != 1 && tag != 2 && tag != 4 && tag != LiveTags.PREMIERE_TAG && tag != LiveTags.FINALE_TAG;      // a repeat, a match that's over: grey, on the focus's white too
+            fill.setColor(tag == LiveTags.PREMIERE_TAG || tag == LiveTags.FINALE_TAG ? TAG_FIRST : !quiet ? accent(ink) : ink ? 0x26000000 : 0x59FFFFFF);
             c.drawRoundRect(badgeRect, 5 * k, 5 * k, fill);
-            gBadge.setColor(quiet && ink ? LiveTheme.ink : !quiet && ink && LiveTheme.redFocus() ? LiveTheme.tile : WHITE);
+            gBadge.setColor(tag == LiveTags.PREMIERE_TAG || tag == LiveTags.FINALE_TAG ? WHITE : quiet && ink ? LiveTheme.ink : !quiet && ink && LiveTheme.redFocus() ? LiveTheme.tile : WHITE);
             c.drawText(kind, bx + 7 * k, mid + Ui.halfCap(gBadge), gBadge);
             gBadge.setColor(WHITE);
         }
         if (!fits2 && room - bw - 10 * k >= 40 * k) c.drawText(ellipsize(times, sp, room - bw - 10 * k), x + bw + 10 * k, line, sp);
+    }
+
+    /** A row whose guide is on its way: its half hours, with bars where the titles will be. */
+    private void drawGreyRow(Canvas c, float y, boolean ink) {
+        if (ink) return;
+        float rr = LiveTheme.cinema() ? 15 * k * LiveTheme.rounding() : tileRadius();
+        float gridL = G_GRID_X * k, gridR = G_GRID_R * k, m0 = gTimeOff.value, gap = (LiveTheme.cinema() ? 9 : 4) * k;
+        fill.setShader(null);
+        for (float m = (float) Math.floor(m0 / 60) * 60; m < m0 + G_MINUTES; m += 60) {
+            float x1 = Math.max(gridL, timeX(m)), x2 = Math.min(gridR, timeX(m + 60)) - gap;
+            if (x2 - x1 < 40 * k) continue;
+            fill.setColor(LiveTheme.cellLater);
+            c.drawRoundRect(x1, y, x2, y + G_ROW_H * k, rr, rr, fill);
+            fill.setColor(0x17FFFFFF);
+            float bx = x1 + 21 * k, cy = y + G_ROW_H / 2 * k, w2 = x2 - 21 * k - bx;
+            if (w2 < 30 * k) continue;
+            c.drawRoundRect(bx, cy - 19 * k, bx + w2 * 0.6f, cy - 5 * k, 7 * k, 7 * k, fill);
+            c.drawRoundRect(bx, cy + 7 * k, bx + w2 * 0.32f, cy + 17 * k, 5 * k, 5 * k, fill);
+        }
+    }
+
+    /** A channel without a guide: said once, dashed around. */
+    private void drawNoGuide(Canvas c, boolean ink) {
+        float rr = LiveTheme.cinema() ? 15 * k * LiveTheme.rounding() : tileRadius(), x = cell.left + 21 * k, in = k;
+        boolean dark = ink && !softFocus;
+        if (!ink) c.drawRoundRect(cell.left + in, cell.top + in, cell.right - in, cell.bottom - in, rr, rr, dashes);
+        Paint tp = dark ? gCellOn : gCell, sp = dark ? gSubOn : gSub;
+        int a = tp.getAlpha();
+        if (!ink) tp.setAlpha(Math.round(a * 0.65f));
+        c.drawText(Ui.tr("Sem guia para este canal", "No guide for this channel"), x, cell.centerY() - 5 * k, tp);
+        tp.setAlpha(a);
+        c.drawText(Ui.tr("OK para assistir", "OK to watch"), x, cell.centerY() + 22 * k, sp);
     }
 
     /** A row's programs: the tiles and their titles (`ink`: only the titles, dark, for under the focus). */
@@ -5283,6 +5573,11 @@ final class LiveView extends View {
         if (list == null || list.isEmpty()) {
             // Still loading, or no guide for this channel: one tile with its name.
             cell.set(gridL, y, gridR - 4 * k, y2);
+            if (greyRows) {
+                if (list == null) drawGreyRow(c, y, ink);
+                else drawNoGuide(c, ink);
+                return;
+            }
             drawTile(c, list == null ? "…" : channel.name, null, ink, LiveTheme.cellLater, 0, 0, null, false, false);
             return;
         }
@@ -5295,7 +5590,7 @@ final class LiveView extends View {
             if (x2 - x1 < 6 * k) continue;
             cell.set(x1, y, x2, y2);
             String text = p.title.isEmpty() ? channel.name : p.title;
-            int tag = p.live ? 1 : p.fresh ? 2 : p.repeat ? 3 : 0;
+            int tag = LiveTags.tag(p, guideTags);
             String score = scoreTag(p);     // a followed team's match: its score instead of the tag
             if (score != null) tag = score.startsWith("FT") ? 5 : 4;
             if (p.end > now) {
@@ -5319,10 +5614,11 @@ final class LiveView extends View {
      * takes. It's drawn with the tile (drawCell, right after the tile itself), so it shows over the focus too.
      */
     private float drawBadge(Canvas c, Xtream.Program p, float x, float y, boolean ink) {
-        String s = p.live ? badgeLive : badgeNew;
+        int tag = LiveTags.tag(p, guideTags);
+        String s = LiveTags.text(tag);
         float tw = gBadge.measureText(s), bw = tw + 20 * k, bh = 30 * k;
         badgeRect.set(x, y - bh / 2, x + bw, y + bh / 2);
-        pendingBadge = p.live ? 2 : 1;
+        pendingBadge = tag == LiveTags.LIVE_TAG ? 2 : tag == LiveTags.NEW_TAG ? 1 : 3;
         pendingBadgeText = s;
         return bw + 12 * k;
     }
@@ -5330,7 +5626,7 @@ final class LiveView extends View {
     private void drawPendingBadge(Canvas c) {
         if (pendingBadge == 0) return;
         fill.setShader(null);
-        fill.setColor(pendingBadge == 2 ? LIVE_RED : newTag());
+        fill.setColor(pendingBadge == 2 ? LIVE_RED : pendingBadge == 3 ? TAG_FIRST : newTag());
         c.drawRoundRect(badgeRect, 6 * k, 6 * k, fill);
         c.drawText(pendingBadgeText, badgeRect.left + 10 * k, badgeRect.centerY() + Ui.halfCap(gBadge), gBadge);
         pendingBadge = 0;
@@ -5368,7 +5664,7 @@ final class LiveView extends View {
         boolean two = !sub.isEmpty() && cell.height() >= 56 * k;
         float base = two ? cell.centerY() - 5 * k * rs : cell.centerY() + Ui.halfCap(tp);
         // The tags' room: kept only when the title still has a fair share.
-        String tagText = score != null ? score : tag == 1 ? badgeLive : tag == 2 ? badgeNew : tag == 3 ? badgeRepeat : null;
+        String tagText = score != null ? score : LiveTags.text(tag);
         float tagW = tagText == null ? 0 : gBadge.measureText(tagText) + 14 * k;
         float tagsW = (tagText == null ? 0 : tagW + 10 * k) + (rec ? 22 * k : 0) + (bell ? 28 * k : 0);
         if (room - tagsW < 70 * k) tagsW = 0;
@@ -5389,7 +5685,7 @@ final class LiveView extends View {
             if (tagText != null) {
                 badgeRect.set(tx, mid - 12 * k * Math.min(1, rs + 0.1f), tx + tagW, mid + 12 * k * Math.min(1, rs + 0.1f));
                 fill.setShader(null);
-                fill.setColor(tag == 1 || tag == 4 ? LIVE_RED : tag == 2 ? newTag() : LiveTheme.cinema() ? 0x59FFFFFF : TAG_REPEAT);
+                fill.setColor(tag == 1 || tag == 4 ? LIVE_RED : tag == 2 ? newTag() : tag >= LiveTags.PREMIERE_TAG ? TAG_FIRST : LiveTheme.cinema() ? 0x59FFFFFF : TAG_REPEAT);
                 c.drawRoundRect(badgeRect, 5 * k, 5 * k, fill);
                 c.drawText(tagText, tx + 7 * k, mid + Ui.halfCap(gBadge), gBadge);
                 tx += tagW + 10 * k;
@@ -5411,7 +5707,7 @@ final class LiveView extends View {
         }
     }
 
-    private static final int TAG_NEW = 0xFF2E9E5B, TAG_REPEAT = 0xFF4E6B82;
+    private static final int TAG_NEW = 0xFF2E9E5B, TAG_REPEAT = 0xFF4E6B82, TAG_FIRST = 0xFF9A6A00;
 
     /** NEW: Glassio 3's is the same red as on Home. */
     private static int newTag() {
@@ -5671,7 +5967,7 @@ final class LiveView extends View {
             return;
         }
         String titleText = p == null || p.title.isEmpty() ? channel.name : p.title;
-        boolean badged = p != null && (p.live || p.fresh);
+        boolean badged = p != null && LiveTags.tag(p, guideTags) != 0 && LiveTags.tag(p, guideTags) != LiveTags.REPEAT_TAG;
         if (LiveTheme.cinema()) {
             drawCinemaInfo(c, channel, p, titleText, badged, loading, now, x, room, cw, save);
             return;
@@ -5941,8 +6237,7 @@ final class LiveView extends View {
                     RecordService.stop(c, LiveRecordings.idOf(channel.id, p.start));
                     flash(Ui.tr("Gravação parada", "Recording stopped"));
                 } else {
-                    RecordService.start(c, item(LiveSchedule.RECORD, channel, p));
-                    flash(Ui.tr("Gravando até ", "Recording until ") + Ui.time(p.end));
+                    live.recordNow(item(LiveSchedule.RECORD, channel, p));
                 }
                 marksAt = 0;
             });
@@ -6042,6 +6337,12 @@ final class LiveView extends View {
 
     /** Record (the player's button, the remote's Record key): the show on now from now to its end, or stop it. */
     void toggleRecording() {
+        if (live.growing() != null) {       // watching a recording as it's made: that one
+            RecordService.stop(getContext(), live.growing());
+            flash(Ui.tr("Gravação parada", "Recording stopped"));
+            postDelayed(overlay::refresh, 1500);
+            return;
+        }
         Xtream.Program p = recordable();
         Xtream.Channel ch = live.playing();
         if (p == null) {
@@ -6053,8 +6354,7 @@ final class LiveView extends View {
             RecordService.stop(c, LiveRecordings.idOf(ch.id, p.start));
             flash(Ui.tr("Gravação parada", "Recording stopped"));
         } else {
-            RecordService.start(c, item(LiveSchedule.RECORD, ch, p));
-            flash(Ui.tr("Gravando até ", "Recording until ") + Ui.time(p.end));
+            live.recordNow(item(LiveSchedule.RECORD, ch, p));
         }
         marksAt = 0;
         postDelayed(overlay::refresh, 1500);     // its mark, once the recorder has started (or stopped)
@@ -6064,6 +6364,44 @@ final class LiveView extends View {
     boolean canSeek() {
         Xtream.Channel ch = live.playing();
         return live.catchup() != null || live.shifted() || live.rolling() || ch != null && ch.archive > 0;
+    }
+
+    private long rewindAt;
+
+    /** When the buffer (Rewind any channel) starts, 0 without one. */
+    long bufferFrom(long now) {
+        if (!live.rolling()) return 0;
+        long at = now - live.length();      // its length comes in steps: the time shown doesn't go to and fro
+        if (Math.abs(at - rewindAt) > 20_000) rewindAt = at;
+        return rewindAt;
+    }
+
+    /** From moment `at` (the buffer's start) `by` further back, in the catch-up; false when it doesn't go there. */
+    boolean rewindInto(long at, long by) {
+        Xtream.Channel ch = live.playing();
+        long now = System.currentTimeMillis();
+        if (ch == null || ch.archive <= 0 || !LiveOptions.rewindInto(getContext())) return false;
+        // The minute being made isn't in the catch-up yet.
+        long to = Math.min(at, now - 60_000) - by;
+        List<Xtream.Program> list = programs(ch);
+        int i = list == null ? -1 : programAt(list, to);
+        if (i < 0 || list.get(i).start < catchupFrom(ch, now)) return false;
+        Xtream.Program p = list.get(i);
+        live.playCatchup(ch, p, to - p.start);
+        overlay.show(true);
+        return true;
+    }
+
+    /** A channel's picture is on its way (the screen's black, its name on it). */
+    boolean tuningNow() {
+        return mode == WATCH && dip.target > 0.5f;
+    }
+
+    /** How far back ◀ goes on `channel` live, no earlier than the start of `p` (on now); 0: it can't. */
+    long rewindFrom(Xtream.Channel channel, Xtream.Program p, long now) {
+        boolean past = channel.archive > 0 && p.start >= catchupFrom(channel, now);
+        if (live.rolling() && !(past && LiveOptions.rewindInto(getContext()))) return Math.max(p.start, bufferFrom(now));
+        return past ? p.start : 0;
     }
 
     /** ◀ ▶ on the player's bar: `ms` back or ahead; live, back into the catch-up (ahead is live already). */
@@ -6109,7 +6447,7 @@ final class LiveView extends View {
         live.playCatchup(ch, p, Math.max(0, now - p.start - Math.max(SKIP_BACK, 60_000)));
     }
 
-    private static LiveSchedule.Item item(String kind, Xtream.Channel channel, Xtream.Program p) {
+    static LiveSchedule.Item item(String kind, Xtream.Channel channel, Xtream.Program p) {
         LiveSchedule.Item it = new LiveSchedule.Item();
         it.kind = kind;
         it.ch = channel;

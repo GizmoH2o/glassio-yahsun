@@ -26,7 +26,7 @@ final class LiveProfiles {
     }
 
     /** What's each profile's own. */
-    private static final String[] FILES = {"live-favorites.json", "live-recent.json", "live-resume.json", "live-theme.txt"};
+    private static final String[] FILES = {"live-favorites.json", "live-recent.json", "live-resume.json", "live-theme.txt", LiveWatchTime.FILE};
     /** Files a profile that has none of its own starts with a copy of (the style on screen), not without. */
     private static final java.util.Set<String> INHERIT = new java.util.HashSet<>(java.util.Arrays.asList("live-theme.txt"));
     /** The circles' colors, one per profile in turn. */
@@ -142,6 +142,7 @@ final class LiveProfiles {
         out.at = l.at;
         out.version = l.version;
         out.format = l.format;
+        out.away = l.away;
         for (int i = 0; i < l.categories.size(); i++) {
             Xtream.Category cg = l.categories.get(i);
             boolean groupIsKids = isKids(cg.name);

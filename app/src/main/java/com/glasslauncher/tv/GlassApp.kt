@@ -161,6 +161,10 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        // The safety net's own process needs nothing of Glassio's; and the home screen's crashes are looked at before anything can crash.
+        if (getProcessName() == "$packageName:rescue") return
+        val homeProcess = getProcessName() == packageName
+        if (homeProcess) HomeRescue.look(this, crashing = false)
         // Online or not, watched once for the whole app (the No connection banner); Back online said as a notice.
         com.glasslauncher.tv.data.Online.watch(this) { on ->
             if (on && settings.offlineBanner && com.glasslauncher.tv.ui.Notice.front) com.glasslauncher.tv.ui.Notice.show(com.glasslauncher.tv.ui.Lang.tr("Back online"))
@@ -172,6 +176,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
                 java.io.File(filesDir, "last-crash.txt").writeText(
                     java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US).format(java.util.Date()) + "\n" + e.stackTraceToString().take(4000))
             }
+            if (homeProcess) HomeRescue.look(this, crashing = true)
             previous?.uncaughtException(t, e)
         }
         com.glasslauncher.tv.live.LiveHome.init(this)
@@ -259,6 +264,7 @@ class GlassApp : Application(), coil3.SingletonImageLoader.Factory {
         com.glasslauncher.tv.net.PhoneRemote.apply(this)     // the phone remote, when it's on
         Thread({ com.glasslauncher.tv.data.LanSync.apply(this) }, "sync-start").apply { isDaemon = true; start() }     // Sync with other TVs, when it's on
         ensureHomeService()
+        HomeRescue.started(this)
         com.glasslauncher.tv.ui.TrailerGuard.started(this)
         // TCL: a restart (Open Glassio when the TV starts) and Live TV's alarms reach Glassio only once it may auto-start.
         if (BootReceiver.TCL && (settings.bootGlassio || com.glasslauncher.tv.live.LiveHome.ready(this)))

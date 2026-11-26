@@ -91,11 +91,42 @@ final class XmltvStore {
     /** The database let go of (it's about to move: another playlist). */
     static void release() {
         close();
+        if (!running) progress = "";        // the last playlist's failure isn't the next one's
     }
 
     private static synchronized void close() {
         if (db != null) db.close();
         db = null;
+        synchronized (ROWS) {
+            if (rows != null) rows.close();
+            rows = null;
+        }
+    }
+
+    /**
+     * The guide's rows read through a connection of their own: a search, or counting the guide's channels, goes over
+     * the whole guide (seconds, minutes on a busy TV), and every row waited for it on "…".
+     */
+    private static final Object ROWS = new Object();
+    private static SQLiteDatabase rows;
+    private static boolean rowsSub;
+    private static long rowsStamp;
+
+    private static SQLiteDatabase rows(Context c) {
+        File f = c.getDatabasePath(DB);
+        long stamp = f.exists() ? f.lastModified() * 31 + f.length() : 0;
+        if (rows != null && stamp != rowsStamp) {
+            rows.close();
+            rows = null;
+        }
+        if (rows == null && stamp != 0) {
+            rows = SQLiteDatabase.openDatabase(f.getPath(), null, SQLiteDatabase.OPEN_READONLY);
+            rowsStamp = stamp;
+            try (Cursor q = rows.rawQuery("SELECT * FROM p LIMIT 0", null)) {
+                rowsSub = q.getColumnIndex("sub") >= 0;
+            }
+        }
+        return rows;
     }
 
     /**
@@ -104,12 +135,21 @@ final class XmltvStore {
      */
     static List<Xtream.Program> programs(Context c, String epg, long from, long to) {
         if (epg == null || epg.isEmpty()) return null;
-        synchronized (XmltvStore.class) {
-            SQLiteDatabase d = read(c);
+        synchronized (ROWS) {
+            SQLiteDatabase d;
+            try {
+                d = rows(c);
+            } catch (RuntimeException e) {
+                AppLog.w("guide: rows unreadable: " + e.getMessage());
+                if (rows != null) rows.close();
+                rows = null;
+                return null;
+            }
             if (d == null) return null;
             List<Xtream.Program> out = new ArrayList<>();
             long shift = LiveOptions.guideShift(c);
-            try (Cursor q = d.rawQuery("SELECT start, stop, title, about, icon, age" + (dbSub ? ", sub, rep" : "")
+            boolean repeats = LiveOptions.workOutRepeats(c), correct = LiveOptions.correctTags(c), premieres = LiveOptions.premieres(c);
+            try (Cursor q = d.rawQuery("SELECT start, stop, title, about, icon, age" + (rowsSub ? ", sub, rep" : "")
                     + " FROM p WHERE epg = ? AND stop > ? AND start < ? ORDER BY start",
                     new String[] {epg.toLowerCase(Locale.ROOT), String.valueOf(from - shift), String.valueOf(to - shift)})) {
                 while (q.moveToNext()) {
@@ -120,15 +160,18 @@ final class XmltvStore {
                     p.about = q.getString(3);
                     p.icon = q.isNull(4) ? "" : q.getString(4);
                     p.age = q.isNull(5) ? -1 : q.getInt(5);
-                    if (dbSub) {
+                    int bits = 0;
+                    if (rowsSub) {
                         p.sub = q.isNull(6) ? "" : q.getString(6);
-                        p.repeat = q.getInt(7) != 0;
+                        bits = q.getInt(7);
                     }
                     Xtream.mark(p);
+                    LiveTags.apply(p, bits, repeats, correct, premieres);
                     if (!out.isEmpty() && p.start < out.get(out.size() - 1).end) continue;   // two sources at the same time
                     out.add(p);
                 }
             } catch (RuntimeException e) {
+                AppLog.w("guide: " + epg + " couldn't be read: " + e.getMessage());
                 return null;
             }
             return out;
@@ -182,21 +225,6 @@ final class XmltvStore {
         }
     }
 
-    /** Channels the provider gave no logo: the full guide's, when it has one. */
-    static void fillLogos(Context c, Xtream.Lineup l) {
-        if (!LiveOptions.fullGuide(c)) return;
-        Map<String, String> found = logos(c);
-        if (found.isEmpty()) return;
-        for (Xtream.Category cg : l.categories) {
-            for (Xtream.Channel ch : cg.channels) {
-                if ((ch.logo == null || ch.logo.isEmpty()) && ch.epg != null && !ch.epg.isEmpty()) {
-                    String icon = found.get(ch.epg.toLowerCase(Locale.ROOT));
-                    if (icon != null) ch.logo = icon;
-                }
-            }
-        }
-    }
-
     /** A show found by search: its title and when it starts. */
     static final class Found {
         String title, icon, epg;
@@ -207,6 +235,8 @@ final class XmltvStore {
         /** The title folded (what the search compares); only findAny fills it. */
         String key = "";
         long start, end;
+        /** What LiveTags made of it. */
+        int tags;
     }
 
     /**
@@ -236,7 +266,7 @@ final class XmltvStore {
         synchronized (XmltvStore.class) {
             SQLiteDatabase d = read(c);
             if (d == null) return out;
-            try (Cursor q = d.rawQuery("SELECT epg, title, start, stop, icon, key FROM p WHERE " + where + " ORDER BY start LIMIT " + limit,
+            try (Cursor q = d.rawQuery("SELECT epg, title, start, stop, icon, key" + (dbSub ? ", rep" : "") + " FROM p WHERE " + where + " ORDER BY start LIMIT " + limit,
                     args.toArray(new String[0]))) {
                 while (q.moveToNext()) {
                     Found f = new Found();
@@ -246,6 +276,7 @@ final class XmltvStore {
                     f.end = q.getLong(3) + shift;
                     f.icon = q.isNull(4) ? "" : q.getString(4);
                     f.key = q.isNull(5) ? "" : q.getString(5);
+                    if (dbSub) f.tags = q.getInt(6);
                     out.add(f);
                 }
             } catch (RuntimeException ignored) {
@@ -273,7 +304,7 @@ final class XmltvStore {
         synchronized (XmltvStore.class) {
             SQLiteDatabase d = read(c);
             if (d == null) return out;
-            try (Cursor q = d.rawQuery("SELECT epg, title, start, stop, icon, about" + (dbSub ? ", sub" : "") + " FROM p WHERE " + where + " ORDER BY start LIMIT " + limit,
+            try (Cursor q = d.rawQuery("SELECT epg, title, start, stop, icon, about" + (dbSub ? ", sub, rep" : "") + " FROM p WHERE " + where + " ORDER BY start LIMIT " + limit,
                     args.toArray(new String[0]))) {
                 while (q.moveToNext()) {
                     Found f = new Found();
@@ -284,6 +315,7 @@ final class XmltvStore {
                     f.icon = q.isNull(4) ? "" : q.getString(4);
                     f.about = q.isNull(5) ? "" : q.getString(5);
                     if (dbSub && !q.isNull(6)) f.sub = q.getString(6);
+                    if (dbSub) f.tags = q.getInt(7);
                     out.add(f);
                 }
             } catch (RuntimeException ignored) {
@@ -462,7 +494,7 @@ final class XmltvStore {
             Map<Integer, String> kept = readMatches(c, key);
             if (kept != null) {
                 Set<Integer> found = new HashSet<>();
-                for (Xtream.Channel ch : l.all()) {
+                for (Xtream.Channel ch : l.every()) {
                     String id = kept.get(ch.id);
                     if (id == null) continue;
                     ch.epg = id;
@@ -479,7 +511,7 @@ final class XmltvStore {
         int matched = 0;
         Set<Integer> byHand = LiveChannelEdits.guided(c);
         Set<Integer> found = new HashSet<>();
-        for (Xtream.Channel ch : l.all()) {
+        for (Xtream.Channel ch : l.every()) {
             if (byHand.contains(ch.id)) continue;       // chosen by hand (Guide…): kept, listings or not
             if (ch.epg != null && guided.contains(ch.epg.toLowerCase(Locale.ROOT))) continue;
             String id = LiveGuideMatch.find(ch.name, names);
@@ -492,7 +524,7 @@ final class XmltvStore {
         AppLog.w("guide: " + matched + " channels found their guide by name");
         if (key != null) {
             Map<Integer, String> keep = new HashMap<>();
-            for (Xtream.Channel ch : l.all()) if (found.contains(ch.id)) keep.put(ch.id, ch.epg);
+            for (Xtream.Channel ch : l.every()) if (found.contains(ch.id)) keep.put(ch.id, ch.epg);
             writeMatches(c, key, keep);
         }
     }
@@ -516,7 +548,7 @@ final class XmltvStore {
     /** A fingerprint of the channels as read (ids, names, their own guide ids), before anything is matched. Pure. */
     static long lineupPrint(Xtream.Lineup l) {
         long h = 1125899906842597L;
-        for (Xtream.Channel ch : l.all()) {
+        for (Xtream.Channel ch : l.every()) {
             h = 31 * h + ch.id;
             h = 31 * h + (ch.name == null ? 0 : ch.name.hashCode());
             h = 31 * h + (ch.epg == null ? 0 : ch.epg.hashCode());
@@ -573,9 +605,31 @@ final class XmltvStore {
         Context c = context.getApplicationContext();
         if (!LiveOptions.fullGuide(c) || running || lineup == null) return;
         long age = System.currentTimeMillis() - updatedAt(c);
-        boolean stale = now || age > LiveOptions.guideHours(c) * HOUR || (LiveOptions.guideOnStart(c) && age > HOUR);
-        if (!stale) return;
+        boolean stale = now || age < 0 || age > LiveOptions.guideHours(c) * HOUR;
+        if (!stale) {
+            // Update on start, with a guide that still will do: once Live TV closes, not while something's on.
+            afterClose = LiveOptions.guideOnStart(c) && age > HOUR;
+            return;
+        }
         fetch(c, lineup, done);
+    }
+
+    /** A newer guide is wanted once Live TV closes (Update on start). */
+    private static volatile boolean afterClose;
+
+    /** Live TV closes: the newer guide it left for now. */
+    static void closed(Context c) {
+        if (!afterClose) return;
+        afterClose = false;
+        GuideJob.afterClose(c);
+    }
+
+    /**
+     * The past days kept of a channel with `archive` days of catch-up (0: none), `kept` being the setting's: without
+     * catch-up nothing of it can be watched, and the thousands of such channels were most of the guide: a day. Pure.
+     */
+    static int pastDaysOf(int archive, int kept) {
+        return archive > 0 ? Math.max(archive, kept) : Math.min(kept, 1);
     }
 
     /** Told each time a new guide is in use, whoever fetched it (Live TV, while it's open). */
@@ -596,17 +650,19 @@ final class XmltvStore {
         // Each guide channel's days: its catch-up, or the past days kept, whichever is more.
         Map<String, Integer> days = new HashMap<>();
         int kept = LiveOptions.pastDays(c);
-        for (Xtream.Channel ch : lineup.all()) {
+        for (Xtream.Channel ch : lineup.every()) {
             if (ch.epg != null && !ch.epg.isEmpty()) {
                 String key = ch.epg.toLowerCase(Locale.ROOT);
                 wanted.add(key);
                 Integer had = days.get(key);
-                days.put(key, Math.max(had == null ? 0 : had, Math.max(ch.archive, kept)));
+                days.put(key, Math.max(had == null ? 0 : had, pastDaysOf(ch.archive, kept)));
             }
             archive = Math.max(archive, ch.archive);
         }
         final int pastDays = Math.max(archive, kept);
         new Thread(() -> {
+            // Behind what's playing: minutes of work on a TV's chip.
+            android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_BACKGROUND);
             try {
                 long t0 = System.currentTimeMillis();
                 long n = build(c, wanted, pastDays, days);
@@ -637,6 +693,14 @@ final class XmltvStore {
         building.getParentFile().mkdirs();
         SQLiteDatabase.deleteDatabase(building);
         SQLiteDatabase w = SQLiteDatabase.openOrCreateDatabase(building, null);
+        // Thrown away unless it's finished: no journal on the disk and no waiting for the disk at each step (it's made
+        // to be there for sure once, before it's put to use).
+        for (String pragma : new String[] {"journal_mode=MEMORY", "synchronous=OFF", "temp_store=MEMORY"}) {
+            try (Cursor q = w.rawQuery("PRAGMA " + pragma, null)) {
+                q.moveToFirst();
+            }
+        }
+        long began = System.currentTimeMillis();
         long count = 0, pictures = 0;
         String firstError = null, brokeMidway = null;
         try {
@@ -660,6 +724,7 @@ final class XmltvStore {
             TimeZone zone = TimeZone.getDefault();
             // By title, its listings marked NEW or LIVE ({start, live ? 1 : 0, episode}), to carry to its other listings.
             Map<String, List<long[]>> marked = new HashMap<>();
+            LiveTags.Reader tags = new LiveTags.Reader();
             for (int si = 0; si < sources.size(); si++) {
             final LiveGuideSources.Source source = sources.get(si);
             final String step = sources.size() > 1 ? (si + 1) + "/" + sources.size() + " · " : "";
@@ -747,7 +812,7 @@ final class XmltvStore {
                 String key = channel == null ? "" : channel.toLowerCase(Locale.ROOT);
                 long start = time(p.getAttributeValue(null, "start"), utc), stop = time(p.getAttributeValue(null, "stop"), utc);
                 Integer owned = owner.get(key);
-                if (!wanted.contains(key) || start <= 0 || stop <= start || stop <= from || start >= to || (owned != null && owned != si)) {
+                if (!wanted.contains(key) || start <= 0 || stop <= start || stop <= from || stop <= now - DAY * daysOf(days, key) || start >= to || (owned != null && owned != si)) {
                     skip(p);
                     continue;
                 }
@@ -832,7 +897,8 @@ final class XmltvStore {
                 insert.bindString(9, episode);
                 insert.bindLong(10, repeat && !fresh && !live ? 1 : 0);
                 if (!icon.isEmpty()) pictures++;
-                insert.executeInsert();
+                long rowId = insert.executeInsert();
+                tags.add(rowId, key, start, stop, named.title, show, about, fresh || named.fresh, live || named.live);
                 seen.add(key);
                 if (++count % 5000 == 0) {     // a transaction every few thousand: fast, the journal stays small
                     w.setTransactionSuccessful();
@@ -866,12 +932,19 @@ final class XmltvStore {
             // A source that broke partway (a flaky connection): no half guide over a whole one, the guide in use stays
             // (one that couldn't be reached at all is just left out, so a dead link never holds the others up).
             if (brokeMidway != null) throw new IOException(brokeMidway);
+            long readIn = System.currentTimeMillis();
             progress = Ui.tr("Indexando…", "Indexing…");
             w.execSQL("CREATE INDEX by_channel ON p (epg, start)");
-            // Holds what searches compare, so they read this and not the long descriptions in the table.
-            w.execSQL("CREATE INDEX by_search ON p (start, stop, key)");
-            carryMarks(w, marked);
+            carryMarks(w, marked, tags);
+            LiveTags.write(c, w, tags, now);
+            w.execSQL("DROP INDEX by_show");
+            long markedAt = System.currentTimeMillis();
             if (count > 0) count += carryPast(c, w, c.getDatabasePath(DB), days, now);
+            // Holds what searches compare, so they read this and not the long descriptions in the table. Last, with
+            // everything in: kept up row by row it took longer than the rows.
+            w.execSQL("CREATE INDEX by_search ON p (start, stop, key)");
+            AppLog.w("guide: read in " + (readIn - began) / 1000 + " s, marks " + (markedAt - readIn) / 1000 + " s, past and index "
+                    + (System.currentTimeMillis() - markedAt) / 1000 + " s");
             w.execSQL("INSERT INTO meta VALUES ('at', '" + now + "'), ('count', '" + count + "'), ('channels', '" + seen.size()
                     + "'), ('v', '" + VERSION + "')");
         } finally {
@@ -883,6 +956,9 @@ final class XmltvStore {
             throw new IOException(firstError != null ? firstError
                     : Ui.tr("o guia não tem programas destes canais", "the guide has no programs for these channels"));
         }
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(building, "rw")) {
+            f.getFD().sync();
+        }
         // In place of the one in use.
         synchronized (XmltvStore.class) {
             close();
@@ -893,6 +969,11 @@ final class XmltvStore {
         progress = "";
         AppLog.w("guide: " + pictures + " with a picture");
         return count;
+    }
+
+    private static int daysOf(Map<String, Integer> days, String key) {
+        Integer n = days.get(key);
+        return n == null ? 0 : n;
     }
 
     /** Copies what's over from the guide in use (CARRY_PAST); how many. A guide it can't read just keeps nothing. */
@@ -942,7 +1023,7 @@ final class XmltvStore {
      * A big guide marks a show on one channel and not on the next: each marked title's mark carries to its other
      * listings, where LiveMarks says they're the same showing. Never onto one the guide calls a repeat.
      */
-    private static void carryMarks(SQLiteDatabase w, Map<String, List<long[]>> marked) {
+    private static void carryMarks(SQLiteDatabase w, Map<String, List<long[]>> marked, LiveTags.Reader tags) {
         w.execSQL("CREATE INDEX by_show ON p (key)");
         int live = 0, fresh = 0;
         w.beginTransaction();
@@ -978,6 +1059,7 @@ final class XmltvStore {
                 for (Object[] g : gained) {
                     mark.bindString(1, (String) g[1]);
                     mark.bindLong(2, (Long) g[0]);
+                    tags.gained((Long) g[0], g[1].equals(" [Live]"));
                     mark.executeUpdateDelete();
                 }
             }
@@ -985,7 +1067,6 @@ final class XmltvStore {
         } finally {
             w.endTransaction();
         }
-        w.execSQL("DROP INDEX by_show");
         AppLog.w("guide: marks carried to " + live + " more LIVE and " + fresh + " more NEW");
     }
 

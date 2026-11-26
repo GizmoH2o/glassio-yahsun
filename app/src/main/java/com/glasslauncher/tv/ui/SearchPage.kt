@@ -118,7 +118,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
     val titles = if (on("titles")) titlesAll else emptyList()
     val shows = if (on("live", "onnow")) showsAll.filter { filter != "onnow" || it.start <= System.currentTimeMillis() } else emptyList()
     val recordings = if (on("live")) recordingsAll else emptyList()
-    val channels = if (on("live", "onnow")) channelsAll else emptyList()
+    val channels = if (on("live", "onnow")) channelsAll.distinctBy { it.channel } else emptyList()
     val apps = if (on("apps")) appsAll else emptyList()
     val rows by app.recs.rows.collectAsState()
     LaunchedEffect(Unit) { if (rows.trending.isEmpty()) withContext(Dispatchers.IO) { runCatching { app.recs.refresh() } } }
@@ -163,7 +163,7 @@ fun SearchPage(app: GlassApp, s: Float, query: MutableState<String>, active: Boo
         delay(450)
         value = withContext(Dispatchers.IO) { app.recs.searchPeople(q) }
     }
-    val people = if (on("titles")) peopleAll else emptyList()
+    val people = if (on("titles")) peopleAll.distinctBy { it.id } else emptyList()
     var person by remember { mutableStateOf<com.glasslauncher.tv.data.TitlePeople.Person?>(null) }
     LaunchedEffect(q) { person = null }
     val theirs by produceState(emptyList<HeroItem>(), person) {

@@ -88,6 +88,28 @@ final class LiveCatchup {
         return size >= MINUTE ? sign + Math.round(size / (double) MINUTE) + " min" : sign + size / 1000 + " s";
     }
 
+    /**
+     * How long a provider's past show is: the guide's, which is what its address asks for; without one what its stream
+     * says (`streamed`, <= 0 for not known). A stream's own length is a guess from what's arrived: 15 minutes of an 80
+     * minute show, a minute less than others (they ended early), 17 hours of a match. Pure.
+     */
+    static long length(long streamed, long guide) {
+        return guide > 0 ? guide : Math.max(0, streamed);
+    }
+
+    /** Whether a stream that ended at `at` of `length` was cut off, rather than over (`airing`: the show is still on). Pure. */
+    static boolean cutOff(long at, long length, boolean airing) {
+        return !airing && length > 0 && at < length - Math.min(Math.max(2 * MINUTE, length / 50), length / 4);
+    }
+
+    /** What follows the show from `start` to `end` in `list`: the one after it, else (the guide changed) the one that starts as it ends. Pure. */
+    static Xtream.Program after(java.util.List<Xtream.Program> list, long start, long end) {
+        if (list == null) return null;
+        for (int i = 0; i + 1 < list.size(); i++) if (list.get(i).start == start) return list.get(i + 1);
+        for (Xtream.Program p : list) if (p.start > start && p.start >= end - 5 * MINUTE) return p.start <= end + 30 * MINUTE ? p : null;
+        return null;
+    }
+
     /** Where a skip to `to` from `at` asks to go: ahead, always further on than the minute it would otherwise start at. */
     static long skip(long start, long to, long at) {
         long minute = minute(start, to);

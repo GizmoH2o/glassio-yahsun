@@ -44,6 +44,27 @@ public class GuideJob extends JobService {
                 .build());
     }
 
+    /** Live TV closed with a newer guide wanted (Update on start): in a minute, unless it's opened again. */
+    static void afterClose(Context c) {
+        JobScheduler js = (JobScheduler) c.getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        if (js == null) return;
+        android.os.PersistableBundle wanted = new android.os.PersistableBundle();
+        wanted.putInt("newer", 1);
+        js.schedule(new JobInfo.Builder(ONCE, new ComponentName(c, GuideJob.class))
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
+                .setMinimumLatency(60_000)
+                .setExtras(wanted)
+                .build());
+    }
+
+    private static boolean lowMemory(Context c) {
+        android.app.ActivityManager am = (android.app.ActivityManager) c.getSystemService(Context.ACTIVITY_SERVICE);
+        if (am == null) return false;
+        android.app.ActivityManager.MemoryInfo m = new android.app.ActivityManager.MemoryInfo();
+        am.getMemoryInfo(m);
+        return m.lowMemory;
+    }
+
     /** Whether a guide fetched `age` ago should be fetched again, with Update every at `hours`. Pure. */
     static boolean overdue(long age, int hours) {
         return age < 0 || age > hours * HOUR - EARLY;
@@ -53,17 +74,25 @@ public class GuideJob extends JobService {
         final Context app = getApplicationContext();
         Prefs.init(app);
         new Thread(() -> {
-            boolean fetching = false;
+            boolean fetching = false, later = false;
             try {
                 LiveRecordings.cleanup(app);
+                RecordService.recover(app);
+                LiveRecordings.fetchMissed(app);
                 long age = System.currentTimeMillis() - XmltvStore.updatedAt(app);
-                if (!LiveOptions.fullGuide(app) || !overdue(age, LiveOptions.guideHours(app))) {
+                boolean newer = params.getExtras().getInt("newer", 0) == 1 && age > HOUR;
+                if (!LiveOptions.fullGuide(app) || !newer && !overdue(age, LiveOptions.guideHours(app))) {
                     AppLog.w("guide: left alone, " + age / 60_000 + " min old, every " + LiveOptions.guideHours(app) + " h, on: " + LiveOptions.fullGuide(app));
                     return;
                 }
                 Xtream.Lineup lineup = Xtream.saved(app);
                 if (lineup == null) {
                     AppLog.w("guide: not signed in");
+                    return;
+                }
+                if (lowMemory(app)) {        // it would be stopped halfway, and start over: when there's room
+                    AppLog.w("guide: the TV is short of memory, later");
+                    later = true;
                     return;
                 }
                 AppLog.w("guide: fetching with Live TV closed or open, " + age / 60_000 + " min old");
@@ -79,7 +108,7 @@ public class GuideJob extends JobService {
             } catch (RuntimeException e) {
                 AppLog.w("guide: background: " + e.getMessage());
             } finally {
-                if (!fetching) jobFinished(params, false);
+                if (!fetching) jobFinished(params, later);
             }
         }, "guide-job").start();
         return true;

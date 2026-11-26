@@ -101,31 +101,48 @@ final class LiveSeries {
     /** Sets the rule, and its airings already in the guide (a background thread). */
     static void add(Context c, Rule rule) {
         Context app = c.getApplicationContext();
-        synchronized (LiveSeries.class) {
-            List<Rule> list = all(app);
-            for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).key().equals(rule.key())) list.remove(i);
-            list.add(rule);
-            save(app, list);
-        }
+        LiveLock.run(app, () -> {
+            synchronized (LiveSeries.class) {
+                List<Rule> list = all(app);
+                for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).key().equals(rule.key())) list.remove(i);
+                list.add(rule);
+                save(app, list);
+            }
+        });
         arm(app);
         new Thread(() -> sync(app), "series").start();
     }
 
     /** Takes the rule out, with its airings still to come. */
     static void remove(Context c, Rule rule) {
-        synchronized (LiveSeries.class) {
-            List<Rule> list = all(c);
-            for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).key().equals(rule.key())) list.remove(i);
-            save(c, list);
-        }
+        LiveLock.run(c, () -> {
+            synchronized (LiveSeries.class) {
+                List<Rule> list = all(c);
+                for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).key().equals(rule.key())) list.remove(i);
+                save(c, list);
+            }
+        });
         for (LiveSchedule.Item it : LiveSchedule.all(c)) {
             if (rule.key().equals(it.series)) LiveSchedule.remove(c, it.key());
         }
     }
 
     /** An airing the rule put in, cancelled by hand: the rule leaves it out from now on. */
-    static synchronized void skip(Context c, LiveSchedule.Item it) {
+    static void skip(Context c, LiveSchedule.Item it) {
+        if (it.series != null) LiveLock.run(c, () -> skipNow(c, it));
+    }
+
+    /** A cancelled one is back. */
+    static void unskip(Context c, LiveSchedule.Item it) {
         if (it.series == null) return;
+        LiveLock.run(c, () -> {
+            List<Rule> list = all(c);
+            for (Rule r : list) if (r.key().equals(it.series)) r.skip.remove(Long.valueOf(it.start));
+            save(c, list);
+        });
+    }
+
+    private static synchronized void skipNow(Context c, LiveSchedule.Item it) {
         List<Rule> list = all(c);
         for (Rule r : list) if (r.key().equals(it.series)) r.skip.add(it.start);
         save(c, list);
@@ -137,6 +154,7 @@ final class LiveSeries {
         long now = System.currentTimeMillis();
         for (Rule r : all(c)) {
             if (r.ch.id != ch.id) continue;
+            LiveSchedule.dropMoved(c, ch.id, r.key(), programs);
             for (Xtream.Program p : programs) {
                 if (p.start <= now || p.start > now + AHEAD || !r.matches(p)) continue;
                 if (LiveSchedule.has(c, r.kind, ch.id, p.start)) continue;

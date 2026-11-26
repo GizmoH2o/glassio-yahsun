@@ -33,6 +33,50 @@ public class ReminderActivity extends Activity {
     /** How long before the start the switching card counts down. */
     static final long COUNTDOWN_MS = 10_000;
 
+    /** The playlist put aside it's set on (Switch now), else null. */
+    static final String EXTRA_PLAYLIST = "com.glasslauncher.tv.live.extra.REMINDER_PLAYLIST";
+    private String playlist;
+    /** The channels showing it then (its own first), once found. */
+    private java.util.List<Object[]> others = new java.util.ArrayList<>();
+    private static final int WATCH = 0, OTHERS = 1, SNOOZE = 2, DISMISS = 3;
+
+    /** The card's buttons, in order. */
+    private int[] buttons() {
+        if (playlist != null) return new int[] {WATCH, DISMISS};
+        boolean more = others.size() > 1, later = LiveOptions.snooze(this) > 0 && !countdown;
+        return more && later ? new int[] {WATCH, OTHERS, SNOOZE, DISMISS} : more ? new int[] {WATCH, OTHERS, DISMISS}
+                : later ? new int[] {WATCH, SNOOZE, DISMISS} : new int[] {WATCH, DISMISS};
+    }
+
+    private String buttonName(int b) {
+        switch (b) {
+            case WATCH: return playlist != null ? Ui.tr("Mudar agora", "Switch now") : countdown ? Ui.tr("Assistir já", "Watch now") : Ui.tr("Assistir", "Watch");
+            case OTHERS: return Ui.tr("Outros canais  ·  ", "Other channels  ·  ") + (others.size() - 1);
+            case SNOOZE: return Ui.tr("Em ", "In ") + LiveOptions.snooze(this) + " min";
+            default: return Ui.tr("Dispensar", "Dismiss");
+        }
+    }
+
+    /** It comes again in a few minutes. */
+    private void snooze() {
+        LiveSchedule.remove(this, item.as(LiveSchedule.SWITCH).key());
+        LiveSchedule.Item it = item.as(LiveSchedule.REMIND);
+        it.at = System.currentTimeMillis() + LiveOptions.snooze(this) * 60_000L;
+        LiveSchedule.add(this, it);
+        finish();
+    }
+
+    /** The other channels, in the match alerts' panel. */
+    private void showOthers() {
+        card.removeCallbacks(timeUp);
+        countdown = false;
+        panel = new Panel(this);
+        setContentView(panel);
+        panel.set(item);
+        panel.found(others);
+        panel.postDelayed(timeUp, PANEL_STAYS_MS);
+    }
+
     private LiveSchedule.Item item;
     private Card card;
     private Panel panel;
@@ -77,6 +121,11 @@ public class ReminderActivity extends Activity {
     }
 
     private void show(Intent intent) {
+        if (RecordOff.on(this)) {       // black while a recording ends: nobody is watching
+            AppLog.w("live: reminder skipped, the screen is black for a recording");
+            if (item == null) finish();
+            return;
+        }
         chime();
         LiveSchedule.Item it;
         try {
@@ -89,12 +138,13 @@ public class ReminderActivity extends Activity {
             return;
         }
         // Already watching that channel in Live TV: nothing to remind of (unless asked to, in Settings).
-        if (!LiveOptions.remindWatching(this) && Live.watching(this, it.ch.id)) {
+        if (intent.getStringExtra(EXTRA_PLAYLIST) == null && !LiveOptions.remindWatching(this) && Live.watching(this, it.ch.id)) {
             AppLog.w("live: reminder skipped, that channel is on");
             if (item == null) finish();
             return;
         }
-        if (LiveFollow.isAlert(it) && !LiveOptions.matchCard(this)) {
+        playlist = intent.getStringExtra(EXTRA_PLAYLIST);
+        if (playlist == null && LiveFollow.isAlert(it) && !LiveOptions.matchCard(this)) {
             showPanel(it);
             return;
         }
@@ -102,7 +152,7 @@ public class ReminderActivity extends Activity {
         item = it;
         long left = item.start - System.currentTimeMillis();
         // A match alert (something followed) always asks: it mustn't cut into what's on by itself.
-        boolean auto = LiveOptions.remindAuto(this) && !LiveFollow.isAlert(item);
+        boolean auto = playlist == null && it.at == 0 && (item.auto || LiveOptions.remindAuto(this) && !LiveFollow.isAlert(item));
         countdown = auto && left <= COUNTDOWN_MS + 5_000;
         // Ahead of time, switching by itself: the switch comes as the show starts (Dismiss takes it out).
         if (auto && !countdown) LiveSchedule.add(this, item.as(LiveSchedule.SWITCH));
@@ -110,7 +160,20 @@ public class ReminderActivity extends Activity {
             card = new Card(this);
             setContentView(card);
         }
-        card.focusWatch = true;
+        card.focus = 0;
+        others = new java.util.ArrayList<>();
+        if (playlist == null) {
+            final android.content.Context app = getApplicationContext();
+            final LiveSchedule.Item shown = it;
+            new Thread(() -> {
+                final java.util.List<Object[]> found = LiveFollow.showing(app, shown);
+                card.post(() -> {
+                    if (item != shown || card == null || panel != null) return;
+                    others = found;
+                    card.invalidate();
+                });
+            }, "reminder-others").start();
+        }
         card.removeCallbacks(timeUp);
         card.postDelayed(timeUp, countdown ? Math.max(0, left) : STAYS_MS);
         card.invalidate();
@@ -156,6 +219,10 @@ public class ReminderActivity extends Activity {
 
     /** Dismissed: no switching later either. */
     private void dismiss() {
+        if (playlist != null) {
+            finish();
+            return;
+        }
         LiveSchedule.remove(this, item.as(LiveSchedule.SWITCH).key());
         finish();
     }
@@ -167,13 +234,22 @@ public class ReminderActivity extends Activity {
         switch (e.getKeyCode()) {
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_DPAD_RIGHT:
-                card.focusWatch = !card.focusWatch;
+                card.focus = Math.max(0, Math.min(buttons().length - 1, card.focus + (e.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT ? 1 : -1)));
+                if (!countdown) {       // still choosing: it stays
+                    card.removeCallbacks(timeUp);
+                    card.postDelayed(timeUp, STAYS_MS);
+                }
                 card.invalidate();
                 return true;
             case KeyEvent.KEYCODE_DPAD_CENTER:
             case KeyEvent.KEYCODE_ENTER:
             case KeyEvent.KEYCODE_NUMPAD_ENTER:
-                if (card.focusWatch) watch(); else dismiss();
+                switch (buttons()[Math.min(card.focus, buttons().length - 1)]) {
+                    case WATCH: watch(); break;
+                    case OTHERS: showOthers(); break;
+                    case SNOOZE: snooze(); break;
+                    default: dismiss(); break;
+                }
                 return true;
             case KeyEvent.KEYCODE_BACK:
                 dismiss();
@@ -188,6 +264,15 @@ public class ReminderActivity extends Activity {
     }
 
     private void watch(Xtream.Channel ch) {
+        if (playlist != null) {
+            try {
+                startActivity(HomeApps.liveIntent(this, -1, false).putExtra(Live.EXTRA_PLAYLIST, playlist));
+            } catch (RuntimeException e) {
+                AppLog.w("live: couldn't open the other playlist: " + e.getMessage());
+            }
+            finish();
+            return;
+        }
         LiveSchedule.remove(this, item.as(LiveSchedule.SWITCH).key());
         try {
             startActivity(HomeApps.liveIntent(this, ch.id, false));
@@ -195,6 +280,11 @@ public class ReminderActivity extends Activity {
             AppLog.w("live: couldn't open the reminded channel: " + e.getMessage());
         }
         finish();
+    }
+
+    @Override protected void onDestroy() {
+        if (panel != null) LiveScores.get(this).unwatch(panel);
+        super.onDestroy();
     }
 
     @Override public void finish() {
@@ -230,7 +320,7 @@ public class ReminderActivity extends Activity {
         }
 
         void set(LiveSchedule.Item it) {
-            team = LiveFollow.named(getContext(), it.series.substring(LiveFollow.SERIES.length()));
+            team = LiveFollow.isAlert(it) ? LiveFollow.named(getContext(), it.series.substring(LiveFollow.SERIES.length())) : it.title;
             rows.clear();
             Xtream.Program p = new Xtream.Program();
             p.title = it.title;
@@ -320,13 +410,13 @@ public class ReminderActivity extends Activity {
             c.drawRoundRect(r, 28 * k * LiveTheme.round, 28 * k * LiveTheme.round, glow);
             float x = left + 36 * k, tw = W * k - 72 * k;
             c.drawText(Ui.tr("AO VIVO AGORA", "ON NOW"), x, top + 62 * k, small);
-            LiveScores.Score score = item == null ? null : LiveScores.get(getContext()).forTerm(item.series.substring(LiveFollow.SERIES.length()));
+            LiveScores.Score score = item == null || !LiveFollow.isAlert(item) ? null : LiveScores.get(getContext()).forTerm(item.series.substring(LiveFollow.SERIES.length()));
             if (score != null) {        // the score, at the line's end
                 String line = score.line();
                 c.drawText(line, right - 36 * k - small.measureText(line), top + 62 * k, small);
             }
             c.drawText(ellipsize(team, title, tw), x, top + 118 * k, title);
-            c.drawText(ellipsize(item.title, meta, tw), x, top + 158 * k, meta);
+            c.drawText(ellipsize(team.equals(item.title) ? "" : item.title, meta, tw), x, top + 158 * k, meta);
             // The channels, the focused one kept in view.
             float rowsTop = top + 196 * k, rowsBottom = bottom - 76 * k, step = (ROW_H + GAP) * k;
             int fits = Math.max(1, (int) ((rowsBottom - rowsTop + GAP * k) / step));
@@ -373,7 +463,7 @@ public class ReminderActivity extends Activity {
 
     /** The card, drawn by hand like the rest of Glassio (1920 × 1080 space, k = width / 1920). */
     private final class Card extends View {
-        boolean focusWatch = true;
+        int focus;
         private final Spring in = new Spring(0.4f, 1f, 0);
         private final RectF r = new RectF(), b = new RectF();
         private final Xtream.Program show = new Xtream.Program();
@@ -411,7 +501,7 @@ public class ReminderActivity extends Activity {
             last = now;
             boolean moving = in.step(dt);
             float a = Ui.clamp(in.value);
-            float w = 760 * k, h = 250 * k, right = getWidth() - 64 * k, bottom = getHeight() - 64 * k;
+            float w = Math.max(760, 120 + buttonsWidth() / k) * k, h = 274 * k, right = getWidth() - 64 * k, bottom = getHeight() - 64 * k;
             c.translate((1 - a) * 80 * k, 0);
             r.set(right - w, bottom - h, right, bottom);
             glow.setColor(Ui.alpha(0xF2161618, a));
@@ -446,22 +536,37 @@ public class ReminderActivity extends Activity {
                 x += lw + 28 * k;
             }
             long left = item.start - System.currentTimeMillis();
-            String when = countdown ? Ui.tr("Mudando de canal em ", "Switching in ") + Math.max(0, (left + 999) / 1000) + " s"
+            String when = playlist != null ? Ui.time(item.start) + "  ·  " + Ui.tr("Na sua lista ", "On your playlist ") + LivePlaylists.nameOf(getContext(), playlist) : countdown ? Ui.tr("Mudando de canal em ", "Switching in ") + Math.max(0, (left + 999) / 1000) + " s"
                     : left > 30_000 ? Ui.tr("Começa às ", "Starts at ") + Ui.time(item.start) : Ui.tr("Começando agora", "Starting now");
             float tw = r.right - 32 * k - x;
             // In the accent (the profile's colour), as Glassio's Up next card has its line, the same over Home or anywhere.
             int was = small.getColor();
             small.setColor(LiveTheme.accent);
-            c.drawText(when.toUpperCase(Ui.locale()), x, r.top + 58 * k, small);
+            c.drawText(ellipsize(when.toUpperCase(Ui.locale()), small, tw), x, r.top + 58 * k, small);
             small.setColor(was);
             c.drawText(ellipsize(item.title.isEmpty() ? item.ch.name : item.title, title, tw), x, r.top + 106 * k, title);
             c.drawText(ellipsize((item.ch.num > 0 ? item.ch.num + "  " : "") + LiveCountry.named(getContext(), item.ch), meta, tw), x, r.top + 142 * k, meta);
             // Watch, then Dismiss.
-            float bw = 210 * k, bh = 60 * k, by = r.bottom - 32 * k - bh, bx = r.right - 32 * k - 2 * bw - 16 * k;
-            drawButton(c, bx, by, bw, bh, countdown ? Ui.tr("Assistir já", "Watch now") : Ui.tr("Assistir", "Watch"), focusWatch);
-            drawButton(c, bx + bw + 16 * k, by, bw, bh, Ui.tr("Dispensar", "Dismiss"), !focusWatch);
+            float bh = 60 * k, by = r.bottom - 32 * k - bh, bx = r.right - 32 * k - buttonsWidth();
+            int[] all = buttons();
+            for (int i = 0; i < all.length; i++) {
+                String t = buttonName(all[i]);
+                float bw = buttonWidth(t);
+                drawButton(c, bx, by, bw, bh, t, i == Math.min(focus, all.length - 1));
+                bx += bw + 16 * k;
+            }
             if (moving) postInvalidateOnAnimation();
             else if (countdown) postInvalidateDelayed(250);      // the seconds
+        }
+
+        private float buttonWidth(String t) {
+            return Math.max(190 * k, button.measureText(t) + 60 * k);
+        }
+
+        private float buttonsWidth() {
+            float w = 0;
+            for (int b : buttons()) w += buttonWidth(buttonName(b)) + 16 * k;
+            return w - 16 * k;
         }
 
         private void drawButton(Canvas c, float x, float y, float w, float h, String text, boolean on) {

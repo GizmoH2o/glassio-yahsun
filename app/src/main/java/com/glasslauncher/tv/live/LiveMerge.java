@@ -314,6 +314,9 @@ final class LiveMerge {
         lead.key = Xtream.fold(lead.name);
         lead.archive = anchor.archive;
         lead.category = members.get(0).category;
+        lead.url = anchor.url;
+        lead.catchupMode = anchor.catchupMode;
+        lead.catchupSource = anchor.catchupSource;
         lead.logo = anchor.logo;
         for (Xtream.Channel s : src) if (lead.logo == null || lead.logo.isEmpty()) lead.logo = s.logo;
         lead.epg = anchor.epg;
@@ -332,11 +335,6 @@ final class LiveMerge {
     }
 
     /** A source's tier: from its picture once it played (many providers don't tag the names), else from its name. */
-    /** The tier of `s` (SD, HD, FHD, UHD; 0 unknown): as it played last, else as its name says. */
-    static int tierOf(Context c, Xtream.Channel s) {
-        seen(c);
-        return tier(s);
-    }
 
     static int tier(Xtream.Channel s) {
         int seen = seen(s.id);

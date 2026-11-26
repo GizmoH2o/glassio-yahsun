@@ -99,7 +99,7 @@ final class LiveScores {
 
     /** On screen: scores kept up to date (once a minute) while `l` listens. */
     void watch(Listener l) {
-        listeners.add(l);
+        if (!listeners.contains(l)) listeners.add(l);
         if (running) return;
         running = true;
         main.post(tick);

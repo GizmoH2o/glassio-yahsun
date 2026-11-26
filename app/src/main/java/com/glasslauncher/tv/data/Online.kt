@@ -38,6 +38,11 @@ object Online {
         }
     }
 
+    /** [onChange] isn't told any more (its screen closed). */
+    @JvmStatic
+    @Synchronized
+    fun unwatch(onChange: ((Boolean) -> Unit)?) { if (onChange != null) listeners.remove(onChange) }
+
     private fun set(v: Boolean) = main.post {
         if (up.value == v) return@post
         up.value = v

@@ -41,7 +41,7 @@ class SleepReceiver : BroadcastReceiver() {
         val done = goAsync()
         Thread({
             try {
-                LocalShell.run(app, "input keyevent KEYCODE_SLEEP").onFailure { Glog.w("Sleep timer", it) }
+                if (!com.glasslauncher.tv.live.RecordOff.instead(app)) LocalShell.run(app, "input keyevent KEYCODE_SLEEP").onFailure { Glog.w("Sleep timer", it) }
             } finally { done.finish() }
         }, "home-sleep").start()
     }

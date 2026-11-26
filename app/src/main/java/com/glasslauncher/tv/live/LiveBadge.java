@@ -80,11 +80,19 @@ final class LiveBadge {
         return Math.max(text.getTextSize() * 0.9f, 20 * k);
     }
 
+    /** In the design's own colors (its focus and the ink on it), not the set's (Settings: Badges in the look's colour). */
+    static volatile boolean inLook = true;
+
     private static void paint(Canvas c, String t, float tw, float alpha, float k) {
         int bg = "4K".equals(t) || "2K".equals(t) ? 0xFFE8B84A : "FHD".equals(t) ? 0xFFF5F5F7 : DARK;
+        int ink = bg == DARK ? 0xFFF5F5F7 : 0xFF1C1C1E;
+        if (inLook && bg != DARK) {     // HD and SD stay dark: the best ones stand out in the design's color
+            bg = LiveTheme.tile | 0xFF000000;
+            ink = LiveTheme.ink;
+        }
         FILL.setColor(Ui.alpha(bg, alpha));
         c.drawRoundRect(BOX, 5 * k, 5 * k, FILL);
-        TEXT.setColor(Ui.alpha(bg == DARK ? 0xFFF5F5F7 : 0xFF1C1C1E, alpha));
+        TEXT.setColor(Ui.alpha(ink, alpha));
         c.drawText(t, BOX.centerX() - tw / 2, BOX.centerY() + Ui.halfCap(TEXT), TEXT);
     }
 }

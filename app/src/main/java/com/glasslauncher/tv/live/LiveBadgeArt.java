@@ -223,8 +223,19 @@ final class LiveBadgeArt {
      * `words` on a tag like the set's (a white mono badge: its tag colors, bold lettering), `h` tall with its middle at
      * `mid`, from x: what the set has no picture for (the frame rate), or a picture not here yet. Returns its right edge.
      */
+    /** `a`, or in the design's colors (LiveBadge.inLook): its focus filled, the ink on it. */
+    static Art inLook(Art a) {
+        if (!LiveBadge.inLook || a == null) return a;
+        int tile = LiveTheme.tile | 0xFF000000;
+        Art had = looked;
+        if (had != null && had.url.equals(a.url) && had.tag == tile && had.ink == LiveTheme.ink) return had;
+        return looked = new Art(a.url, tile, tile, LiveTheme.ink, true);
+    }
+
+    private static volatile Art looked;
+
     static float wordsTag(Context c, Canvas canvas, String words, float x, float mid, float h, float k) {
-        Art a = wordsLook(c);
+        Art a = inLook(wordsLook(c));
         Paint p = Pens.WORDS;
         p.setTextSize(h * 0.5f);
         RectF box = Pens.BOX;
@@ -258,6 +269,7 @@ final class LiveBadgeArt {
         Art a = art(c, t.id, loaded);
         Bitmap b = a == null ? null : LiveLogos.get(c, a.url, loaded);
         if (b == null || b.getHeight() <= 0) return -1;
+        a = inLook(a);
         Paint FILL = Pens.FILL, RIM = Pens.RIM, PIC = Pens.PIC;
         RectF BOX = Pens.BOX, DST = Pens.DST;
         float glyphH = h * 0.62f, glyphW = glyphH * b.getWidth() / b.getHeight(), pad = h * 0.32f;

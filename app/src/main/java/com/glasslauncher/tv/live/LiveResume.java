@@ -18,6 +18,12 @@ final class LiveResume {
     private static final long MIN_MS = 60_000;
     private static final float DONE = 0.95f;
 
+    /** Its place while it plays: in Live TV's own list only (Watch Next gets it when it's left). Background thread. */
+    static void playing(Context c, Xtream.Channel ch, Xtream.Program p, long position, long length) {
+        long total = length > 0 ? length : p.end - p.start;
+        if (position >= MIN_MS && (total <= 0 || position < total * DONE)) keep(c, ch, p, position, total);
+    }
+
     /** Where the program got to: kept in Continue Watching, or taken out (finished or barely started). */
     static void left(Context c, Xtream.Channel ch, Xtream.Program p, long position, long length) {
         if (ch == null || p == null) return;
@@ -66,7 +72,10 @@ final class LiveResume {
         synchronized (LiveResume.class) {
             org.json.JSONObject rows = rows(c);
             long row = rows.optLong(id(ch, p), -1);
-            if (row < 0) return;
+            if (row < 0) {      // kept as it played, never left partway
+                forget(c, ch, p);
+                return;
+            }
             try {
                 c.getContentResolver().delete(TvContract.buildWatchNextProgramUri(row), null, null);
             } catch (RuntimeException ignored) {
@@ -165,10 +174,15 @@ final class LiveResume {
     }
 
     private static void saveList(Context c, org.json.JSONArray a) {
-        try (java.io.FileOutputStream out = new java.io.FileOutputStream(new java.io.File(c.getFilesDir(), "live-resume.json"))) {
+        // Beside it, then in its place: cut off halfway it would be no list at all.
+        java.io.File f = new java.io.File(c.getFilesDir(), "live-resume.json"), next = new java.io.File(c.getFilesDir(), "live-resume.json.tmp");
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(next)) {
             out.write(a.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        } catch (java.io.IOException ignored) {
+            out.getFD().sync();
+        } catch (java.io.IOException e) {
+            return;
         }
+        if (!next.renameTo(f)) AppLog.w("live: couldn't keep where the past shows were left");
     }
 
     /** Which Watch Next row is which program's (a small file: these come and go). */

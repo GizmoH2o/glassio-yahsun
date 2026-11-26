@@ -63,12 +63,21 @@ final class LiveTimeshift {
         app = c.getApplicationContext();
         this.channel = channel;
         this.maxMs = maxMs;
-        dir = new File(app.getCacheDir(), "timeshift");
-        clear(dir);
+        // A folder of its own: the one before it is still being cleared (and may write one last time) as this one starts.
+        File all = new File(app.getCacheDir(), "timeshift");
+        synchronized (ALIVE) {
+            dir = new File(all, String.valueOf(System.nanoTime()));
+            ALIVE.add(dir);
+            File[] old = all.listFiles();
+            if (old != null) for (File f : old) if (!ALIVE.contains(f)) clear(f);
+        }
         dir.mkdirs();
         thread = new Thread(this::fill, "timeshift");
         thread.start();
     }
+
+    /** The folders in use in this process: anything else there was left behind. */
+    private static final java.util.Set<File> ALIVE = new java.util.HashSet<>();
 
     /** The stream into the pieces until stopped; a dropped connection is picked up again (a short gap). */
     private void fill() {
@@ -113,6 +122,7 @@ final class LiveTimeshift {
                             }
                         }
                     }
+                    if (!done) throw new IOException("the stream ended");      // opened again, after a moment
                 } catch (IOException e) {
                     if (done) break;
                     tries++;
@@ -145,8 +155,8 @@ final class LiveTimeshift {
         if (dir.getUsableSpace() < MIN_FREE) keepFrom = Math.max(keepFrom, written - 4 * CHUNK);
         long firstPiece = first / CHUNK, keepPiece = keepFrom / CHUNK;
         if (keepPiece <= firstPiece) return;
+        first = keepPiece * CHUNK;      // first: what reads them moves on before they go
         for (long i = firstPiece; i < keepPiece; i++) piece(i).delete();
-        first = keepPiece * CHUNK;
         synchronized (marks) {
             while (marks.size() > 1 && marks.get(1)[1] <= first) marks.remove(0);
         }
@@ -166,12 +176,16 @@ final class LiveTimeshift {
             } catch (InterruptedException ignored) {
             }
             clear(dir);
+            synchronized (ALIVE) {
+                ALIVE.remove(dir);
+            }
         }, "timeshift-clear").start();
     }
 
     private static void clear(File dir) {
         File[] files = dir.listFiles();
         if (files != null) for (File f : files) f.delete();
+        dir.delete();
     }
 
     /** Why it stopped filling (null: it's fine). */
@@ -333,7 +347,14 @@ final class LiveTimeshift {
                     long index = pos / CHUNK, within = pos % CHUNK;
                     if (index != inIndex) {
                         if (in != null) in.close();
-                        in = new RandomAccessFile(piece(index), "r");
+                        try {
+                            in = new RandomAccessFile(piece(index), "r");
+                        } catch (java.io.FileNotFoundException e) {
+                            in = null;
+                            inIndex = -1;
+                            if (pos < first) continue;      // it went just now: on from the oldest kept
+                            throw e;
+                        }
                         inIndex = index;
                     }
                     int n = (int) Math.min(length, Math.min(have, CHUNK - within));

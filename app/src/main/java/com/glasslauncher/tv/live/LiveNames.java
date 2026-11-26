@@ -82,7 +82,7 @@ final class LiveNames {
             // Portugal, the Netherlands
             "fc porto|porto~",
             "sl benfica|benfica",
-            "sporting cp|sporting lisbon|sporting clube de portugal"
+            "sporting cp|sporting lisbon|sporting lisbona|sporting lissabon|sporting clube de portugal"
                     + "|sporting~sporting kansas city,sporting kc,sporting gijon,sporting cristal,sporting charleroi",
             "afc ajax|ajax",
             "psv eindhoven|psv",
@@ -278,7 +278,7 @@ final class LiveNames {
     // MARK: - One team, whatever it's called
 
     /** The team a followed name is, by its main name, else null. A name other teams share is none. */
-    private static String known(String term) {
+    static String known(String term) {
         String main = NOT.containsKey(term) ? null : MAIN.get(term);
         if (main != null) return main;
         String bare = withoutClubWords(term);

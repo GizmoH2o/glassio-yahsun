@@ -150,6 +150,8 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
         tmdbChecking = false
     }
     var homeKeyOn by remember { mutableStateOf(isHomeKeyOn(ctx)) }
+    var replaceState by remember { mutableStateOf(com.glasslauncher.tv.HomeRescue.state(ctx)) }
+    var replaceBusy by remember { mutableStateOf("") }
     var adbAccess by remember { mutableStateOf<Boolean?>(if (app.cw.hasLogAccess()) true else null) }
     val catalogs by app.catalogs.catalogs.collectAsState()
     val selected by app.catalogs.selectedKeys.collectAsState()
@@ -1050,6 +1052,37 @@ fun SettingsScreen(app: GlassApp, initialCat: Int, onClose: () -> Unit) {
                         toast(ctx, if (BootReceiver.allowAutoStart(ctx)) "Glassio may start by itself on this TCL TV" else "Allow TV access (ADB) first: steps below")
                     }
                 }),
+                Act("Replace Google TV's home", replaceBusy.ifEmpty {
+                    when (replaceState.phase) {
+                        com.glasslauncher.tv.data.HomeReplace.Phase.OFF -> "Off: Google TV's home opens first and Glassio covers it. Needs TV access (ADB), below"
+                        com.glasslauncher.tv.data.HomeReplace.Phase.ON -> replaceState.attention.ifEmpty { "Glassio is this TV's home. Turn this off before uninstalling Glassio" }
+                        else -> replaceState.attention.ifEmpty { "Not finished: OK puts Google TV's home back" }
+                    }
+                }, if (replaceState.phase == com.glasslauncher.tv.data.HomeReplace.Phase.OFF) "Off" else if (replaceState.attention.isEmpty()) "On" else "Needs attention") {
+                    val rescue = com.glasslauncher.tv.HomeRescue
+                    fun go(busy: String, done: String, work: () -> String?) {
+                        if (replaceBusy.isNotEmpty()) return
+                        replaceBusy = busy
+                        scope.launch {
+                            val why = kotlinx.coroutines.withContext(Dispatchers.IO) { work() }
+                            replaceState = rescue.state(ctx)
+                            replaceBusy = ""
+                            toast(ctx, why ?: done)
+                        }
+                    }
+                    fun off() = go("Putting Google TV's home back…", "Google TV's home is back") { rescue.turnOff(ctx) }
+                    when {
+                        replaceState.phase == com.glasslauncher.tv.data.HomeReplace.Phase.OFF -> dialog = MenuDialog("Replace Google TV's home?", listOf(
+                            "Replace" to { go("Turning Google TV's home off…", "Glassio is this TV's home") { rescue.turnOn(ctx) } },
+                            "Cancel" to { }),
+                            sub = "The Home button will open Glassio directly. Google TV's home and its recovery screen are turned off, not removed. Google TV's home screen and its Google Home panel won't be available.")
+                        replaceState.phase == com.glasslauncher.tv.data.HomeReplace.Phase.ON && replaceState.attention.isNotEmpty() ->
+                            dialog = MenuDialog("Replace Google TV's home", listOf(
+                                "Fix" to { go("Checking…", "Checked") { rescue.verify(ctx); rescue.state(ctx).attention.ifEmpty { null } } },
+                                "Put Google TV's home back" to { off() }), sub = replaceState.attention)
+                        else -> off()
+                    }
+                },
                 Toggle("Home button opens Glassio", "Needs the accessibility service below", { st.interceptHome }, { st.interceptHome = it }),
                 Toggle("Back from standby: Glassio", "After a long standby Google TV shows its own home screen: Glassio replaces it. Needs \"Home button opens Glassio\"",
                     { st.bootStart }, { st.bootStart = it }),

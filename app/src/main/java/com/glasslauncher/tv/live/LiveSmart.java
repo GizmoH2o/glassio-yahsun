@@ -140,8 +140,9 @@ final class LiveSmart {
             List<Xtream.Channel> own = new ArrayList<>(Xtream.favorites(c));
             own.addAll(Xtream.recent(c));
             List<String> read = new ArrayList<>();
+            java.util.Set<Integer> hide = LiveHide.away(c);
             for (Xtream.Channel ch : own) {
-                if (read.size() >= NEW_CHANNELS || ch.epg == null || ch.epg.isEmpty() || read.contains(ch.epg) || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
+                if (read.size() >= NEW_CHANNELS || ch.epg == null || ch.epg.isEmpty() || read.contains(ch.epg) || hide.contains(ch.id) || LiveOptions.isLockedAnyProcess(c, ch.category)) continue;
                 read.add(ch.epg);
                 List<Xtream.Program> list = XmltvStore.programs(c, ch.epg, now, now + AHEAD);
                 if (list != null) for (Xtream.Program p : list) if (p.fresh) add(found, p, ch);
@@ -162,6 +163,7 @@ final class LiveSmart {
                     p.icon = f.icon == null ? "" : f.icon;
                     p.about = f.about == null ? "" : f.about;
                     Xtream.mark(p);
+                    LiveTags.apply(c, p, f.tags);
                     add(found, p, ch);
                 }
             }

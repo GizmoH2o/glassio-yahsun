@@ -111,7 +111,7 @@ public final class LivePhone {
             if (!l.categories.isEmpty()) for (Xtream.Channel ch : l.categories.get(0).channels) if (seen.add(ch.id)) pick.add(ch);
             for (Xtream.Channel r : Xtream.recent(c)) {
                 Xtream.Channel ch = l.find(r.id);
-                if (ch != null && seen.add(ch.id)) pick.add(ch);
+                if (ch != null && !l.away.contains(ch.id) && seen.add(ch.id)) pick.add(ch);
             }
         } else {
             for (Xtream.Channel ch : l.all()) {
@@ -303,7 +303,9 @@ public final class LivePhone {
         it.about = LiveNames.about(c, it.title, "");
         if (record && start <= now) {
             if (LiveRecordings.recording(c, ch.id, start)) return "Already recording";
-            RecordService.start(c, it);
+            String full = LiveStreams.refusal(c);
+            if (full != null) return full;
+            RecordService.start(c, it, true);
             return "Recording until " + Ui.time(end);
         }
         if (LiveSchedule.has(c, kind, ch.id, start)) return record ? "Already recording it" : "Already reminding you";

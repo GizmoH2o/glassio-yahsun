@@ -177,6 +177,7 @@ final class LiveSearch extends LiveDialog {
                         p.end = f.end;
                         p.icon = f.icon == null ? "" : f.icon;
                         Xtream.mark(p);
+                        LiveTags.apply(app, p, f.tags);
                         for (Xtream.Channel ch : chs) addShow(ch, p, seen, at);
                     }
                 }
@@ -203,6 +204,7 @@ final class LiveSearch extends LiveDialog {
                 continue;
             }
             Xtream.Channel ch = lineup.find(id);
+            if (ch != null && lineup.away.contains(ch.id)) continue;
             Xtream.SavedGuide g = ch == null ? null : Xtream.savedGuide(c, id);
             if (g == null) continue;
             int found = 0;

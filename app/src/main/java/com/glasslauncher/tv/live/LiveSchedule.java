@@ -36,6 +36,12 @@ final class LiveSchedule {
         String title = "", about = "";
         /** The series rule that put it in (LiveSeries.Rule.key), or null. */
         String series;
+        /** Its own minutes before (-1: as in the settings), switching by itself, put off till (0: not), when it was before the guide moved it. */
+        int lead = -1;
+        boolean auto;
+        long at, was;
+        /** Its channel was chosen by hand. */
+        boolean mine;
 
         String key() {
             return kind + ":" + ch.id + ":" + start;
@@ -50,12 +56,17 @@ final class LiveSchedule {
             it.title = title;
             it.about = about;
             it.series = series;
+            it.lead = lead;
+            it.auto = auto;
+            it.was = was;
+            it.mine = mine;
             return it;
         }
 
         JSONObject json() throws JSONException {
             return new JSONObject().put("kind", kind).put("ch", Xtream.json(ch)).put("start", start).put("end", end)
-                    .put("title", title).put("about", about).put("series", series == null ? "" : series);
+                    .put("title", title).put("about", about).put("series", series == null ? "" : series)
+                    .put("lead", lead).put("auto", auto).put("at", at).put("was", was).put("mine", mine);
         }
 
         static Item of(JSONObject o) {
@@ -70,6 +81,11 @@ final class LiveSchedule {
             it.about = o.optString("about");
             String s = o.optString("series");
             it.series = s.isEmpty() ? null : s;
+            it.lead = o.optInt("lead", -1);
+            it.auto = o.optBoolean("auto");
+            it.mine = o.optBoolean("mine");
+            it.at = o.optLong("at");
+            it.was = o.optLong("was");
             return it;
         }
     }
@@ -95,8 +111,12 @@ final class LiveSchedule {
     }
 
     static synchronized List<Item> all(Context c) {
+        return in(file(c));
+    }
+
+    /** What's set in the file `f` (a playlist's put aside too). */
+    static List<Item> in(File f) {
         List<Item> out = new ArrayList<>();
-        File f = file(c);
         if (!f.exists()) return out;
         long now = System.currentTimeMillis();
         try (FileInputStream in = new FileInputStream(f)) {
@@ -104,7 +124,7 @@ final class LiveSchedule {
             for (int i = 0; i < a.length(); i++) {
                 JSONObject o = a.optJSONObject(i);
                 Item it = o == null ? null : Item.of(o);
-                if (it != null && it.start > now - 5 * 60_000L) out.add(it);
+                if (it != null && (it.start > now - 5 * 60_000L || it.at > now - 60_000L && it.end > now)) out.add(it);
             }
         } catch (IOException | JSONException e) {
             AppLog.w("live: schedule unreadable");
@@ -132,16 +152,25 @@ final class LiveSchedule {
     }
 
     /** Sets `it` (and its alarm). */
-    static synchronized void add(Context c, Item it) {
+    static void add(Context c, Item it) {
+        LiveLock.run(c, () -> addNow(c, it));
+    }
+
+    private static synchronized void addNow(Context c, Item it) {
         List<Item> list = all(c);
         for (int i = list.size() - 1; i >= 0; i--) if (list.get(i).key().equals(it.key())) list.remove(i);
+        if (it.series != null) asBefore(it, MOVED.remove(it.series + "|" + Xtream.fold(it.title)));      // the guide moved it: as it was set
         list.add(it);
         save(c, list);
         arm(c, it);
     }
 
     /** Takes it out (and its alarm); a reminder, with its switch. */
-    static synchronized void remove(Context c, String key) {
+    static void remove(Context c, String key) {
+        LiveLock.run(c, () -> removeNow(c, key));
+    }
+
+    private static synchronized void removeNow(Context c, String key) {
         List<Item> list = all(c);
         String alsoSwitch = key.startsWith(REMIND + ":") ? SWITCH + key.substring(REMIND.length()) : null;
         for (int i = list.size() - 1; i >= 0; i--) {
@@ -154,8 +183,48 @@ final class LiveSchedule {
         save(c, list);
     }
 
+    /** Whether a show set for `start` isn't there any more in a guide that has another show over that moment: it moved. Pure. */
+    static boolean moved(List<Xtream.Program> guide, long start) {
+        boolean over = false;
+        for (Xtream.Program p : guide) {
+            if (p.start == start) return false;
+            if (p.start < start && p.end > start) over = true;
+        }
+        return over;
+    }
+
+    /** What the guide moved, till its new time is set (the same show of the same rule). */
+    private static final java.util.Map<String, Item> MOVED = new java.util.concurrent.ConcurrentHashMap<>();
+    /** The show moved, not another of its airings: that near. */
+    private static final long MOVES_MS = 6 * 3600_000L;
+
+    /** `it` as it was set before the guide moved it from `before`, when that's what it is. Pure. */
+    static void asBefore(Item it, Item before) {
+        if (before == null || before.start == it.start || Math.abs(before.start - it.start) > MOVES_MS || before.ch.id != it.ch.id) return;
+        it.was = before.was > 0 ? before.was : before.start;
+        if (it.lead < 0) it.lead = before.lead;
+        it.auto |= before.auto;
+        it.mine |= before.mine;
+    }
+
+    /** What the rule `series` had set on channel `ch` that the guide has moved since: out (its new time is set again). */
+    static void dropMoved(Context c, int ch, String series, List<Xtream.Program> guide) {
+        long soon = System.currentTimeMillis() + 2 * 60_000L;
+        for (java.util.Iterator<String> i = MOVED.keySet().iterator(); i.hasNext(); ) if (i.next().startsWith(series + "|")) i.remove();     // an earlier one's
+        for (Item it : all(c)) {
+            if (it.ch.id != ch || !series.equals(it.series) || it.start < soon || !moved(guide, it.start)) continue;
+            AppLog.w("live: the guide moved what was set for " + it.start);
+            MOVED.put(it.series + "|" + Xtream.fold(it.title), it);
+            remove(c, it.key());
+        }
+    }
+
     /** Cancelled by hand: out, and a series' rule leaves that airing out from now on. */
-    static synchronized void cancel(Context c, String key) {
+    static void cancel(Context c, String key) {
+        LiveLock.run(c, () -> cancelNow(c, key));
+    }
+
+    private static synchronized void cancelNow(Context c, String key) {
         String alsoSwitch = key.startsWith(REMIND + ":") ? SWITCH + key.substring(REMIND.length()) : null;
         for (Item it : all(c)) {
             if (it.key().equals(key) || it.key().equals(alsoSwitch)) {
@@ -180,8 +249,22 @@ final class LiveSchedule {
     }
 
     /** After a restart the alarms are gone: set again (and what was missed while the TV was off, told). */
-    static synchronized void armAll(Context c) {
-        sweepMissed(c);
+    static void armAll(Context c) {
+        armAll(c, Ui.tr("a TV estava desligada", "the TV was off"));
+    }
+
+    /** `why`: what was missed meanwhile was missed for this. */
+    static void armAll(Context c, String why) {
+        armAll(c, why, null);
+    }
+
+    /** `playlist`: the one coming into use (null: the one that is). */
+    static void armAll(Context c, String why, String playlist) {
+        LiveLock.run(c, () -> armAllNow(c, why, playlist));
+    }
+
+    private static synchronized void armAllNow(Context c, String why, String playlist) {
+        sweepMissed(c, why, playlist);
         for (Item it : all(c)) arm(c, it);
     }
 
@@ -189,7 +272,7 @@ final class LiveSchedule {
      * Recordings that never started (their alarm never came: the TV was unplugged): each a missed recording on the
      * Recordings page and a notice; then everything over leaves the file.
      */
-    private static void sweepMissed(Context c) {
+    private static void sweepMissed(Context c, String why, String playlist) {
         File f = file(c);
         if (!f.exists()) return;
         long now = System.currentTimeMillis();
@@ -201,25 +284,16 @@ final class LiveSchedule {
                 JSONObject o = a.optJSONObject(i);
                 Item it = o == null ? null : Item.of(o);
                 if (it == null) continue;
-                if (it.start > now - 5 * 60_000L) {
+                boolean over = it.end > 0 && it.end <= now;
+                if (!over && (it.start > now - 5 * 60_000L || it.at > now)) {       // (put off: till then)
                     keep.add(it);
                     continue;
                 }
                 dropped = true;
                 if (!it.kind.equals(RECORD) || it.end < now - 24 * 3600_000L) continue;     // a day old: not worth a word
                 if (LiveRecordings.find(c, LiveRecordings.idOf(it.ch.id, it.start)) != null) continue;
-                LiveRecordings.Rec r = new LiveRecordings.Rec();
-                r.id = LiveRecordings.idOf(it.ch.id, it.start);
-                r.ch = it.ch;
-                r.title = it.title;
-                r.about = it.about;
-                r.start = it.start;
-                r.end = it.end;
-                r.file = "";
-                r.state = LiveRecordings.FAILED;
-                r.why = Ui.tr("a TV estava desligada", "the TV was off");
-                LiveRecordings.put(c, r);
-                LiveRecordings.tell(c, r, Ui.tr("Gravação perdida", "Recording missed"));
+                if (it.end > now + 60_000L && RecordService.start(c, it)) continue;      // still on: the rest of it
+                LiveRecordings.missed(c, it, why, playlist);
             }
         } catch (IOException | JSONException e) {
             return;
@@ -233,9 +307,9 @@ final class LiveSchedule {
         long now = System.currentTimeMillis();
         // A reminder the minutes picked before (at least half a minute: Watch then catches the start); a recording
         // half a minute early (the stream takes a moment to start), plus the minutes picked (Start recordings).
-        long early = it.kind.equals(REMIND) ? Math.max(30_000L, LiveOptions.remindLead(c) * 60_000L)
+        long early = it.kind.equals(REMIND) ? Math.max(30_000L, (it.lead >= 0 ? it.lead : LiveOptions.remindLead(c)) * 60_000L)
                 : it.kind.equals(SWITCH) ? ReminderActivity.COUNTDOWN_MS : 30_000 + LiveOptions.recordEarly(c) * 60_000L;
-        long at = Math.max(now + 1000, it.start - early);
+        long at = it.at > now ? it.at : Math.max(now + 1000, it.start - early);
         PendingIntent pi = pending(c, it);
         try {
             if (Build.VERSION.SDK_INT >= 31 && !am.canScheduleExactAlarms()) am.setWindow(AlarmManager.RTC_WAKEUP, at, 30_000, pi);
@@ -274,7 +348,11 @@ final class LiveSchedule {
      * A followed show whose reminder has gone off (it's out of the schedule then), kept till it ends: the match on now,
      * for the home screen's ticker, the screensaver and the kick-off alert, which read the schedule.
      */
-    static synchronized void started(Context c, Item it) {
+    static void started(Context c, Item it) {
+        LiveLock.run(c, () -> startedNow(c, it));
+    }
+
+    private static synchronized void startedNow(Context c, Item it) {
         if (it == null || it.ch == null || it.series == null || !it.series.startsWith(LiveFollow.SERIES)) return;
         List<Item> list = onNow(c);
         for (int i = list.size() - 1; i >= 0; i--) {
