@@ -90,10 +90,7 @@ final class LiveTimeshift {
             while (!done && tries < 20) {
                 HttpURLConnection conn = null;
                 try {
-                    conn = (HttpURLConnection) new URL(Xtream.resolve(app, Xtream.streamUrl(app, channel, "ts"))).openConnection();
-                    conn.setConnectTimeout(10_000);
-                    conn.setReadTimeout(20_000);
-                    conn.setRequestProperty("User-Agent", Live.USER_AGENT);
+                    conn = open(Xtream.resolve(app, Xtream.streamUrl(app, channel, "ts")));
                     int code = conn.getResponseCode();
                     if (code != 200) throw new IOException("HTTP " + code);
                     try (InputStream in = conn.getInputStream()) {
@@ -141,6 +138,25 @@ final class LiveTimeshift {
                 out.close();
             } catch (IOException ignored) {
             }
+        }
+    }
+
+    /**
+     * The stream's connection, following where the provider sends it on: many send each stream to another server (a
+     * 302, often from http to https), which Java's own connection doesn't follow across, so it never started.
+     */
+    private static HttpURLConnection open(String url) throws IOException {
+        for (int hop = 0; ; hop++) {
+            HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+            c.setInstanceFollowRedirects(false);
+            c.setConnectTimeout(10_000);
+            c.setReadTimeout(20_000);
+            c.setRequestProperty("User-Agent", Live.USER_AGENT);
+            int code = c.getResponseCode();
+            String to = code >= 300 && code < 400 ? c.getHeaderField("Location") : null;
+            if (to == null || hop >= 5) return c;
+            c.disconnect();
+            url = new URL(new URL(url), to).toString();
         }
     }
 

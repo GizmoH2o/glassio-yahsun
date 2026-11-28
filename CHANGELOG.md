@@ -2,6 +2,12 @@
 
 What changed in each Glassio Yahsun release, newest first. `tools/release.sh` publishes a build with its section here as the release notes (the in-app update banner shows them), and it stops if the version has no section: every release gets one.
 
+## 3.10.1 — 2026-11-28
+
+**Fixes**
+- **Channels that took about 18 seconds to start** now start in about 3. With Rewind any channel on, a channel your provider sends on to another address (a redirect) never started through the TV's buffer: it tried for 15 seconds, then played without rewind. The buffer now follows the provider's redirects.
+- Live TV's log now notes how long each channel took to show its picture, so a slow one can be spotted.
+
 ## 3.10.0 — 2026-11-26
 
 Live TV's player, redesigned twice over, a Live TV that stops less, and recordings, reminders and playlists you can rely on.

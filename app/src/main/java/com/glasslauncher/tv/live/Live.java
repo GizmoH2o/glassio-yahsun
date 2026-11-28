@@ -101,6 +101,8 @@ public class Live extends Activity {
     /** When Rewind any channel's buffer last ran dry at live (uptime ms; 0: not lately). */
     private final List<Long> rollingStalls = new java.util.ArrayList<>();
     private static final int STALLS = 4;
+    /** When the channel playing was asked for (uptime), till its first picture. */
+    private long tuneAt;
     private static final long STALLS_WITHIN_MS = 2 * 60_000L;
     private androidx.media3.extractor.DefaultExtractorsFactory extractors;
     /**
@@ -293,6 +295,11 @@ public class Live extends Activity {
         }
 
         @Override public void onRenderedFirstFrame() {
+            if (tuneAt > 0 && playing != null) {     // how long a channel took to show, for the log
+                AppLog.w("live: " + playing.name + ": picture after " + (android.os.SystemClock.uptimeMillis() - tuneAt) + " ms"
+                        + (rolling ? " (through the TV's buffer)" : catchup != null ? " (catch-up)" : " (direct)"));
+                tuneAt = 0;
+            }
             view.tuned();   // the picture is there: it fades in from black
             measuredFps = 0;        // another stream: its rate counted again
             fpsFrames = -1;
@@ -1533,6 +1540,7 @@ public class Live extends Activity {
         if (playing == null || playing.id != ch.id) chosenSource = LiveMerge.preferred(this, ch);     // the version picked last time
         if (playing == null || playing.id != ch.id) rollingFailed = false;     // another channel: through the buffer again
         playing = ch;
+        tuneAt = android.os.SystemClock.uptimeMillis();
         sayWatching(ch);
         catchup = null;
         recordingFile = null;
